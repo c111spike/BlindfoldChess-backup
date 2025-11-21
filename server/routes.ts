@@ -316,143 +316,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const opponent = await storage.findMatch(userId, queueType);
+      const timeMap: Record<string, number> = {
+        'otb_bullet': 1,
+        'otb_blitz': 5,
+        'otb_rapid': 15,
+        'otb_classical': 30,
+        'standard_bullet': 1,
+        'standard_blitz': 5,
+        'standard_rapid': 15,
+        'standard_classical': 30,
+        'simul_2': 0.5,
+        'simul_3': 0.5,
+        'simul_4': 0.5,
+        'simul_5': 0.5,
+        'simul_6': 0.5,
+        'simul_7': 0.5,
+        'simul_8': 0.5,
+        'simul_9': 0.5,
+        'simul_10': 0.5,
+        'blindfold': 5,
+      };
 
-      if (opponent) {
-        await storage.leaveQueue(userId, queueType);
-        await storage.leaveQueue(opponent.userId, queueType);
+      const timeControl = timeMap[queueType] || 5;
+      const isSimul = queueType.startsWith('simul_');
+      const boardCount = isSimul ? parseInt(queueType.split('_')[1]) : 1;
 
-        const player1Color = Math.random() > 0.5 ? "white" : "black";
-        const player2Color = player1Color === "white" ? "black" : "white";
-        
-        const timeMap: Record<string, number> = {
-          'otb_bullet': 1,
-          'otb_blitz': 5,
-          'otb_rapid': 15,
-          'otb_classical': 30,
-          'standard_bullet': 1,
-          'standard_blitz': 5,
-          'standard_rapid': 15,
-          'standard_classical': 30,
-          'simul_2': 0.5,
-          'simul_3': 0.5,
-          'simul_4': 0.5,
-          'simul_5': 0.5,
-          'simul_6': 0.5,
-          'simul_7': 0.5,
-          'simul_8': 0.5,
-          'simul_9': 0.5,
-          'simul_10': 0.5,
-          'blindfold': 5,
-        };
+      const player1Color = Math.random() > 0.5 ? "white" : "black";
+      const player2Color = player1Color === "white" ? "black" : "white";
 
-        const timeControl = timeMap[queueType] || 5;
-        const isSimul = queueType.startsWith('simul_');
-        const boardCount = isSimul ? parseInt(queueType.split('_')[1]) : 1;
-        const allGameIds: string[] = [];
+      const player1GameTemplates: Partial<InsertGame>[] = [];
+      const player2GameTemplates: Partial<InsertGame>[] = [];
 
-        if (isSimul && boardCount >= 2 && boardCount <= 10) {
-          const player1Games = [];
-          const player2Games = [];
-          
-          for (let i = 0; i < boardCount; i++) {
-            const p1Game = await storage.createGame({
-              userId,
-              mode: queueType,
-              playerColor: player1Color,
-              timeControl,
-              increment: 0,
-              fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-              moves: [],
-              whiteTime: 30,
-              blackTime: 30,
-              opponentName: opponent.userId,
-              boardCount,
-            });
-            player1Games.push(p1Game);
-            allGameIds.push(p1Game.id);
-
-            const p2Game = await storage.createGame({
-              userId: opponent.userId,
-              mode: queueType,
-              playerColor: player2Color,
-              timeControl,
-              increment: 0,
-              fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-              moves: [],
-              whiteTime: 30,
-              blackTime: 30,
-              opponentName: userId,
-              boardCount,
-            });
-            player2Games.push(p2Game);
-            allGameIds.push(p2Game.id);
-          }
-
-          const match = await storage.createMatch({
-            player1Id: userId,
-            player2Id: opponent.userId,
-            matchType: queueType,
-            gameIds: allGameIds,
-            status: 'in_progress',
-          });
-
-          res.json({ 
-            matched: true, 
-            matchId: match.id,
-            games: player1Games,
-            boardCount,
-            opponentId: opponent.userId 
-          });
-        } else {
-          const p1Game = await storage.createGame({
-            userId,
+      if (isSimul && boardCount >= 2 && boardCount <= 10) {
+        for (let i = 0; i < boardCount; i++) {
+          player1GameTemplates.push({
             mode: queueType,
             playerColor: player1Color,
             timeControl,
             increment: 0,
             fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             moves: [],
-            whiteTime: timeControl * 60,
-            blackTime: timeControl * 60,
-            opponentName: opponent.userId,
+            whiteTime: 30,
+            blackTime: 30,
+            boardCount,
           });
-          allGameIds.push(p1Game.id);
 
-          const p2Game = await storage.createGame({
-            userId: opponent.userId,
+          player2GameTemplates.push({
             mode: queueType,
             playerColor: player2Color,
             timeControl,
             increment: 0,
             fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             moves: [],
-            whiteTime: timeControl * 60,
-            blackTime: timeControl * 60,
-            opponentName: userId,
-          });
-          allGameIds.push(p2Game.id);
-
-          const match = await storage.createMatch({
-            player1Id: userId,
-            player2Id: opponent.userId,
-            matchType: queueType,
-            gameIds: allGameIds,
-            status: 'in_progress',
-          });
-
-          res.json({ 
-            matched: true,
-            matchId: match.id, 
-            game: {
-              ...p1Game,
-              playerColor: p1Game.playerColor || "white"
-            }, 
-            opponentId: opponent.userId 
+            whiteTime: 30,
+            blackTime: 30,
+            boardCount,
           });
         }
       } else {
-        res.json({ matched: false });
+        player1GameTemplates.push({
+          mode: queueType,
+          playerColor: player1Color,
+          timeControl,
+          increment: 0,
+          fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          moves: [],
+          whiteTime: timeControl * 60,
+          blackTime: timeControl * 60,
+        });
+
+        player2GameTemplates.push({
+          mode: queueType,
+          playerColor: player2Color,
+          timeControl,
+          increment: 0,
+          fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          moves: [],
+          whiteTime: timeControl * 60,
+          blackTime: timeControl * 60,
+        });
+      }
+
+      const result = await storage.atomicMatchPairing(userId, queueType, {
+        matchType: queueType,
+        gameIds: [],
+        status: 'in_progress',
+      }, player1GameTemplates, player2GameTemplates);
+
+      if (!result) {
+        return res.json({ matched: false });
+      }
+
+      const { match, games } = result;
+      const userGames = games.filter(g => g.userId === userId);
+
+      if (isSimul) {
+        res.json({ 
+          matched: true, 
+          matchId: match.id,
+          games: userGames,
+          boardCount,
+          opponentId: match.player2Id 
+        });
+      } else {
+        res.json({ 
+          matched: true,
+          matchId: match.id, 
+          game: {
+            ...userGames[0],
+            playerColor: userGames[0].playerColor || "white"
+          }, 
+          opponentId: match.player2Id 
+        });
       }
     } catch (error) {
       console.error("Error finding match:", error);

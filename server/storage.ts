@@ -64,6 +64,7 @@ export interface IStorage {
   joinQueue(queueEntry: InsertMatchmakingQueue): Promise<MatchmakingQueue>;
   leaveQueue(userId: string, queueType: string): Promise<void>;
   findMatch(userId: string, queueType: string): Promise<MatchmakingQueue | undefined>;
+  atomicMatchPairing(userId: string, queueType: string, matchData: InsertMatch, player1GameTemplates: Partial<InsertGame>[], player2GameTemplates: Partial<InsertGame>[]): Promise<{ match: Match; games: Game[] } | null>;
   getUserQueueStatus(userId: string): Promise<MatchmakingQueue | undefined>;
   
   createMatch(match: InsertMatch): Promise<Match>;
@@ -304,6 +305,129 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     
     return opponent;
+  }
+
+  async atomicMatchPairing(
+    userId: string, 
+    queueType: string, 
+    matchData: InsertMatch,
+    player1GameTemplates: Partial<InsertGame>[],
+    player2GameTemplates: Partial<InsertGame>[]
+  ): Promise<{ match: Match; games: Game[] } | null> {
+    if (player1GameTemplates.length !== player2GameTemplates.length) {
+      throw new Error('Player game template counts must match');
+    }
+
+    return await db.transaction(async (tx) => {
+      const [myEntry] = await tx
+        .select()
+        .from(matchmakingQueues)
+        .where(and(
+          eq(matchmakingQueues.queueType, queueType),
+          eq(matchmakingQueues.userId, userId)
+        ))
+        .limit(1)
+        .for('update');
+
+      if (!myEntry) {
+        return null;
+      }
+
+      const [opponent] = await tx
+        .select()
+        .from(matchmakingQueues)
+        .where(and(
+          eq(matchmakingQueues.queueType, queueType),
+          ne(matchmakingQueues.userId, userId)
+        ))
+        .orderBy(matchmakingQueues.joinedAt)
+        .limit(1)
+        .for('update', { skipLocked: true });
+
+      if (!opponent) {
+        return null;
+      }
+
+      const queueCount = await tx
+        .select()
+        .from(matchmakingQueues)
+        .where(and(
+          eq(matchmakingQueues.queueType, queueType),
+          or(
+            eq(matchmakingQueues.userId, userId),
+            eq(matchmakingQueues.userId, opponent.userId)
+          )
+        ));
+
+      if (queueCount.length !== 2) {
+        throw new Error('Queue entry mismatch - expected 2 entries before pairing');
+      }
+
+      await tx
+        .delete(matchmakingQueues)
+        .where(and(
+          eq(matchmakingQueues.queueType, queueType),
+          or(
+            eq(matchmakingQueues.userId, userId),
+            eq(matchmakingQueues.userId, opponent.userId)
+          )
+        ));
+
+      const remainingEntries = await tx
+        .select()
+        .from(matchmakingQueues)
+        .where(and(
+          eq(matchmakingQueues.queueType, queueType),
+          or(
+            eq(matchmakingQueues.userId, userId),
+            eq(matchmakingQueues.userId, opponent.userId)
+          )
+        ));
+
+      if (remainingEntries.length !== 0) {
+        throw new Error('Failed to remove both queue entries atomically');
+      }
+
+      if (player1GameTemplates.length === 0) {
+        throw new Error('At least one game template required for each player');
+      }
+
+      const createdGames: Game[] = [];
+      
+      for (let i = 0; i < player1GameTemplates.length; i++) {
+        const [p1Game] = await tx
+          .insert(games)
+          .values({
+            ...player1GameTemplates[i],
+            userId,
+            opponentName: opponent.userId,
+          } as InsertGame)
+          .returning();
+        createdGames.push(p1Game);
+
+        const [p2Game] = await tx
+          .insert(games)
+          .values({
+            ...player2GameTemplates[i],
+            userId: opponent.userId,
+            opponentName: userId,
+          } as InsertGame)
+          .returning();
+        createdGames.push(p2Game);
+      }
+
+      const [match] = await tx
+        .insert(matches)
+        .values({
+          ...matchData,
+          player1Id: userId,
+          player2Id: opponent.userId,
+          gameIds: createdGames.map(g => g.id),
+        })
+        .returning();
+
+      return { match, games: createdGames };
+    });
   }
 
   async getUserQueueStatus(userId: string): Promise<MatchmakingQueue | undefined> {
