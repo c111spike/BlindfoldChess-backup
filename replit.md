@@ -38,7 +38,12 @@ Preferred communication style: Simple, everyday language.
 
 **Game State**: Games persist in the database with support for restoration. Ongoing games can be retrieved and continued. Time tracking uses client-side intervals with periodic server synchronization.
 
-**Real-time Communication**: WebSocket server for live game updates, move synchronization, and clock management across multiple simultaneous games.
+**Real-time Communication**: WebSocket server (`/ws` endpoint) provides real-time multiplayer synchronization for all three game modes. Architecture includes:
+- Match-based rooms: Each match has its own WebSocket room for isolated communication
+- Authentication flow: Users authenticate on connect, then join specific match rooms
+- Move broadcasting: Moves sent via WebSocket include gameId, move notation, FEN, whiteTime, blackTime, and increment
+- Opponent move handlers: All modes validate incoming moves and update local state with error recovery
+- Graceful degradation: Games continue in offline mode if WebSocket connection fails or matchId is unavailable
 
 ### Authentication & Authorization
 
@@ -62,6 +67,7 @@ Preferred communication style: Simple, everyday language.
 - `users`: Core user profiles with premium status, daily game counters, and reset timestamps
 - `ratings`: Separate rating records per user with OTB bullet/blitz/rapid and blindfold ratings (default 1200)
 - `games`: Individual game records with FEN positions, move history, time controls, and results
+- `matches`: Links two players with shared game records, tracks match type and status
 - `simulGames`: Tracks games within simultaneous exhibitions with opponent info and board states
 - `puzzles`: Chess puzzles with FEN, solutions, difficulty ratings, and themes
 - `puzzleAttempts`: User puzzle solve history and performance tracking

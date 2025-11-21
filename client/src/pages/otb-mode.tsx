@@ -234,38 +234,64 @@ export default function OTBMode() {
 
   useEffect(() => {
     if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
-      try {
-        apiRequest("GET", "/api/matches/active").then(async (response) => {
-          if (response.ok) {
-            const matchData = await response.json();
-            if (matchData && matchData.matchId) {
-              setMatchId(matchData.matchId);
-            }
+      const restoreGame = async () => {
+        try {
+          const matchResponse = await apiRequest("GET", "/api/matches/active");
+          
+          if (!matchResponse.ok) {
+            toast({
+              title: "Error",
+              description: "Cannot restore match. Please start a new game.",
+              variant: "destructive",
+            });
+            setRestoredGame(true);
+            return;
           }
-        });
-        
-        const chess = new Chess(ongoingGame.fen || undefined);
-        setGame(chess);
-        setGameId(ongoingGame.id);
-        setFen(ongoingGame.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-        setMoves(chess.history());
-        setWhiteTime(ongoingGame.whiteTime || 180);
-        setBlackTime(ongoingGame.blackTime || 180);
-        setGameStarted(true);
-        setActiveColor(chess.turn() === "w" ? "white" : "black");
-        setIncrement(ongoingGame.increment || 0);
-        const tc = ongoingGame.timeControl || 3;
-        const inc = ongoingGame.increment || 0;
-        setTimeControl(`${tc}+${inc}`);
-        setRestoredGame(true);
-        
-        toast({
-          title: "Game restored",
-          description: "Your ongoing game has been loaded",
-        });
-      } catch (error) {
-        console.error("Error restoring game:", error);
-      }
+          
+          const matchData = await matchResponse.json();
+          if (!matchData || !matchData.matchId) {
+            toast({
+              title: "Error",
+              description: "Cannot restore match. Please start a new game.",
+              variant: "destructive",
+            });
+            setRestoredGame(true);
+            return;
+          }
+          
+          setMatchId(matchData.matchId);
+          
+          const chess = new Chess(ongoingGame.fen || undefined);
+          setGame(chess);
+          setGameId(ongoingGame.id);
+          setFen(ongoingGame.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+          setMoves(chess.history());
+          setWhiteTime(ongoingGame.whiteTime || 180);
+          setBlackTime(ongoingGame.blackTime || 180);
+          setGameStarted(true);
+          setActiveColor(chess.turn() === "w" ? "white" : "black");
+          setIncrement(ongoingGame.increment || 0);
+          const tc = ongoingGame.timeControl || 3;
+          const inc = ongoingGame.increment || 0;
+          setTimeControl(`${tc}+${inc}`);
+          setRestoredGame(true);
+          
+          toast({
+            title: "Game restored",
+            description: "Your ongoing game has been loaded with live sync",
+          });
+        } catch (error) {
+          console.error("Error restoring game:", error);
+          toast({
+            title: "Error",
+            description: "Failed to restore game. Please refresh.",
+            variant: "destructive",
+          });
+          setRestoredGame(true);
+        }
+      };
+      
+      restoreGame();
     }
   }, [ongoingGame, restoredGame, gameStarted, toast]);
 
