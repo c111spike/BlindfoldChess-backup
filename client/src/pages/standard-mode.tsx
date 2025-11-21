@@ -202,43 +202,6 @@ export default function StandardMode() {
           setIncrement(data.game.increment || 0);
           setGameStarted(true);
           setInQueue(false);
-        } else {
-          const ongoingResponse = await apiRequest("GET", "/api/games/ongoing");
-          if (ongoingResponse.ok) {
-            const ongoingData = await ongoingResponse.json();
-            if (ongoingData && ongoingData.mode?.startsWith('standard_')) {
-              const matchResponse = await apiRequest("GET", "/api/matches/active");
-              if (matchResponse.ok) {
-                const matchData = await matchResponse.json();
-                if (matchData && matchData.matchId) {
-                  setMatchId(matchData.matchId);
-                }
-              }
-              
-              setGameId(ongoingData.id);
-              const chess = new Chess(ongoingData.fen);
-              setGame(chess);
-              setPlayerColor(ongoingData.playerColor || "white");
-              setFen(ongoingData.fen);
-              setMoves(ongoingData.moves || []);
-              setGameStarted(true);
-              setInQueue(false);
-              
-              setWhiteTime(ongoingData.whiteTime || 180);
-              setBlackTime(ongoingData.blackTime || 180);
-              setIncrement(ongoingData.increment || 0);
-              
-              if (isBlindfold) {
-                setShowBoard(false);
-              }
-
-              toast({
-                title: "Match found!",
-                description: "Game started",
-              });
-              return;
-            }
-          }
         }
       } catch (error) {
         console.error("Error checking match:", error);
