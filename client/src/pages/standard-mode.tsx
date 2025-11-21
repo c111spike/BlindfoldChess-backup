@@ -63,7 +63,7 @@ export default function StandardMode() {
       const newGame = new Chess(data.fen);
       currentGame.load(data.fen);
       setFen(data.fen);
-      setMoves(currentGame.history());
+      setMoves(prev => [...prev, data.move]);
       setWhiteTime(data.whiteTime);
       setBlackTime(data.blackTime);
       
@@ -196,7 +196,7 @@ export default function StandardMode() {
           setGame(chess);
           setPlayerColor(data.game.playerColor || "white");
           setFen(data.game.fen);
-          setMoves([]);
+          setMoves(data.game.moves || []);
           setWhiteTime(data.game.whiteTime || 180);
           setBlackTime(data.game.blackTime || 180);
           setIncrement(data.game.increment || 0);
@@ -220,7 +220,7 @@ export default function StandardMode() {
               setGame(chess);
               setPlayerColor(ongoingData.playerColor || "white");
               setFen(ongoingData.fen);
-              setMoves(chess.history());
+              setMoves(ongoingData.moves || []);
               setGameStarted(true);
               setInQueue(false);
               
@@ -297,7 +297,7 @@ export default function StandardMode() {
           setGameId(ongoingGame.id);
           setPlayerColor((ongoingGame as any).playerColor || "white");
           setFen(ongoingGame.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-          setMoves(chess.history());
+          setMoves(ongoingGame.moves || []);
           setWhiteTime(ongoingGame.whiteTime || 180);
           setBlackTime(ongoingGame.blackTime || 180);
           setIncrement(ongoingGame.increment || 0);
@@ -353,7 +353,7 @@ export default function StandardMode() {
     updateGameMutation.mutate({
       status: "completed",
       result,
-      completedAt: new Date().toISOString(),
+      completedAt: new Date(),
       pgn: game.pgn(),
       moves,
       whiteTime,
@@ -432,7 +432,7 @@ export default function StandardMode() {
         if (move) {
           const newFen = game.fen();
           setFen(newFen);
-          setMoves(game.history());
+          setMoves(prev => [...prev, move.san]);
           setSelectedSquare(null);
           setLegalMoves([]);
           

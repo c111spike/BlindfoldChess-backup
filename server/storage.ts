@@ -131,9 +131,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateGame(id: string, data: Partial<Game>): Promise<Game> {
+    const updateData = { ...data };
+    if (updateData.completedAt && typeof updateData.completedAt === 'string') {
+      updateData.completedAt = new Date(updateData.completedAt);
+    }
+    if (updateData.startedAt && typeof updateData.startedAt === 'string') {
+      updateData.startedAt = new Date(updateData.startedAt);
+    }
+    
     const [game] = await db
       .update(games)
-      .set(data)
+      .set(updateData as any)
       .where(eq(games.id, id))
       .returning();
     return game;

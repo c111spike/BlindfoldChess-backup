@@ -62,7 +62,7 @@ export default function OTBMode() {
       const newGame = new Chess(data.fen);
       currentGame.load(data.fen);
       setFen(data.fen);
-      setMoves(currentGame.history());
+      setMoves(prev => [...prev, data.move]);
       setWhiteTime(data.whiteTime);
       setBlackTime(data.blackTime);
       
@@ -265,7 +265,7 @@ export default function OTBMode() {
           setGame(chess);
           setGameId(ongoingGame.id);
           setFen(ongoingGame.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-          setMoves(chess.history());
+          setMoves(ongoingGame.moves || []);
           setWhiteTime(ongoingGame.whiteTime || 180);
           setBlackTime(ongoingGame.blackTime || 180);
           setGameStarted(true);
@@ -325,7 +325,7 @@ export default function OTBMode() {
     updateGameMutation.mutate({
       status: "completed",
       result,
-      completedAt: new Date().toISOString(),
+      completedAt: new Date(),
       pgn: game.pgn(),
       moves,
       whiteTime,
@@ -453,7 +453,7 @@ export default function OTBMode() {
         if (move) {
           const newFen = game.fen();
           setFen(newFen);
-          setMoves(game.history());
+          setMoves(prev => [...prev, move.san]);
           setSelectedSquare(null);
           setLegalMoves([]);
           
