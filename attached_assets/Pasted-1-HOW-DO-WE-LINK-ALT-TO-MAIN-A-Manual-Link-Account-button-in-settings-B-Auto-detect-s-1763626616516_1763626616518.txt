@@ -1,0 +1,91 @@
+1. HOW DO WE LINK ALT TO MAIN?
+   A) Manual "Link Account" button in settings
+   B) Auto-detect (same email domain, IP, device)
+   C) User enters main account username when creating alt
+   
+   YOUR ANSWER: _____________
+2. WHEN ALT WINS (against lower-rated opponent):
+   Scenario: Alt (1000, main 1500) BEATS Player B (1000)
+   
+   You said:
+   - Player B loses 0 Elo ✅
+   - Alt gains Elo normally ❓
+   
+   Question: Does alt REALLY gain Elo?
+   - If YES: This creates Elo inflation (new Elo from nowhere)
+   - If NO: Alt gains 0 Elo (fair but defeats purpose of alt)
+   
+   Which is it?
+   A) Alt gains Elo (even though opponent loses 0)
+   B) Alt gains 0 Elo (both gain/lose 0)
+   
+   YOUR ANSWER: _____________
+3. WHEN ALT LOSES (against lower-rated opponent):
+   Scenario: Alt (1000, main 1500) LOSES to Player B (1000)
+   
+   Question: What happens?
+   A) Player B gains Elo normally, Alt loses Elo normally
+   B) Player B gains 0 Elo, Alt loses 0 Elo
+   C) Something else?
+   
+   YOUR ANSWER: _____________
+4. WHEN GAME IS A DRAW:
+   Scenario: Alt (1000, main 1500) DRAWS Player B (1000)
+   
+   Question: What happens?
+   A) Both gain/lose 0 Elo (no change)
+   B) Normal draw Elo calculation
+   C) Something else?
+   
+   YOUR ANSWER: _____________
+5. ALT RATING CAP:
+   Scenario: Alt starts at 1200, main is 1500
+   Alt wins games and reaches 1500 (same as main)
+   
+   Question: What happens?
+   A) Alt is hard-capped at 1500 (can't go higher)
+   B) Alt can surpass main if they play well
+   C) Alt is forced to switch to main account
+   
+   YOUR ANSWER: _____________
+6. WHEN ALT IS HIGHER THAN OPPONENT BUT LOWER THAN MAIN:
+   Scenario: Alt (1300, main 1500) plays Player C (1000)
+   
+   Question: Is protection triggered?
+   A) YES - Protection active (opponent protected)
+   B) NO - Normal Elo exchange (alt rating used)
+   
+   YOUR ANSWER: _____________
+7. MATCHMAKING WITH ALTS:
+   Scenario: Alt (1000, main 1500) searching for game
+   
+   Question: Who does alt get matched with?
+   A) Players around 1000 rating (based on alt rating)
+   B) Players around 1500 rating (based on main rating)
+   C) Something in between?
+   
+   YOUR ANSWER: _____________
+8. ALT ACCOUNT DISPLAY:
+   Question: Do opponents see that it's an alt account?
+   A) YES - Shows "Alt account (Main: 1500)" in profile
+   B) NO - Looks like normal account
+   C) Shows badge but not main rating
+   
+   YOUR ANSWER: _____________
+9. MULTIPLE ALTS:
+   Question: Can a user have multiple alts?
+   A) NO - Only 1 alt per main account
+   B) YES - Unlimited alts (all linked to main)
+   C) YES - But limited (e.g., max 3 alts)
+   
+   YOUR ANSWER: _____________
+10. ALT RESET LIMIT:
+    You said: "1 reset per month free, unlimited for premium"
+    
+    Question: What exactly resets?
+    A) Rating back to 1200
+    B) Rating + game history (fresh start)
+    C) Create new alt account (old one deleted)
+    D) Create new alt account (old one kept)
+    
+    YOUR ANSWER: _____________
