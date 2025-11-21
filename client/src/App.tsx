@@ -52,8 +52,20 @@ function AppContent() {
     "--sidebar-width-icon": "3rem",
   };
 
-  if (isLoading || !isAuthenticated) {
-    return <Router />;
+  if (isLoading) {
+    return <div className="h-screen bg-background" />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-foreground mb-4">Redirecting to login...</p>
+          <a href="/api/login" className="text-primary underline">Click here if not redirected</a>
+        </div>
+        {typeof window !== 'undefined' && (window.location.href = "/api/login")}
+      </div>
+    );
   }
 
   return (
