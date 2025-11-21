@@ -57,7 +57,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "No ongoing game" });
       }
       
-      res.json(activeGame);
+      res.json({
+        ...activeGame,
+        playerColor: activeGame.playerColor || "white"
+      });
     } catch (error) {
       console.error("Error fetching ongoing game:", error);
       res.status(500).json({ message: "Failed to fetch ongoing game" });
@@ -306,39 +309,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'standard_blitz': 5,
           'standard_rapid': 15,
           'standard_classical': 30,
-          'simul': 3,
+          'simul_2': 0.5,
+          'simul_3': 0.5,
+          'simul_4': 0.5,
+          'simul_5': 0.5,
+          'simul_6': 0.5,
+          'simul_7': 0.5,
+          'simul_8': 0.5,
+          'simul_9': 0.5,
+          'simul_10': 0.5,
           'blindfold': 5,
         };
 
         const timeControl = timeMap[queueType] || 5;
+        const isSimul = queueType.startsWith('simul_');
+        const boardCount = isSimul ? parseInt(queueType.split('_')[1]) : 1;
 
-        const game = await storage.createGame({
-          userId,
-          mode: queueType,
-          playerColor: userColor,
-          timeControl,
-          increment: 0,
-          fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-          moves: [],
-          whiteTime: timeControl * 60,
-          blackTime: timeControl * 60,
-          opponentName: opponent.userId,
-        });
+        if (isSimul && boardCount >= 2 && boardCount <= 10) {
+          const games = [];
+          const opponentGames = [];
+          
+          for (let i = 0; i < boardCount; i++) {
+            const game = await storage.createGame({
+              userId,
+              mode: queueType,
+              playerColor: userColor,
+              timeControl,
+              increment: 0,
+              fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+              moves: [],
+              whiteTime: 30,
+              blackTime: 30,
+              opponentName: opponent.userId,
+              boardCount,
+            });
+            games.push(game);
 
-        const opponentGame = await storage.createGame({
-          userId: opponent.userId,
-          mode: queueType,
-          playerColor: userColor === "white" ? "black" : "white",
-          timeControl,
-          increment: 0,
-          fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-          moves: [],
-          whiteTime: timeControl * 60,
-          blackTime: timeControl * 60,
-          opponentName: userId,
-        });
+            const opponentGame = await storage.createGame({
+              userId: opponent.userId,
+              mode: queueType,
+              playerColor: userColor === "white" ? "black" : "white",
+              timeControl,
+              increment: 0,
+              fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+              moves: [],
+              whiteTime: 30,
+              blackTime: 30,
+              opponentName: userId,
+              boardCount,
+            });
+            opponentGames.push(opponentGame);
+          }
 
-        res.json({ matched: true, game, opponentId: opponent.userId });
+          res.json({ 
+            matched: true, 
+            games: games,
+            boardCount,
+            opponentId: opponent.userId 
+          });
+        } else {
+          const game = await storage.createGame({
+            userId,
+            mode: queueType,
+            playerColor: userColor,
+            timeControl,
+            increment: 0,
+            fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            moves: [],
+            whiteTime: timeControl * 60,
+            blackTime: timeControl * 60,
+            opponentName: opponent.userId,
+          });
+
+          const opponentGame = await storage.createGame({
+            userId: opponent.userId,
+            mode: queueType,
+            playerColor: userColor === "white" ? "black" : "white",
+            timeControl,
+            increment: 0,
+            fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            moves: [],
+            whiteTime: timeControl * 60,
+            blackTime: timeControl * 60,
+            opponentName: userId,
+          });
+
+          res.json({ 
+            matched: true, 
+            game: {
+              ...game,
+              playerColor: game.playerColor || "white"
+            }, 
+            opponentId: opponent.userId 
+          });
+        }
       } else {
         res.json({ matched: false });
       }

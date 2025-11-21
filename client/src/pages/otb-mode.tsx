@@ -306,7 +306,7 @@ export default function OTBMode() {
     if (whiteTime === 0 || blackTime === 0) {
       handleGameEnd(whiteTime === 0 ? "black_win" : "white_win");
     }
-  }, [whiteTime, blackTime]);
+  }, [whiteTime, blackTime, handleGameEnd]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

@@ -142,31 +142,40 @@ export default function StandardMode() {
           setGameId(data.game.id);
           const chess = new Chess(data.game.fen);
           setGame(chess);
-          setPlayerColor(data.game.playerColor);
+          setPlayerColor(data.game.playerColor || "white");
           setFen(data.game.fen);
           setMoves([]);
           setGameStarted(true);
           setInQueue(false);
-          
-          const timeMap: Record<string, number> = {
-            'standard_bullet': 1,
-            'standard_blitz': 5,
-            'standard_rapid': 15,
-            'standard_classical': 30,
-          };
-          const tc = timeMap[queueType || 'standard_blitz'] || 5;
-          setWhiteTime(tc * 60);
-          setBlackTime(tc * 60);
+        } else {
+          const ongoingResponse = await apiRequest("GET", "/api/games/ongoing");
+          if (ongoingResponse.ok) {
+            const ongoingData = await ongoingResponse.json();
+            if (ongoingData && ongoingData.mode?.startsWith('standard_')) {
+              setGameId(ongoingData.id);
+              const chess = new Chess(ongoingData.fen);
+              setGame(chess);
+              setPlayerColor(ongoingData.playerColor || "white");
+              setFen(ongoingData.fen);
+              setMoves(chess.history());
+              setGameStarted(true);
+              setInQueue(false);
+              
+              setWhiteTime(ongoingData.whiteTime || 180);
+              setBlackTime(ongoingData.blackTime || 180);
+              setIncrement(ongoingData.increment || 0);
+              
+              if (isBlindfold) {
+                setShowBoard(false);
+              }
 
-          if (isBlindfold) {
-            setShowBoard(false);
+              toast({
+                title: "Match found!",
+                description: "Game started",
+              });
+              return;
+            }
           }
-
-          toast({
-            title: "Match found!",
-            description: "Game started",
-          });
-          return;
         }
       } catch (error) {
         console.error("Error checking match:", error);
