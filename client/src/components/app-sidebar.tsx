@@ -1,5 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import type { Rating } from "@shared/schema";
 import {
   Sidebar,
   SidebarContent,
@@ -71,19 +73,42 @@ const menuItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { data: ratings } = useQuery<Rating>({
+    queryKey: ["/api/ratings"],
+  });
+
+  const getHighestRating = () => {
+    if (!ratings) return 1200;
+    return Math.max(
+      ratings.otbBullet || 0,
+      ratings.otbBlitz || 0,
+      ratings.otbRapid || 0,
+      ratings.blindfold || 0,
+      ratings.simul || 0
+    );
+  };
+
+  const getRatingTitle = (rating: number) => {
+    if (rating < 1200) return "Beginner";
+    if (rating < 1400) return "Novice";
+    if (rating < 1600) return "Tactician";
+    if (rating < 1800) return "Expert";
+    if (rating < 2000) return "Master";
+    if (rating < 2200) return "International Master";
+    return "Grandmaster";
+  };
 
   return (
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <div className="px-4 py-3">
-            <h2 className="text-2xl font-bold">SimulChess</h2>
-            {user?.isPremium && (
-              <Badge variant="default" className="mt-2 gap-1">
-                <Crown className="h-3 w-3" />
-                Premium
-              </Badge>
-            )}
+          <div className="px-4 py-3 flex items-center gap-2">
+            <div className="w-10 h-10 bg-primary rounded flex items-center justify-center text-primary-foreground font-bold text-xl">
+              S
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">SimulChess</h2>
+            </div>
           </div>
         </SidebarGroup>
 
@@ -107,6 +132,17 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
+        <div className="px-4 py-4 border-t border-sidebar-border">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+            Current ELO
+          </div>
+          <div className="text-3xl font-bold font-mono" data-testid="text-sidebar-elo">
+            {getHighestRating()}
+          </div>
+          <div className="text-sm text-primary mt-1">
+            {getRatingTitle(getHighestRating())}
+          </div>
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>

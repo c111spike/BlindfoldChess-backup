@@ -29,9 +29,15 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-        <p className="text-muted-foreground">Track your progress across all training modes</p>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex-1">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4">Dashboard Mode</div>
+          <h1 className="text-4xl font-bold mb-2">Welcome back, Grandmaster</h1>
+          <p className="text-muted-foreground">Ready for your daily training?</p>
+        </div>
+        <Button variant="default" size="lg" className="px-6" data-testid="button-go-premium">
+          GO PREMIUM
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -111,60 +117,57 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div>
-        <h2 className="text-2xl font-semibold mb-6">Training Modes</h2>
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card className="hover-elevate">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Clock className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>OTB Tournament</CardTitle>
-              <CardDescription>
-                Practice with manual clock pressing and arbiter AI
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full" data-testid="button-mode-otb">
-                <Link href="/otb">Start Training</Link>
-              </Button>
-            </CardContent>
-          </Card>
+      <div className="grid md:grid-cols-3 gap-6">
+        <Card className="bg-primary hover-elevate border-primary" data-testid="card-simul-exhibition">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <Grid3x3 className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-primary-foreground text-2xl">Simul Exhibition</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Train against 2-25 opponents simultaneously using FIFO matching.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-simul">
+              <Link href="/simul">Start Exhibition</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
-          <Card className="hover-elevate">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Brain className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>Blindfold</CardTitle>
-              <CardDescription>
-                Develop memory with voice-controlled gameplay
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full" data-testid="button-mode-blindfold">
-                <Link href="/blindfold">Start Training</Link>
-              </Button>
-            </CardContent>
-          </Card>
+        <Card className="hover-elevate" data-testid="card-fide-mode">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <Clock className="h-8 w-8 text-foreground" />
+            </div>
+            <CardTitle className="text-2xl">FIDE Mode</CardTitle>
+            <CardDescription>
+              OTB Realism. Manual clock, strict rules.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-full" data-testid="button-mode-otb">
+              <Link href="/otb">Start Game</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
-          <Card className="hover-elevate">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Grid3x3 className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>FIFO Simul</CardTitle>
-              <CardDescription>
-                Play multiple opponents with per-move clock
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full" data-testid="button-mode-simul">
-                <Link href="/simul">Start Training</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="hover-elevate" data-testid="card-blindfold">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <Brain className="h-8 w-8 text-foreground" />
+            </div>
+            <CardTitle className="text-2xl">Blindfold</CardTitle>
+            <CardDescription>
+              Visualization training with peek mechanics.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-full" data-testid="button-mode-blindfold">
+              <Link href="/blindfold">Start Training</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       <div>

@@ -39,13 +39,27 @@
 
 ## Color Strategy
 
-**No specific colors defined** - focus on high contrast, clear hierarchy:
-- Strong differentiation between primary actions and secondary
+**Dark Blue Theme with Red Accents** - Professional tournament aesthetic:
+
+**Primary Colors**:
+- Background: Dark blue-grey (hsl 207 20% 14%) - professional, focused environment
+- Sidebar: Darker blue (hsl 207 24% 11%) - distinct navigation area
+- Card/Surface: Slightly lighter blue (hsl 207 22% 17%) - elevated content
+- Primary/Accent: Vibrant red (hsl 0 72% 51%) - premium features, calls-to-action, highlights
+
+**Text Colors**:
+- Primary text: Near white (hsl 210 6% 96%) - optimal readability
+- Secondary text: Muted grey (hsl 210 8% 70%) - supporting information
+- Borders: Subtle blue (hsl 207 18% 20%) - gentle separation
+
+**Application**:
+- Premium features: Red buttons and highlighted cards
+- Featured mode: Red background for "Simul Exhibition" card
+- Navigation: Dark blue sidebar with red active states
+- Default mode: Dark theme always enabled
+- Strong differentiation between primary actions (red) and secondary (outlined)
 - Clear disabled/inactive states
 - Distinct success/warning/error states for game outcomes
-- Tournament mode: professional, serious palette
-- Blindfold mode: minimal, high-contrast
-- Simul mode: organized, efficient
 
 ---
 

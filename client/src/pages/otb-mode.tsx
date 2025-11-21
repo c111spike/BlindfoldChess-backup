@@ -35,6 +35,7 @@ export default function OTBMode() {
   const gameIdRef = useRef<string | null>(null);
   const whiteTimeRef = useRef(180);
   const blackTimeRef = useRef(180);
+  const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     gameRef.current = game;
@@ -43,13 +44,54 @@ export default function OTBMode() {
     blackTimeRef.current = blackTime;
   }, [game, gameId, whiteTime, blackTime]);
 
+  const createGameMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/games", data);
+      return response;
+    },
+    onSuccess: (data: Game) => {
+      setGameId(data.id);
+      toast({
+        title: "Game started",
+        description: "Good luck!",
+      });
+    },
+    onError: (error: any) => {
+      if (error.message.includes("limit reached")) {
+        toast({
+          title: "Daily limit reached",
+          description: "Upgrade to Premium for unlimited games",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to start game",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const updateGameMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (!gameId) return;
+      await apiRequest("PATCH", `/api/games/${gameId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+    },
+  });
+
   const { data: ongoingGame } = useQuery<Game>({
     queryKey: ["/api/games/ongoing"],
     enabled: !restoredGame && !gameStarted,
   });
 
   useEffect(() => {
-    if (ongoingGame && !restoredGame && !gameStarted) {
+    if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
       try {
         const chess = new Chess(ongoingGame.fen || undefined);
         setGame(chess);
@@ -95,32 +137,70 @@ export default function OTBMode() {
     }
   }, []);
 
+  const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
+    if (!game || !gameId) return;
+
+    if (saveIntervalRef.current) {
+      clearInterval(saveIntervalRef.current);
+      saveIntervalRef.current = null;
+    }
+
+    updateGameMutation.mutate({
+      status: "completed",
+      result,
+      completedAt: new Date().toISOString(),
+      pgn: game.pgn(),
+      moves,
+      whiteTime,
+      blackTime,
+      manualClockPresses: clockPresses,
+    });
+
+    toast({
+      title: "Game Over",
+      description: result === "draw" ? "Game drawn" : result === "white_win" ? "White wins!" : "Black wins!",
+    });
+
+    setGameStarted(false);
+  }, [game, gameId, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast]);
+
   useEffect(() => {
     if (gameStarted && game) {
       const timer = setInterval(() => {
         if (activeColor === "white") {
-          setWhiteTime((t) => Math.max(0, t - 1));
+          setWhiteTime((t) => {
+            const newTime = Math.max(0, t - 1);
+            if (newTime === 0 && t > 0) {
+              handleGameEnd("black_win");
+            }
+            return newTime;
+          });
         } else {
-          setBlackTime((t) => Math.max(0, t - 1));
+          setBlackTime((t) => {
+            const newTime = Math.max(0, t - 1);
+            if (newTime === 0 && t > 0) {
+              handleGameEnd("white_win");
+            }
+            return newTime;
+          });
         }
       }, 1000);
 
       return () => clearInterval(timer);
     }
-  }, [gameStarted, activeColor, game]);
+  }, [gameStarted, activeColor, game, handleGameEnd]);
 
   useEffect(() => {
-    let saveInterval: NodeJS.Timeout | null = null;
-    
     if (gameStarted && gameId) {
-      saveInterval = setInterval(() => {
+      saveIntervalRef.current = setInterval(() => {
         saveGameState();
       }, 10000);
     }
 
     return () => {
-      if (saveInterval) {
-        clearInterval(saveInterval);
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current);
+        saveIntervalRef.current = null;
       }
     };
   }, [gameStarted, gameId, saveGameState]);
@@ -130,47 +210,6 @@ export default function OTBMode() {
       handleGameEnd(whiteTime === 0 ? "black_win" : "white_win");
     }
   }, [whiteTime, blackTime]);
-
-  const createGameMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/games", data);
-      return response;
-    },
-    onSuccess: (data: Game) => {
-      setGameId(data.id);
-      toast({
-        title: "Game started",
-        description: "Good luck!",
-      });
-    },
-    onError: (error: any) => {
-      if (error.message.includes("limit reached")) {
-        toast({
-          title: "Daily limit reached",
-          description: "Upgrade to Premium for unlimited games",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to start game",
-          variant: "destructive",
-        });
-      }
-    },
-  });
-
-  const updateGameMutation = useMutation({
-    mutationFn: async (data: any) => {
-      if (!gameId) return;
-      await apiRequest("PATCH", `/api/games/${gameId}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-    },
-  });
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -226,7 +265,13 @@ export default function OTBMode() {
           setSelectedSquare(null);
           setLegalMoves([]);
           
-          saveGameState();
+          if (game.isCheckmate()) {
+            handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
+          } else if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
+            handleGameEnd("draw");
+          } else {
+            saveGameState();
+          }
         } else {
           setSelectedSquare(square);
           const moves = game.moves({ square: square as any, verbose: true });
@@ -256,28 +301,6 @@ export default function OTBMode() {
     const newActiveColor = activeColor === "white" ? "black" : "white";
     setActiveColor(newActiveColor);
     setClockPresses(clockPresses + 1);
-  };
-
-  const handleGameEnd = (result: "white_win" | "black_win" | "draw") => {
-    if (!game || !gameId) return;
-
-    updateGameMutation.mutate({
-      status: "completed",
-      result,
-      completedAt: new Date().toISOString(),
-      pgn: game.pgn(),
-      moves,
-      whiteTime,
-      blackTime,
-      manualClockPresses: clockPresses,
-    });
-
-    toast({
-      title: "Game Over",
-      description: result === "draw" ? "Game drawn" : result === "white_win" ? "White wins!" : "Black wins!",
-    });
-
-    setGameStarted(false);
   };
 
   const handleResign = () => {
