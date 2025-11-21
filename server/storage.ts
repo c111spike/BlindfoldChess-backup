@@ -33,6 +33,7 @@ export interface IStorage {
   createGame(game: InsertGame): Promise<Game>;
   getGame(id: string): Promise<Game | undefined>;
   getRecentGames(userId: string, limit?: number): Promise<Game[]>;
+  getActiveGame(userId: string): Promise<Game | undefined>;
   getGamesByMode(userId: string, mode: string): Promise<Game[]>;
   updateGame(id: string, data: Partial<Game>): Promise<Game>;
   
@@ -92,6 +93,16 @@ export class DatabaseStorage implements IStorage {
       .where(eq(games.userId, userId))
       .orderBy(desc(games.createdAt))
       .limit(limit);
+  }
+
+  async getActiveGame(userId: string): Promise<Game | undefined> {
+    const [game] = await db
+      .select()
+      .from(games)
+      .where(and(eq(games.userId, userId), eq(games.status, 'active')))
+      .orderBy(desc(games.createdAt))
+      .limit(1);
+    return game;
   }
 
   async getGamesByMode(userId: string, mode: string): Promise<Game[]> {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +29,52 @@ export default function OTBMode() {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [clockPresses, setClockPresses] = useState(0);
+  const [restoredGame, setRestoredGame] = useState(false);
+  
+  const gameRef = useRef<Chess | null>(null);
+  const gameIdRef = useRef<string | null>(null);
+  const whiteTimeRef = useRef(180);
+  const blackTimeRef = useRef(180);
+
+  useEffect(() => {
+    gameRef.current = game;
+    gameIdRef.current = gameId;
+    whiteTimeRef.current = whiteTime;
+    blackTimeRef.current = blackTime;
+  }, [game, gameId, whiteTime, blackTime]);
+
+  const { data: ongoingGame } = useQuery<Game>({
+    queryKey: ["/api/games/ongoing"],
+    enabled: !restoredGame && !gameStarted,
+  });
+
+  useEffect(() => {
+    if (ongoingGame && !restoredGame && !gameStarted) {
+      try {
+        const chess = new Chess(ongoingGame.fen || undefined);
+        setGame(chess);
+        setGameId(ongoingGame.id);
+        setFen(ongoingGame.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        setMoves(chess.history());
+        setWhiteTime(ongoingGame.whiteTime || 180);
+        setBlackTime(ongoingGame.blackTime || 180);
+        setGameStarted(true);
+        setActiveColor(chess.turn() === "w" ? "white" : "black");
+        setIncrement(ongoingGame.increment || 0);
+        const tc = ongoingGame.timeControl || 3;
+        const inc = ongoingGame.increment || 0;
+        setTimeControl(`${tc}+${inc}`);
+        setRestoredGame(true);
+        
+        toast({
+          title: "Game restored",
+          description: "Your ongoing game has been loaded",
+        });
+      } catch (error) {
+        console.error("Error restoring game:", error);
+      }
+    }
+  }, [ongoingGame, restoredGame, gameStarted, toast]);
 
   useEffect(() => {
     if (gameStarted && game) {
@@ -43,6 +89,22 @@ export default function OTBMode() {
       return () => clearInterval(timer);
     }
   }, [gameStarted, activeColor, game]);
+
+  useEffect(() => {
+    let saveInterval: NodeJS.Timeout | null = null;
+    
+    if (gameStarted && gameId) {
+      saveInterval = setInterval(() => {
+        saveGameState();
+      }, 10000);
+    }
+
+    return () => {
+      if (saveInterval) {
+        clearInterval(saveInterval);
+      }
+    };
+  }, [gameStarted, gameId, saveGameState]);
 
   useEffect(() => {
     if (whiteTime === 0 || blackTime === 0) {
@@ -128,6 +190,25 @@ export default function OTBMode() {
     });
   };
 
+  const saveGameState = useCallback(async () => {
+    const currentGame = gameRef.current;
+    const currentGameId = gameIdRef.current;
+    
+    if (!currentGameId || !currentGame) return;
+    
+    try {
+      await apiRequest("PATCH", `/api/games/${currentGameId}`, {
+        fen: currentGame.fen(),
+        moves: currentGame.history(),
+        whiteTime: whiteTimeRef.current,
+        blackTime: blackTimeRef.current,
+        pgn: currentGame.pgn(),
+      });
+    } catch (error) {
+      console.error("Error saving game state:", error);
+    }
+  }, []);
+
   const handleSquareClick = (square: string) => {
     if (!game || !gameStarted) return;
 
@@ -141,9 +222,11 @@ export default function OTBMode() {
 
         if (move) {
           setFen(game.fen());
-          setMoves([...moves, move.san]);
+          setMoves(game.history());
           setSelectedSquare(null);
           setLegalMoves([]);
+          
+          saveGameState();
         } else {
           setSelectedSquare(square);
           const moves = game.moves({ square, verbose: true });

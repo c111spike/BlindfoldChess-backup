@@ -60,6 +60,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/games/ongoing', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const activeGame = await storage.getActiveGame(userId);
+      
+      if (!activeGame) {
+        return res.status(404).json({ message: "No ongoing game" });
+      }
+      
+      res.json(activeGame);
+    } catch (error) {
+      console.error("Error fetching ongoing game:", error);
+      res.status(500).json({ message: "Failed to fetch ongoing game" });
+    }
+  });
+
   app.get('/api/games/recent', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -183,6 +199,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalTime: (existingStat?.totalTime || 0) + (game.timeControl || 0),
           winStreak: isWin ? (existingStat?.winStreak || 0) + 1 : 0,
         });
+        
+        let rating = await storage.getRating(userId);
+        if (!rating) {
+          rating = await storage.createRating({
+            userId,
+            otbBullet: 1200,
+            otbBlitz: 1200,
+            otbRapid: 1200,
+            blindfold: 1200,
+            simul: 1200,
+          });
+        }
+        
+        const opponentRating = 1200;
+        const kFactor = 32;
+        
+        const score = isWin ? 1 : isDraw ? 0.5 : 0;
+        const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - getCurrentRating(rating, game.mode)) / 400));
+        const ratingChange = Math.round(kFactor * (score - expectedScore));
+        
+        const ratingUpdate: any = {};
+        if (game.mode === 'otb_bullet') {
+          ratingUpdate.otbBullet = rating.otbBullet + ratingChange;
+        } else if (game.mode === 'otb_blitz') {
+          ratingUpdate.otbBlitz = rating.otbBlitz + ratingChange;
+        } else if (game.mode === 'otb_rapid') {
+          ratingUpdate.otbRapid = rating.otbRapid + ratingChange;
+        } else if (game.mode === 'blindfold') {
+          ratingUpdate.blindfold = rating.blindfold + ratingChange;
+        } else if (game.mode === 'simul') {
+          ratingUpdate.simul = rating.simul + ratingChange;
+        }
+        
+        await storage.updateRating(userId, ratingUpdate);
       }
       
       res.json(updatedGame);
@@ -191,6 +241,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update game" });
     }
   });
+
+  function getCurrentRating(rating: any, mode: string): number {
+    if (mode === 'otb_bullet') return rating.otbBullet;
+    if (mode === 'otb_blitz') return rating.otbBlitz;
+    if (mode === 'otb_rapid') return rating.otbRapid;
+    if (mode === 'blindfold') return rating.blindfold;
+    if (mode === 'simul') return rating.simul;
+    return 1200;
+  }
 
   app.get('/api/statistics', isAuthenticated, async (req: any, res) => {
     try {
