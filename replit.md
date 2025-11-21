@@ -57,6 +57,15 @@ Preferred communication style: Simple, everyday language.
 
 **Authorization**: Route-level middleware (isAuthenticated) protects all application endpoints. Unauthorized requests redirect to login flow.
 
+**Development Mode Test Users**: In development environment (NODE_ENV !== 'production'), the system supports test user authentication for solo multiplayer testing:
+- Test user switcher UI appears in header with "DEV MODE" badge
+- Four preconfigured test users: test-player-1 through test-player-4
+- Backend accepts `x-test-user-id` header to bypass OAuth and create test user sessions
+- Test user selection saved in localStorage, persists across page reloads
+- Sessions stored identically to production users, enabling WebSocket authentication
+- Allows single developer to test multiplayer features with multiple browser tabs
+- Automatically disabled in production builds
+
 ### Data Storage
 
 **Database**: PostgreSQL accessed via Neon's serverless driver with WebSocket connections.
