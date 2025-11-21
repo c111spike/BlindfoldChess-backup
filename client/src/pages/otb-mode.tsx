@@ -231,6 +231,20 @@ export default function OTBMode() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleClockPress = useCallback(() => {
+    if (!game) return;
+
+    if (activeColor === "white") {
+      setWhiteTime((t) => t + increment);
+    } else {
+      setBlackTime((t) => t + increment);
+    }
+
+    const newActiveColor = activeColor === "white" ? "black" : "white";
+    setActiveColor(newActiveColor);
+    setClockPresses(clockPresses + 1);
+  }, [game, activeColor, increment, clockPresses]);
+
   const handleStartGame = () => {
     const [minutes, inc] = timeControl.split("+").map(Number);
     const seconds = minutes * 60;
@@ -307,20 +321,6 @@ export default function OTBMode() {
         setLegalMoves(moves.map((m: any) => m.to));
       }
     }
-  };
-
-  const handleClockPress = () => {
-    if (!game) return;
-
-    if (activeColor === "white") {
-      setWhiteTime((t) => t + increment);
-    } else {
-      setBlackTime((t) => t + increment);
-    }
-
-    const newActiveColor = activeColor === "white" ? "black" : "white";
-    setActiveColor(newActiveColor);
-    setClockPresses(clockPresses + 1);
   };
 
   const handleResign = () => {

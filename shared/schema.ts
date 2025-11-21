@@ -175,6 +175,17 @@ export const statistics = pgTable("statistics", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const matchmakingQueues = pgTable("matchmaking_queues", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  queueType: varchar("queue_type").notNull(), // "otb_bullet", "otb_blitz", "otb_rapid", "otb_classical", "simul", "blindfold"
+  ratingRange: varchar("rating_range").notNull(), // "1200-1400", "1400-1600", "1600-1800", "1800+"
+  isBlindFold: boolean("is_blindfold").default(false),
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertGame = typeof games.$inferInsert;
