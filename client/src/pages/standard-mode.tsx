@@ -146,16 +146,18 @@ export default function StandardMode() {
         description: `Playing as ${matchData.color} against ${matchData.opponent.name}`,
       });
     } catch (error) {
-      console.error("Error loading match:", error);
+      console.error("[handleMatchFound] Error loading match:", error);
+      console.error("[handleMatchFound] Error stack:", error instanceof Error ? error.stack : 'No stack');
+      console.error("[handleMatchFound] Error message:", error instanceof Error ? error.message : String(error));
       toast({
         title: "Error",
-        description: "Failed to load match. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to load match. Please try again.",
         variant: "destructive",
       });
     }
   }, [toast]);
 
-  const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus } = useWebSocket({
+  const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus, joinMatch } = useWebSocket({
     userId: user?.id,
     onMove: handleOpponentMove,
     onMatchFound: handleMatchFound,

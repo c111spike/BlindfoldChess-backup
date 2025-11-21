@@ -7,7 +7,7 @@ interface WebSocketMessage {
 
 interface MatchFoundData {
   matchId: string;
-  gameId: string;
+  game: any;
   timeControl: string;
   color: string;
   opponent: {
@@ -65,10 +65,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
             break;
           case 'match_found':
             setQueueStatus({ inQueue: false });
+            // Automatically join the match room for real-time move sync
+            if (message.matchId && wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: 'join_match', matchId: message.matchId }));
+            }
             if (onMatchFound) {
               onMatchFound({
                 matchId: message.matchId,
-                gameId: message.gameId,
+                game: message.game,
                 timeControl: message.timeControl,
                 color: message.color,
                 opponent: message.opponent,
