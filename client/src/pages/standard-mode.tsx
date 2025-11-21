@@ -135,6 +135,7 @@ export default function StandardMode() {
   const handleMatchFound = useCallback((matchData: { matchId: string; game: any; timeControl: string; color: string; opponent: { name: string; rating: number } }) => {
     try {
       console.log('[handleMatchFound] Received match data:', matchData);
+      console.log('[handleMatchFound] PLAYER COLOR RECEIVED:', matchData.color);
       const gameData = matchData.game;
       console.log('[handleMatchFound] Game data:', gameData);
       
@@ -153,6 +154,7 @@ export default function StandardMode() {
       gameRef.current = chess;
       setGame(chess);
       setPlayerColor(matchData.color);
+      console.log('[handleMatchFound] SET playerColor STATE TO:', matchData.color);
       setFen(gameData.fen);
       
       const matchMoves = gameData.moves || [];
