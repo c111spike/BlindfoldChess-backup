@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,8 @@ interface SimulBoard {
   fen: string;
   moves: string[];
   material: number;
+  whiteTime: number;
+  blackTime: number;
   timeRemaining: number;
   isActive: boolean;
   chess: Chess;
@@ -35,6 +38,7 @@ export default function SimulMode() {
   const [boardCount, setBoardCount] = useState("4");
   const [activeBoard, setActiveBoard] = useState(0);
   const [boards, setBoards] = useState<SimulBoard[]>([]);
+  const [matchId, setMatchId] = useState<string | null>(null);
   const [inQueue, setInQueue] = useState(false);
   const [queueType, setQueueType] = useState<string | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
@@ -48,6 +52,51 @@ export default function SimulMode() {
     boardsRef.current = boards;
     activeBoardRef.current = activeBoard;
   }, [boards, activeBoard]);
+
+  const handleOpponentMove = useCallback((data: { gameId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
+    setBoards(prevBoards => {
+      const boardIndex = prevBoards.findIndex(b => b.gameId === data.gameId);
+      if (boardIndex === -1) return prevBoards;
+      
+      const newBoards = [...prevBoards];
+      try {
+        if (!data.fen || !data.move) {
+          throw new Error("Invalid move payload");
+        }
+        
+        const chess = new Chess(data.fen);
+        const board = newBoards[boardIndex];
+        newBoards[boardIndex] = {
+          ...board,
+          fen: data.fen,
+          moves: chess.history(),
+          chess,
+          whiteTime: data.whiteTime,
+          blackTime: data.blackTime,
+        };
+        
+        toast({
+          title: `Opponent moved on Board ${boardIndex + 1}`,
+          description: data.move,
+        });
+      } catch (error) {
+        console.error("Error handling opponent move:", error);
+        toast({
+          title: "Error",
+          description: `Failed to process move on Board ${boardIndex + 1}. Please refresh.`,
+          variant: "destructive",
+        });
+      }
+      
+      return newBoards;
+    });
+  }, [toast]);
+
+  const { sendMove } = useWebSocket({
+    userId: user?.id,
+    matchId: matchId || undefined,
+    onMove: handleOpponentMove,
+  });
 
   const joinQueueMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -108,6 +157,18 @@ export default function SimulMode() {
         const data = await response.json();
         
         if (data.matched && data.games && Array.isArray(data.games)) {
+          if (!data.matchId) {
+            toast({
+              title: "Match Error",
+              description: "Failed to join match room. Please try again.",
+              variant: "destructive",
+            });
+            setInQueue(false);
+            return;
+          }
+          
+          setMatchId(data.matchId);
+          
           const newBoards: SimulBoard[] = data.games.map((game: any, i: number) => {
             const chess = new Chess(game.fen);
             return {
@@ -117,6 +178,8 @@ export default function SimulMode() {
               fen: game.fen,
               moves: [],
               material: 0,
+              whiteTime: game.whiteTime || 30,
+              blackTime: game.blackTime || 30,
               timeRemaining: 30,
               isActive: i === 0,
               chess,
@@ -139,17 +202,43 @@ export default function SimulMode() {
           return;
         } else {
           // Check for ongoing simul games
-          const ongoingResponse = await apiRequest("GET", "/api/games/ongoing");
-          if (ongoingResponse.ok) {
-            const ongoingData = await ongoingResponse.json();
-            if (ongoingData && ongoingData.mode?.startsWith('simul_')) {
-              // If we have an ongoing simul game, we need to fetch all related games
-              // For now, just show that we found a match
-              toast({
-                title: "Match found!",
-                description: "Resuming your simul game",
+          const matchResponse = await apiRequest("GET", "/api/matches/active");
+          if (matchResponse.ok) {
+            const matchData = await matchResponse.json();
+            if (matchData && matchData.matchId && matchData.games && matchData.games.length > 0) {
+              setMatchId(matchData.matchId);
+              
+              const restoredBoards: SimulBoard[] = matchData.games.map((game: any, i: number) => {
+                const chess = new Chess(game.fen);
+                return {
+                  id: `board-${i}`,
+                  gameId: game.id,
+                  opponent: game.opponentName || `Opponent ${i + 1}`,
+                  fen: game.fen,
+                  moves: chess.history(),
+                  material: 0,
+                  whiteTime: game.whiteTime || 30,
+                  blackTime: game.blackTime || 30,
+                  timeRemaining: 30,
+                  isActive: i === 0,
+                  chess,
+                  playerColor: game.playerColor || "white",
+                  result: game.status === 'completed' ? (game.result as any) : undefined,
+                };
               });
+              
+              setBoards(restoredBoards);
+              setActiveBoard(0);
+              setGameStarted(true);
               setInQueue(false);
+              setBoardCount(restoredBoards.length.toString());
+              
+              toast({
+                title: "Match resumed!",
+                description: `Restored ${restoredBoards.length} boards`,
+              });
+              
+              startTimer();
               return;
             }
           }
@@ -240,13 +329,18 @@ export default function SimulMode() {
         });
 
         if (move) {
+          const newFen = chess.fen();
           const updatedBoards = [...boards];
           updatedBoards[activeBoard] = {
             ...currentBoard,
-            fen: chess.fen(),
+            fen: newFen,
             moves: chess.history(),
             chess,
           };
+
+          if (matchId && currentBoard.gameId) {
+            sendMove(currentBoard.gameId, move.san, newFen, currentBoard.whiteTime, currentBoard.blackTime, 0);
+          }
 
           if (chess.isCheckmate()) {
             updatedBoards[activeBoard].result = chess.turn() === "w" ? "loss" : "win";

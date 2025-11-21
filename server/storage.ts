@@ -126,7 +126,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(games)
-      .where(and(eq(games.userId, userId), eq(games.mode, mode)))
+      .where(and(eq(games.userId, userId), eq(games.mode, mode as any)))
       .orderBy(desc(games.createdAt));
   }
 

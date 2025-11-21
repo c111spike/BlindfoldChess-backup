@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +19,7 @@ export default function OTBMode() {
   const { toast } = useToast();
   const [game, setGame] = useState<Chess | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [whiteTime, setWhiteTime] = useState(180);
   const [blackTime, setBlackTime] = useState(180);
@@ -45,6 +47,44 @@ export default function OTBMode() {
     whiteTimeRef.current = whiteTime;
     blackTimeRef.current = blackTime;
   }, [game, gameId, whiteTime, blackTime]);
+
+  const handleOpponentMove = useCallback((data: { gameId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
+    if (data.gameId !== gameId) return;
+    
+    const currentGame = gameRef.current;
+    if (!currentGame) return;
+    
+    try {
+      if (!data.fen || !data.move) {
+        throw new Error("Invalid move payload");
+      }
+      
+      const newGame = new Chess(data.fen);
+      currentGame.load(data.fen);
+      setFen(data.fen);
+      setMoves(currentGame.history());
+      setWhiteTime(data.whiteTime);
+      setBlackTime(data.blackTime);
+      
+      toast({
+        title: "Opponent moved",
+        description: data.move,
+      });
+    } catch (error) {
+      console.error("Error handling opponent move:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process opponent's move. Please refresh.",
+        variant: "destructive",
+      });
+    }
+  }, [gameId, toast]);
+
+  const { sendMove } = useWebSocket({
+    userId: user?.id,
+    matchId: matchId || undefined,
+    onMove: handleOpponentMove,
+  });
 
   const createGameMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -139,7 +179,18 @@ export default function OTBMode() {
         const res = await apiRequest("POST", "/api/queue/findMatch", { queueType });
         const response = await res.json();
         if (response.matched && response.game) {
+          if (!response.matchId) {
+            toast({
+              title: "Match Error",
+              description: "Failed to join match room. Please try again.",
+              variant: "destructive",
+            });
+            setInQueue(false);
+            return;
+          }
+          
           setGameId(response.game.id);
+          setMatchId(response.matchId);
           const chess = new Chess(response.game.fen);
           setGame(chess);
           setFen(response.game.fen);
@@ -148,15 +199,9 @@ export default function OTBMode() {
           setInQueue(false);
           setActiveColor(response.game.playerColor === "white" ? "white" : "black");
           
-          const timeMap: Record<string, number> = {
-            'otb_bullet': 1,
-            'otb_blitz': 5,
-            'otb_rapid': 15,
-            'otb_classical': 30,
-          };
-          const tc = timeMap[queueType || 'otb_blitz'] || 5;
-          setWhiteTime(tc * 60);
-          setBlackTime(tc * 60);
+          setWhiteTime(response.game.whiteTime || 180);
+          setBlackTime(response.game.blackTime || 180);
+          setIncrement(response.game.increment || 0);
 
           toast({
             title: "Match found!",
@@ -190,6 +235,15 @@ export default function OTBMode() {
   useEffect(() => {
     if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
       try {
+        apiRequest("GET", "/api/matches/active").then(async (response) => {
+          if (response.ok) {
+            const matchData = await response.json();
+            if (matchData && matchData.matchId) {
+              setMatchId(matchData.matchId);
+            }
+          }
+        });
+        
         const chess = new Chess(ongoingGame.fen || undefined);
         setGame(chess);
         setGameId(ongoingGame.id);
@@ -371,10 +425,15 @@ export default function OTBMode() {
         });
 
         if (move) {
-          setFen(game.fen());
+          const newFen = game.fen();
+          setFen(newFen);
           setMoves(game.history());
           setSelectedSquare(null);
           setLegalMoves([]);
+          
+          if (gameId && matchId) {
+            sendMove(gameId, move.san, newFen, whiteTime, blackTime, increment);
+          }
           
           if (game.isCheckmate()) {
             handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");

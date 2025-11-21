@@ -34,6 +34,7 @@ export default function StandardMode() {
   const [isBlindfold, setIsBlindfold] = useState(false);
   const [showBoard, setShowBoard] = useState(true);
   const [playerColor, setPlayerColor] = useState<"white" | "black">("white");
+  const [increment, setIncrement] = useState(0);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -55,6 +56,11 @@ export default function StandardMode() {
     if (!currentGame) return;
     
     try {
+      if (!data.fen || !data.move) {
+        throw new Error("Invalid move payload");
+      }
+      
+      const newGame = new Chess(data.fen);
       currentGame.load(data.fen);
       setFen(data.fen);
       setMoves(currentGame.history());
@@ -67,6 +73,11 @@ export default function StandardMode() {
       });
     } catch (error) {
       console.error("Error handling opponent move:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process opponent's move. Please refresh.",
+        variant: "destructive",
+      });
     }
   }, [gameId, toast]);
 
@@ -169,13 +180,26 @@ export default function StandardMode() {
         const response = await apiRequest("POST", "/api/queue/findMatch", { queueType });
         const data = await response.json();
         if (data.matched && data.game) {
+          if (!data.matchId) {
+            toast({
+              title: "Match Error",
+              description: "Failed to join match room. Please try again.",
+              variant: "destructive",
+            });
+            setInQueue(false);
+            return;
+          }
+          
           setGameId(data.game.id);
-          setMatchId(data.matchId || null);
+          setMatchId(data.matchId);
           const chess = new Chess(data.game.fen);
           setGame(chess);
           setPlayerColor(data.game.playerColor || "white");
           setFen(data.game.fen);
           setMoves([]);
+          setWhiteTime(data.game.whiteTime || 180);
+          setBlackTime(data.game.blackTime || 180);
+          setIncrement(data.game.increment || 0);
           setGameStarted(true);
           setInQueue(false);
         } else {
@@ -183,6 +207,14 @@ export default function StandardMode() {
           if (ongoingResponse.ok) {
             const ongoingData = await ongoingResponse.json();
             if (ongoingData && ongoingData.mode?.startsWith('standard_')) {
+              const matchResponse = await apiRequest("GET", "/api/matches/active");
+              if (matchResponse.ok) {
+                const matchData = await matchResponse.json();
+                if (matchData && matchData.matchId) {
+                  setMatchId(matchData.matchId);
+                }
+              }
+              
               setGameId(ongoingData.id);
               const chess = new Chess(ongoingData.fen);
               setGame(chess);
@@ -234,6 +266,15 @@ export default function StandardMode() {
   useEffect(() => {
     if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
       try {
+        apiRequest("GET", "/api/matches/active").then(async (response) => {
+          if (response.ok) {
+            const matchData = await response.json();
+            if (matchData && matchData.matchId) {
+              setMatchId(matchData.matchId);
+            }
+          }
+        });
+        
         const chess = new Chess(ongoingGame.fen || undefined);
         setGame(chess);
         setGameId(ongoingGame.id);
@@ -242,6 +283,7 @@ export default function StandardMode() {
         setMoves(chess.history());
         setWhiteTime(ongoingGame.whiteTime || 180);
         setBlackTime(ongoingGame.blackTime || 180);
+        setIncrement(ongoingGame.increment || 0);
         setGameStarted(true);
         setRestoredGame(true);
         
@@ -369,7 +411,7 @@ export default function StandardMode() {
           setLegalMoves([]);
           
           if (gameId && matchId) {
-            sendMove(gameId, move.san, newFen, whiteTime, blackTime);
+            sendMove(gameId, move.san, newFen, whiteTime, blackTime, increment);
           }
           
           if (game.isCheckmate()) {

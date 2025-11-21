@@ -90,7 +90,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     };
   }, [userId, matchId, onMove, onClockSync]);
 
-  const sendMove = useCallback((gameId: string, move: string, fen: string, whiteTime: number, blackTime: number) => {
+  const sendMove = useCallback((gameId: string, move: string, fen: string, whiteTime: number, blackTime: number, increment?: number) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'move',
@@ -99,6 +99,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
         fen,
         whiteTime,
         blackTime,
+        increment: increment || 0,
       }));
     }
   }, []);
