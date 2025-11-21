@@ -14,15 +14,15 @@ export default function Landing() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between max-w-7xl mx-auto px-4">
           <Link href="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold">SimulChess</span>
+            <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
+              <span className="text-sm font-bold text-primary-foreground">S</span>
+            </div>
+            <span className="text-xl font-bold">SimulChess</span>
           </Link>
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Button asChild variant="ghost" data-testid="button-login">
+            <Button asChild variant="default" data-testid="button-login">
               <a href="/api/login">Log In</a>
-            </Button>
-            <Button asChild data-testid="button-get-started">
-              <a href="/api/login">Get Started</a>
             </Button>
           </div>
         </div>
