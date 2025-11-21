@@ -114,10 +114,51 @@ export default function StandardMode() {
     }
   }, [matchId, toast]);
 
-  const { sendMove, isConnected } = useWebSocket({
+  const handleMatchFound = useCallback((matchData: { matchId: string; game: any; timeControl: string; color: string; opponent: { name: string; rating: number } }) => {
+    try {
+      console.log('[handleMatchFound] Received match data:', matchData);
+      const gameData = matchData.game;
+      console.log('[handleMatchFound] Game data:', gameData);
+      
+      if (!gameData || !gameData.id) {
+        throw new Error(`Invalid game data: ${JSON.stringify(gameData)}`);
+      }
+      
+      setGameId(gameData.id);
+      setMatchId(matchData.matchId);
+      const chess = new Chess(gameData.fen);
+      setGame(chess);
+      setPlayerColor(matchData.color);
+      setFen(gameData.fen);
+      
+      const matchMoves = gameData.moves || [];
+      setMoves(matchMoves);
+      movesRef.current = matchMoves;
+      
+      setWhiteTime(gameData.whiteTime || 180);
+      setBlackTime(gameData.blackTime || 180);
+      setIncrement(gameData.increment || 0);
+      setGameStarted(true);
+      setInQueue(false);
+      
+      toast({
+        title: "Match found!",
+        description: `Playing as ${matchData.color} against ${matchData.opponent.name}`,
+      });
+    } catch (error) {
+      console.error("Error loading match:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load match. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus } = useWebSocket({
     userId: user?.id,
-    matchId: matchId || undefined,
     onMove: handleOpponentMove,
+    onMatchFound: handleMatchFound,
   });
 
   const createGameMutation = useMutation({
@@ -171,105 +212,36 @@ export default function StandardMode() {
     enabled: !restoredGame && !gameStarted && !inQueue,
   });
 
-  const joinQueueMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/queue/join", data);
-      return response.json();
-    },
-    onSuccess: () => {
-      setInQueue(true);
+  useEffect(() => {
+    setInQueue(queueStatus.inQueue);
+  }, [queueStatus]);
+
+  const handleJoinQueue = (timeControl: string) => {
+    if (!isConnected) {
       toast({
-        title: "Joined queue",
-        description: "Waiting for opponent...",
-      });
-      pollMatch();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to join queue",
+        title: "Not connected",
+        description: "Please wait for connection...",
         variant: "destructive",
       });
-    },
-  });
-
-  const leaveQueueMutation = useMutation({
-    mutationFn: async (data: any) => {
-      await apiRequest("POST", "/api/queue/leave", data);
-    },
-    onSuccess: () => {
-      setInQueue(false);
-      setQueueType(null);
-      resetGameState();
-      toast({
-        title: "Left queue",
-      });
-    },
-  });
-
-  const pollMatch = useCallback(async () => {
-    let attempts = 0;
-    const maxAttempts = 120;
-    
-    const checkMatch = async () => {
-      if (attempts >= maxAttempts) return;
-      attempts++;
-
-      try {
-        const response = await apiRequest("POST", "/api/queue/findMatch", { queueType });
-        const data = await response.json();
-        if (data.matched && data.game) {
-          if (!data.matchId) {
-            toast({
-              title: "Match Error",
-              description: "Failed to join match room. Please try again.",
-              variant: "destructive",
-            });
-            setInQueue(false);
-            return;
-          }
-          
-          setGameId(data.game.id);
-          setMatchId(data.matchId);
-          const chess = new Chess(data.game.fen);
-          setGame(chess);
-          setPlayerColor(data.game.playerColor || "white");
-          setFen(data.game.fen);
-          
-          const matchMoves = data.game.moves || [];
-          setMoves(matchMoves);
-          movesRef.current = matchMoves;
-          
-          setWhiteTime(data.game.whiteTime || 180);
-          setBlackTime(data.game.blackTime || 180);
-          setIncrement(data.game.increment || 0);
-          setGameStarted(true);
-          setInQueue(false);
-        }
-      } catch (error) {
-        console.error("Error checking match:", error);
-      }
-
-      setTimeout(checkMatch, 1000);
-    };
-
-    checkMatch();
-  }, [queueType, toast, isBlindfold]);
-
-  const handleJoinQueue = (time: string) => {
-    const queueMap: Record<string, string> = {
-      '1': 'standard_bullet',
-      '5': 'standard_blitz',
-      '15': 'standard_rapid',
-      '30': 'standard_classical',
-    };
-
-    const queue = queueMap[time];
-    if (queue !== queueType) {
-      resetGameState();
+      return;
     }
-    setQueueType(queue);
-    joinQueueMutation.mutate({ queueType: queue, isBlindfold });
+
+    resetGameState();
+    setQueueType(`standard_${timeControl}`);
+    joinQueue(timeControl);
+    
+    toast({
+      title: "Joined queue",
+      description: `Looking for ${timeControl} game...`,
+    });
+  };
+
+  const handleLeaveQueue = () => {
+    wsLeaveQueue();
+    setQueueType(null);
+    toast({
+      title: "Left queue",
+    });
   };
 
   useEffect(() => {
@@ -549,8 +521,8 @@ export default function StandardMode() {
                     <div className="grid grid-cols-2 gap-3">
                       <Button 
                         variant="outline" 
-                        onClick={() => handleJoinQueue('1')}
-                        disabled={joinQueueMutation.isPending}
+                        onClick={() => handleJoinQueue('bullet')}
+                        disabled={!isConnected}
                         data-testid="button-queue-bullet"
                       >
                         <Clock className="mr-2 h-4 w-4" />
@@ -558,8 +530,8 @@ export default function StandardMode() {
                       </Button>
                       <Button 
                         variant="outline" 
-                        onClick={() => handleJoinQueue('5')}
-                        disabled={joinQueueMutation.isPending}
+                        onClick={() => handleJoinQueue('blitz')}
+                        disabled={!isConnected}
                         data-testid="button-queue-blitz"
                       >
                         <Clock className="mr-2 h-4 w-4" />
@@ -567,8 +539,8 @@ export default function StandardMode() {
                       </Button>
                       <Button 
                         variant="outline" 
-                        onClick={() => handleJoinQueue('15')}
-                        disabled={joinQueueMutation.isPending}
+                        onClick={() => handleJoinQueue('rapid')}
+                        disabled={!isConnected}
                         data-testid="button-queue-rapid"
                       >
                         <Clock className="mr-2 h-4 w-4" />
@@ -576,8 +548,8 @@ export default function StandardMode() {
                       </Button>
                       <Button 
                         variant="outline" 
-                        onClick={() => handleJoinQueue('30')}
-                        disabled={joinQueueMutation.isPending}
+                        onClick={() => handleJoinQueue('classical')}
+                        disabled={!isConnected}
                         data-testid="button-queue-classical"
                       >
                         <Clock className="mr-2 h-4 w-4" />
@@ -596,7 +568,7 @@ export default function StandardMode() {
                     <p className="text-muted-foreground">Open another browser window and queue up to play against yourself!</p>
                     <Button 
                       variant="outline" 
-                      onClick={() => leaveQueueMutation.mutate({ queueType })}
+                      onClick={handleLeaveQueue}
                       className="w-full"
                       data-testid="button-leave-queue"
                     >

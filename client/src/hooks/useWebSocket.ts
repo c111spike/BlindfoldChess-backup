@@ -5,20 +5,30 @@ interface WebSocketMessage {
   [key: string]: any;
 }
 
+interface MatchFoundData {
+  matchId: string;
+  gameId: string;
+  timeControl: string;
+  color: string;
+  opponent: {
+    name: string;
+    rating: number;
+  };
+}
+
 interface UseWebSocketOptions {
   userId?: string;
-  matchId?: string;
   onMove?: (data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => void;
   onClockSync?: (data: { matchId: string; whiteTime: number; blackTime: number }) => void;
+  onMatchFound?: (data: MatchFoundData) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions) {
-  const { userId, matchId, onMove, onClockSync } = options;
+  const { userId, onMove, onClockSync, onMatchFound } = options;
   const wsRef = useRef<WebSocket | null>(null);
-  const prevMatchIdRef = useRef<string | undefined>(undefined);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isInMatch, setIsInMatch] = useState(false);
+  const [queueStatus, setQueueStatus] = useState<{ inQueue: boolean; timeControl?: string }>({ inQueue: false });
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -46,13 +56,24 @@ export function useWebSocket(options: UseWebSocketOptions) {
         switch (message.type) {
           case 'authenticated':
             setIsAuthenticated(true);
-            if (matchId) {
-              prevMatchIdRef.current = matchId;
-              ws.send(JSON.stringify({ type: 'join_match', matchId }));
-            }
             break;
-          case 'joined_match':
-            setIsInMatch(true);
+          case 'queue_joined':
+            setQueueStatus({ inQueue: true, timeControl: message.timeControl });
+            break;
+          case 'queue_left':
+            setQueueStatus({ inQueue: false });
+            break;
+          case 'match_found':
+            setQueueStatus({ inQueue: false });
+            if (onMatchFound) {
+              onMatchFound({
+                matchId: message.matchId,
+                gameId: message.gameId,
+                timeControl: message.timeControl,
+                color: message.color,
+                opponent: message.opponent,
+              });
+            }
             break;
           case 'opponent_move':
             if (onMove) {
@@ -88,11 +109,23 @@ export function useWebSocket(options: UseWebSocketOptions) {
       console.log('WebSocket disconnected');
       setIsConnected(false);
       setIsAuthenticated(false);
-      setIsInMatch(false);
+      setQueueStatus({ inQueue: false });
     };
-  }, [userId, matchId, onMove, onClockSync]);
+  }, [userId, onMove, onClockSync, onMatchFound]);
 
-  const sendMove = useCallback((matchId: string, move: string, fen: string, whiteTime: number, blackTime: number, increment?: number) => {
+  const joinQueue = useCallback((timeControl: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN && isAuthenticated) {
+      wsRef.current.send(JSON.stringify({ type: 'join_queue', timeControl }));
+    }
+  }, [isAuthenticated]);
+
+  const leaveQueue = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'leave_queue' }));
+    }
+  }, []);
+
+  const sendMove = useCallback((matchId: string, move: string, fen: string, whiteTime: number, blackTime: number) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'move',
@@ -101,7 +134,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
         fen,
         whiteTime,
         blackTime,
-        increment: increment || 0,
       }));
     }
   }, []);
@@ -117,9 +149,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
-  const joinMatch = useCallback((newMatchId: string) => {
+  const joinMatch = useCallback((matchId: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN && isAuthenticated) {
-      wsRef.current.send(JSON.stringify({ type: 'join_match', matchId: newMatchId }));
+      wsRef.current.send(JSON.stringify({ type: 'join_match', matchId }));
     }
   }, [isAuthenticated]);
 
@@ -136,17 +168,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
     };
   }, [userId, connect]);
 
-  useEffect(() => {
-    if (matchId && isAuthenticated && matchId !== prevMatchIdRef.current) {
-      prevMatchIdRef.current = matchId;
-      joinMatch(matchId);
-    }
-  }, [matchId, isAuthenticated, joinMatch]);
-
   return {
     isConnected,
     isAuthenticated,
-    isInMatch,
+    queueStatus,
+    joinQueue,
+    leaveQueue,
     sendMove,
     sendClockUpdate,
     joinMatch,

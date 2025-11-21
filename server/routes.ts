@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema } from "@shared/schema";
+import { queueManager } from "./queueManager";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -227,36 +228,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/queue/join', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { queueType, isBlindfold } = req.body;
+      const { timeControl } = req.body;
+
+      if (!['bullet', 'blitz', 'rapid', 'classical'].includes(timeControl)) {
+        return res.status(400).json({ message: "Invalid time control" });
+      }
 
       const rating = await storage.getOrCreateRating(userId);
-
-      const getRatingRange = (r: number) => {
-        if (r < 1400) return "1200-1400";
-        if (r < 1600) return "1400-1600";
-        if (r < 1800) return "1600-1800";
-        return "1800+";
-      };
-
-      const getRatingForQueueType = (queueType: string): number => {
-        if (queueType.includes('bullet')) return rating.bullet;
-        if (queueType.includes('blitz')) return rating.blitz;
-        if (queueType.includes('rapid')) return rating.rapid;
-        if (queueType.includes('classical')) return rating.classical;
+      
+      const getRatingForTimeControl = (tc: string): number => {
+        if (tc === 'bullet') return rating.bullet;
+        if (tc === 'blitz') return rating.blitz;
+        if (tc === 'rapid') return rating.rapid;
+        if (tc === 'classical') return rating.classical;
         return 1200;
       };
 
-      const currentRating = getRatingForQueueType(queueType);
-      const ratingRange = getRatingRange(currentRating);
-
-      const queueEntry = await storage.joinQueue({
-        userId,
-        queueType,
-        ratingRange,
-        isBlindfold,
+      const currentRating = getRatingForTimeControl(timeControl);
+      
+      res.json({
+        success: true,
+        timeControl,
+        position: 1,
+        message: "Joined queue successfully"
       });
-
-      res.json(queueEntry);
     } catch (error) {
       console.error("Error joining queue:", error);
       res.status(500).json({ message: "Failed to join queue" });
@@ -266,9 +261,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/queue/leave', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { queueType } = req.body;
-
-      await storage.leaveQueue(userId, queueType);
       res.json({ success: true });
     } catch (error) {
       console.error("Error leaving queue:", error);
@@ -279,9 +271,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/queue/status', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const queueStatus = await storage.getUserQueueStatus(userId);
+      const status = queueManager.getStatus(userId);
+      const counts = queueManager.getQueueCounts();
 
-      res.json(queueStatus || null);
+      res.json({
+        ...status,
+        counts
+      });
     } catch (error) {
       console.error("Error fetching queue status:", error);
       res.status(500).json({ message: "Failed to fetch queue status" });
@@ -751,7 +747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   wss.on('connection', (ws: WebSocket & { userId?: string; matchId?: string }) => {
     console.log('WebSocket client connected');
 
-    ws.on('message', (message: string) => {
+    ws.on('message', async (message: string) => {
       try {
         const data = JSON.parse(message.toString());
         console.log('Received WebSocket message:', data);
@@ -760,6 +756,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ws.userId = data.userId;
           userConnections.set(data.userId, ws);
           ws.send(JSON.stringify({ type: 'authenticated', userId: data.userId }));
+        } else if (data.type === 'join_queue') {
+          const userId = ws.userId;
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
+            return;
+          }
+
+          const { timeControl } = data;
+          if (!['bullet', 'blitz', 'rapid', 'classical'].includes(timeControl)) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid time control' }));
+            return;
+          }
+
+          const rating = await storage.getOrCreateRating(userId);
+          const ratingMap = {
+            bullet: rating.bullet,
+            blitz: rating.blitz,
+            rapid: rating.rapid,
+            classical: rating.classical
+          };
+          const playerRating = ratingMap[timeControl as keyof typeof ratingMap];
+
+          const socketId = Math.random().toString(36).substring(7);
+          (ws as any).socketId = socketId;
+
+          const match = queueManager.join(userId, socketId, timeControl, playerRating);
+
+          if (!match) {
+            ws.send(JSON.stringify({ type: 'queue_joined', timeControl }));
+            return;
+          }
+          
+          if (match) {
+            const timeMap = { bullet: 1, blitz: 5, rapid: 15, classical: 30 };
+            const time = timeMap[timeControl as keyof typeof timeMap];
+            
+            const player1Color = Math.random() > 0.5 ? "white" : "black";
+            const player2Color = player1Color === "white" ? "black" : "white";
+
+            const player1 = await storage.getUser(match.player1.userId);
+            const player2 = await storage.getUser(match.player2.userId);
+
+            const matchRecord = await storage.createMatch({
+              player1Id: match.player1.userId,
+              player2Id: match.player2.userId,
+              matchType: `standard_${timeControl}`,
+              gameIds: [],
+              status: 'in_progress',
+            });
+
+            const game1 = await storage.createGame({
+              userId: match.player1.userId,
+              mode: `standard_${timeControl}`,
+              playerColor: player1Color,
+              timeControl: time,
+              increment: 0,
+              fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+              whiteTime: time * 60,
+              blackTime: time * 60,
+              opponentName: `${player2?.firstName || 'Opponent'} ${player2?.lastName || ''}`.trim(),
+            });
+
+            const game2 = await storage.createGame({
+              userId: match.player2.userId,
+              mode: `standard_${timeControl}`,
+              playerColor: player2Color,
+              timeControl: time,
+              increment: 0,
+              fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+              whiteTime: time * 60,
+              blackTime: time * 60,
+              opponentName: `${player1?.firstName || 'Opponent'} ${player1?.lastName || ''}`.trim(),
+            });
+
+            await storage.updateMatch(matchRecord.id, {
+              gameIds: [game1.id, game2.id],
+            });
+
+            const player1Ws = userConnections.get(match.player1.userId);
+            const player2Ws = userConnections.get(match.player2.userId);
+
+            if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
+              player1Ws.send(JSON.stringify({
+                type: 'match_found',
+                matchId: matchRecord.id,
+                game: game1,
+                timeControl,
+                color: player1Color,
+                opponent: {
+                  name: `${player2?.firstName || 'Opponent'} ${player2?.lastName || ''}`.trim(),
+                  rating: match.player2.rating,
+                },
+              }));
+            }
+
+            if (player2Ws && player2Ws.readyState === WebSocket.OPEN) {
+              player2Ws.send(JSON.stringify({
+                type: 'match_found',
+                matchId: matchRecord.id,
+                game: game2,
+                timeControl,
+                color: player2Color,
+                opponent: {
+                  name: `${player1?.firstName || 'Opponent'} ${player1?.lastName || ''}`.trim(),
+                  rating: match.player1.rating,
+                },
+              }));
+            }
+          }
+        } else if (data.type === 'leave_queue') {
+          const userId = ws.userId;
+          if (userId) {
+            queueManager.leave(userId);
+            ws.send(JSON.stringify({ type: 'queue_left' }));
+          }
         } else if (data.type === 'join_match') {
           const matchId = data.matchId;
           const userId = ws.userId;
@@ -837,6 +948,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (ws.userId) {
         userConnections.delete(ws.userId);
+        
+        const socketId = (ws as any).socketId;
+        if (socketId) {
+          queueManager.removeBySocketId(socketId);
+        }
         
         if (ws.matchId) {
           const roomUsers = matchRooms.get(ws.matchId);
