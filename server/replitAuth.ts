@@ -131,6 +131,46 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const testUserId = req.headers['x-test-user-id'] as string;
+  
+  if (isDev && testUserId) {
+    const testUsers: Record<string, any> = {
+      'test-player-1': { sub: 'test-player-1', email: 'player1@test.local', first_name: 'Test', last_name: 'Player 1' },
+      'test-player-2': { sub: 'test-player-2', email: 'player2@test.local', first_name: 'Test', last_name: 'Player 2' },
+      'test-player-3': { sub: 'test-player-3', email: 'player3@test.local', first_name: 'Test', last_name: 'Player 3' },
+      'test-player-4': { sub: 'test-player-4', email: 'player4@test.local', first_name: 'Test', last_name: 'Player 4' },
+    };
+    
+    const testClaims = testUsers[testUserId];
+    if (testClaims) {
+      await upsertUser(testClaims);
+      
+      const testUser = {
+        claims: testClaims,
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+      };
+      
+      (req as any).user = testUser;
+      
+      if (!req.session.passport) {
+        req.session.passport = {};
+      }
+      req.session.passport.user = testUser;
+      
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      
+      return next();
+    }
+  }
+  
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {

@@ -1,4 +1,5 @@
 import { Switch, Route } from "wouter";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,7 +8,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { TestUserSwitcher } from "@/components/TestUserSwitcher";
 import { useAuth } from "@/hooks/useAuth";
+import { isDevelopment, getTestUserId } from "@/lib/devMode";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import OTBMode from "@/pages/otb-mode";
@@ -54,20 +57,33 @@ function AppContent() {
     "--sidebar-width-icon": "3rem",
   };
 
+  const isUsingTestUser = isDevelopment && !!getTestUserId();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && !isUsingTestUser) {
+      window.location.href = "/api/login";
+    }
+  }, [isLoading, isAuthenticated, isUsingTestUser]);
+
   if (isLoading) {
     return <div className="h-screen bg-background" />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isUsingTestUser) {
     return (
       <div className="h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-foreground mb-4">Redirecting to login...</p>
           <a href="/api/login" className="text-primary underline">Click here if not redirected</a>
         </div>
-        {typeof window !== 'undefined' && (window.location.href = "/api/login")}
       </div>
     );
+  }
+
+  if (!isAuthenticated && isUsingTestUser) {
+    return <div className="h-screen bg-background flex items-center justify-center">
+      <p className="text-foreground">Authenticating test user...</p>
+    </div>;
   }
 
   return (
@@ -75,9 +91,12 @@ function AppContent() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between p-2 border-b">
+          <header className="flex items-center justify-between p-2 border-b gap-2">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <TestUserSwitcher />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 overflow-auto">
             <Router />
