@@ -40,19 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/ratings', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      let rating = await storage.getRating(userId);
-      
-      if (!rating) {
-        rating = await storage.createRating({
-          userId,
-          otbBullet: 1200,
-          otbBlitz: 1200,
-          otbRapid: 1200,
-          blindfold: 1200,
-          simul: 1200,
-        });
-      }
-      
+      const rating = await storage.getOrCreateRating(userId);
       res.json(rating);
     } catch (error) {
       console.error("Error fetching ratings:", error);
@@ -200,37 +188,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           winStreak: isWin ? (existingStat?.winStreak || 0) + 1 : 0,
         });
         
-        let rating = await storage.getRating(userId);
-        if (!rating) {
-          rating = await storage.createRating({
-            userId,
-            otbBullet: 1200,
-            otbBlitz: 1200,
-            otbRapid: 1200,
-            blindfold: 1200,
-            simul: 1200,
-          });
-        }
+        const rating = await storage.getOrCreateRating(userId);
         
         const opponentRating = 1200;
         const kFactor = 32;
         
+        const getRatingField = (game: any): keyof typeof rating => {
+          const timeControl = game.timeControl || 5;
+          if (timeControl <= 1) return 'bullet';
+          if (timeControl <= 5) return 'blitz';
+          if (timeControl <= 15) return 'rapid';
+          return 'classical';
+        };
+        
+        const ratingField = getRatingField(game);
+        const currentRating = rating[ratingField];
+        
         const score = isWin ? 1 : isDraw ? 0.5 : 0;
-        const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - getCurrentRating(rating, game.mode)) / 400));
+        const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - currentRating) / 400));
         const ratingChange = Math.round(kFactor * (score - expectedScore));
         
         const ratingUpdate: any = {};
-        if (game.mode === 'otb_bullet') {
-          ratingUpdate.otbBullet = rating.otbBullet + ratingChange;
-        } else if (game.mode === 'otb_blitz') {
-          ratingUpdate.otbBlitz = rating.otbBlitz + ratingChange;
-        } else if (game.mode === 'otb_rapid') {
-          ratingUpdate.otbRapid = rating.otbRapid + ratingChange;
-        } else if (game.mode === 'blindfold') {
-          ratingUpdate.blindfold = rating.blindfold + ratingChange;
-        } else if (game.mode === 'simul') {
-          ratingUpdate.simul = rating.simul + ratingChange;
-        }
+        ratingUpdate[ratingField] = currentRating + ratingChange;
         
         await storage.updateRating(userId, ratingUpdate);
       }
@@ -247,17 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { queueType, isBlindfold } = req.body;
 
-      let rating = await storage.getRating(userId);
-      if (!rating) {
-        rating = await storage.createRating({
-          userId,
-          otbBullet: 1200,
-          otbBlitz: 1200,
-          otbRapid: 1200,
-          blindfold: 1200,
-          simul: 1200,
-        });
-      }
+      const rating = await storage.getOrCreateRating(userId);
 
       const getRatingRange = (r: number) => {
         if (r < 1400) return "1200-1400";
@@ -266,13 +235,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return "1800+";
       };
 
-      const currentRating = 
-        queueType === 'otb_bullet' ? rating.otbBullet :
-        queueType === 'otb_blitz' ? rating.otbBlitz :
-        queueType === 'otb_rapid' ? rating.otbRapid :
-        queueType === 'simul' ? rating.simul :
-        rating.blindfold;
+      const getRatingForQueueType = (queueType: string): number => {
+        if (queueType.includes('bullet')) return rating.bullet;
+        if (queueType.includes('blitz')) return rating.blitz;
+        if (queueType.includes('rapid')) return rating.rapid;
+        if (queueType.includes('classical')) return rating.classical;
+        return 1200;
+      };
 
+      const currentRating = getRatingForQueueType(queueType);
       const ratingRange = getRatingRange(currentRating);
 
       const queueEntry = await storage.joinQueue({
@@ -524,11 +495,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   function getCurrentRating(rating: any, mode: string): number {
-    if (mode === 'otb_bullet') return rating.otbBullet;
-    if (mode === 'otb_blitz') return rating.otbBlitz;
-    if (mode === 'otb_rapid') return rating.otbRapid;
-    if (mode === 'blindfold') return rating.blindfold;
-    if (mode === 'simul') return rating.simul;
+    if (mode.includes('bullet')) return rating.bullet;
+    if (mode.includes('blitz')) return rating.blitz;
+    if (mode.includes('rapid')) return rating.rapid;
+    if (mode.includes('classical')) return rating.classical;
     return 1200;
   }
 

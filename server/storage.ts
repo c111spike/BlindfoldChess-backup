@@ -42,6 +42,7 @@ export interface IStorage {
   
   getRating(userId: string): Promise<Rating | undefined>;
   createRating(rating: InsertRating): Promise<Rating>;
+  getOrCreateRating(userId: string): Promise<Rating>;
   updateRating(userId: string, data: Partial<Rating>): Promise<Rating>;
   
   getRandomPuzzle(): Promise<Puzzle | undefined>;
@@ -140,6 +141,20 @@ export class DatabaseStorage implements IStorage {
 
   async createRating(ratingData: InsertRating): Promise<Rating> {
     const [rating] = await db.insert(ratings).values(ratingData).returning();
+    return rating;
+  }
+
+  async getOrCreateRating(userId: string): Promise<Rating> {
+    let rating = await this.getRating(userId);
+    if (!rating) {
+      rating = await this.createRating({
+        userId,
+        bullet: 1200,
+        blitz: 1200,
+        rapid: 1200,
+        classical: 1200,
+      });
+    }
     return rating;
   }
 

@@ -18,8 +18,8 @@ export default function Dashboard() {
   if (ratingsLoading) {
     return (
       <div className="p-8 space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[1, 2, 3, 4, 5].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
@@ -40,12 +40,12 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">OTB Bullet</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-otb-bullet">
-              {ratings?.otbBullet || 1200}
+            <CardDescription className="text-xs font-medium">Bullet (1 min)</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-bullet">
+              {ratings?.bullet || 1200}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -58,9 +58,9 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">OTB Blitz</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-otb-blitz">
-              {ratings?.otbBlitz || 1200}
+            <CardDescription className="text-xs font-medium">Blitz (5 min)</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-blitz">
+              {ratings?.blitz || 1200}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -73,9 +73,9 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">OTB Rapid</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-otb-rapid">
-              {ratings?.otbRapid || 1200}
+            <CardDescription className="text-xs font-medium">Rapid (15 min)</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-rapid">
+              {ratings?.rapid || 1200}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -88,24 +88,9 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">Blindfold</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-blindfold">
-              {ratings?.blindfold || 1200}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3" />
-              <span>+23 this month</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">Simul</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-simul">
-              {ratings?.simul || 1200}
+            <CardDescription className="text-xs font-medium">Classical (30 min)</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-classical">
+              {ratings?.classical || 1200}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -125,7 +110,7 @@ export default function Dashboard() {
             </div>
             <CardTitle className="text-primary-foreground text-2xl">Simul Exhibition</CardTitle>
             <CardDescription className="text-primary-foreground/80">
-              Train against 2-25 opponents simultaneously using FIFO matching.
+              2-10 boards. 30 seconds per move. FIFO rotation.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -135,14 +120,14 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="hover-elevate" data-testid="card-fide-mode">
+        <Card className="hover-elevate" data-testid="card-otb-mode">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Clock className="h-8 w-8 text-foreground" />
             </div>
-            <CardTitle className="text-2xl">FIDE Mode</CardTitle>
+            <CardTitle className="text-2xl">OTB Tournament Mode</CardTitle>
             <CardDescription>
-              OTB Realism. Manual clock, strict rules.
+              Manual clock. FIDE tournament practice.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -152,19 +137,19 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="hover-elevate" data-testid="card-blindfold">
+        <Card className="hover-elevate" data-testid="card-standard-mode">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Brain className="h-8 w-8 text-foreground" />
             </div>
-            <CardTitle className="text-2xl">Blindfold</CardTitle>
+            <CardTitle className="text-2xl">Standard</CardTitle>
             <CardDescription>
-              Visualization training with peek mechanics.
+              Online chess. Automatic clocks. Optional blindfold.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild variant="outline" className="w-full" data-testid="button-mode-blindfold">
-              <Link href="/blindfold">Start Training</Link>
+            <Button asChild variant="outline" className="w-full" data-testid="button-mode-standard">
+              <Link href="/standard">Play Standard</Link>
             </Button>
           </CardContent>
         </Card>

@@ -45,7 +45,11 @@ export const gameModeEnum = pgEnum("game_mode", [
   "otb_bullet",
   "otb_blitz",
   "otb_rapid",
-  "blindfold",
+  "otb_classical",
+  "standard_bullet",
+  "standard_blitz",
+  "standard_rapid",
+  "standard_classical",
   "simul",
 ]);
 
@@ -82,7 +86,8 @@ export const games = pgTable("games", {
   manualClockPresses: integer("manual_clock_presses").default(0),
   peeksUsed: integer("peeks_used").default(0),
   peeksRemaining: integer("peeks_remaining"),
-  blindfoldLevel: integer("blindfold_level"),
+  blindfoldEnabled: boolean("blindfold_enabled").default(false),
+  boardCount: integer("board_count"),
   ratingChange: integer("rating_change"),
   arbiterWarnings: jsonb("arbiter_warnings").$type<string[]>().default([]),
   startedAt: timestamp("started_at").defaultNow(),
@@ -111,11 +116,10 @@ export const ratings = pgTable("ratings", {
   userId: varchar("user_id")
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
-  otbBullet: integer("otb_bullet").default(1200),
-  otbBlitz: integer("otb_blitz").default(1200),
-  otbRapid: integer("otb_rapid").default(1200),
-  blindfold: integer("blindfold").default(1200),
-  simul: integer("simul").default(1200),
+  bullet: integer("bullet").default(1200),
+  blitz: integer("blitz").default(1200),
+  rapid: integer("rapid").default(1200),
+  classical: integer("classical").default(1200),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
