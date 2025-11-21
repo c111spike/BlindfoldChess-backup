@@ -242,6 +242,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/blindfold', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (!user.isPremium && (user.dailyBlindfoldGamesPlayed || 0) >= 5) {
+        return res.status(403).json({ 
+          message: "Daily Blindfold game limit reached. Upgrade to Premium for unlimited games.",
+          upgradeRequired: true,
+        });
+      }
+      
+      const gameData = insertGameSchema.parse({
+        mode: 'blindfold',
+        userId,
+        playerColor: req.body.playerColor || 'white',
+        timeControl: req.body.timeControl || 5,
+        increment: req.body.increment || 0,
+        fen: req.body.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        moves: req.body.moves || [],
+        whiteTime: req.body.timeControl ? (req.body.timeControl * 60) : 300,
+        blackTime: req.body.timeControl ? (req.body.timeControl * 60) : 300,
+        peeksRemaining: 3,
+      });
+      
+      const game = await storage.createGame(gameData);
+      
+      if (!user.isPremium) {
+        await storage.upsertUser({
+          ...user,
+          dailyBlindfoldGamesPlayed: (user.dailyBlindfoldGamesPlayed || 0) + 1,
+        });
+      }
+      
+      res.json(game);
+    } catch (error) {
+      console.error("Error creating blindfold game:", error);
+      res.status(500).json({ message: "Failed to create blindfold game" });
+    }
+  });
+
+  app.patch('/api/blindfold/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const game = await storage.getGame(id);
+      if (!game || game.userId !== userId) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+      
+      const updateData: any = { ...req.body };
+      
+      if (req.body.peek) {
+        updateData.peeksRemaining = Math.max(0, (game.peeksRemaining || 3) - 1);
+        updateData.peeksUsed = (game.peeksUsed || 0) + 1;
+      }
+      
+      const updatedGame = await storage.updateGame(id, updateData);
+      res.json(updatedGame);
+    } catch (error) {
+      console.error("Error updating blindfold game:", error);
+      res.status(500).json({ message: "Failed to update blindfold game" });
+    }
+  });
+
+  const simulSessions = new Map<string, any>();
+
+  app.post('/api/simul', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const simulId = `simul_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const simulSession = {
+        id: simulId,
+        hostId: userId,
+        hostRating: 1800,
+        opponents: [] as string[],
+        games: [] as string[],
+        status: 'waiting',
+        createdAt: new Date(),
+        maxOpponents: req.body.maxOpponents || 5,
+      };
+      
+      simulSessions.set(simulId, simulSession);
+      res.json(simulSession);
+    } catch (error) {
+      console.error("Error creating simul:", error);
+      res.status(500).json({ message: "Failed to create simul" });
+    }
+  });
+
+  app.post('/api/simul/:id/join', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const simulSession = simulSessions.get(id);
+      if (!simulSession) {
+        return res.status(404).json({ message: "Simul not found" });
+      }
+      
+      if (simulSession.opponents.length >= simulSession.maxOpponents) {
+        return res.status(409).json({ message: "Simul is full" });
+      }
+      
+      simulSession.opponents.push(userId);
+      
+      const gameData = insertGameSchema.parse({
+        mode: 'simul',
+        userId,
+        playerColor: 'black',
+        timeControl: req.body.timeControl || 3,
+        increment: req.body.increment || 2,
+        fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        moves: [],
+        whiteTime: 180,
+        blackTime: 180,
+      });
+      
+      const game = await storage.createGame(gameData);
+      simulSession.games.push(game.id);
+      
+      const simulGame = await storage.createSimulGame({
+        simulId: id,
+        userId,
+        gameId: game.id,
+        boardOrder: simulSession.games.length,
+      });
+      
+      res.json({ game, simulGame });
+    } catch (error) {
+      console.error("Error joining simul:", error);
+      res.status(500).json({ message: "Failed to join simul" });
+    }
+  });
+
+  app.get('/api/simul/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const simulSession = simulSessions.get(id);
+      if (!simulSession) {
+        return res.status(404).json({ message: "Simul not found" });
+      }
+      
+      const simulGames = await storage.getSimulGames(id);
+      res.json({ ...simulSession, simulGames });
+    } catch (error) {
+      console.error("Error fetching simul:", error);
+      res.status(500).json({ message: "Failed to fetch simul" });
+    }
+  });
+
   function getCurrentRating(rating: any, mode: string): number {
     if (mode === 'otb_bullet') return rating.otbBullet;
     if (mode === 'otb_blitz') return rating.otbBlitz;
