@@ -171,7 +171,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
         wsRef.current = null;
       }
     };
-  }, [userId, connect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   return {
     isConnected,
