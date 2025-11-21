@@ -9,7 +9,6 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
-import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import OTBMode from "@/pages/otb-mode";
 import BlindfoldMode from "@/pages/blindfold-mode";
@@ -22,22 +21,24 @@ import Settings from "@/pages/settings";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  if (isLoading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/otb" component={OTBMode} />
-          <Route path="/blindfold" component={BlindfoldMode} />
-          <Route path="/simul" component={SimulMode} />
-          <Route path="/history" component={History} />
-          <Route path="/statistics" component={StatisticsPage} />
-          <Route path="/puzzles" component={Puzzles} />
-          <Route path="/settings" component={Settings} />
-        </>
-      )}
+      <Route path="/" component={Dashboard} />
+      <Route path="/otb" component={OTBMode} />
+      <Route path="/blindfold" component={BlindfoldMode} />
+      <Route path="/simul" component={SimulMode} />
+      <Route path="/history" component={History} />
+      <Route path="/statistics" component={StatisticsPage} />
+      <Route path="/puzzles" component={Puzzles} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );
