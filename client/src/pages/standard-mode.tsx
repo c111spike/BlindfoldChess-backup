@@ -50,6 +50,10 @@ export default function StandardMode() {
   }, [game, gameId, whiteTime, blackTime]);
 
   const resetGameState = useCallback(() => {
+    if (saveIntervalRef.current) {
+      clearInterval(saveIntervalRef.current);
+      saveIntervalRef.current = null;
+    }
     setGame(null);
     setGameId(null);
     setMatchId(null);
@@ -68,10 +72,6 @@ export default function StandardMode() {
     gameIdRef.current = null;
     whiteTimeRef.current = 180;
     blackTimeRef.current = 180;
-    if (saveIntervalRef.current) {
-      clearInterval(saveIntervalRef.current);
-      saveIntervalRef.current = null;
-    }
   }, []);
 
   const handleOpponentMove = useCallback((data: { gameId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
@@ -153,6 +153,7 @@ export default function StandardMode() {
       queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
       queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
       resetGameState();
     },
   });
@@ -252,41 +253,37 @@ export default function StandardMode() {
     };
 
     const queue = queueMap[time];
-    resetGameState();
+    if (queue !== queueType) {
+      resetGameState();
+    }
     setQueueType(queue);
     joinQueueMutation.mutate({ queueType: queue, isBlindfold });
   };
 
   useEffect(() => {
-    if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
+    if (ongoingGame && !restoredGame && !gameStarted && !inQueue && ongoingGame.status === 'active') {
       const restoreGame = async () => {
         try {
-          if (queueType && ongoingGame.mode !== queueType) {
-            setRestoredGame(true);
-            return;
-          }
-          
           const matchResponse = await apiRequest("GET", "/api/matches/active");
           
           if (!matchResponse.ok) {
-            toast({
-              title: "Error",
-              description: "Cannot restore match. Please start a new game.",
-              variant: "destructive",
-            });
             setRestoredGame(true);
             return;
           }
           
           const matchData = await matchResponse.json();
-          if (!matchData || !matchData.matchId) {
-            toast({
-              title: "Error",
-              description: "Cannot restore match. Please start a new game.",
-              variant: "destructive",
-            });
+          if (!matchData || !matchData.matchId || matchData.status === 'completed') {
             setRestoredGame(true);
             return;
+          }
+          
+          if (queueType && ongoingGame.mode !== queueType) {
+            setRestoredGame(true);
+            return;
+          }
+          
+          if (!queueType) {
+            setQueueType(ongoingGame.mode);
           }
           
           setMatchId(matchData.matchId);
