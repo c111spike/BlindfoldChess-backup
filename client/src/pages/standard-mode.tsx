@@ -40,6 +40,7 @@ export default function StandardMode() {
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
+  const matchIdRef = useRef<string | null>(null);
   const whiteTimeRef = useRef(180);
   const blackTimeRef = useRef(180);
   const movesRef = useRef<string[]>([]);
@@ -48,10 +49,11 @@ export default function StandardMode() {
   useEffect(() => {
     gameRef.current = game;
     gameIdRef.current = gameId;
+    matchIdRef.current = matchId;
     whiteTimeRef.current = whiteTime;
     blackTimeRef.current = blackTime;
     movesRef.current = moves;
-  }, [game, gameId, whiteTime, blackTime, moves]);
+  }, [game, gameId, matchId, whiteTime, blackTime, moves]);
 
   const resetGameState = useCallback(() => {
     if (saveIntervalRef.current) {
@@ -74,6 +76,7 @@ export default function StandardMode() {
     setShowBoard(true);
     gameRef.current = null;
     gameIdRef.current = null;
+    matchIdRef.current = null;
     whiteTimeRef.current = 180;
     blackTimeRef.current = 180;
     movesRef.current = [];
@@ -81,11 +84,11 @@ export default function StandardMode() {
 
   const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
     console.log('[handleOpponentMove] Received opponent move:', data);
-    console.log('[handleOpponentMove] Current matchId:', matchId);
+    console.log('[handleOpponentMove] Current matchIdRef:', matchIdRef.current);
     console.log('[handleOpponentMove] Game ref exists:', !!gameRef.current);
     
-    if (data.matchId !== matchId) {
-      console.log('[handleOpponentMove] SKIPPED - matchId mismatch');
+    if (data.matchId !== matchIdRef.current) {
+      console.log('[handleOpponentMove] SKIPPED - matchId mismatch (data:', data.matchId, 'ref:', matchIdRef.current, ')');
       return;
     }
     
@@ -127,7 +130,7 @@ export default function StandardMode() {
         variant: "destructive",
       });
     }
-  }, [matchId, toast]);
+  }, [toast]);
 
   const handleMatchFound = useCallback((matchData: { matchId: string; game: any; timeControl: string; color: string; opponent: { name: string; rating: number } }) => {
     try {
@@ -139,9 +142,15 @@ export default function StandardMode() {
         throw new Error(`Invalid game data: ${JSON.stringify(gameData)}`);
       }
       
+      // Set refs immediately for synchronous access
+      gameIdRef.current = gameData.id;
+      matchIdRef.current = matchData.matchId;
+      console.log('[handleMatchFound] Set matchIdRef to:', matchIdRef.current);
+      
       setGameId(gameData.id);
       setMatchId(matchData.matchId);
       const chess = new Chess(gameData.fen);
+      gameRef.current = chess;
       setGame(chess);
       setPlayerColor(matchData.color);
       setFen(gameData.fen);
@@ -179,6 +188,14 @@ export default function StandardMode() {
     onMove: handleOpponentMove,
     onMatchFound: handleMatchFound,
   });
+
+  // Join the match room when a match is found
+  useEffect(() => {
+    if (matchId && isConnected) {
+      console.log('[useEffect] Joining match room:', matchId);
+      joinMatch(matchId);
+    }
+  }, [matchId, isConnected, joinMatch]);
 
   const createGameMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -429,9 +446,16 @@ export default function StandardMode() {
   };
 
   const handleSquareClick = (square: string) => {
-    if (!game || !gameStarted) return;
+    console.log('[handleSquareClick] Square clicked:', square);
+    console.log('[handleSquareClick] game:', !!game, 'gameStarted:', gameStarted);
+    
+    if (!game || !gameStarted) {
+      console.log('[handleSquareClick] Skipping - no game or not started');
+      return;
+    }
 
     if (selectedSquare) {
+      console.log('[handleSquareClick] Selected square exists:', selectedSquare, '-> attempting move to:', square);
       try {
         const move = game.move({
           from: selectedSquare,
@@ -439,18 +463,26 @@ export default function StandardMode() {
           promotion: "q",
         });
 
+        console.log('[handleSquareClick] Move result:', move);
+
         if (move) {
           const newFen = game.fen();
+          console.log('[handleSquareClick] New FEN:', newFen);
+          console.log('[handleSquareClick] Move SAN:', move.san);
+          
           setFen(newFen);
           
           const newMoves = [...movesRef.current, move.san];
+          console.log('[handleSquareClick] New moves array:', newMoves);
           setMoves(newMoves);
           movesRef.current = newMoves;
           
           setSelectedSquare(null);
           setLegalMoves([]);
           
+          console.log('[handleSquareClick] gameId:', gameId, 'matchId:', matchId);
           if (gameId && matchId) {
+            console.log('[handleSquareClick] Sending move via WebSocket');
             sendMove(matchId, move.san, newFen, whiteTime, blackTime);
           }
           
@@ -462,6 +494,7 @@ export default function StandardMode() {
             saveGameState();
           }
         } else {
+          console.log('[handleSquareClick] Move failed - selecting new square');
           const moves = game.moves({ square: square as any, verbose: true });
           if (moves.length > 0) {
             setSelectedSquare(square);
@@ -469,6 +502,7 @@ export default function StandardMode() {
           }
         }
       } catch (e) {
+        console.error('[handleSquareClick] Move error:', e);
         const moves = game.moves({ square: square as any, verbose: true });
         if (moves.length > 0) {
           setSelectedSquare(square);
@@ -476,7 +510,9 @@ export default function StandardMode() {
         }
       }
     } else {
+      console.log('[handleSquareClick] No selected square - selecting:', square);
       const moves = game.moves({ square: square as any, verbose: true });
+      console.log('[handleSquareClick] Legal moves:', moves);
       if (moves.length > 0) {
         setSelectedSquare(square);
         setLegalMoves(moves.map((m: any) => m.to));
