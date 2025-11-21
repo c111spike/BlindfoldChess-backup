@@ -794,7 +794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
                   opponentWs.send(JSON.stringify({
                     type: 'opponent_move',
-                    gameId: data.gameId,
+                    matchId: matchId,
                     move: data.move,
                     fen: data.fen,
                     whiteTime: data.whiteTime,
@@ -818,7 +818,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
                   opponentWs.send(JSON.stringify({
                     type: 'clock_sync',
-                    gameId: data.gameId,
+                    matchId: matchId,
                     whiteTime: data.whiteTime,
                     blackTime: data.blackTime,
                   }));

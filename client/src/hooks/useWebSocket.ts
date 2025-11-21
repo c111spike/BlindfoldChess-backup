@@ -8,13 +8,14 @@ interface WebSocketMessage {
 interface UseWebSocketOptions {
   userId?: string;
   matchId?: string;
-  onMove?: (data: { gameId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => void;
-  onClockSync?: (data: { gameId: string; whiteTime: number; blackTime: number }) => void;
+  onMove?: (data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => void;
+  onClockSync?: (data: { matchId: string; whiteTime: number; blackTime: number }) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions) {
   const { userId, matchId, onMove, onClockSync } = options;
   const wsRef = useRef<WebSocket | null>(null);
+  const prevMatchIdRef = useRef<string | undefined>(undefined);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInMatch, setIsInMatch] = useState(false);
@@ -46,6 +47,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
           case 'authenticated':
             setIsAuthenticated(true);
             if (matchId) {
+              prevMatchIdRef.current = matchId;
               ws.send(JSON.stringify({ type: 'join_match', matchId }));
             }
             break;
@@ -55,7 +57,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
           case 'opponent_move':
             if (onMove) {
               onMove({
-                gameId: message.gameId,
+                matchId: message.matchId,
                 move: message.move,
                 fen: message.fen,
                 whiteTime: message.whiteTime,
@@ -66,7 +68,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
           case 'clock_sync':
             if (onClockSync) {
               onClockSync({
-                gameId: message.gameId,
+                matchId: message.matchId,
                 whiteTime: message.whiteTime,
                 blackTime: message.blackTime,
               });
@@ -90,11 +92,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
     };
   }, [userId, matchId, onMove, onClockSync]);
 
-  const sendMove = useCallback((gameId: string, move: string, fen: string, whiteTime: number, blackTime: number, increment?: number) => {
+  const sendMove = useCallback((matchId: string, move: string, fen: string, whiteTime: number, blackTime: number, increment?: number) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'move',
-        gameId,
+        matchId,
         move,
         fen,
         whiteTime,
@@ -104,11 +106,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
-  const sendClockUpdate = useCallback((gameId: string, whiteTime: number, blackTime: number) => {
+  const sendClockUpdate = useCallback((matchId: string, whiteTime: number, blackTime: number) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'clock_update',
-        gameId,
+        matchId,
         whiteTime,
         blackTime,
       }));
@@ -135,10 +137,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
   }, [userId, connect]);
 
   useEffect(() => {
-    if (matchId && isAuthenticated && !isInMatch) {
+    if (matchId && isAuthenticated && matchId !== prevMatchIdRef.current) {
+      prevMatchIdRef.current = matchId;
       joinMatch(matchId);
     }
-  }, [matchId, isAuthenticated, isInMatch, joinMatch]);
+  }, [matchId, isAuthenticated, joinMatch]);
 
   return {
     isConnected,

@@ -77,8 +77,8 @@ export default function StandardMode() {
     movesRef.current = [];
   }, []);
 
-  const handleOpponentMove = useCallback((data: { gameId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
-    if (data.gameId !== gameId) return;
+  const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
+    if (data.matchId !== matchId) return;
     
     const currentGame = gameRef.current;
     if (!currentGame) return;
@@ -97,6 +97,8 @@ export default function StandardMode() {
       
       setWhiteTime(data.whiteTime);
       setBlackTime(data.blackTime);
+      whiteTimeRef.current = data.whiteTime;
+      blackTimeRef.current = data.blackTime;
       
       toast({
         title: "Opponent moved",
@@ -110,7 +112,7 @@ export default function StandardMode() {
         variant: "destructive",
       });
     }
-  }, [gameId, toast]);
+  }, [matchId, toast]);
 
   const { sendMove, isConnected } = useWebSocket({
     userId: user?.id,
@@ -383,11 +385,15 @@ export default function StandardMode() {
     if (gameStarted && game) {
       const timer = setInterval(() => {
         const currentTurn = game.turn();
+        const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
         
         if (currentTurn === "w") {
           setWhiteTime((t) => {
             const newTime = Math.max(0, t - 1);
-            if (newTime === 0 && t > 0) {
+            if (isMyTurn) {
+              whiteTimeRef.current = newTime;
+            }
+            if (newTime === 0 && t > 0 && isMyTurn) {
               handleGameEnd("black_win");
             }
             return newTime;
@@ -395,7 +401,10 @@ export default function StandardMode() {
         } else {
           setBlackTime((t) => {
             const newTime = Math.max(0, t - 1);
-            if (newTime === 0 && t > 0) {
+            if (isMyTurn) {
+              blackTimeRef.current = newTime;
+            }
+            if (newTime === 0 && t > 0 && isMyTurn) {
               handleGameEnd("white_win");
             }
             return newTime;
@@ -405,7 +414,7 @@ export default function StandardMode() {
 
       return () => clearInterval(timer);
     }
-  }, [gameStarted, game, handleGameEnd]);
+  }, [gameStarted, game, playerColor, handleGameEnd]);
 
   useEffect(() => {
     if (gameStarted && gameId) {
@@ -451,7 +460,7 @@ export default function StandardMode() {
           setLegalMoves([]);
           
           if (gameId && matchId) {
-            sendMove(gameId, move.san, newFen, whiteTime, blackTime, increment);
+            sendMove(matchId, move.san, newFen, whiteTime, blackTime, increment);
           }
           
           if (game.isCheckmate()) {
