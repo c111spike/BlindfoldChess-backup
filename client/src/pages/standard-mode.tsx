@@ -40,6 +40,7 @@ export default function StandardMode() {
   const gameIdRef = useRef<string | null>(null);
   const whiteTimeRef = useRef(180);
   const blackTimeRef = useRef(180);
+  const movesRef = useRef<string[]>([]);
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -47,7 +48,8 @@ export default function StandardMode() {
     gameIdRef.current = gameId;
     whiteTimeRef.current = whiteTime;
     blackTimeRef.current = blackTime;
-  }, [game, gameId, whiteTime, blackTime]);
+    movesRef.current = moves;
+  }, [game, gameId, whiteTime, blackTime, moves]);
 
   const resetGameState = useCallback(() => {
     if (saveIntervalRef.current) {
@@ -72,6 +74,7 @@ export default function StandardMode() {
     gameIdRef.current = null;
     whiteTimeRef.current = 180;
     blackTimeRef.current = 180;
+    movesRef.current = [];
   }, []);
 
   const handleOpponentMove = useCallback((data: { gameId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
@@ -85,10 +88,13 @@ export default function StandardMode() {
         throw new Error("Invalid move payload");
       }
       
-      const newGame = new Chess(data.fen);
       currentGame.load(data.fen);
       setFen(data.fen);
-      setMoves(prev => [...prev, data.move]);
+      
+      const newMoves = [...movesRef.current, data.move];
+      setMoves(newMoves);
+      movesRef.current = newMoves;
+      
       setWhiteTime(data.whiteTime);
       setBlackTime(data.blackTime);
       
@@ -227,7 +233,11 @@ export default function StandardMode() {
           setGame(chess);
           setPlayerColor(data.game.playerColor || "white");
           setFen(data.game.fen);
-          setMoves(data.game.moves || []);
+          
+          const matchMoves = data.game.moves || [];
+          setMoves(matchMoves);
+          movesRef.current = matchMoves;
+          
           setWhiteTime(data.game.whiteTime || 180);
           setBlackTime(data.game.blackTime || 180);
           setIncrement(data.game.increment || 0);
@@ -293,7 +303,11 @@ export default function StandardMode() {
           setGameId(ongoingGame.id);
           setPlayerColor((ongoingGame as any).playerColor || "white");
           setFen(ongoingGame.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-          setMoves(ongoingGame.moves || []);
+          
+          const restoredMoves = ongoingGame.moves || [];
+          setMoves(restoredMoves);
+          movesRef.current = restoredMoves;
+          
           setWhiteTime(ongoingGame.whiteTime || 180);
           setBlackTime(ongoingGame.blackTime || 180);
           setIncrement(ongoingGame.increment || 0);
@@ -328,7 +342,7 @@ export default function StandardMode() {
     try {
       await apiRequest("PATCH", `/api/games/${currentGameId}`, {
         fen: currentGame.fen(),
-        moves: currentGame.history(),
+        moves: movesRef.current,
         whiteTime: whiteTimeRef.current,
         blackTime: blackTimeRef.current,
         pgn: currentGame.pgn(),
@@ -351,9 +365,9 @@ export default function StandardMode() {
       result,
       completedAt: new Date(),
       pgn: game.pgn(),
-      moves,
-      whiteTime,
-      blackTime,
+      moves: movesRef.current,
+      whiteTime: whiteTimeRef.current,
+      blackTime: blackTimeRef.current,
     });
 
     toast({
@@ -363,7 +377,7 @@ export default function StandardMode() {
 
     setGameStarted(false);
     setShowBoard(true);
-  }, [game, gameId, updateGameMutation, moves, whiteTime, blackTime, toast]);
+  }, [game, gameId, updateGameMutation, toast]);
 
   useEffect(() => {
     if (gameStarted && game) {
@@ -428,7 +442,11 @@ export default function StandardMode() {
         if (move) {
           const newFen = game.fen();
           setFen(newFen);
-          setMoves(prev => [...prev, move.san]);
+          
+          const newMoves = [...movesRef.current, move.san];
+          setMoves(newMoves);
+          movesRef.current = newMoves;
+          
           setSelectedSquare(null);
           setLegalMoves([]);
           
