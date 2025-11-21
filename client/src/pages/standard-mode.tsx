@@ -80,20 +80,32 @@ export default function StandardMode() {
   }, []);
 
   const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
-    if (data.matchId !== matchId) return;
+    console.log('[handleOpponentMove] Received opponent move:', data);
+    console.log('[handleOpponentMove] Current matchId:', matchId);
+    console.log('[handleOpponentMove] Game ref exists:', !!gameRef.current);
+    
+    if (data.matchId !== matchId) {
+      console.log('[handleOpponentMove] SKIPPED - matchId mismatch');
+      return;
+    }
     
     const currentGame = gameRef.current;
-    if (!currentGame) return;
+    if (!currentGame) {
+      console.log('[handleOpponentMove] SKIPPED - no game ref');
+      return;
+    }
     
     try {
       if (!data.fen || !data.move) {
         throw new Error("Invalid move payload");
       }
       
+      console.log('[handleOpponentMove] Loading FEN:', data.fen);
       currentGame.load(data.fen);
       setFen(data.fen);
       
       const newMoves = [...movesRef.current, data.move];
+      console.log('[handleOpponentMove] Updating moves:', newMoves);
       setMoves(newMoves);
       movesRef.current = newMoves;
       
@@ -102,12 +114,13 @@ export default function StandardMode() {
       whiteTimeRef.current = data.whiteTime;
       blackTimeRef.current = data.blackTime;
       
+      console.log('[handleOpponentMove] Move processed successfully');
       toast({
         title: "Opponent moved",
         description: data.move,
       });
     } catch (error) {
-      console.error("Error handling opponent move:", error);
+      console.error("[handleOpponentMove] Error:", error);
       toast({
         title: "Error",
         description: "Failed to process opponent's move. Please refresh.",
