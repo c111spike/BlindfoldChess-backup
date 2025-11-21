@@ -438,7 +438,7 @@ export default function StandardMode() {
           setLegalMoves([]);
           
           if (gameId && matchId) {
-            sendMove(matchId, move.san, newFen, whiteTime, blackTime, increment);
+            sendMove(matchId, move.san, newFen, whiteTime, blackTime);
           }
           
           if (game.isCheckmate()) {
@@ -612,8 +612,8 @@ export default function StandardMode() {
                 <div className="space-y-2">
                   <Card>
                     <CardContent className="py-3">
-                      <div className="text-sm font-medium text-center">
-                        {playerColor === "white" ? opponentName : playerName}
+                      <div className="text-sm font-medium text-center" data-testid="text-opponent-name">
+                        {opponentName}
                       </div>
                     </CardContent>
                   </Card>
@@ -627,7 +627,7 @@ export default function StandardMode() {
                   <Card>
                     <CardContent className="py-3">
                       <div className="text-sm font-medium text-center" data-testid="text-player-name">
-                        {playerColor === "white" ? playerName : opponentName}
+                        {playerName}
                       </div>
                     </CardContent>
                   </Card>
