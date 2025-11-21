@@ -8,6 +8,7 @@ import {
   statistics,
   simulGames,
   matchmakingQueues,
+  matches,
   type User,
   type UpsertUser,
   type Game,
@@ -25,9 +26,11 @@ import {
   type InsertSimulGame,
   type MatchmakingQueue,
   type InsertMatchmakingQueue,
+  type Match,
+  type InsertMatch,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, ne } from "drizzle-orm";
+import { eq, desc, and, ne, or } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -62,6 +65,11 @@ export interface IStorage {
   leaveQueue(userId: string, queueType: string): Promise<void>;
   findMatch(userId: string, queueType: string): Promise<MatchmakingQueue | undefined>;
   getUserQueueStatus(userId: string): Promise<MatchmakingQueue | undefined>;
+  
+  createMatch(match: InsertMatch): Promise<Match>;
+  getMatch(id: string): Promise<Match | undefined>;
+  getActiveMatchForUser(userId: string): Promise<Match | undefined>;
+  updateMatchStatus(id: string, status: string): Promise<Match>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -297,6 +305,46 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     
     return queueEntry;
+  }
+
+  async createMatch(matchData: InsertMatch): Promise<Match> {
+    const [match] = await db.insert(matches).values(matchData).returning();
+    return match;
+  }
+
+  async getMatch(id: string): Promise<Match | undefined> {
+    const [match] = await db.select().from(matches).where(eq(matches.id, id));
+    return match;
+  }
+
+  async getActiveMatchForUser(userId: string): Promise<Match | undefined> {
+    const [match] = await db
+      .select()
+      .from(matches)
+      .where(
+        and(
+          or(
+            eq(matches.player1Id, userId),
+            eq(matches.player2Id, userId)
+          ),
+          ne(matches.status, 'completed'),
+          ne(matches.status, 'searching')
+        )
+      )
+      .orderBy(desc(matches.createdAt))
+      .limit(1);
+    
+    return match;
+  }
+
+  async updateMatchStatus(id: string, status: string): Promise<Match> {
+    const [match] = await db
+      .update(matches)
+      .set({ status: status as any })
+      .where(eq(matches.id, id))
+      .returning();
+    
+    return match;
   }
 }
 

@@ -51,6 +51,15 @@ export const gameModeEnum = pgEnum("game_mode", [
   "standard_rapid",
   "standard_classical",
   "simul",
+  "simul_2",
+  "simul_3",
+  "simul_4",
+  "simul_5",
+  "simul_6",
+  "simul_7",
+  "simul_8",
+  "simul_9",
+  "simul_10",
 ]);
 
 export const gameStatusEnum = pgEnum("game_status", [
@@ -190,6 +199,30 @@ export const matchmakingQueues = pgTable("matchmaking_queues", {
   joinedAt: timestamp("joined_at").defaultNow(),
 });
 
+export const matchStatusEnum = pgEnum("match_status", [
+  "searching",
+  "matched",
+  "in_progress",
+  "completed",
+]);
+
+export const matches = pgTable("matches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  player1Id: varchar("player1_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  player2Id: varchar("player2_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  matchType: varchar("match_type").notNull(), // "standard_bullet", "otb_blitz", "simul_4", etc.
+  status: matchStatusEnum("status").default("matched").notNull(),
+  gameIds: jsonb("game_ids").$type<string[]>().notNull(), // Array of game IDs
+  simulId: varchar("simul_id"), // For simul matches, shared simul session ID
+  createdAt: timestamp("created_at").defaultNow(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertGame = typeof games.$inferInsert;
@@ -208,6 +241,8 @@ export type InsertStatistics = typeof statistics.$inferInsert;
 export type Statistics = typeof statistics.$inferSelect;
 export type InsertMatchmakingQueue = typeof matchmakingQueues.$inferInsert;
 export type MatchmakingQueue = typeof matchmakingQueues.$inferSelect;
+export type InsertMatch = typeof matches.$inferInsert;
+export type Match = typeof matches.$inferSelect;
 
 export const insertGameSchema = createInsertSchema(games).omit({
   id: true,

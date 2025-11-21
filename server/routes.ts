@@ -293,13 +293,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { queueType } = req.body;
 
+      const existingMatch = await storage.getActiveMatchForUser(userId);
+      if (existingMatch) {
+        const userGames = [];
+        for (const gameId of existingMatch.gameIds) {
+          const game = await storage.getGame(gameId);
+          if (game && game.userId === userId) {
+            userGames.push(game);
+          }
+        }
+
+        const isSimul = existingMatch.matchType.startsWith('simul_');
+        const opponentId = existingMatch.player1Id === userId ? existingMatch.player2Id : existingMatch.player1Id;
+
+        return res.json({
+          matchId: existingMatch.id,
+          matched: true,
+          games: isSimul ? userGames : undefined,
+          game: !isSimul && userGames.length > 0 ? userGames[0] : undefined,
+          boardCount: isSimul ? userGames.length : undefined,
+          opponentId,
+        });
+      }
+
       const opponent = await storage.findMatch(userId, queueType);
 
       if (opponent) {
         await storage.leaveQueue(userId, queueType);
         await storage.leaveQueue(opponent.userId, queueType);
 
-        const userColor = Math.random() > 0.5 ? "white" : "black";
+        const player1Color = Math.random() > 0.5 ? "white" : "black";
+        const player2Color = player1Color === "white" ? "black" : "white";
+        
         const timeMap: Record<string, number> = {
           'otb_bullet': 1,
           'otb_blitz': 5,
@@ -324,16 +349,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const timeControl = timeMap[queueType] || 5;
         const isSimul = queueType.startsWith('simul_');
         const boardCount = isSimul ? parseInt(queueType.split('_')[1]) : 1;
+        const allGameIds: string[] = [];
 
         if (isSimul && boardCount >= 2 && boardCount <= 10) {
-          const games = [];
-          const opponentGames = [];
+          const player1Games = [];
+          const player2Games = [];
           
           for (let i = 0; i < boardCount; i++) {
-            const game = await storage.createGame({
+            const p1Game = await storage.createGame({
               userId,
               mode: queueType,
-              playerColor: userColor,
+              playerColor: player1Color,
               timeControl,
               increment: 0,
               fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -343,12 +369,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               opponentName: opponent.userId,
               boardCount,
             });
-            games.push(game);
+            player1Games.push(p1Game);
+            allGameIds.push(p1Game.id);
 
-            const opponentGame = await storage.createGame({
+            const p2Game = await storage.createGame({
               userId: opponent.userId,
               mode: queueType,
-              playerColor: userColor === "white" ? "black" : "white",
+              playerColor: player2Color,
               timeControl,
               increment: 0,
               fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -358,20 +385,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
               opponentName: userId,
               boardCount,
             });
-            opponentGames.push(opponentGame);
+            player2Games.push(p2Game);
+            allGameIds.push(p2Game.id);
           }
+
+          const match = await storage.createMatch({
+            player1Id: userId,
+            player2Id: opponent.userId,
+            matchType: queueType,
+            gameIds: allGameIds,
+            status: 'in_progress',
+          });
 
           res.json({ 
             matched: true, 
-            games: games,
+            matchId: match.id,
+            games: player1Games,
             boardCount,
             opponentId: opponent.userId 
           });
         } else {
-          const game = await storage.createGame({
+          const p1Game = await storage.createGame({
             userId,
             mode: queueType,
-            playerColor: userColor,
+            playerColor: player1Color,
             timeControl,
             increment: 0,
             fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -380,11 +417,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             blackTime: timeControl * 60,
             opponentName: opponent.userId,
           });
+          allGameIds.push(p1Game.id);
 
-          const opponentGame = await storage.createGame({
+          const p2Game = await storage.createGame({
             userId: opponent.userId,
             mode: queueType,
-            playerColor: userColor === "white" ? "black" : "white",
+            playerColor: player2Color,
             timeControl,
             increment: 0,
             fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -393,12 +431,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             blackTime: timeControl * 60,
             opponentName: userId,
           });
+          allGameIds.push(p2Game.id);
+
+          const match = await storage.createMatch({
+            player1Id: userId,
+            player2Id: opponent.userId,
+            matchType: queueType,
+            gameIds: allGameIds,
+            status: 'in_progress',
+          });
 
           res.json({ 
-            matched: true, 
+            matched: true,
+            matchId: match.id, 
             game: {
-              ...game,
-              playerColor: game.playerColor || "white"
+              ...p1Game,
+              playerColor: p1Game.playerColor || "white"
             }, 
             opponentId: opponent.userId 
           });
@@ -409,6 +457,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error finding match:", error);
       res.status(500).json({ message: "Failed to find match" });
+    }
+  });
+
+  app.get('/api/matches/active', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const match = await storage.getActiveMatchForUser(userId);
+
+      if (!match) {
+        return res.json(null);
+      }
+
+      const userGames = [];
+      for (const gameId of match.gameIds) {
+        const game = await storage.getGame(gameId);
+        if (game && game.userId === userId) {
+          userGames.push(game);
+        }
+      }
+
+      const isSimul = match.matchType.startsWith('simul_');
+      const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+
+      res.json({
+        matchId: match.id,
+        matched: true,
+        games: isSimul ? userGames : undefined,
+        game: !isSimul && userGames.length > 0 ? userGames[0] : undefined,
+        boardCount: isSimul ? userGames.length : undefined,
+        opponentId,
+      });
+    } catch (error) {
+      console.error("Error fetching active match:", error);
+      res.status(500).json({ message: "Failed to fetch active match" });
     }
   });
 
@@ -665,23 +747,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  const userConnections = new Map<string, WebSocket>();
+  const matchRooms = new Map<string, Set<string>>();
 
-  wss.on('connection', (ws: WebSocket) => {
+  wss.on('connection', (ws: WebSocket & { userId?: string; matchId?: string }) => {
     console.log('WebSocket client connected');
 
     ws.on('message', (message: string) => {
       try {
         const data = JSON.parse(message.toString());
-        console.log('Received:', data);
+        console.log('Received WebSocket message:', data);
         
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-              type: 'game_update',
-              data: data,
-            }));
+        if (data.type === 'auth') {
+          ws.userId = data.userId;
+          userConnections.set(data.userId, ws);
+          ws.send(JSON.stringify({ type: 'authenticated', userId: data.userId }));
+        } else if (data.type === 'join_match') {
+          const matchId = data.matchId;
+          const userId = ws.userId;
+          
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
+            return;
           }
-        });
+          
+          ws.matchId = matchId;
+          
+          if (!matchRooms.has(matchId)) {
+            matchRooms.set(matchId, new Set());
+          }
+          matchRooms.get(matchId)!.add(userId);
+          
+          ws.send(JSON.stringify({ type: 'joined_match', matchId }));
+        } else if (data.type === 'move') {
+          const matchId = ws.matchId;
+          const userId = ws.userId;
+          
+          if (!matchId || !userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not in a match' }));
+            return;
+          }
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'opponent_move',
+                    gameId: data.gameId,
+                    move: data.move,
+                    fen: data.fen,
+                    whiteTime: data.whiteTime,
+                    blackTime: data.blackTime,
+                  }));
+                }
+              }
+            });
+          }
+        } else if (data.type === 'clock_update') {
+          const matchId = ws.matchId;
+          const userId = ws.userId;
+          
+          if (!matchId || !userId) return;
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'clock_sync',
+                    gameId: data.gameId,
+                    whiteTime: data.whiteTime,
+                    blackTime: data.blackTime,
+                  }));
+                }
+              }
+            });
+          }
+        }
       } catch (error) {
         console.error('WebSocket error:', error);
       }
@@ -689,6 +837,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     ws.on('close', () => {
       console.log('WebSocket client disconnected');
+      
+      if (ws.userId) {
+        userConnections.delete(ws.userId);
+        
+        if (ws.matchId) {
+          const roomUsers = matchRooms.get(ws.matchId);
+          if (roomUsers) {
+            roomUsers.delete(ws.userId);
+            if (roomUsers.size === 0) {
+              matchRooms.delete(ws.matchId);
+            }
+          }
+        }
+      }
     });
 
     ws.send(JSON.stringify({ type: 'connected', message: 'Welcome to SimulChess' }));

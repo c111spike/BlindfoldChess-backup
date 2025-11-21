@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +20,7 @@ export default function StandardMode() {
   const { toast } = useToast();
   const [game, setGame] = useState<Chess | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [whiteTime, setWhiteTime] = useState(180);
   const [blackTime, setBlackTime] = useState(180);
@@ -45,6 +47,34 @@ export default function StandardMode() {
     whiteTimeRef.current = whiteTime;
     blackTimeRef.current = blackTime;
   }, [game, gameId, whiteTime, blackTime]);
+
+  const handleOpponentMove = useCallback((data: { gameId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
+    if (data.gameId !== gameId) return;
+    
+    const currentGame = gameRef.current;
+    if (!currentGame) return;
+    
+    try {
+      currentGame.load(data.fen);
+      setFen(data.fen);
+      setMoves(currentGame.history());
+      setWhiteTime(data.whiteTime);
+      setBlackTime(data.blackTime);
+      
+      toast({
+        title: "Opponent moved",
+        description: data.move,
+      });
+    } catch (error) {
+      console.error("Error handling opponent move:", error);
+    }
+  }, [gameId, toast]);
+
+  const { sendMove, isConnected } = useWebSocket({
+    userId: user?.id,
+    matchId: matchId || undefined,
+    onMove: handleOpponentMove,
+  });
 
   const createGameMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -140,6 +170,7 @@ export default function StandardMode() {
         const data = await response.json();
         if (data.matched && data.game) {
           setGameId(data.game.id);
+          setMatchId(data.matchId || null);
           const chess = new Chess(data.game.fen);
           setGame(chess);
           setPlayerColor(data.game.playerColor || "white");
@@ -331,10 +362,15 @@ export default function StandardMode() {
         });
 
         if (move) {
-          setFen(game.fen());
+          const newFen = game.fen();
+          setFen(newFen);
           setMoves(game.history());
           setSelectedSquare(null);
           setLegalMoves([]);
+          
+          if (gameId && matchId) {
+            sendMove(gameId, move.san, newFen, whiteTime, blackTime);
+          }
           
           if (game.isCheckmate()) {
             handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
