@@ -76,6 +76,25 @@ export default function OTBMode() {
     }
   }, [ongoingGame, restoredGame, gameStarted, toast]);
 
+  const saveGameState = useCallback(async () => {
+    const currentGame = gameRef.current;
+    const currentGameId = gameIdRef.current;
+    
+    if (!currentGameId || !currentGame) return;
+    
+    try {
+      await apiRequest("PATCH", `/api/games/${currentGameId}`, {
+        fen: currentGame.fen(),
+        moves: currentGame.history(),
+        whiteTime: whiteTimeRef.current,
+        blackTime: blackTimeRef.current,
+        pgn: currentGame.pgn(),
+      });
+    } catch (error) {
+      console.error("Error saving game state:", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (gameStarted && game) {
       const timer = setInterval(() => {
@@ -190,25 +209,6 @@ export default function OTBMode() {
     });
   };
 
-  const saveGameState = useCallback(async () => {
-    const currentGame = gameRef.current;
-    const currentGameId = gameIdRef.current;
-    
-    if (!currentGameId || !currentGame) return;
-    
-    try {
-      await apiRequest("PATCH", `/api/games/${currentGameId}`, {
-        fen: currentGame.fen(),
-        moves: currentGame.history(),
-        whiteTime: whiteTimeRef.current,
-        blackTime: blackTimeRef.current,
-        pgn: currentGame.pgn(),
-      });
-    } catch (error) {
-      console.error("Error saving game state:", error);
-    }
-  }, []);
-
   const handleSquareClick = (square: string) => {
     if (!game || !gameStarted) return;
 
@@ -229,18 +229,18 @@ export default function OTBMode() {
           saveGameState();
         } else {
           setSelectedSquare(square);
-          const moves = game.moves({ square, verbose: true });
-          setLegalMoves(moves.map((m) => m.to));
+          const moves = game.moves({ square: square as any, verbose: true });
+          setLegalMoves(moves.map((m: any) => m.to));
         }
       } catch (e) {
         setSelectedSquare(square);
-        const moves = game.moves({ square, verbose: true });
-        setLegalMoves(moves.map((m) => m.to));
+        const moves = game.moves({ square: square as any, verbose: true });
+        setLegalMoves(moves.map((m: any) => m.to));
       }
     } else {
       setSelectedSquare(square);
-      const moves = game.moves({ square, verbose: true });
-      setLegalMoves(moves.map((m) => m.to));
+      const moves = game.moves({ square: square as any, verbose: true });
+      setLegalMoves(moves.map((m: any) => m.to));
     }
   };
 
