@@ -22,7 +22,7 @@ export default function OTBMode() {
   const [whiteTime, setWhiteTime] = useState(180);
   const [blackTime, setBlackTime] = useState(180);
   const [activeColor, setActiveColor] = useState<"white" | "black">("white");
-  const [timeControl, setTimeControl] = useState("3+0");
+  const [timeControl, setTimeControl] = useState("5");
   const [increment, setIncrement] = useState(0);
   const [moves, setMoves] = useState<string[]>([]);
   const [fen, setFen] = useState("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -30,6 +30,8 @@ export default function OTBMode() {
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [clockPresses, setClockPresses] = useState(0);
   const [restoredGame, setRestoredGame] = useState(false);
+  const [inQueue, setInQueue] = useState(false);
+  const [queueType, setQueueType] = useState<string | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -87,8 +89,102 @@ export default function OTBMode() {
 
   const { data: ongoingGame } = useQuery<Game>({
     queryKey: ["/api/games/ongoing"],
-    enabled: !restoredGame && !gameStarted,
+    enabled: !restoredGame && !gameStarted && !inQueue,
   });
+
+  const joinQueueMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/queue/join", data);
+      return response;
+    },
+    onSuccess: () => {
+      setInQueue(true);
+      toast({
+        title: "Joined queue",
+        description: "Waiting for opponent...",
+      });
+      pollMatch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join queue",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const leaveQueueMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await apiRequest("POST", "/api/queue/leave", data);
+    },
+    onSuccess: () => {
+      setInQueue(false);
+      setQueueType(null);
+      toast({
+        title: "Left queue",
+      });
+    },
+  });
+
+  const pollMatch = useCallback(async () => {
+    let attempts = 0;
+    const maxAttempts = 120;
+    
+    const checkMatch = async () => {
+      if (attempts >= maxAttempts) return;
+      attempts++;
+
+      try {
+        const response = await apiRequest("POST", "/api/queue/findMatch", { queueType });
+        if (response.matched && response.game) {
+          setGameId(response.game.id);
+          const chess = new Chess(response.game.fen);
+          setGame(chess);
+          setFen(response.game.fen);
+          setMoves([]);
+          setGameStarted(true);
+          setInQueue(false);
+          setActiveColor(response.game.playerColor === "white" ? "white" : "black");
+          
+          const timeMap: Record<string, number> = {
+            'otb_bullet': 1,
+            'otb_blitz': 5,
+            'otb_rapid': 15,
+            'otb_classical': 30,
+          };
+          const tc = timeMap[queueType || 'otb_blitz'] || 5;
+          setWhiteTime(tc * 60);
+          setBlackTime(tc * 60);
+
+          toast({
+            title: "Match found!",
+            description: "Game started",
+          });
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking match:", error);
+      }
+
+      setTimeout(checkMatch, 1000);
+    };
+
+    checkMatch();
+  }, [queueType, toast]);
+
+  const handleJoinQueue = (time: string) => {
+    const queueMap: Record<string, string> = {
+      '1': 'otb_bullet',
+      '5': 'otb_blitz',
+      '15': 'otb_rapid',
+      '30': 'otb_classical',
+    };
+
+    const queue = queueMap[time];
+    setQueueType(queue);
+    joinQueueMutation.mutate({ queueType: queue, isBlindfold: false });
+  };
 
   useEffect(() => {
     if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
@@ -211,20 +307,6 @@ export default function OTBMode() {
     }
   }, [whiteTime, blackTime]);
 
-  useEffect(() => {
-    if (!gameStarted) return;
-
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === "Space" || e.key === " ") {
-        e.preventDefault();
-        handleClockPress();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [gameStarted, handleClockPress]);
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -331,6 +413,20 @@ export default function OTBMode() {
     handleGameEnd("draw");
   };
 
+  useEffect(() => {
+    if (!gameStarted) return;
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault();
+        handleClockPress();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [gameStarted, handleClockPress]);
+
   return (
     <div className="h-screen flex">
       <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
@@ -348,31 +444,95 @@ export default function OTBMode() {
           </div>
 
           {!gameStarted ? (
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <h2 className="text-xl font-semibold">Start New Game</h2>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Time Control</label>
-                  <Select value={timeControl} onValueChange={setTimeControl}>
-                    <SelectTrigger data-testid="select-time-control">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1+0">Bullet: 1+0</SelectItem>
-                      <SelectItem value="3+0">Blitz: 3+0</SelectItem>
-                      <SelectItem value="3+2">Blitz: 3+2</SelectItem>
-                      <SelectItem value="5+0">Blitz: 5+0</SelectItem>
-                      <SelectItem value="10+0">Rapid: 10+0</SelectItem>
-                      <SelectItem value="15+10">Rapid: 15+10</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleStartGame} className="w-full" data-testid="button-start-game">
-                  <Play className="mr-2 h-4 w-4" />
-                  Start Game
-                </Button>
-              </CardContent>
-            </Card>
+            <>
+              {!inQueue ? (
+                <Card>
+                  <CardContent className="pt-6 space-y-4">
+                    <h2 className="text-xl font-semibold">Find Opponent</h2>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleJoinQueue('1')}
+                        disabled={joinQueueMutation.isPending}
+                        data-testid="button-queue-bullet"
+                      >
+                        <Clock className="mr-2 h-4 w-4" />
+                        Bullet (1m)
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleJoinQueue('5')}
+                        disabled={joinQueueMutation.isPending}
+                        data-testid="button-queue-blitz"
+                      >
+                        <Clock className="mr-2 h-4 w-4" />
+                        Blitz (5m)
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleJoinQueue('15')}
+                        disabled={joinQueueMutation.isPending}
+                        data-testid="button-queue-rapid"
+                      >
+                        <Clock className="mr-2 h-4 w-4" />
+                        Rapid (15m)
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleJoinQueue('30')}
+                        disabled={joinQueueMutation.isPending}
+                        data-testid="button-queue-classical"
+                      >
+                        <Clock className="mr-2 h-4 w-4" />
+                        Classical (30m)
+                      </Button>
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <h3 className="text-lg font-semibold mb-4">or Start Practice Game</h3>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Time Control</label>
+                        <Select value={timeControl} onValueChange={setTimeControl}>
+                          <SelectTrigger data-testid="select-time-control">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Bullet: 1m</SelectItem>
+                            <SelectItem value="3">Blitz: 3m</SelectItem>
+                            <SelectItem value="5">Blitz: 5m</SelectItem>
+                            <SelectItem value="10">Rapid: 10m</SelectItem>
+                            <SelectItem value="15">Rapid: 15m</SelectItem>
+                            <SelectItem value="30">Classical: 30m</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={handleStartGame} className="w-full mt-4" data-testid="button-start-game">
+                        <Play className="mr-2 h-4 w-4" />
+                        Practice vs Computer
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="pt-6 space-y-4 text-center">
+                    <h2 className="text-xl font-semibold">Searching for Opponent</h2>
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                    </div>
+                    <p className="text-muted-foreground">Open another browser window and queue up to play against yourself!</p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => leaveQueueMutation.mutate({ queueType })}
+                      className="w-full"
+                      data-testid="button-leave-queue"
+                    >
+                      Cancel
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           ) : (
             <>
               <ChessBoard 

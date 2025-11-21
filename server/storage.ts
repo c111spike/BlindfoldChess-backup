@@ -7,6 +7,7 @@ import {
   userSettings,
   statistics,
   simulGames,
+  matchmakingQueues,
   type User,
   type UpsertUser,
   type Game,
@@ -22,9 +23,11 @@ import {
   type InsertStatistics,
   type SimulGame,
   type InsertSimulGame,
+  type MatchmakingQueue,
+  type InsertMatchmakingQueue,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, ne } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -53,6 +56,11 @@ export interface IStorage {
   
   createSimulGame(simulGame: InsertSimulGame): Promise<SimulGame>;
   getSimulGames(simulId: string): Promise<SimulGame[]>;
+  
+  joinQueue(queueEntry: InsertMatchmakingQueue): Promise<MatchmakingQueue>;
+  leaveQueue(userId: string, queueType: string): Promise<void>;
+  findMatch(userId: string, queueType: string): Promise<MatchmakingQueue | undefined>;
+  getUserQueueStatus(userId: string): Promise<MatchmakingQueue | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -238,6 +246,42 @@ export class DatabaseStorage implements IStorage {
       .from(simulGames)
       .where(eq(simulGames.simulId, simulId))
       .orderBy(simulGames.boardOrder);
+  }
+
+  async joinQueue(queueEntry: InsertMatchmakingQueue): Promise<MatchmakingQueue> {
+    await this.leaveQueue(queueEntry.userId, queueEntry.queueType);
+    const [entry] = await db.insert(matchmakingQueues).values(queueEntry).returning();
+    return entry;
+  }
+
+  async leaveQueue(userId: string, queueType: string): Promise<void> {
+    await db
+      .delete(matchmakingQueues)
+      .where(and(eq(matchmakingQueues.userId, userId), eq(matchmakingQueues.queueType, queueType)));
+  }
+
+  async findMatch(userId: string, queueType: string): Promise<MatchmakingQueue | undefined> {
+    const [opponent] = await db
+      .select()
+      .from(matchmakingQueues)
+      .where(and(
+        eq(matchmakingQueues.queueType, queueType),
+        ne(matchmakingQueues.userId, userId)
+      ))
+      .orderBy(matchmakingQueues.joinedAt)
+      .limit(1);
+    
+    return opponent;
+  }
+
+  async getUserQueueStatus(userId: string): Promise<MatchmakingQueue | undefined> {
+    const [queueEntry] = await db
+      .select()
+      .from(matchmakingQueues)
+      .where(eq(matchmakingQueues.userId, userId))
+      .limit(1);
+    
+    return queueEntry;
   }
 }
 

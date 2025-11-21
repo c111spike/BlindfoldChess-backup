@@ -242,6 +242,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/queue/join', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { queueType, isBlindfold } = req.body;
+
+      let rating = await storage.getRating(userId);
+      if (!rating) {
+        rating = await storage.createRating({
+          userId,
+          otbBullet: 1200,
+          otbBlitz: 1200,
+          otbRapid: 1200,
+          blindfold: 1200,
+          simul: 1200,
+        });
+      }
+
+      const getRatingRange = (r: number) => {
+        if (r < 1400) return "1200-1400";
+        if (r < 1600) return "1400-1600";
+        if (r < 1800) return "1600-1800";
+        return "1800+";
+      };
+
+      const currentRating = 
+        queueType === 'otb_bullet' ? rating.otbBullet :
+        queueType === 'otb_blitz' ? rating.otbBlitz :
+        queueType === 'otb_rapid' ? rating.otbRapid :
+        queueType === 'simul' ? rating.simul :
+        rating.blindfold;
+
+      const ratingRange = getRatingRange(currentRating);
+
+      const queueEntry = await storage.joinQueue({
+        userId,
+        queueType,
+        ratingRange,
+        isBlindfold,
+      });
+
+      res.json(queueEntry);
+    } catch (error) {
+      console.error("Error joining queue:", error);
+      res.status(500).json({ message: "Failed to join queue" });
+    }
+  });
+
+  app.post('/api/queue/leave', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { queueType } = req.body;
+
+      await storage.leaveQueue(userId, queueType);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error leaving queue:", error);
+      res.status(500).json({ message: "Failed to leave queue" });
+    }
+  });
+
+  app.get('/api/queue/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const queueStatus = await storage.getUserQueueStatus(userId);
+
+      res.json(queueStatus || null);
+    } catch (error) {
+      console.error("Error fetching queue status:", error);
+      res.status(500).json({ message: "Failed to fetch queue status" });
+    }
+  });
+
+  app.post('/api/queue/findMatch', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { queueType } = req.body;
+
+      const opponent = await storage.findMatch(userId, queueType);
+
+      if (opponent) {
+        await storage.leaveQueue(userId, queueType);
+        await storage.leaveQueue(opponent.userId, queueType);
+
+        const userColor = Math.random() > 0.5 ? "white" : "black";
+        const timeMap: Record<string, number> = {
+          'otb_bullet': 1,
+          'otb_blitz': 5,
+          'otb_rapid': 15,
+          'otb_classical': 30,
+          'simul': 3,
+          'blindfold': 5,
+        };
+
+        const timeControl = timeMap[queueType] || 5;
+
+        const game = await storage.createGame({
+          userId,
+          mode: queueType,
+          playerColor: userColor,
+          timeControl,
+          increment: 0,
+          fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          moves: [],
+          whiteTime: timeControl * 60,
+          blackTime: timeControl * 60,
+          opponentName: opponent.userId,
+        });
+
+        res.json({ matched: true, game, opponentId: opponent.userId });
+      } else {
+        res.json({ matched: false });
+      }
+    } catch (error) {
+      console.error("Error finding match:", error);
+      res.status(500).json({ message: "Failed to find match" });
+    }
+  });
+
   app.post('/api/blindfold', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

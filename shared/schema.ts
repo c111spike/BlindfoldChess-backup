@@ -202,6 +202,8 @@ export type InsertUserSettings = typeof userSettings.$inferInsert;
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertStatistics = typeof statistics.$inferInsert;
 export type Statistics = typeof statistics.$inferSelect;
+export type InsertMatchmakingQueue = typeof matchmakingQueues.$inferInsert;
+export type MatchmakingQueue = typeof matchmakingQueues.$inferSelect;
 
 export const insertGameSchema = createInsertSchema(games).omit({
   id: true,
