@@ -80,6 +80,10 @@ export const games = pgTable("games", {
   userId: varchar("user_id")
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
+  whitePlayerId: varchar("white_player_id")
+    .references(() => users.id, { onDelete: "cascade" }),
+  blackPlayerId: varchar("black_player_id")
+    .references(() => users.id, { onDelete: "cascade" }),
   mode: gameModeEnum("mode").notNull(),
   status: gameStatusEnum("status").default("active").notNull(),
   result: gameResultEnum("result").default("ongoing"),

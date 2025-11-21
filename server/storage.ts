@@ -109,7 +109,11 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(games)
-      .where(eq(games.userId, userId))
+      .where(or(
+        eq(games.userId, userId),
+        eq(games.whitePlayerId, userId),
+        eq(games.blackPlayerId, userId)
+      ))
       .orderBy(desc(games.createdAt))
       .limit(limit);
   }
@@ -118,7 +122,14 @@ export class DatabaseStorage implements IStorage {
     const [game] = await db
       .select()
       .from(games)
-      .where(and(eq(games.userId, userId), eq(games.status, 'active')))
+      .where(and(
+        or(
+          eq(games.userId, userId),
+          eq(games.whitePlayerId, userId),
+          eq(games.blackPlayerId, userId)
+        ),
+        eq(games.status, 'active')
+      ))
       .orderBy(desc(games.createdAt))
       .limit(1);
     return game;
@@ -128,7 +139,14 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(games)
-      .where(and(eq(games.userId, userId), eq(games.mode, mode as any)))
+      .where(and(
+        or(
+          eq(games.userId, userId),
+          eq(games.whitePlayerId, userId),
+          eq(games.blackPlayerId, userId)
+        ),
+        eq(games.mode, mode as any)
+      ))
       .orderBy(desc(games.createdAt));
   }
 

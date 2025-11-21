@@ -58,9 +58,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "No ongoing game" });
       }
       
+      let playerColor = activeGame.playerColor;
+      if (activeGame.whitePlayerId && activeGame.blackPlayerId) {
+        playerColor = activeGame.whitePlayerId === userId ? "white" : "black";
+      }
+      
       res.json({
         ...activeGame,
-        playerColor: activeGame.playerColor || "white"
+        playerColor
       });
     } catch (error) {
       console.error("Error fetching ongoing game:", error);
@@ -166,7 +171,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       const game = await storage.getGame(id);
-      if (!game || game.userId !== userId) {
+      if (!game) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+      
+      const isAuthorized = game.userId === userId || 
+                           game.whitePlayerId === userId || 
+                           game.blackPlayerId === userId;
+      
+      if (!isAuthorized) {
         return res.status(404).json({ message: "Game not found" });
       }
       
@@ -798,40 +811,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const player1 = await storage.getUser(match.player1.userId);
             const player2 = await storage.getUser(match.player2.userId);
 
+            const player1Name = `${player1?.firstName || 'Opponent'} ${player1?.lastName || ''}`.trim();
+            const player2Name = `${player2?.firstName || 'Opponent'} ${player2?.lastName || ''}`.trim();
+
+            const whitePlayerId = player1Color === "white" ? match.player1.userId : match.player2.userId;
+            const blackPlayerId = player1Color === "black" ? match.player1.userId : match.player2.userId;
+            const whitePlayerName = player1Color === "white" ? player1Name : player2Name;
+            const blackPlayerName = player1Color === "black" ? player1Name : player2Name;
+
+            const sharedGame = await storage.createGame({
+              userId: whitePlayerId,
+              whitePlayerId: whitePlayerId,
+              blackPlayerId: blackPlayerId,
+              mode: `standard_${timeControl}`,
+              playerColor: "white",
+              timeControl: time,
+              increment: 0,
+              fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+              whiteTime: time * 60,
+              blackTime: time * 60,
+              opponentName: blackPlayerName,
+            });
+
             const matchRecord = await storage.createMatch({
               player1Id: match.player1.userId,
               player2Id: match.player2.userId,
               matchType: `standard_${timeControl}`,
-              gameIds: [],
+              gameIds: [sharedGame.id],
               status: 'in_progress',
-            });
-
-            const game1 = await storage.createGame({
-              userId: match.player1.userId,
-              mode: `standard_${timeControl}`,
-              playerColor: player1Color,
-              timeControl: time,
-              increment: 0,
-              fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-              whiteTime: time * 60,
-              blackTime: time * 60,
-              opponentName: `${player2?.firstName || 'Opponent'} ${player2?.lastName || ''}`.trim(),
-            });
-
-            const game2 = await storage.createGame({
-              userId: match.player2.userId,
-              mode: `standard_${timeControl}`,
-              playerColor: player2Color,
-              timeControl: time,
-              increment: 0,
-              fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-              whiteTime: time * 60,
-              blackTime: time * 60,
-              opponentName: `${player1?.firstName || 'Opponent'} ${player1?.lastName || ''}`.trim(),
-            });
-
-            await storage.updateMatch(matchRecord.id, {
-              gameIds: [game1.id, game2.id],
             });
 
             const player1Ws = userConnections.get(match.player1.userId);
@@ -841,11 +848,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               player1Ws.send(JSON.stringify({
                 type: 'match_found',
                 matchId: matchRecord.id,
-                game: game1,
+                game: sharedGame,
                 timeControl,
                 color: player1Color,
                 opponent: {
-                  name: `${player2?.firstName || 'Opponent'} ${player2?.lastName || ''}`.trim(),
+                  name: player2Name,
                   rating: match.player2.rating,
                 },
               }));
@@ -855,11 +862,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               player2Ws.send(JSON.stringify({
                 type: 'match_found',
                 matchId: matchRecord.id,
-                game: game2,
+                game: sharedGame,
                 timeControl,
                 color: player2Color,
                 opponent: {
-                  name: `${player1?.firstName || 'Opponent'} ${player1?.lastName || ''}`.trim(),
+                  name: player1Name,
                   rating: match.player1.rating,
                 },
               }));

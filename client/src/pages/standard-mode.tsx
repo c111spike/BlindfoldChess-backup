@@ -35,6 +35,8 @@ export default function StandardMode() {
   const [showBoard, setShowBoard] = useState(true);
   const [playerColor, setPlayerColor] = useState<"white" | "black">("white");
   const [increment, setIncrement] = useState(0);
+  const [opponentName, setOpponentName] = useState<string>("");
+  const [playerName, setPlayerName] = useState<string>("");
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -138,6 +140,8 @@ export default function StandardMode() {
       setWhiteTime(gameData.whiteTime || 180);
       setBlackTime(gameData.blackTime || 180);
       setIncrement(gameData.increment || 0);
+      setOpponentName(matchData.opponent.name);
+      setPlayerName(`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'You');
       setGameStarted(true);
       setInQueue(false);
       
@@ -605,13 +609,29 @@ export default function StandardMode() {
                   </CardContent>
                 </Card>
               ) : (
-                <ChessBoard 
-                  fen={fen}
-                  orientation={playerColor}
-                  showCoordinates={true}
-                  highlightedSquares={legalMoves}
-                  onSquareClick={handleSquareClick}
-                />
+                <div className="space-y-2">
+                  <Card>
+                    <CardContent className="py-3">
+                      <div className="text-sm font-medium text-center">
+                        {playerColor === "white" ? opponentName : playerName}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <ChessBoard 
+                    fen={fen}
+                    orientation={playerColor}
+                    showCoordinates={true}
+                    highlightedSquares={legalMoves}
+                    onSquareClick={handleSquareClick}
+                  />
+                  <Card>
+                    <CardContent className="py-3">
+                      <div className="text-sm font-medium text-center" data-testid="text-player-name">
+                        {playerColor === "white" ? playerName : opponentName}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
 
               <Card>
