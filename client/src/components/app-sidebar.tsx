@@ -39,8 +39,8 @@ const menuItems = [
     icon: Clock,
   },
   {
-    title: "Blindfold",
-    url: "/blindfold",
+    title: "Standard",
+    url: "/standard",
     icon: Brain,
   },
   {
@@ -80,11 +80,10 @@ export function AppSidebar() {
   const getHighestRating = () => {
     if (!ratings) return 1200;
     return Math.max(
-      ratings.otbBullet || 0,
-      ratings.otbBlitz || 0,
-      ratings.otbRapid || 0,
-      ratings.blindfold || 0,
-      ratings.simul || 0
+      ratings.bullet || 0,
+      ratings.blitz || 0,
+      ratings.rapid || 0,
+      ratings.classical || 0
     );
   };
 

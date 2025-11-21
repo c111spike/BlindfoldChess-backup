@@ -302,6 +302,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'otb_blitz': 5,
           'otb_rapid': 15,
           'otb_classical': 30,
+          'standard_bullet': 1,
+          'standard_blitz': 5,
+          'standard_rapid': 15,
+          'standard_classical': 30,
           'simul': 3,
           'blindfold': 5,
         };
@@ -319,6 +323,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           whiteTime: timeControl * 60,
           blackTime: timeControl * 60,
           opponentName: opponent.userId,
+        });
+
+        const opponentGame = await storage.createGame({
+          userId: opponent.userId,
+          mode: queueType,
+          playerColor: userColor === "white" ? "black" : "white",
+          timeControl,
+          increment: 0,
+          fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          moves: [],
+          whiteTime: timeControl * 60,
+          blackTime: timeControl * 60,
+          opponentName: userId,
         });
 
         res.json({ matched: true, game, opponentId: opponent.userId });

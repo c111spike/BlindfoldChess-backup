@@ -9,11 +9,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Clock, Play, HandshakeIcon, Flag, Eye } from "lucide-react";
 import type { Game } from "@shared/schema";
 
-export default function OTBMode() {
+export default function StandardMode() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [game, setGame] = useState<Chess | null>(null);
@@ -21,17 +22,16 @@ export default function OTBMode() {
   const [gameStarted, setGameStarted] = useState(false);
   const [whiteTime, setWhiteTime] = useState(180);
   const [blackTime, setBlackTime] = useState(180);
-  const [activeColor, setActiveColor] = useState<"white" | "black">("white");
-  const [timeControl, setTimeControl] = useState("5");
-  const [increment, setIncrement] = useState(0);
   const [moves, setMoves] = useState<string[]>([]);
   const [fen, setFen] = useState("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
-  const [clockPresses, setClockPresses] = useState(0);
   const [restoredGame, setRestoredGame] = useState(false);
   const [inQueue, setInQueue] = useState(false);
   const [queueType, setQueueType] = useState<string | null>(null);
+  const [isBlindfold, setIsBlindfold] = useState(false);
+  const [showBoard, setShowBoard] = useState(true);
+  const [playerColor, setPlayerColor] = useState<"white" | "black">("white");
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -49,7 +49,7 @@ export default function OTBMode() {
   const createGameMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/games", data);
-      return await response.json();
+      return response.json();
     },
     onSuccess: (data: Game) => {
       setGameId(data.id);
@@ -95,7 +95,7 @@ export default function OTBMode() {
   const joinQueueMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/queue/join", data);
-      return response;
+      return response.json();
     },
     onSuccess: () => {
       setInQueue(true);
@@ -136,27 +136,31 @@ export default function OTBMode() {
       attempts++;
 
       try {
-        const res = await apiRequest("POST", "/api/queue/findMatch", { queueType });
-        const response = await res.json();
-        if (response.matched && response.game) {
-          setGameId(response.game.id);
-          const chess = new Chess(response.game.fen);
+        const response = await apiRequest("POST", "/api/queue/findMatch", { queueType });
+        const data = await response.json();
+        if (data.matched && data.game) {
+          setGameId(data.game.id);
+          const chess = new Chess(data.game.fen);
           setGame(chess);
-          setFen(response.game.fen);
+          setPlayerColor(data.game.playerColor);
+          setFen(data.game.fen);
           setMoves([]);
           setGameStarted(true);
           setInQueue(false);
-          setActiveColor(response.game.playerColor === "white" ? "white" : "black");
           
           const timeMap: Record<string, number> = {
-            'otb_bullet': 1,
-            'otb_blitz': 5,
-            'otb_rapid': 15,
-            'otb_classical': 30,
+            'standard_bullet': 1,
+            'standard_blitz': 5,
+            'standard_rapid': 15,
+            'standard_classical': 30,
           };
-          const tc = timeMap[queueType || 'otb_blitz'] || 5;
+          const tc = timeMap[queueType || 'standard_blitz'] || 5;
           setWhiteTime(tc * 60);
           setBlackTime(tc * 60);
+
+          if (isBlindfold) {
+            setShowBoard(false);
+          }
 
           toast({
             title: "Match found!",
@@ -172,19 +176,19 @@ export default function OTBMode() {
     };
 
     checkMatch();
-  }, [queueType, toast]);
+  }, [queueType, toast, isBlindfold]);
 
   const handleJoinQueue = (time: string) => {
     const queueMap: Record<string, string> = {
-      '1': 'otb_bullet',
-      '5': 'otb_blitz',
-      '15': 'otb_rapid',
-      '30': 'otb_classical',
+      '1': 'standard_bullet',
+      '5': 'standard_blitz',
+      '15': 'standard_rapid',
+      '30': 'standard_classical',
     };
 
     const queue = queueMap[time];
     setQueueType(queue);
-    joinQueueMutation.mutate({ queueType: queue, isBlindfold: false });
+    joinQueueMutation.mutate({ queueType: queue, isBlindfold });
   };
 
   useEffect(() => {
@@ -193,16 +197,12 @@ export default function OTBMode() {
         const chess = new Chess(ongoingGame.fen || undefined);
         setGame(chess);
         setGameId(ongoingGame.id);
+        setPlayerColor((ongoingGame as any).playerColor || "white");
         setFen(ongoingGame.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         setMoves(chess.history());
         setWhiteTime(ongoingGame.whiteTime || 180);
         setBlackTime(ongoingGame.blackTime || 180);
         setGameStarted(true);
-        setActiveColor(chess.turn() === "w" ? "white" : "black");
-        setIncrement(ongoingGame.increment || 0);
-        const tc = ongoingGame.timeControl || 3;
-        const inc = ongoingGame.increment || 0;
-        setTimeControl(`${tc}+${inc}`);
         setRestoredGame(true);
         
         toast({
@@ -250,7 +250,6 @@ export default function OTBMode() {
       moves,
       whiteTime,
       blackTime,
-      manualClockPresses: clockPresses,
     });
 
     toast({
@@ -259,12 +258,15 @@ export default function OTBMode() {
     });
 
     setGameStarted(false);
-  }, [game, gameId, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast]);
+    setShowBoard(true);
+  }, [game, gameId, updateGameMutation, moves, whiteTime, blackTime, toast]);
 
   useEffect(() => {
     if (gameStarted && game) {
       const timer = setInterval(() => {
-        if (activeColor === "white") {
+        const currentTurn = game.turn();
+        
+        if (currentTurn === "w") {
           setWhiteTime((t) => {
             const newTime = Math.max(0, t - 1);
             if (newTime === 0 && t > 0) {
@@ -285,7 +287,7 @@ export default function OTBMode() {
 
       return () => clearInterval(timer);
     }
-  }, [gameStarted, activeColor, game, handleGameEnd]);
+  }, [gameStarted, game, handleGameEnd]);
 
   useEffect(() => {
     if (gameStarted && gameId) {
@@ -302,61 +304,10 @@ export default function OTBMode() {
     };
   }, [gameStarted, gameId, saveGameState]);
 
-  useEffect(() => {
-    if (whiteTime === 0 || blackTime === 0) {
-      handleGameEnd(whiteTime === 0 ? "black_win" : "white_win");
-    }
-  }, [whiteTime, blackTime]);
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const handleClockPress = useCallback(() => {
-    if (!game) return;
-
-    if (activeColor === "white") {
-      setWhiteTime((t) => t + increment);
-    } else {
-      setBlackTime((t) => t + increment);
-    }
-
-    const newActiveColor = activeColor === "white" ? "black" : "white";
-    setActiveColor(newActiveColor);
-    setClockPresses(clockPresses + 1);
-  }, [game, activeColor, increment, clockPresses]);
-
-  const handleStartGame = () => {
-    const [minutes, inc] = timeControl.split("+").map(Number);
-    const seconds = minutes * 60;
-    
-    setWhiteTime(seconds);
-    setBlackTime(seconds);
-    setIncrement(inc);
-    setGameStarted(true);
-    
-    const newGame = new Chess();
-    setGame(newGame);
-    setFen(newGame.fen());
-    setMoves([]);
-    setActiveColor("white");
-    setClockPresses(0);
-    
-    const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
-    
-    createGameMutation.mutate({
-      mode,
-      playerColor: "white",
-      timeControl: minutes,
-      increment: inc,
-      fen: newGame.fen(),
-      moves: [],
-      whiteTime: seconds,
-      blackTime: seconds,
-      opponentName: "Computer",
-    });
   };
 
   const handleSquareClick = (square: string) => {
@@ -407,26 +358,18 @@ export default function OTBMode() {
   };
 
   const handleResign = () => {
-    handleGameEnd(activeColor === "white" ? "black_win" : "white_win");
+    if (!game) return;
+    handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
   };
 
   const handleOfferDraw = () => {
     handleGameEnd("draw");
   };
 
-  useEffect(() => {
-    if (!gameStarted) return;
-
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === "Space" || e.key === " ") {
-        e.preventDefault();
-        handleClockPress();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [gameStarted, handleClockPress]);
+  const handlePeek = () => {
+    setShowBoard(true);
+    setTimeout(() => setShowBoard(false), 2000);
+  };
 
   return (
     <div className="h-screen flex">
@@ -434,8 +377,8 @@ export default function OTBMode() {
         <div className="w-full max-w-3xl space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">OTB Tournament Mode</h1>
-              <p className="text-muted-foreground">Manual clock · FIDE-accurate arbiter</p>
+              <h1 className="text-3xl font-bold">Standard Mode</h1>
+              <p className="text-muted-foreground">Online chess with automatic clocks</p>
             </div>
             {!user?.isPremium && (
               <Badge variant="secondary">
@@ -449,6 +392,23 @@ export default function OTBMode() {
               {!inQueue ? (
                 <Card>
                   <CardContent className="pt-6 space-y-4">
+                    <div className="flex items-center justify-between pb-4 border-b">
+                      <Label htmlFor="blindfold-toggle" className="text-base font-semibold">
+                        Blindfold Mode
+                      </Label>
+                      <Switch
+                        id="blindfold-toggle"
+                        checked={isBlindfold}
+                        onCheckedChange={setIsBlindfold}
+                        data-testid="switch-blindfold"
+                      />
+                    </div>
+                    {isBlindfold && (
+                      <p className="text-sm text-muted-foreground">
+                        Board will be hidden. Use the peek button to view it briefly.
+                      </p>
+                    )}
+
                     <h2 className="text-xl font-semibold">Find Opponent</h2>
                     <div className="grid grid-cols-2 gap-3">
                       <Button 
@@ -488,30 +448,6 @@ export default function OTBMode() {
                         Classical (30m)
                       </Button>
                     </div>
-
-                    <div className="pt-4 border-t">
-                      <h3 className="text-lg font-semibold mb-4">or Start Practice Game</h3>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Time Control</label>
-                        <Select value={timeControl} onValueChange={setTimeControl}>
-                          <SelectTrigger data-testid="select-time-control">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">Bullet: 1m</SelectItem>
-                            <SelectItem value="3">Blitz: 3m</SelectItem>
-                            <SelectItem value="5">Blitz: 5m</SelectItem>
-                            <SelectItem value="10">Rapid: 10m</SelectItem>
-                            <SelectItem value="15">Rapid: 15m</SelectItem>
-                            <SelectItem value="30">Classical: 30m</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button onClick={handleStartGame} className="w-full mt-4" data-testid="button-start-game">
-                        <Play className="mr-2 h-4 w-4" />
-                        Practice vs Computer
-                      </Button>
-                    </div>
                   </CardContent>
                 </Card>
               ) : (
@@ -536,13 +472,37 @@ export default function OTBMode() {
             </>
           ) : (
             <>
-              <ChessBoard 
-                fen={fen}
-                orientation="white"
-                showCoordinates={true}
-                highlightedSquares={legalMoves}
-                onSquareClick={handleSquareClick}
-              />
+              {isBlindfold && !showBoard ? (
+                <Card>
+                  <CardContent className="py-24 text-center">
+                    <div className="space-y-4">
+                      <p className="text-2xl font-semibold text-muted-foreground">
+                        Board Hidden
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Visualize the position in your mind
+                      </p>
+                      <Button
+                        onClick={handlePeek}
+                        variant="outline"
+                        size="lg"
+                        data-testid="button-peek"
+                      >
+                        <Eye className="mr-2 h-5 w-5" />
+                        Peek (2s)
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <ChessBoard 
+                  fen={fen}
+                  orientation={playerColor}
+                  showCoordinates={true}
+                  highlightedSquares={legalMoves}
+                  onSquareClick={handleSquareClick}
+                />
+              )}
 
               <Card>
                 <CardContent className="py-6">
@@ -550,12 +510,12 @@ export default function OTBMode() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-muted-foreground">White</span>
-                        {activeColor === "white" && (
+                        {game && game.turn() === "w" && (
                           <Badge variant="default" className="text-xs">Active</Badge>
                         )}
                       </div>
                       <div className={`text-5xl font-mono font-bold ${
-                        activeColor === "white" ? "text-foreground" : "text-muted-foreground"
+                        game && game.turn() === "w" ? "text-foreground" : "text-muted-foreground"
                       }`} data-testid="text-white-time">
                         {formatTime(whiteTime)}
                       </div>
@@ -564,32 +524,19 @@ export default function OTBMode() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-muted-foreground">Black</span>
-                        {activeColor === "black" && (
+                        {game && game.turn() === "b" && (
                           <Badge variant="default" className="text-xs">Active</Badge>
                         )}
                       </div>
                       <div className={`text-5xl font-mono font-bold ${
-                        activeColor === "black" ? "text-foreground" : "text-muted-foreground"
+                        game && game.turn() === "b" ? "text-foreground" : "text-muted-foreground"
                       }`} data-testid="text-black-time">
                         {formatTime(blackTime)}
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-6 border-t">
-                    <Button
-                      onClick={handleClockPress}
-                      size="lg"
-                      className="w-full min-h-20 text-xl font-semibold"
-                      data-testid="button-press-clock"
-                    >
-                      <Clock className="mr-3 h-6 w-6" />
-                      Press Clock
-                      <span className="ml-2 text-sm font-normal opacity-70">(Spacebar)</span>
-                    </Button>
-                  </div>
-
-                  <div className="mt-4 flex gap-3">
+                  <div className="mt-6 pt-6 border-t flex gap-3">
                     <Button variant="outline" className="flex-1" onClick={handleOfferDraw} data-testid="button-offer-draw">
                       <HandshakeIcon className="mr-2 h-4 w-4" />
                       Offer Draw
