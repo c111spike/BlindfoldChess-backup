@@ -49,6 +49,31 @@ export default function StandardMode() {
     blackTimeRef.current = blackTime;
   }, [game, gameId, whiteTime, blackTime]);
 
+  const resetGameState = useCallback(() => {
+    setGame(null);
+    setGameId(null);
+    setMatchId(null);
+    setGameStarted(false);
+    setWhiteTime(180);
+    setBlackTime(180);
+    setMoves([]);
+    setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setRestoredGame(false);
+    setPlayerColor("white");
+    setIncrement(0);
+    setShowBoard(true);
+    gameRef.current = null;
+    gameIdRef.current = null;
+    whiteTimeRef.current = 180;
+    blackTimeRef.current = 180;
+    if (saveIntervalRef.current) {
+      clearInterval(saveIntervalRef.current);
+      saveIntervalRef.current = null;
+    }
+  }, []);
+
   const handleOpponentMove = useCallback((data: { gameId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
     if (data.gameId !== gameId) return;
     
@@ -120,11 +145,15 @@ export default function StandardMode() {
     mutationFn: async (data: any) => {
       if (!gameId) return;
       await apiRequest("PATCH", `/api/games/${gameId}`, data);
+      if (matchId && data.status === 'completed') {
+        await apiRequest("PATCH", `/api/matches/${matchId}`, { status: 'completed' });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
       queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+      resetGameState();
     },
   });
 
@@ -162,6 +191,7 @@ export default function StandardMode() {
     onSuccess: () => {
       setInQueue(false);
       setQueueType(null);
+      resetGameState();
       toast({
         title: "Left queue",
       });
@@ -222,6 +252,7 @@ export default function StandardMode() {
     };
 
     const queue = queueMap[time];
+    resetGameState();
     setQueueType(queue);
     joinQueueMutation.mutate({ queueType: queue, isBlindfold });
   };
@@ -230,6 +261,11 @@ export default function StandardMode() {
     if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
       const restoreGame = async () => {
         try {
+          if (queueType && ongoingGame.mode !== queueType) {
+            setRestoredGame(true);
+            return;
+          }
+          
           const matchResponse = await apiRequest("GET", "/api/matches/active");
           
           if (!matchResponse.ok) {

@@ -70,6 +70,7 @@ export interface IStorage {
   getMatch(id: string): Promise<Match | undefined>;
   getActiveMatchForUser(userId: string): Promise<Match | undefined>;
   updateMatchStatus(id: string, status: string): Promise<Match>;
+  updateMatch(id: string, data: Partial<Match>): Promise<Match>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -349,6 +350,16 @@ export class DatabaseStorage implements IStorage {
     const [match] = await db
       .update(matches)
       .set({ status: status as any })
+      .where(eq(matches.id, id))
+      .returning();
+    
+    return match;
+  }
+
+  async updateMatch(id: string, data: Partial<Match>): Promise<Match> {
+    const [match] = await db
+      .update(matches)
+      .set(data)
       .where(eq(matches.id, id))
       .returning();
     

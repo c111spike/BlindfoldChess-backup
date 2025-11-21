@@ -494,6 +494,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/matches/:matchId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { matchId } = req.params;
+      const userId = req.user.claims.sub;
+      const match = await storage.getMatch(matchId);
+      
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+      
+      if (match.player1Id !== userId && match.player2Id !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this match" });
+      }
+      
+      const updatedMatch = await storage.updateMatch(matchId, req.body);
+      res.json(updatedMatch);
+    } catch (error) {
+      console.error("Error updating match:", error);
+      res.status(500).json({ message: "Failed to update match" });
+    }
+  });
+
   app.post('/api/blindfold', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
