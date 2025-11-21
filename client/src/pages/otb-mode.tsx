@@ -211,6 +211,20 @@ export default function OTBMode() {
     }
   }, [whiteTime, blackTime]);
 
+  useEffect(() => {
+    if (!gameStarted) return;
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault();
+        handleClockPress();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [gameStarted, handleClockPress]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -273,19 +287,25 @@ export default function OTBMode() {
             saveGameState();
           }
         } else {
-          setSelectedSquare(square);
           const moves = game.moves({ square: square as any, verbose: true });
-          setLegalMoves(moves.map((m: any) => m.to));
+          if (moves.length > 0) {
+            setSelectedSquare(square);
+            setLegalMoves(moves.map((m: any) => m.to));
+          }
         }
       } catch (e) {
-        setSelectedSquare(square);
         const moves = game.moves({ square: square as any, verbose: true });
-        setLegalMoves(moves.map((m: any) => m.to));
+        if (moves.length > 0) {
+          setSelectedSquare(square);
+          setLegalMoves(moves.map((m: any) => m.to));
+        }
       }
     } else {
-      setSelectedSquare(square);
       const moves = game.moves({ square: square as any, verbose: true });
-      setLegalMoves(moves.map((m: any) => m.to));
+      if (moves.length > 0) {
+        setSelectedSquare(square);
+        setLegalMoves(moves.map((m: any) => m.to));
+      }
     }
   };
 
