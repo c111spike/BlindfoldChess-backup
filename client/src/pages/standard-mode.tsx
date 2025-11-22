@@ -939,6 +939,7 @@ export default function StandardMode() {
                       <Button 
                         variant="outline"
                         size="lg"
+                        className="min-h-11"
                         onClick={() => handleJoinQueue('bullet')}
                         disabled={!isConnected}
                         data-testid="button-queue-bullet"
@@ -949,6 +950,7 @@ export default function StandardMode() {
                       <Button 
                         variant="outline"
                         size="lg"
+                        className="min-h-11"
                         onClick={() => handleJoinQueue('blitz')}
                         disabled={!isConnected}
                         data-testid="button-queue-blitz"
@@ -959,6 +961,7 @@ export default function StandardMode() {
                       <Button 
                         variant="outline"
                         size="lg"
+                        className="min-h-11"
                         onClick={() => handleJoinQueue('rapid')}
                         disabled={!isConnected}
                         data-testid="button-queue-rapid"
@@ -969,6 +972,7 @@ export default function StandardMode() {
                       <Button 
                         variant="outline"
                         size="lg"
+                        className="min-h-11"
                         onClick={() => handleJoinQueue('classical')}
                         disabled={!isConnected}
                         data-testid="button-queue-classical"
