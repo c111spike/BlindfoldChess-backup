@@ -840,27 +840,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const whitePlayerName = player1Color === "white" ? player1Name : player2Name;
             const blackPlayerName = player1Color === "black" ? player1Name : player2Name;
 
-            const sharedGame = await storage.createGame({
-              userId: whitePlayerId,
+            // Create game for player 1
+            const player1Game = await storage.createGame({
+              userId: match.player1.userId,
               whitePlayerId: whitePlayerId,
               blackPlayerId: blackPlayerId,
               mode: `standard_${timeControl}`,
-              playerColor: "white",
+              playerColor: player1Color,
               timeControl: time,
               increment: 0,
               fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
               whiteTime: time * 60,
               blackTime: time * 60,
-              opponentName: blackPlayerName,
+              opponentName: player2Name,
             });
 
+            // Create game for player 2
+            const player2Game = await storage.createGame({
+              userId: match.player2.userId,
+              whitePlayerId: whitePlayerId,
+              blackPlayerId: blackPlayerId,
+              mode: `standard_${timeControl}`,
+              playerColor: player2Color,
+              timeControl: time,
+              increment: 0,
+              fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+              whiteTime: time * 60,
+              blackTime: time * 60,
+              opponentName: player1Name,
+            });
+
+            // Create match record with both game IDs
             const matchRecord = await storage.createMatch({
               player1Id: match.player1.userId,
               player2Id: match.player2.userId,
               matchType: `standard_${timeControl}`,
-              gameIds: [sharedGame.id],
+              gameIds: [player1Game.id, player2Game.id],
               status: 'in_progress',
             });
+
+            // CRITICAL: Update BOTH games' matchId to link them to the match
+            console.log('[DEBUG] [WebSocket queue match] Updating games with matchId:', matchRecord.id);
+            const updatedPlayer1Game = await storage.updateGame(player1Game.id, { matchId: matchRecord.id });
+            const updatedPlayer2Game = await storage.updateGame(player2Game.id, { matchId: matchRecord.id });
+            console.log('[DEBUG] [WebSocket queue match] Both games updated - matchIds:', updatedPlayer1Game.matchId, updatedPlayer2Game.matchId);
 
             const player1Ws = userConnections.get(match.player1.userId);
             const player2Ws = userConnections.get(match.player2.userId);
@@ -869,7 +892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               player1Ws.send(JSON.stringify({
                 type: 'match_found',
                 matchId: matchRecord.id,
-                game: sharedGame,
+                game: updatedPlayer1Game,
                 timeControl,
                 color: player1Color,
                 opponent: {
@@ -883,7 +906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               player2Ws.send(JSON.stringify({
                 type: 'match_found',
                 matchId: matchRecord.id,
-                game: sharedGame,
+                game: updatedPlayer2Game,
                 timeControl,
                 color: player2Color,
                 opponent: {
@@ -1220,6 +1243,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               gameIds: [newGame.id],
               status: 'in_progress',
             });
+            
+            // CRITICAL: Update game's matchId (same pattern as atomicMatchPairing)
+            console.log('[DEBUG] [WebSocket rematch] Updating game matchId:', newGame.id, 'with matchId:', newMatch.id);
+            newGame = await storage.updateGame(newGame.id, { matchId: newMatch.id });
+            console.log('[DEBUG] [WebSocket rematch] Game updated - matchId:', newGame.matchId);
           } catch (error) {
             console.error('Error creating rematch:', error);
             notifyBothPlayers(false);

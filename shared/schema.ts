@@ -10,6 +10,7 @@ import {
   index,
   pgEnum,
   real,
+  unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -192,7 +193,9 @@ export const statistics = pgTable("statistics", {
   peakRating: integer("peak_rating"),
   winStreak: integer("win_streak").default(0),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  userModeUnique: unique().on(table.userId, table.mode),
+}));
 
 export const matchmakingQueues = pgTable("matchmaking_queues", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
