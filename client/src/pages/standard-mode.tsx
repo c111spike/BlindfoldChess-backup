@@ -834,8 +834,9 @@ export default function StandardMode() {
   const handlePeek = () => {
     if (!isBlindfold || remainingPeeks <= 0 || isPeeking) return;
     
-    const difficulty = userSettings?.blindfoldDifficulty || 'easy';
-    const config = BLINDFOLD_CONFIG[difficulty as keyof typeof BLINDFOLD_CONFIG];
+    // Use locked difficulty if in a game, otherwise use current setting
+    const effectiveDifficulty = activeBlindfoldDifficulty || userSettings?.blindfoldDifficulty || 'easy';
+    const config = BLINDFOLD_CONFIG[effectiveDifficulty as keyof typeof BLINDFOLD_CONFIG];
     
     if (config.peekDuration === 0) return;
     
