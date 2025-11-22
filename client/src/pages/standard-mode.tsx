@@ -65,6 +65,7 @@ export default function StandardMode() {
   const [inQueue, setInQueue] = useState(false);
   const [queueType, setQueueType] = useState<string | null>(null);
   const [isBlindfold, setIsBlindfold] = useState(false);
+  const [activeBlindfoldDifficulty, setActiveBlindfoldDifficulty] = useState<string | null>(null);
   const [playerColor, setPlayerColor] = useState<"white" | "black">("white");
   const [increment, setIncrement] = useState(0);
   const [opponentName, setOpponentName] = useState<string>("");
@@ -219,6 +220,7 @@ export default function StandardMode() {
     setIncrement(0);
     setIsPeeking(false);
     setPeekCountdown(0);
+    setActiveBlindfoldDifficulty(null);
     gameRef.current = null;
     gameIdRef.current = null;
     matchIdRef.current = null;
@@ -334,6 +336,11 @@ export default function StandardMode() {
       const tcValue = parseInt(matchData.timeControl) || 180;
       setTimeControl(tcValue);
       
+      // Lock blindfold difficulty at game start
+      if (isBlindfold && userSettings?.blindfoldDifficulty) {
+        setActiveBlindfoldDifficulty(userSettings.blindfoldDifficulty);
+      }
+      
       setGameStarted(true);
       setInQueue(false);
       
@@ -351,7 +358,7 @@ export default function StandardMode() {
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [toast, isBlindfold, userSettings, user]);
 
   const handleDrawOffer = useCallback((data: { matchId: string; from: string }) => {
     if (data.matchId === matchIdRef.current) {
@@ -860,10 +867,12 @@ export default function StandardMode() {
     setIsPeeking(false);
     setPeekCountdown(0);
     
+    // Determine which difficulty to use: active game difficulty takes precedence
+    const effectiveDifficulty = activeBlindfoldDifficulty || userSettings?.blindfoldDifficulty;
+    
     // Initialize peek count based on mode
-    if (isBlindfold && userSettings?.blindfoldDifficulty) {
-      const difficulty = userSettings.blindfoldDifficulty;
-      const config = BLINDFOLD_CONFIG[difficulty as keyof typeof BLINDFOLD_CONFIG];
+    if (isBlindfold && effectiveDifficulty) {
+      const config = BLINDFOLD_CONFIG[effectiveDifficulty as keyof typeof BLINDFOLD_CONFIG];
       setRemainingPeeks(config.maxPeeks);
     } else {
       // Not in blindfold mode - reset to infinity (doesn't matter)
@@ -877,7 +886,7 @@ export default function StandardMode() {
         peekTimerRef.current = null;
       }
     };
-  }, [isBlindfold, userSettings?.blindfoldDifficulty]);
+  }, [isBlindfold, activeBlindfoldDifficulty, userSettings?.blindfoldDifficulty]);
 
   return (
     <div className="h-screen flex">
