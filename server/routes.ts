@@ -780,6 +780,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   const userConnections = new Map<string, WebSocket>();
   const matchRooms = new Map<string, Set<string>>();
+  const disconnectTimers = new Map<string, NodeJS.Timeout>();
+  const DISCONNECT_GRACE_PERIOD = 30000; // 30 seconds
 
   wss.on('connection', (ws: WebSocket & { userId?: string; matchId?: string }) => {
     console.log('WebSocket client connected');
@@ -792,6 +794,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (data.type === 'auth') {
           ws.userId = data.userId;
           userConnections.set(data.userId, ws);
+          
+          // Cancel any pending disconnect timer if user reconnects
+          const existingTimer = disconnectTimers.get(data.userId);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
+            disconnectTimers.delete(data.userId);
+            ws.send(JSON.stringify({ type: 'reconnected' }));
+          }
+          
           ws.send(JSON.stringify({ type: 'authenticated', userId: data.userId }));
         } else if (data.type === 'join_queue') {
           const userId = ws.userId;
@@ -961,6 +972,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           ws.matchId = matchId;
           
+          // Cancel any pending disconnect timer (player reconnected)
+          if (disconnectTimers.has(userId)) {
+            clearTimeout(disconnectTimers.get(userId)!);
+            disconnectTimers.delete(userId);
+            console.log(`[Reconnect] Cancelled disconnect timer for user ${userId}`);
+            
+            // Notify opponent that player reconnected
+            try {
+              const games = await storage.getGamesByMatchId(matchId);
+              const opponentUserId = games.find(g => g.userId !== userId)?.userId;
+              
+              if (opponentUserId) {
+                const opponentWs = userConnections.get(opponentUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'opponent_reconnected',
+                    matchId: matchId,
+                  }));
+                }
+              }
+            } catch (error) {
+              console.error('[Reconnect] Error notifying opponent:', error);
+            }
+          }
+          
           if (!matchRooms.has(matchId)) {
             matchRooms.set(matchId, new Set());
           }
@@ -974,6 +1010,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!matchId || !userId) {
             ws.send(JSON.stringify({ type: 'error', message: 'Not in a match' }));
             return;
+          }
+          
+          try {
+            const match = await storage.getMatch(matchId);
+            if (match) {
+              const games = await storage.getGamesByMatchId(matchId);
+              const userGame = games.find(g => g.userId === userId);
+              
+              if (userGame) {
+                const isWhite = userGame.playerColor === 'white';
+                const updateField = isWhite ? 'whiteMoveCount' : 'blackMoveCount';
+                const currentCount = isWhite ? (userGame.whiteMoveCount || 0) : (userGame.blackMoveCount || 0);
+                
+                await storage.updateGame(userGame.id, {
+                  [updateField]: currentCount + 1
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Error updating move count:', error);
           }
           
           const roomUsers = matchRooms.get(matchId);
@@ -1347,24 +1403,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    ws.on('close', () => {
-      console.log('WebSocket client disconnected');
+    ws.on('close', async () => {
+      console.log('[Disconnect] WebSocket client disconnected');
       
       if (ws.userId) {
-        userConnections.delete(ws.userId);
+        const userId = ws.userId;
+        const matchId = ws.matchId;
+        
+        console.log(`[Disconnect] User ${userId} disconnected, matchId: ${matchId}`);
+        
+        userConnections.delete(userId);
         
         const socketId = (ws as any).socketId;
         if (socketId) {
           queueManager.removeBySocketId(socketId);
         }
         
-        if (ws.matchId) {
-          const roomUsers = matchRooms.get(ws.matchId);
-          if (roomUsers) {
-            roomUsers.delete(ws.userId);
-            if (roomUsers.size === 0) {
-              matchRooms.delete(ws.matchId);
+        // Check if user has an active game
+        if (matchId) {
+          console.log(`[Disconnect] User has matchId: ${matchId}, checking match status`);
+          try {
+            const match = await storage.getMatch(matchId);
+            console.log(`[Disconnect] Match status: ${match?.status}, exists: ${!!match}`);
+            
+            if (match && match.status !== 'completed') {
+              const games = await storage.getGamesByMatchId(matchId);
+              const userGame = games.find(g => g.userId === userId);
+              console.log(`[Disconnect] User game found: ${!!userGame}, status: ${userGame?.status}`);
+              
+              if (userGame && userGame.status === 'active') {
+                console.log(`[Disconnect] Starting disconnect handler for user ${userId}`);
+                // Find opponent's user ID (not from room, but from games list)
+                const opponentUserId = games.find(g => g.userId !== userId)?.userId;
+                
+                // Notify opponent of disconnect
+                if (opponentUserId) {
+                  const opponentWs = userConnections.get(opponentUserId);
+                  if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                    opponentWs.send(JSON.stringify({
+                      type: 'opponent_disconnected',
+                      matchId: matchId,
+                      gracePeriod: DISCONNECT_GRACE_PERIOD,
+                    }));
+                  }
+                }
+                
+                // Start 30-second grace period timer
+                const timer = setTimeout(async () => {
+                  console.log(`[Disconnect] Timer fired for user ${userId}, checking if they reconnected`);
+                  try {
+                    // Double-check user hasn't reconnected
+                    if (!userConnections.has(userId)) {
+                      console.log(`[Disconnect] User ${userId} did not reconnect, processing disconnect`);
+                      const whiteMoves = userGame.whiteMoveCount || 0;
+                      const blackMoves = userGame.blackMoveCount || 0;
+                      const noMovesYet = whiteMoves === 0 && blackMoves === 0;
+                      
+                      if (noMovesYet) {
+                        // AUTO-ABORT: No moves made, cancel game without affecting stats/elo
+                        console.log(`[Disconnect] Auto-aborting game ${userGame.id} - no moves made`);
+                        
+                        // Update both players' games to aborted
+                        for (const game of games) {
+                          await storage.updateGame(game.id, {
+                            status: 'completed',
+                            result: 'aborted',
+                            completedAt: new Date(),
+                          });
+                        }
+                        
+                        // Update match status (no rating/stats processing)
+                        await storage.updateMatch(matchId, {
+                          status: 'completed',
+                          result: 'aborted',
+                        });
+                        
+                        // Notify opponent only (not all room members)
+                        const opponentUserId = games.find(g => g.userId !== userId)?.userId;
+                        if (opponentUserId) {
+                          const opponentWs = userConnections.get(opponentUserId);
+                          if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                            opponentWs.send(JSON.stringify({
+                              type: 'game_end',
+                              result: 'aborted',
+                              reason: 'opponent_abandoned',
+                            }));
+                          }
+                        }
+                      } else {
+                        // AUTO-RESIGN: Moves were made, disconnected player loses
+                        const isWhite = userGame.playerColor === 'white';
+                        const result = isWhite ? 'black_win' : 'white_win';
+                        
+                        console.log(`[Disconnect] Auto-resigning game ${userGame.id} - ${result}`);
+                        
+                        // Complete match (will process ratings and stats)
+                        await storage.completeMatch(matchId, result);
+                        
+                        // Notify opponent only (not all room members)
+                        const opponentUserId = games.find(g => g.userId !== userId)?.userId;
+                        if (opponentUserId) {
+                          const opponentWs = userConnections.get(opponentUserId);
+                          if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                            opponentWs.send(JSON.stringify({
+                              type: 'game_end',
+                              result: result,
+                              reason: 'opponent_disconnected',
+                            }));
+                          }
+                        }
+                      }
+                      
+                      // Clean up rooms
+                      matchRooms.delete(matchId);
+                    }
+                  } catch (error) {
+                    console.error('[Disconnect] Error handling disconnect:', error);
+                  }
+                  
+                  disconnectTimers.delete(userId);
+                }, DISCONNECT_GRACE_PERIOD);
+                
+                disconnectTimers.set(userId, timer);
+              }
             }
+            
+            // Clean up room
+            const roomUsers = matchRooms.get(matchId);
+            if (roomUsers) {
+              roomUsers.delete(userId);
+              if (roomUsers.size === 0) {
+                matchRooms.delete(matchId);
+              }
+            }
+          } catch (error) {
+            console.error('[Disconnect] Error checking game status:', error);
           }
         }
       }

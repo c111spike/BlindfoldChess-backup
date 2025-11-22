@@ -772,10 +772,30 @@ export class DatabaseStorage implements IStorage {
       // Update both games and calculate ratings/stats
       const updatedGames: Game[] = [];
       
+      // Skip rating/stats processing for aborted games
+      const isAborted = result === 'aborted';
+      
       for (const game of matchGames) {
         // Skip if already processed
         if (game.statsProcessed) {
           updatedGames.push(game);
+          continue;
+        }
+
+        // For aborted games, just update status without processing stats/ratings
+        if (isAborted) {
+          const [updatedGame] = await tx
+            .update(games)
+            .set({
+              status: 'completed' as any,
+              result: 'aborted' as any,
+              completedAt: new Date(),
+              statsProcessed: true,
+            })
+            .where(eq(games.id, game.id))
+            .returning();
+          
+          updatedGames.push(updatedGame);
           continue;
         }
 

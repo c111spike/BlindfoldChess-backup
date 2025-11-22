@@ -74,6 +74,7 @@ export const gameResultEnum = pgEnum("game_result", [
   "black_win",
   "draw",
   "ongoing",
+  "aborted",
 ]);
 
 export const games = pgTable("games", {
@@ -95,6 +96,8 @@ export const games = pgTable("games", {
   fen: text("fen").notNull(),
   pgn: text("pgn"),
   moves: jsonb("moves").$type<string[]>().default([]),
+  whiteMoveCount: integer("white_move_count").default(0),
+  blackMoveCount: integer("black_move_count").default(0),
   whiteTime: integer("white_time"),
   blackTime: integer("black_time"),
   manualClockPresses: integer("manual_clock_presses").default(0),
