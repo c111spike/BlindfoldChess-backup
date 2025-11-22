@@ -28,6 +28,8 @@ export default function Dashboard() {
   
   const { data: ongoingGame } = useQuery<Game>({
     queryKey: ["/api/games/ongoing"],
+    refetchOnMount: true,
+    staleTime: 0,
   });
 
   const updateBlindfolddifficultyMutation = useMutation({
