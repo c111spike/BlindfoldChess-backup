@@ -39,9 +39,10 @@ Preferred communication style: Simple, everyday language.
 ### Game Mechanics
 **Time Controls**: Various options (e.g., 3+0, 5+0, 10+0) with increment.
 **Move Validation**: `chess.js` validation.
-**Game Completion**: Games end via checkmate, resignation, timeout, or draw; updates ratings and statistics.
+**Game Completion**: Games end via checkmate, resignation, timeout, draw, or disconnect; updates ratings and statistics.
 **Daily Limits**: Free users have daily limits (5 standard, 3 blindfold), reset at midnight.
 **Rating System**: Separate rating pools per mode, new users start at 1200 (Simul starts at 1000).
+**Disconnect Handling**: 30-second grace period when players disconnect. Auto-abort (no rating change) if no moves made; auto-resign (normal rating update) if moves made. Players can reconnect within grace period to continue. Move tracking via `whiteMoveCount` and `blackMoveCount` columns determines abort vs resign behavior.
 
 ### Training Modes
 **OTB Tournament Mode**: Simulates tournament play with clocks, move recording, and time controls.
