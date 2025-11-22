@@ -58,6 +58,7 @@ export default function StandardMode() {
   const matchIdRef = useRef<string | null>(null);
   const rematchExitIntentRef = useRef<boolean>(false);
   const didSendRematchRequestRef = useRef<boolean>(false);
+  const gameFromMatchmakingRef = useRef<boolean>(false);
   const whiteTimeRef = useRef(180);
   const blackTimeRef = useRef(180);
   const movesRef = useRef<string[]>([]);
