@@ -26,6 +26,7 @@ import {
   Crown,
   LogOut,
 } from "lucide-react";
+import logoImage from "@assets/SimulChess Logo_1763799395309.png";
 
 const menuItems = [
   {
@@ -101,10 +102,8 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <div className="px-4 py-3 flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary rounded flex items-center justify-center text-primary-foreground font-bold text-xl">
-              S
-            </div>
+          <div className="px-4 py-3 flex items-center gap-3">
+            <img src={logoImage} alt="SimulChess Logo" className="w-10 h-10 object-contain" />
             <div>
               <h2 className="text-xl font-bold">SimulChess</h2>
             </div>

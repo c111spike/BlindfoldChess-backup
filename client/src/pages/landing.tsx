@@ -7,6 +7,7 @@ import heroImage from "@assets/generated_images/chess_tournament_hero_image.png"
 import otbIcon from "@assets/generated_images/otb_tournament_mode_icon.png";
 import blindfoldIcon from "@assets/generated_images/blindfold_mode_icon.png";
 import simulIcon from "@assets/generated_images/simul_mode_icon.png";
+import logoImage from "@assets/SimulChess Logo_1763799395309.png";
 
 export default function Landing() {
   return (
@@ -14,9 +15,7 @@ export default function Landing() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between max-w-7xl mx-auto px-4">
           <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
-              <span className="text-sm font-bold text-primary-foreground">S</span>
-            </div>
+            <img src={logoImage} alt="SimulChess Logo" className="w-10 h-10 object-contain" />
             <span className="text-xl font-bold">SimulChess</span>
           </Link>
           <div className="flex items-center gap-4">
