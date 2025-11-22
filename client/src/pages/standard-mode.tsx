@@ -12,6 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Clock, Play, HandshakeIcon, Flag, Eye } from "lucide-react";
 import type { Game } from "@shared/schema";
 
@@ -51,6 +59,8 @@ export default function StandardMode() {
   const blackTimeRef = useRef(180);
   const movesRef = useRef<string[]>([]);
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const gameCompletionInProgressRef = useRef(false);
 
   useEffect(() => {
     gameRef.current = game;
@@ -61,11 +71,84 @@ export default function StandardMode() {
     movesRef.current = moves;
   }, [game, gameId, matchId, whiteTime, blackTime, moves]);
 
+  const completeGame = useCallback(async (result: "white_win" | "black_win" | "draw") => {
+    // Guard against duplicate execution
+    if (gameCompletionInProgressRef.current) {
+      console.log('[completeGame] Already in progress, skipping duplicate call');
+      return;
+    }
+    
+    const currentGame = gameRef.current;
+    const currentGameId = gameIdRef.current;
+    const currentMatchId = matchIdRef.current;
+    
+    if (!currentGameId || !currentGame) {
+      console.log('[completeGame] No gameId or game, skipping');
+      return;
+    }
+
+    try {
+      // Set guard flag
+      gameCompletionInProgressRef.current = true;
+
+      // Stop all intervals and timers
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current);
+        saveIntervalRef.current = null;
+      }
+      if (clockIntervalRef.current) {
+        clearInterval(clockIntervalRef.current);
+        clockIntervalRef.current = null;
+      }
+
+      // Update UI state first
+      setGameResult(result);
+      setGameStarted(false);
+      setShowBoard(true);
+
+      // Update game and match on server
+      try {
+        await apiRequest("PATCH", `/api/games/${currentGameId}`, {
+          status: "completed",
+          result,
+          completedAt: new Date(),
+          pgn: currentGame.pgn(),
+          moves: movesRef.current,
+          whiteTime: whiteTimeRef.current,
+          blackTime: blackTimeRef.current,
+        });
+        
+        if (currentMatchId) {
+          await apiRequest("PATCH", `/api/matches/${currentMatchId}`, { status: 'completed' });
+        }
+        
+        // Invalidate queries
+        queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
+      } catch (error) {
+        console.error("Error completing game:", error);
+      }
+
+      // Show game end dialog after server updates
+      setShowGameEndDialog(true);
+    } finally {
+      // Always reset guard flag so future games can complete
+      gameCompletionInProgressRef.current = false;
+    }
+  }, []);
+
   const resetGameState = useCallback(() => {
     if (saveIntervalRef.current) {
       clearInterval(saveIntervalRef.current);
       saveIntervalRef.current = null;
     }
+    if (clockIntervalRef.current) {
+      clearInterval(clockIntervalRef.current);
+      clockIntervalRef.current = null;
+    }
+    gameCompletionInProgressRef.current = false;
     setGame(null);
     setGameId(null);
     setMatchId(null);
@@ -88,7 +171,7 @@ export default function StandardMode() {
     movesRef.current = [];
   }, []);
 
-  const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
+  const handleOpponentMove = useCallback(async (data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
     console.log('[handleOpponentMove] Received opponent move:', data);
     console.log('[handleOpponentMove] Current matchIdRef:', matchIdRef.current);
     console.log('[handleOpponentMove] Game ref exists:', !!gameRef.current);
@@ -127,66 +210,10 @@ export default function StandardMode() {
       if (currentGame.isCheckmate()) {
         console.log('[handleOpponentMove] Checkmate detected - game over');
         const result = currentGame.turn() === "w" ? "black_win" : "white_win";
-        
-        // Update game on server
-        const currentGameId = gameIdRef.current;
-        const currentMatchId = matchIdRef.current;
-        if (currentGameId) {
-          apiRequest("PATCH", `/api/games/${currentGameId}`, {
-            status: "completed",
-            result,
-            completedAt: new Date(),
-            pgn: currentGame.pgn(),
-            moves: movesRef.current,
-            whiteTime: data.whiteTime,
-            blackTime: data.blackTime,
-          }).then(() => {
-            if (currentMatchId) {
-              return apiRequest("PATCH", `/api/matches/${currentMatchId}`, { status: 'completed' });
-            }
-          }).then(() => {
-            queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
-          });
-        }
-        
-        setGameResult(result);
-        setShowGameEndDialog(true);
-        setGameStarted(false);
-        setShowBoard(true);
+        await completeGame(result);
       } else if (currentGame.isDraw() || currentGame.isStalemate() || currentGame.isThreefoldRepetition() || currentGame.isInsufficientMaterial()) {
         console.log('[handleOpponentMove] Draw detected - game over');
-        
-        // Update game on server
-        const currentGameId = gameIdRef.current;
-        const currentMatchId = matchIdRef.current;
-        if (currentGameId) {
-          apiRequest("PATCH", `/api/games/${currentGameId}`, {
-            status: "completed",
-            result: "draw",
-            completedAt: new Date(),
-            pgn: currentGame.pgn(),
-            moves: movesRef.current,
-            whiteTime: data.whiteTime,
-            blackTime: data.blackTime,
-          }).then(() => {
-            if (currentMatchId) {
-              return apiRequest("PATCH", `/api/matches/${currentMatchId}`, { status: 'completed' });
-            }
-          }).then(() => {
-            queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
-          });
-        }
-        
-        setGameResult("draw");
-        setShowGameEndDialog(true);
-        setGameStarted(false);
-        setShowBoard(true);
+        await completeGame("draw");
       } else {
         console.log('[handleOpponentMove] Move processed successfully');
         toast({
@@ -202,7 +229,7 @@ export default function StandardMode() {
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [toast, completeGame]);
 
   const handleMatchFound = useCallback((matchData: { matchId: string; game: any; timeControl: string; color: string; opponent: { name: string; rating: number } }) => {
     try {
@@ -263,21 +290,22 @@ export default function StandardMode() {
     }
   }, []);
 
-  const handleDrawResponse = useCallback((data: { matchId: string; accepted: boolean }) => {
+  const handleDrawResponse = useCallback(async (data: { matchId: string; accepted: boolean }) => {
     if (data.matchId === matchIdRef.current) {
-      setWaitingForDrawResponse(false);
       if (data.accepted) {
-        setGameResult("draw");
-        setShowGameEndDialog(true);
-        setGameStarted(false);
+        // Reset waiting state before completing game
+        setWaitingForDrawResponse(false);
+        // Complete the game for both players
+        await completeGame("draw");
       } else {
+        setWaitingForDrawResponse(false);
         toast({
           title: "Draw declined",
           description: "Your opponent declined the draw offer",
         });
       }
     }
-  }, [toast]);
+  }, [toast, completeGame]);
 
   const handleRematchRequest = useCallback((data: { matchId: string; from: string }) => {
     if (data.matchId === matchIdRef.current) {
@@ -286,20 +314,22 @@ export default function StandardMode() {
   }, []);
 
   const handleRematchResponse = useCallback((data: { matchId: string; accepted: boolean; newMatchId?: string }) => {
+    // Always clear waiting state
     setWaitingForRematchResponse(false);
-    if (data.accepted && data.newMatchId) {
+    
+    if (data.accepted) {
       toast({
         title: "Rematch accepted!",
-        description: "Starting new game...",
+        description: "Both players can now queue up for a new game",
       });
-      // The match_found event will handle the new game setup
+      setShowGameEndDialog(false);
+      setShowRematchDialog(false);
+      resetGameState();
     } else {
       toast({
         title: "Rematch declined",
         description: "Your opponent declined the rematch",
       });
-      setShowGameEndDialog(false);
-      resetGameState();
     }
   }, [toast, resetGameState]);
 
@@ -352,10 +382,12 @@ export default function StandardMode() {
 
   const updateGameMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (!gameId) return;
-      await apiRequest("PATCH", `/api/games/${gameId}`, data);
-      if (matchId && data.status === 'completed') {
-        await apiRequest("PATCH", `/api/matches/${matchId}`, { status: 'completed' });
+      const currentGameId = gameIdRef.current;
+      const currentMatchId = matchIdRef.current;
+      if (!currentGameId) return;
+      await apiRequest("PATCH", `/api/games/${currentGameId}`, data);
+      if (currentMatchId && data.status === 'completed') {
+        await apiRequest("PATCH", `/api/matches/${currentMatchId}`, { status: 'completed' });
       }
     },
     onSuccess: () => {
@@ -486,43 +518,22 @@ export default function StandardMode() {
     }
   }, []);
 
-  const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
-    if (!game || !gameId) return;
-
-    if (saveIntervalRef.current) {
-      clearInterval(saveIntervalRef.current);
-      saveIntervalRef.current = null;
-    }
-
-    updateGameMutation.mutate({
-      status: "completed",
-      result,
-      completedAt: new Date(),
-      pgn: game.pgn(),
-      moves: movesRef.current,
-      whiteTime: whiteTimeRef.current,
-      blackTime: blackTimeRef.current,
-    });
-
-    setGameResult(result);
-    setShowGameEndDialog(true);
-    setGameStarted(false);
-    setShowBoard(true);
-  }, [game, gameId, updateGameMutation]);
+  const handleGameEnd = useCallback(async (result: "white_win" | "black_win" | "draw") => {
+    await completeGame(result);
+  }, [completeGame]);
 
   useEffect(() => {
     if (gameStarted && game) {
       const timer = setInterval(() => {
         const currentTurn = game.turn();
-        const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
         
         if (currentTurn === "w") {
           setWhiteTime((t) => {
             const newTime = Math.max(0, t - 1);
-            if (isMyTurn) {
-              whiteTimeRef.current = newTime;
-            }
-            if (newTime === 0 && t > 0 && isMyTurn) {
+            // Always update ref for the current turn
+            whiteTimeRef.current = newTime;
+            // Check for timeout - white loses, black wins
+            if (newTime === 0 && t > 0) {
               handleGameEnd("black_win");
             }
             return newTime;
@@ -530,18 +541,23 @@ export default function StandardMode() {
         } else {
           setBlackTime((t) => {
             const newTime = Math.max(0, t - 1);
-            if (isMyTurn) {
-              blackTimeRef.current = newTime;
-            }
-            if (newTime === 0 && t > 0 && isMyTurn) {
+            // Always update ref for the current turn
+            blackTimeRef.current = newTime;
+            // Check for timeout - black loses, white wins
+            if (newTime === 0 && t > 0) {
               handleGameEnd("white_win");
             }
             return newTime;
           });
         }
       }, 1000);
+      
+      clockIntervalRef.current = timer;
 
-      return () => clearInterval(timer);
+      return () => {
+        clearInterval(timer);
+        clockIntervalRef.current = null;
+      };
     }
   }, [gameStarted, game, playerColor, handleGameEnd]);
 
@@ -566,7 +582,7 @@ export default function StandardMode() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleSquareClick = (square: string) => {
+  const handleSquareClick = async (square: string) => {
     console.log('[handleSquareClick] Square clicked:', square);
     console.log('[handleSquareClick] game:', !!game, 'gameStarted:', gameStarted);
     
@@ -617,9 +633,9 @@ export default function StandardMode() {
           }
           
           if (game.isCheckmate()) {
-            handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
+            await handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
           } else if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
-            handleGameEnd("draw");
+            await handleGameEnd("draw");
           } else {
             saveGameState();
           }
@@ -650,9 +666,10 @@ export default function StandardMode() {
     }
   };
 
-  const handleResign = () => {
+  const handleResign = async () => {
     if (!game) return;
-    handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
+    // The resigning player loses, so opponent wins
+    await completeGame(playerColor === "white" ? "black_win" : "white_win");
   };
 
   const handleOfferDraw = () => {
@@ -852,9 +869,15 @@ export default function StandardMode() {
                   </div>
 
                   <div className="mt-6 pt-6 border-t flex gap-3">
-                    <Button variant="outline" className="flex-1" onClick={handleOfferDraw} data-testid="button-offer-draw">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1" 
+                      onClick={handleOfferDraw} 
+                      disabled={waitingForDrawResponse}
+                      data-testid="button-offer-draw"
+                    >
                       <HandshakeIcon className="mr-2 h-4 w-4" />
-                      Offer Draw
+                      {waitingForDrawResponse ? "Waiting..." : "Offer Draw"}
                     </Button>
                     <Button variant="destructive" className="flex-1" onClick={handleResign} data-testid="button-resign">
                       <Flag className="mr-2 h-4 w-4" />
@@ -871,7 +894,7 @@ export default function StandardMode() {
       {gameStarted && (
         <div className="w-80 border-l bg-card flex flex-col">
           <div className="p-4 border-b">
-            <h3 className="font-semibold">Move List</h3>
+            <h3 className="font-semibold">Score Sheet</h3>
           </div>
           <ScrollArea className="flex-1 p-4">
             {moves.length === 0 ? (
@@ -879,18 +902,156 @@ export default function StandardMode() {
                 No moves yet
               </p>
             ) : (
-              <div className="space-y-2 font-mono text-sm">
-                {moves.map((move, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="text-muted-foreground w-8">{Math.floor(i / 2) + 1}.</span>
-                    <span>{move}</span>
-                  </div>
-                ))}
+              <div className="font-mono text-sm">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-2 w-12 text-muted-foreground font-medium">#</th>
+                      <th className="text-left py-2 px-2 font-medium">White</th>
+                      <th className="text-left py-2 px-2 font-medium">Black</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: Math.ceil(moves.length / 2) }).map((_, moveNumber) => {
+                      const whiteMove = moves[moveNumber * 2];
+                      const blackMove = moves[moveNumber * 2 + 1];
+                      return (
+                        <tr key={moveNumber} className="border-b border-border/50">
+                          <td className="py-2 px-2 text-muted-foreground">{moveNumber + 1}</td>
+                          <td className="py-2 px-2">{whiteMove}</td>
+                          <td className="py-2 px-2">{blackMove || "-"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </ScrollArea>
         </div>
       )}
+
+      {/* Draw Offer Dialog */}
+      <Dialog open={showDrawOfferDialog} onOpenChange={setShowDrawOfferDialog}>
+        <DialogContent data-testid="dialog-draw-offer">
+          <DialogHeader>
+            <DialogTitle>Draw Offer</DialogTitle>
+            <DialogDescription>
+              Your opponent is offering a draw. Do you accept?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (matchId) sendDrawResponse(matchId, false);
+                setShowDrawOfferDialog(false);
+              }}
+              data-testid="button-decline-draw"
+            >
+              Decline
+            </Button>
+            <Button
+              onClick={async () => {
+                if (matchId) {
+                  // Close dialog immediately
+                  setShowDrawOfferDialog(false);
+                  
+                  // Send acceptance to opponent
+                  sendDrawResponse(matchId, true);
+                  
+                  // Complete the game
+                  await completeGame("draw");
+                }
+              }}
+              data-testid="button-accept-draw"
+            >
+              Accept
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rematch Request Dialog */}
+      <Dialog open={showRematchDialog} onOpenChange={setShowRematchDialog}>
+        <DialogContent data-testid="dialog-rematch-request">
+          <DialogHeader>
+            <DialogTitle>Rematch Request</DialogTitle>
+            <DialogDescription>
+              Your opponent wants to play again. Accept to return to matchmaking together, or decline to return to the main menu.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (matchId) sendRematchResponse(matchId, false);
+                setShowRematchDialog(false);
+                setShowGameEndDialog(false);
+                resetGameState();
+              }}
+              data-testid="button-decline-rematch"
+            >
+              Decline
+            </Button>
+            <Button
+              onClick={() => {
+                if (matchId) sendRematchResponse(matchId, true);
+                setShowRematchDialog(false);
+                setShowGameEndDialog(false);
+                resetGameState();
+              }}
+              data-testid="button-accept-rematch"
+            >
+              Accept
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Game End Dialog */}
+      <Dialog open={showGameEndDialog} onOpenChange={setShowGameEndDialog}>
+        <DialogContent data-testid="dialog-game-end">
+          <DialogHeader>
+            <DialogTitle>Game Over</DialogTitle>
+            <DialogDescription>
+              {gameResult === "draw" 
+                ? "The game ended in a draw"
+                : gameResult === "white_win"
+                ? "White wins!"
+                : "Black wins!"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowGameEndDialog(false);
+                resetGameState();
+              }}
+              data-testid="button-main-menu"
+            >
+              Main Menu
+            </Button>
+            <Button
+              onClick={() => {
+                if (matchId) {
+                  setWaitingForRematchResponse(true);
+                  sendRematchRequest(matchId);
+                  toast({
+                    title: "Rematch requested",
+                    description: "Waiting for opponent...",
+                  });
+                }
+              }}
+              disabled={waitingForRematchResponse}
+              data-testid="button-request-rematch"
+            >
+              {waitingForRematchResponse ? "Waiting..." : "Ask for Rematch"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

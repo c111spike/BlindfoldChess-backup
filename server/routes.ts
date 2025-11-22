@@ -944,6 +944,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             });
           }
+        } else if (data.type === 'offer_draw') {
+          const matchId = data.matchId;
+          const userId = ws.userId;
+          
+          if (!matchId || !userId) return;
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'draw_offer',
+                    matchId: matchId,
+                    from: userId,
+                  }));
+                }
+              }
+            });
+          }
+        } else if (data.type === 'respond_draw') {
+          const matchId = data.matchId;
+          const userId = ws.userId;
+          const accepted = data.accepted;
+          
+          if (!matchId || !userId) return;
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'draw_response',
+                    matchId: matchId,
+                    accepted: accepted,
+                  }));
+                }
+              }
+            });
+          }
+        } else if (data.type === 'request_rematch') {
+          const matchId = data.matchId;
+          const userId = ws.userId;
+          
+          if (!matchId || !userId) return;
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'rematch_request',
+                    matchId: matchId,
+                    from: userId,
+                  }));
+                }
+              }
+            });
+          }
+        } else if (data.type === 'respond_rematch') {
+          const matchId = data.matchId;
+          const userId = ws.userId;
+          const accepted = data.accepted;
+          
+          if (!matchId || !userId) return;
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'rematch_response',
+                    matchId: matchId,
+                    accepted: accepted,
+                  }));
+                }
+              }
+            });
+          }
+          
+          // For now, just send confirmation back to the requester
+          // TODO: Implement full rematch creation with proper match setup
         }
       } catch (error) {
         console.error('WebSocket error:', error);
