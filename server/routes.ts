@@ -1061,8 +1061,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           };
           
-          // If declined, notify both players
+          // If declined, clean up match state and notify both players
           if (!accepted) {
+            // Finalize match in database if not already completed
+            if (currentMatch.status !== 'completed') {
+              await storage.updateMatch(matchId, {
+                status: 'completed',
+                completedAt: new Date()
+              });
+              
+              // Fully finalize any games that might not be completely finalized
+              // This ensures getActiveGame returns null so players can rejoin queue
+              for (const gameId of currentMatch.gameIds) {
+                const game = await storage.getGame(gameId);
+                if (game && (!game.completedAt || game.result === 'ongoing')) {
+                  // If no result set, mark as draw (shouldn't happen in normal flow)
+                  const finalResult = game.result === 'ongoing' ? 'draw' : game.result;
+                  await storage.updateGame(gameId, {
+                    result: finalResult,
+                    completedAt: new Date()
+                  });
+                }
+              }
+            }
+            
+            // Get WebSocket connections
+            const player1Ws = userConnections.get(player1Id);
+            const player2Ws = userConnections.get(player2Id);
+            
+            // Remove both players from old match room
+            const oldMatchRoom = matchRooms.get(matchId);
+            if (oldMatchRoom) {
+              oldMatchRoom.delete(player1Id);
+              oldMatchRoom.delete(player2Id);
+              if (oldMatchRoom.size === 0) {
+                matchRooms.delete(matchId);
+              }
+            }
+            
+            // Clear WebSocket matchId for both players so they can rejoin queue
+            if (player1Ws) {
+              (player1Ws as any).matchId = null;
+            }
+            if (player2Ws) {
+              (player2Ws as any).matchId = null;
+            }
+            
+            // Remove both players from queue manager to allow re-queueing
+            queueManager.leave(player1Id);
+            queueManager.leave(player2Id);
+            
+            // Send game_end event to both players so they can exit board and rejoin queue
+            if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
+              player1Ws.send(JSON.stringify({
+                type: 'game_end',
+                reason: 'rematch_declined'
+              }));
+            }
+            if (player2Ws && player2Ws.readyState === WebSocket.OPEN) {
+              player2Ws.send(JSON.stringify({
+                type: 'game_end',
+                reason: 'rematch_declined'
+              }));
+            }
+            
+            // Notify both players of the decline
             notifyBothPlayers(false);
             return;
           }
