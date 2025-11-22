@@ -1,12 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History } from "lucide-react";
-import type { Rating, Game } from "@shared/schema";
+import type { Rating, Game, UserSettings } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
+  const { toast } = useToast();
+  
   const { data: ratings, isLoading: ratingsLoading } = useQuery<Rating>({
     queryKey: ["/api/ratings"],
   });
@@ -15,17 +20,45 @@ export default function Dashboard() {
     queryKey: ["/api/games/recent"],
   });
 
+  const { data: userSettings } = useQuery<UserSettings>({
+    queryKey: ["/api/settings"],
+  });
+
+  const updateBlindfolddifficultyMutation = useMutation({
+    mutationFn: async (difficulty: string) => {
+      return await apiRequest("PATCH", "/api/settings", {
+        blindfoldDifficulty: difficulty,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      toast({
+        title: "Settings saved",
+        description: "Blindfold difficulty updated",
+      });
+    },
+  });
+
   if (ratingsLoading) {
     return (
       <div className="p-8 space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
       </div>
     );
   }
+
+  const difficultyOptions = [
+    { value: "easy", label: "Easy", description: "Unlimited peeks (3 sec)" },
+    { value: "medium", label: "Medium", description: "20 peeks (3 sec)" },
+    { value: "hard", label: "Hard", description: "15 peeks (2.5 sec)" },
+    { value: "expert", label: "Expert", description: "10 peeks (2 sec)" },
+    { value: "master", label: "Master", description: "5 peeks (1.5 sec)" },
+    { value: "grandmaster", label: "Grandmaster", description: "0 peeks" },
+  ];
 
   return (
     <div className="p-8 space-y-8">
@@ -40,10 +73,10 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">Bullet (1 min)</CardDescription>
+            <CardDescription className="text-xs font-medium">OTB Bullet</CardDescription>
             <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-bullet">
               {ratings?.bullet || 1200}
             </CardTitle>
@@ -51,14 +84,14 @@ export default function Dashboard() {
           <CardContent>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3" />
-              <span>+12 this month</span>
+              <span>+12</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">Blitz (5 min)</CardDescription>
+            <CardDescription className="text-xs font-medium">OTB Blitz</CardDescription>
             <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-blitz">
               {ratings?.blitz || 1200}
             </CardTitle>
@@ -66,14 +99,14 @@ export default function Dashboard() {
           <CardContent>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3" />
-              <span>+8 this month</span>
+              <span>+8</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">Rapid (15 min)</CardDescription>
+            <CardDescription className="text-xs font-medium">OTB Rapid</CardDescription>
             <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-rapid">
               {ratings?.rapid || 1200}
             </CardTitle>
@@ -81,34 +114,49 @@ export default function Dashboard() {
           <CardContent>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <TrendingDown className="h-3 w-3 text-destructive" />
-              <span className="text-destructive">-5 this month</span>
+              <span className="text-destructive">-5</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">Classical (30 min)</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-classical">
-              {ratings?.classical || 1200}
+            <CardDescription className="text-xs font-medium">Blindfold</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-blindfold">
+              {ratings?.blindfold || 1200}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3" />
-              <span>+15 this month</span>
+              <span>+15</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="space-y-0 pb-3">
+            <CardDescription className="text-xs font-medium">Simul Elo</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-simul">
+              {ratings?.simul || 1000}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <TrendingUp className="h-3 w-3" />
+              <span>+6</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-primary hover-elevate border-primary" data-testid="card-simul-exhibition">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Grid3x3 className="h-8 w-8 text-primary-foreground" />
             </div>
-            <CardTitle className="text-primary-foreground text-2xl">Simul Exhibition</CardTitle>
+            <CardTitle className="text-primary-foreground text-2xl">Simul vs Simul</CardTitle>
             <CardDescription className="text-primary-foreground/80">
               2-10 boards. 30 seconds per move. FIFO rotation.
             </CardDescription>
@@ -125,7 +173,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-2">
               <Clock className="h-8 w-8 text-foreground" />
             </div>
-            <CardTitle className="text-2xl">OTB Tournament Mode</CardTitle>
+            <CardTitle className="text-2xl">OTB Mode</CardTitle>
             <CardDescription>
               Manual clock. FIDE tournament practice.
             </CardDescription>
@@ -134,6 +182,39 @@ export default function Dashboard() {
             <Button asChild variant="outline" className="w-full" data-testid="button-mode-otb">
               <Link href="/otb">Start Game</Link>
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover-elevate" data-testid="card-blindfold-settings">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <Brain className="h-8 w-8 text-foreground" />
+            </div>
+            <CardTitle className="text-2xl">Blindfold Settings</CardTitle>
+            <CardDescription>
+              Select difficulty for blindfold mode.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={userSettings?.blindfoldDifficulty || "medium"}
+              onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
+              disabled={updateBlindfolddifficultyMutation.isPending}
+            >
+              <SelectTrigger className="w-full" data-testid="select-blindfold-difficulty">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {difficultyOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div>
+                      <div className="font-medium">{option.label}</div>
+                      <div className="text-xs text-muted-foreground">{option.description}</div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
 
