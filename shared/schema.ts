@@ -136,6 +136,8 @@ export const ratings = pgTable("ratings", {
   blitz: integer("blitz").default(1200),
   rapid: integer("rapid").default(1200),
   classical: integer("classical").default(1200),
+  blindfold: integer("blindfold").default(1200),
+  simul: integer("simul").default(1000),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -175,6 +177,7 @@ export const userSettings = pgTable("user_settings", {
   highlightLegalMoves: boolean("highlight_legal_moves").default(true),
   confirmMoves: boolean("confirm_moves").default(false),
   arbiterWarnings: boolean("arbiter_warnings").default(true),
+  blindfoldDifficulty: varchar("blindfold_difficulty").default("medium"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
