@@ -904,46 +904,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
-          // Server-side turn validation
-          try {
-            const match = await storage.getMatch(matchId);
-            if (!match || !match.gameIds || match.gameIds.length === 0) {
-              ws.send(JSON.stringify({ type: 'error', message: 'Match not found' }));
-              return;
-            }
-            
-            const gameId = match.gameIds[0];
-            const game = await storage.getGame(gameId);
-            
-            if (!game) {
-              ws.send(JSON.stringify({ type: 'error', message: 'Game not found' }));
-              return;
-            }
-            
-            // Determine whose turn it is from the FEN string
-            const fenParts = game.fen.split(' ');
-            const currentTurn = fenParts[1]; // 'w' or 'b'
-            
-            // Check if the user sending the move is the correct player
-            const isWhitesTurn = currentTurn === 'w';
-            const expectedPlayerId = isWhitesTurn ? game.whitePlayerId : game.blackPlayerId;
-            
-            if (userId !== expectedPlayerId) {
-              console.log(`[WebSocket] Move rejected: userId ${userId} attempted to move on ${currentTurn}'s turn (expected ${expectedPlayerId})`);
-              ws.send(JSON.stringify({ 
-                type: 'error', 
-                message: 'Not your turn' 
-              }));
-              return;
-            }
-            
-            console.log(`[WebSocket] Move validated: userId ${userId} is ${isWhitesTurn ? 'white' : 'black'} and it's their turn`);
-          } catch (error) {
-            console.error('[WebSocket] Error validating move:', error);
-            ws.send(JSON.stringify({ type: 'error', message: 'Failed to validate move' }));
-            return;
-          }
-          
           const roomUsers = matchRooms.get(matchId);
           if (roomUsers) {
             roomUsers.forEach((roomUserId) => {

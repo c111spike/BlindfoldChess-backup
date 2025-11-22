@@ -117,11 +117,83 @@ export default function StandardMode() {
       whiteTimeRef.current = data.whiteTime;
       blackTimeRef.current = data.blackTime;
       
-      console.log('[handleOpponentMove] Move processed successfully');
-      toast({
-        title: "Opponent moved",
-        description: data.move,
-      });
+      // Check for game end conditions after opponent's move
+      if (currentGame.isCheckmate()) {
+        console.log('[handleOpponentMove] Checkmate detected - game over');
+        const result = currentGame.turn() === "w" ? "black_win" : "white_win";
+        
+        // Update game on server
+        const currentGameId = gameIdRef.current;
+        const currentMatchId = matchIdRef.current;
+        if (currentGameId) {
+          apiRequest("PATCH", `/api/games/${currentGameId}`, {
+            status: "completed",
+            result,
+            completedAt: new Date(),
+            pgn: currentGame.pgn(),
+            moves: movesRef.current,
+            whiteTime: data.whiteTime,
+            blackTime: data.blackTime,
+          }).then(() => {
+            if (currentMatchId) {
+              return apiRequest("PATCH", `/api/matches/${currentMatchId}`, { status: 'completed' });
+            }
+          }).then(() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
+          });
+        }
+        
+        toast({
+          title: "Game Over",
+          description: result === "white_win" ? "White wins!" : "Black wins!",
+        });
+        
+        setGameStarted(false);
+        setShowBoard(true);
+      } else if (currentGame.isDraw() || currentGame.isStalemate() || currentGame.isThreefoldRepetition() || currentGame.isInsufficientMaterial()) {
+        console.log('[handleOpponentMove] Draw detected - game over');
+        
+        // Update game on server
+        const currentGameId = gameIdRef.current;
+        const currentMatchId = matchIdRef.current;
+        if (currentGameId) {
+          apiRequest("PATCH", `/api/games/${currentGameId}`, {
+            status: "completed",
+            result: "draw",
+            completedAt: new Date(),
+            pgn: currentGame.pgn(),
+            moves: movesRef.current,
+            whiteTime: data.whiteTime,
+            blackTime: data.blackTime,
+          }).then(() => {
+            if (currentMatchId) {
+              return apiRequest("PATCH", `/api/matches/${currentMatchId}`, { status: 'completed' });
+            }
+          }).then(() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
+          });
+        }
+        
+        toast({
+          title: "Game Over",
+          description: "Game drawn",
+        });
+        
+        setGameStarted(false);
+        setShowBoard(true);
+      } else {
+        console.log('[handleOpponentMove] Move processed successfully');
+        toast({
+          title: "Opponent moved",
+          description: data.move,
+        });
+      }
     } catch (error) {
       console.error("[handleOpponentMove] Error:", error);
       toast({
@@ -462,11 +534,6 @@ export default function StandardMode() {
     
     if (!isMyTurn) {
       console.log('[handleSquareClick] Not your turn');
-      toast({
-        title: "Not your turn",
-        description: "Wait for your opponent to move",
-        variant: "destructive",
-      });
       return;
     }
 
