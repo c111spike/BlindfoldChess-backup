@@ -123,9 +123,9 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">Blindfold</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-blindfold">
-              {ratings?.blindfold || 1200}
+            <CardDescription className="text-xs font-medium">Classical Elo</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-classical">
+              {ratings?.classical || 1400}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -160,7 +160,7 @@ export default function Dashboard() {
             </div>
             <CardTitle className="text-primary-foreground text-2xl">Simul vs Simul</CardTitle>
             <CardDescription className="text-primary-foreground/80">
-              2-10 boards. 30 seconds per move. FIFO rotation.
+              2-10 boards<br />30 seconds/move<br />Once you start on a board.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -177,7 +177,7 @@ export default function Dashboard() {
             </div>
             <CardTitle className="text-primary-foreground text-2xl">OTB Mode</CardTitle>
             <CardDescription className="text-primary-foreground/80">
-              Manual clock. FIDE tournament practice.
+              Manual clock<br />One touch rule<br />Arbiter Button
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -203,7 +203,7 @@ export default function Dashboard() {
               onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
               disabled={updateBlindfolddifficultyMutation.isPending}
             >
-              <SelectTrigger className="w-full bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground" data-testid="select-blindfold-difficulty">
+              <SelectTrigger className="w-full" data-testid="select-blindfold-difficulty">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
