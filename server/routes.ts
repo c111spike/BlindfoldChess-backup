@@ -575,6 +575,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/matches/:matchId/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const { matchId } = req.params;
+      const { result } = req.body;
+      const userId = req.user.claims.sub;
+
+      if (!result || !['white_win', 'black_win', 'draw'].includes(result)) {
+        return res.status(400).json({ message: "Invalid result. Must be white_win, black_win, or draw" });
+      }
+
+      const match = await storage.getMatch(matchId);
+      
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+      
+      if (match.player1Id !== userId && match.player2Id !== userId) {
+        return res.status(403).json({ message: "Not authorized to complete this match" });
+      }
+
+      console.log('[POST /api/matches/:id/complete] Completing match:', matchId, 'result:', result);
+
+      // Complete match atomically (updates match, games, ratings, stats)
+      const { match: completedMatch, games: completedGames } = await storage.completeMatch(matchId, result);
+
+      console.log('[POST /api/matches/:id/complete] Match completed successfully');
+
+      // Broadcast game_end to both players via WebSocket
+      const roomUsers = matchRooms.get(matchId);
+      console.log('[POST /api/matches/:id/complete] Match room users:', roomUsers ? Array.from(roomUsers) : 'none');
+      
+      if (roomUsers) {
+        roomUsers.forEach((roomUserId) => {
+          const playerWs = userConnections.get(roomUserId);
+          if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+            console.log('[POST /api/matches/:id/complete] Sending game_end to user:', roomUserId);
+            playerWs.send(JSON.stringify({
+              type: 'game_end',
+              result: result,
+              reason: 'game_completed'
+            }));
+          } else {
+            console.log('[POST /api/matches/:id/complete] User WS not ready:', roomUserId);
+          }
+        });
+      }
+
+      // Clean up WebSocket room and queue
+      matchRooms.delete(matchId);
+      queueManager.leave(match.player1Id);
+      queueManager.leave(match.player2Id);
+
+      res.json({ match: completedMatch, games: completedGames });
+    } catch (error) {
+      console.error("Error completing match:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to complete match" });
+    }
+  });
+
   app.post('/api/blindfold', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
