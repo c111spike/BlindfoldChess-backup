@@ -108,20 +108,31 @@ export default function StandardMode() {
       setGameStarted(false);
       setShowBoard(true);
 
-      // Update game and match on server
+      // Save final game state - MUST succeed before completion
       try {
         await apiRequest("PATCH", `/api/games/${currentGameId}`, {
-          status: "completed",
-          result,
-          completedAt: new Date(),
           pgn: currentGame.pgn(),
           moves: movesRef.current,
           whiteTime: whiteTimeRef.current,
           blackTime: blackTimeRef.current,
         });
-        
+      } catch (error) {
+        console.error("Error saving final game state:", error);
+        // Don't proceed to completion if game state save failed
+        toast({
+          title: "Error",
+          description: "Failed to save game state. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Complete match (centralized - handles stats, ratings, WebSocket broadcast)
+      // Only proceed if PATCH succeeded above
+      try {
         if (currentMatchId) {
-          await apiRequest("PATCH", `/api/matches/${currentMatchId}`, { status: 'completed' });
+          console.log('[completeGame] Calling POST /api/matches/:id/complete');
+          await apiRequest("POST", `/api/matches/${currentMatchId}/complete`, { result });
         }
         
         // Invalidate queries
@@ -130,7 +141,13 @@ export default function StandardMode() {
         queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
         queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
       } catch (error) {
-        console.error("Error completing game:", error);
+        console.error("Error completing match:", error);
+        // Show error to user but don't block - WebSocket might still handle it
+        toast({
+          title: "Error",
+          description: "Match completion error. Please check your connection.",
+          variant: "destructive",
+        });
       }
 
       // Show game end dialog after server updates
