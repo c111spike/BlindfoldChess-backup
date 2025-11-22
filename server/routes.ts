@@ -1176,21 +1176,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             queueManager.leave(player1Id);
             queueManager.leave(player2Id);
             
-            // Send game_end event to both players so they can exit board and rejoin queue
-            if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
-              player1Ws.send(JSON.stringify({
-                type: 'game_end',
-                reason: 'rematch_declined'
-              }));
-            }
-            if (player2Ws && player2Ws.readyState === WebSocket.OPEN) {
-              player2Ws.send(JSON.stringify({
-                type: 'game_end',
-                reason: 'rematch_declined'
-              }));
-            }
-            
             // Notify both players of the decline
+            // Note: Don't send game_end event - the game already ended from resignation
             notifyBothPlayers(false);
             return;
           }

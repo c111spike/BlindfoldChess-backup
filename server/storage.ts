@@ -596,6 +596,7 @@ export class DatabaseStorage implements IStorage {
         const [updatedGame] = await tx
           .update(games)
           .set({
+            status: 'completed' as any,
             result: gameResult as any,
             completedAt: new Date(),
             statsProcessed: true,

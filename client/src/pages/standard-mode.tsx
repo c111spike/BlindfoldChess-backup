@@ -57,6 +57,7 @@ export default function StandardMode() {
   const gameIdRef = useRef<string | null>(null);
   const matchIdRef = useRef<string | null>(null);
   const rematchExitIntentRef = useRef<boolean>(false);
+  const didSendRematchRequestRef = useRef<boolean>(false);
   const whiteTimeRef = useRef(180);
   const blackTimeRef = useRef(180);
   const movesRef = useRef<string[]>([]);
@@ -261,10 +262,15 @@ export default function StandardMode() {
         throw new Error(`Invalid game data: ${JSON.stringify(gameData)}`);
       }
       
+      // Clear any pending game completion flags for the OLD game
+      // The old game has already been completed by completeGame() or the server
+      gameCompletionInProgressRef.current = false;
+      
       // Set refs immediately for synchronous access
       gameIdRef.current = gameData.id;
       matchIdRef.current = matchData.matchId;
       rematchExitIntentRef.current = false; // Clear exit intent for new match
+      didSendRematchRequestRef.current = false; // Reset rematch request flag for new game
       console.log('[handleMatchFound] Set matchIdRef to:', matchIdRef.current);
       
       setGameId(gameData.id);
@@ -331,16 +337,29 @@ export default function StandardMode() {
   const handleRematchRequest = useCallback((data: { matchId: string; from: string }) => {
     if (data.matchId === matchIdRef.current) {
       rematchExitIntentRef.current = false; // Clear exit intent for new rematch
+      didSendRematchRequestRef.current = false; // We received a request, so we didn't send it
       setShowRematchDialog(true);
     }
   }, []);
 
   const handleRematchResponse = useCallback((data: { matchId: string; accepted: boolean; newMatchId?: string }) => {
+    console.log('[handleRematchResponse] Received:', data);
+    console.log('[handleRematchResponse] Current matchId:', matchIdRef.current, 'Response matchId:', data.matchId);
+    console.log('[handleRematchResponse] didSendRematchRequestRef.current:', didSendRematchRequestRef.current);
+    console.log('[handleRematchResponse] rematchExitIntentRef.current:', rematchExitIntentRef.current);
+    
+    // Ignore responses from old matches
+    if (data.matchId !== matchIdRef.current) {
+      console.log('[handleRematchResponse] Ignoring stale response from old match');
+      return;
+    }
+    
     // Clear waiting state
     setWaitingForRematchResponse(false);
     
     // If user clicked Main Menu, ignore this response (they've already left)
     if (rematchExitIntentRef.current) {
+      console.log('[handleRematchResponse] Exit intent detected, ignoring response');
       rematchExitIntentRef.current = false; // Clear for next time
       return;
     }
@@ -356,15 +375,26 @@ export default function StandardMode() {
       });
       // Don't reset game state - the match_found event will set up the new game
     } else {
+      console.log('[handleRematchResponse] Rematch declined');
       // Opponent declined (clicked Main Menu or No)
       setShowRematchDialog(false);
-      setShowGameEndDialog(true);
+      // Don't re-open Game End dialog - it's already open
       setRematchDenied(true); // Mark as denied - button should stay disabled until next game
-      toast({
-        title: "Rematch denied",
-        description: "Your opponent declined the rematch",
-        variant: "destructive",
-      });
+      
+      // Only show toast if WE sent the rematch request
+      if (didSendRematchRequestRef.current) {
+        console.log('[handleRematchResponse] Showing toast - we sent the request');
+        toast({
+          title: "Rematch denied",
+          description: "Your opponent declined the rematch",
+          variant: "destructive",
+        });
+      } else {
+        console.log('[handleRematchResponse] NOT showing toast - we did not send the request');
+      }
+      
+      // Reset the flag for next time
+      didSendRematchRequestRef.current = false;
     }
   }, [toast]);
 
@@ -1119,6 +1149,8 @@ export default function StandardMode() {
               onClick={() => {
                 if (matchId) {
                   setWaitingForRematchResponse(true);
+                  didSendRematchRequestRef.current = true; // Mark that we sent the request
+                  console.log('[Rematch Button] Set didSendRematchRequestRef to true');
                   sendRematchRequest(matchId);
                   toast({
                     title: "Rematch requested",

@@ -12,28 +12,43 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (November 2025)
 
-### Multiplayer Fixes
+### Multiplayer Fixes (Completed November 22, 2025)
 
-**Rematch Functionality (Fixed)**
-- **Issue**: After a game ended, rematch offers from one player weren't reaching the opponent
-- **Root Cause**: Match rooms were being deleted immediately on game completion, preventing WebSocket message delivery
-- **Solution**: Match rooms now persist after game completion to enable rematch offers. Room cleanup occurs when:
-  - Rematch is explicitly declined
-  - Rematch is accepted (old room deleted, new room created)
-  - Player joins a new queue (removed from old room)
-  - Player disconnects (WebSocket close handler)
-- **Testing**: End-to-end tests confirm both players receive rematch requests and can accept/decline successfully
+**Rematch Toast Fix**
+- **Issue**: "Rematch denied" toast was appearing for both players instead of only the requester
+- **Solution**: Added `didSendRematchRequestRef` tracking in standard-mode.tsx
+  - Set to `true` when player clicks "Ask for Rematch" (line 1152)
+  - Toast only shown if flag is `true` when decline response received (line 385-394)
+  - Added matchId guard to prevent stale responses from affecting new games
+- **Testing**: E2E tests confirm toast appears only for requester, client logs verify correct behavior
 
-**Color Randomization (Already Working)**
-- Colors are randomly assigned each match using Math.random()
-- Players do not consistently get the same color in sequential matches
-- Applies to both initial matchmaking and rematch acceptance
+**Game Completion Fix**
+- **Issue**: Games not marked as `status='completed'` in database when matches ended
+- **Solution**: Updated `completeMatch` function in server/storage.ts (line 602)
+  - Added `status: 'completed'` to game updates alongside result and completedAt
+  - Ensures games properly completed before rematches or queue rejoins
+- **Testing**: Database queries confirm all completed games have correct status
 
-**Match Completion**
+**Duplicate Event Removal**
+- **Issue**: Backend sent redundant `game_end` event when rematch declined, reopening Game Over dialog
+- **Solution**: Removed duplicate WebSocket event in server/routes.ts (line 1182)
+  - Game already ended from resignation, no need to send again
+  - Prevents dialog state changes that could interfere with toast rendering
+
+**Match Completion (Previously Fixed)**
 - Fixed critical bug where both players now see Game Over dialog when either player resigns
 - Match completion uses centralized POST /api/matches/:id/complete endpoint
 - WebSocket broadcasts game_end event to both players in the match room
 - Statistics and ratings update atomically on match completion
+
+**Rematch Functionality (Previously Fixed)**
+- Match rooms persist after game completion to enable rematch offers
+- Room cleanup occurs when rematch declined/accepted, player joins queue, or disconnects
+- End-to-end tests confirm rematch request/response flow works correctly
+
+**Color Randomization (Already Working)**
+- Colors randomly assigned each match using Math.random()
+- Applies to both initial matchmaking and rematch acceptance
 
 ## System Architecture
 
