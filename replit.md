@@ -35,6 +35,15 @@ Preferred communication style: Simple, everyday language.
   - Game already ended from resignation, no need to send again
   - Prevents dialog state changes that could interfere with toast rendering
 
+**Game Restored Toast Fix**
+- **Issue**: "Game restored" toast incorrectly appeared when starting new games from matchmaking (after completing a previous game)
+- **Solution**: Added `gameFromMatchmakingRef` tracking in standard-mode.tsx (line 64)
+  - Set to `true` in `handleMatchFound` when new game created from matchmaking (line 278)
+  - Restoration useEffect checks flag and skips toast if game came from matchmaking (line 577-582)
+  - Flag reset to `false` after restoration logic runs (line 585)
+  - Toast now only appears when restoring an existing game after page refresh
+- **Testing**: E2E tests confirm toast does not appear for new matchmaking games, only for actual restorations
+
 **Match Completion (Previously Fixed)**
 - Fixed critical bug where both players now see Game Over dialog when either player resigns
 - Match completion uses centralized POST /api/matches/:id/complete endpoint
