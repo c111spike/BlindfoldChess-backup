@@ -1010,7 +1010,7 @@ export default function StandardMode() {
                   <CardContent className="py-3">
                     <div className="flex items-center justify-center gap-2">
                       <span className="text-sm font-medium" data-testid="text-opponent-name">
-                        {opponentName}
+                        ({playerColor === 'white' ? 'Black' : 'White'}) {opponentName}
                       </span>
                       <span className="text-sm text-muted-foreground font-mono" data-testid="text-opponent-rating">
                         ({opponentRating})
@@ -1091,7 +1091,7 @@ export default function StandardMode() {
                   <CardContent className="py-3">
                     <div className="flex items-center justify-center gap-2">
                       <span className="text-sm font-medium" data-testid="text-player-name">
-                        {playerName}
+                        ({playerColor === 'white' ? 'White' : 'Black'}) {playerName}
                       </span>
                       <span className="text-sm text-muted-foreground font-mono" data-testid="text-player-rating">
                         ({playerRatings?.[getRatingCategory(timeControl)] || 1200})
