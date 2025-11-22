@@ -1156,46 +1156,52 @@ export default function StandardMode() {
                 <h3 className="font-semibold">Last Move</h3>
               </div>
               <div className="flex-1 p-4">
-                {moves.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No moves yet
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {(() => {
-                      // Get the last move made by the opponent
-                      const opponentColor = playerColor === "white" ? "black" : "white";
-                      let lastOpponentMove = null;
-                      
-                      // Search backwards through moves to find opponent's last move
-                      for (let i = moves.length - 1; i >= 0; i--) {
-                        const isWhiteMove = i % 2 === 0;
-                        if ((opponentColor === "white" && isWhiteMove) || 
-                            (opponentColor === "black" && !isWhiteMove)) {
-                          lastOpponentMove = moves[i];
-                          break;
-                        }
-                      }
-                      
-                      return lastOpponentMove ? (
-                        <Card className="bg-muted/50">
-                          <CardContent className="p-4">
-                            <div className="text-sm text-muted-foreground mb-1">
-                              Opponent's last move:
-                            </div>
-                            <div className="font-mono text-2xl font-semibold" data-testid="text-last-opponent-move">
-                              {lastOpponentMove}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        <p className="text-sm text-muted-foreground text-center py-8">
-                          Waiting for opponent...
-                        </p>
-                      );
-                    })()}
-                  </div>
-                )}
+                {(() => {
+                  // Compute last opponent move
+                  let lastOpponentMove: string | null = null;
+                  
+                  if (moves.length > 0 && matchId && playerColor) {
+                    const lastMoveIndex = moves.length - 1;
+                    const lastMoveIsWhite = lastMoveIndex % 2 === 0;
+                    const lastMoveColor = lastMoveIsWhite ? 'w' : 'b';
+                    const myColor = playerColor === "white" ? 'w' : 'b';
+                    
+                    // If the last move was not made by me, it's the opponent's move
+                    if (lastMoveColor !== myColor) {
+                      lastOpponentMove = moves[lastMoveIndex];
+                    } else if (moves.length >= 2) {
+                      // If the last move was mine, get the second-to-last move
+                      lastOpponentMove = moves[lastMoveIndex - 1];
+                    }
+                  }
+                  
+                  if (moves.length === 0) {
+                    return (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        No moves yet
+                      </p>
+                    );
+                  } else if (lastOpponentMove) {
+                    return (
+                      <Card className="bg-muted/50">
+                        <CardContent className="p-4">
+                          <div className="text-sm text-muted-foreground mb-1">
+                            Opponent's last move:
+                          </div>
+                          <div className="font-mono text-2xl font-semibold" data-testid="text-last-opponent-move">
+                            {lastOpponentMove}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  } else {
+                    return (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        Waiting for opponent...
+                      </p>
+                    );
+                  }
+                })()}
               </div>
             </>
           ) : (
