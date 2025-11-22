@@ -67,7 +67,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex-1">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4">Dashboard Mode</div>
-          <h1 className="text-4xl font-bold mb-2">Welcome back, {user?.name || 'Player'}</h1>
+          <h1 className="text-4xl font-bold mb-2">Welcome back, {user?.firstName || 'Player'}</h1>
           <p className="text-muted-foreground">Ready for your daily training?</p>
         </div>
         <Button variant="default" size="lg" className="px-6" data-testid="button-go-premium">

@@ -21,11 +21,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Clock, Play, HandshakeIcon, Flag, Eye } from "lucide-react";
-import type { Game } from "@shared/schema";
+import type { Game, Rating } from "@shared/schema";
+
+const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classical' => {
+  if (tc <= 180) return 'bullet';
+  if (tc <= 600) return 'blitz';
+  if (tc <= 1200) return 'rapid';
+  return 'classical';
+};
 
 export default function StandardMode() {
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  const { data: playerRatings } = useQuery<Rating>({
+    queryKey: ["/api/ratings"],
+  });
   const [game, setGame] = useState<Chess | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);
@@ -45,6 +56,8 @@ export default function StandardMode() {
   const [increment, setIncrement] = useState(0);
   const [opponentName, setOpponentName] = useState<string>("");
   const [playerName, setPlayerName] = useState<string>("");
+  const [opponentRating, setOpponentRating] = useState<number>(1200);
+  const [timeControl, setTimeControl] = useState<number>(180);
   const [showDrawOfferDialog, setShowDrawOfferDialog] = useState(false);
   const [showRematchDialog, setShowRematchDialog] = useState(false);
   const [showGameEndDialog, setShowGameEndDialog] = useState(false);
@@ -293,7 +306,12 @@ export default function StandardMode() {
       setBlackTime(gameData.blackTime || 180);
       setIncrement(gameData.increment || 0);
       setOpponentName(matchData.opponent.name);
+      setOpponentRating(matchData.opponent.rating);
       setPlayerName(`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'You');
+      
+      const tcValue = parseInt(matchData.timeControl) || 180;
+      setTimeControl(tcValue);
+      
       setGameStarted(true);
       setInQueue(false);
       
@@ -910,8 +928,13 @@ export default function StandardMode() {
                 <div className="space-y-2">
                   <Card>
                     <CardContent className="py-3">
-                      <div className="text-sm font-medium text-center" data-testid="text-opponent-name">
-                        {opponentName}
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-sm font-medium" data-testid="text-opponent-name">
+                          {opponentName}
+                        </span>
+                        <span className="text-sm text-muted-foreground font-mono" data-testid="text-opponent-rating">
+                          ({opponentRating})
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
@@ -924,8 +947,13 @@ export default function StandardMode() {
                   />
                   <Card>
                     <CardContent className="py-3">
-                      <div className="text-sm font-medium text-center" data-testid="text-player-name">
-                        {playerName}
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-sm font-medium" data-testid="text-player-name">
+                          {playerName}
+                        </span>
+                        <span className="text-sm text-muted-foreground font-mono" data-testid="text-player-rating">
+                          ({playerRatings?.[getRatingCategory(timeControl)] || 1200})
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
