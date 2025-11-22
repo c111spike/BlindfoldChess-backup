@@ -446,7 +446,18 @@ export class DatabaseStorage implements IStorage {
         })
         .returning();
 
-      return { match, games: createdGames };
+      // Update all games with matchId now that match is created
+      const updatedGames: Game[] = [];
+      for (const game of createdGames) {
+        const [updatedGame] = await tx
+          .update(games)
+          .set({ matchId: match.id })
+          .where(eq(games.id, game.id))
+          .returning();
+        updatedGames.push(updatedGame);
+      }
+
+      return { match, games: updatedGames };
     });
   }
 
