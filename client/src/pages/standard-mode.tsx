@@ -618,6 +618,7 @@ export default function StandardMode() {
           // Restore blindfold difficulty if it was saved with the game
           if ((ongoingGame as any).blindfoldDifficulty) {
             setActiveBlindfoldDifficulty((ongoingGame as any).blindfoldDifficulty);
+            setIsBlindfold(true);
           }
           
           setGameStarted(true);
