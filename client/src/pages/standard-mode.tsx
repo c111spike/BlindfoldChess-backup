@@ -272,6 +272,7 @@ export default function StandardMode() {
       matchIdRef.current = matchData.matchId;
       rematchExitIntentRef.current = false; // Clear exit intent for new match
       didSendRematchRequestRef.current = false; // Reset rematch request flag for new game
+      gameFromMatchmakingRef.current = true; // Mark that this game came from matchmaking (not restoration)
       console.log('[handleMatchFound] Set matchIdRef to:', matchIdRef.current);
       
       setGameId(gameData.id);
