@@ -334,6 +334,7 @@ export class DatabaseStorage implements IStorage {
     player1GameTemplates: Partial<InsertGame>[],
     player2GameTemplates: Partial<InsertGame>[]
   ): Promise<{ match: Match; games: Game[] } | null> {
+    console.log('[DEBUG] atomicMatchPairing called for user:', userId, 'queue:', queueType);
     if (player1GameTemplates.length !== player2GameTemplates.length) {
       throw new Error('Player game template counts must match');
     }
@@ -447,6 +448,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
 
       // Update all games with matchId now that match is created
+      console.log('[DEBUG] Updating games with matchId:', match.id, 'for', createdGames.length, 'games');
       const updatedGames: Game[] = [];
       for (const game of createdGames) {
         const [updatedGame] = await tx
@@ -454,6 +456,7 @@ export class DatabaseStorage implements IStorage {
           .set({ matchId: match.id })
           .where(eq(games.id, game.id))
           .returning();
+        console.log('[DEBUG] Updated game', updatedGame.id, 'with matchId:', updatedGame.matchId);
         updatedGames.push(updatedGame);
       }
 

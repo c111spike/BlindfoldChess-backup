@@ -139,11 +139,16 @@ class QueueManager {
   }
 }
 
-export const queueManager = new QueueManager();
+export function createQueueManager() {
+  console.log('[DEBUG] Creating new QueueManager instance');
+  const queueManager = new QueueManager();
+  
+  const cleanupHandle = setInterval(() => {
+    const cleaned = queueManager.cleanStaleEntries();
+    if (cleaned > 0) {
+      console.log(`[QueueManager] Cleaned ${cleaned} stale queue entries`);
+    }
+  }, 30000);
 
-setInterval(() => {
-  const cleaned = queueManager.cleanStaleEntries();
-  if (cleaned > 0) {
-    console.log(`[QueueManager] Cleaned ${cleaned} stale queue entries`);
-  }
-}, 30000);
+  return { queueManager, cleanupHandle };
+}

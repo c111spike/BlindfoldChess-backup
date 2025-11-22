@@ -4,7 +4,9 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema } from "@shared/schema";
-import { queueManager } from "./queueManager";
+import { createQueueManager } from "./queueManager";
+
+const { queueManager } = createQueueManager();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
