@@ -314,24 +314,30 @@ export default function StandardMode() {
   }, []);
 
   const handleRematchResponse = useCallback((data: { matchId: string; accepted: boolean; newMatchId?: string }) => {
-    // Always clear waiting state
+    // Clear waiting state
     setWaitingForRematchResponse(false);
     
     if (data.accepted) {
-      toast({
-        title: "Rematch accepted!",
-        description: "Both players can now queue up for a new game",
-      });
+      // Close both dialogs and wait for match_found event from server
       setShowGameEndDialog(false);
       setShowRematchDialog(false);
-      resetGameState();
-    } else {
       toast({
-        title: "Rematch declined",
-        description: "Your opponent declined the rematch",
+        title: "Rematch accepted!",
+        description: "Starting new game...",
+      });
+      // Don't reset game state - the match_found event will set up the new game
+    } else {
+      // Could be either: opponent declined, or match creation failed
+      // Close rematch dialog, show error, and re-show game end dialog
+      setShowRematchDialog(false);
+      setShowGameEndDialog(true);
+      toast({
+        title: "Rematch failed",
+        description: "The rematch could not be created",
+        variant: "destructive",
       });
     }
-  }, [toast, resetGameState]);
+  }, [toast]);
 
   const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus, joinMatch, sendDrawOffer, sendDrawResponse, sendRematchRequest, sendRematchResponse } = useWebSocket({
     userId: user?.id,
@@ -973,39 +979,61 @@ export default function StandardMode() {
       </Dialog>
 
       {/* Rematch Request Dialog */}
-      <Dialog open={showRematchDialog} onOpenChange={setShowRematchDialog}>
+      <Dialog open={showRematchDialog} onOpenChange={(open) => {
+        // Don't allow closing while waiting for response
+        if (!waitingForRematchResponse) {
+          setShowRematchDialog(open);
+        }
+      }}>
         <DialogContent data-testid="dialog-rematch-request">
           <DialogHeader>
             <DialogTitle>Rematch Request</DialogTitle>
             <DialogDescription>
-              Your opponent wants to play again. Accept to return to matchmaking together, or decline to return to the main menu.
+              {waitingForRematchResponse ? "Creating rematch..." : "Your opponent wants to play again."}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  if (matchId) {
+                    sendRematchResponse(matchId, true);
+                    setWaitingForRematchResponse(true);
+                  }
+                }}
+                disabled={waitingForRematchResponse}
+                data-testid="button-accept-rematch"
+              >
+                Yes
+              </Button>
+              <Button
+                className="flex-1"
+                variant="outline"
+                onClick={() => {
+                  if (matchId) sendRematchResponse(matchId, false);
+                  setShowRematchDialog(false);
+                }}
+                disabled={waitingForRematchResponse}
+                data-testid="button-decline-rematch"
+              >
+                No
+              </Button>
+            </div>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 if (matchId) sendRematchResponse(matchId, false);
                 setShowRematchDialog(false);
                 setShowGameEndDialog(false);
                 resetGameState();
               }}
-              data-testid="button-decline-rematch"
+              disabled={waitingForRematchResponse}
+              data-testid="button-rematch-main-menu"
             >
-              Decline
+              Main Menu
             </Button>
-            <Button
-              onClick={() => {
-                if (matchId) sendRematchResponse(matchId, true);
-                setShowRematchDialog(false);
-                setShowGameEndDialog(false);
-                resetGameState();
-              }}
-              data-testid="button-accept-rematch"
-            >
-              Accept
-            </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
