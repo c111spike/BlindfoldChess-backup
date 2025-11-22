@@ -153,7 +153,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-primary hover-elevate border-primary" data-testid="card-simul-exhibition">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-simul-exhibition">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Grid3x3 className="h-8 w-8 text-primary-foreground" />
@@ -163,14 +163,14 @@ export default function Dashboard() {
               2-10 boards<br />30 seconds/move<br />Once you start on a board.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="mt-auto">
             <Button asChild variant="secondary" className="w-full" data-testid="button-mode-simul">
-              <Link href="/simul">Start Exhibition</Link>
+              <Link href="/simul">Start Simul</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary" data-testid="card-otb-mode">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-otb-mode">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Clock className="h-8 w-8 text-primary-foreground" />
@@ -180,14 +180,14 @@ export default function Dashboard() {
               Manual clock<br />One touch rule<br />Arbiter Button
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="mt-auto">
             <Button asChild variant="secondary" className="w-full" data-testid="button-mode-otb">
               <Link href="/otb">Start Game</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary" data-testid="card-blindfold-settings">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-blindfold-settings">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Brain className="h-8 w-8 text-primary-foreground" />
@@ -197,7 +197,7 @@ export default function Dashboard() {
               Select difficulty for blindfold mode.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="mt-auto">
             <Select
               value={userSettings?.blindfoldDifficulty || "medium"}
               onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
@@ -220,7 +220,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary" data-testid="card-standard-mode">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-standard-mode">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Brain className="h-8 w-8 text-primary-foreground" />
@@ -230,7 +230,7 @@ export default function Dashboard() {
               Online chess. Automatic clocks. Optional blindfold.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="mt-auto">
             <Button asChild variant="secondary" className="w-full" data-testid="button-mode-standard">
               <Link href="/standard">Play Standard</Link>
             </Button>
