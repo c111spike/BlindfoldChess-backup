@@ -30,7 +30,7 @@ import {
   type InsertMatch,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, ne, or } from "drizzle-orm";
+import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -60,6 +60,7 @@ export interface IStorage {
   
   createSimulGame(simulGame: InsertSimulGame): Promise<SimulGame>;
   getSimulGames(simulId: string): Promise<SimulGame[]>;
+  completeSimul(userId: string, simulId: string): Promise<{ gamesCompleted: number; ratingChange: number }>;
   
   joinQueue(queueEntry: InsertMatchmakingQueue): Promise<MatchmakingQueue>;
   leaveQueue(userId: string, queueType: string): Promise<void>;
@@ -299,6 +300,204 @@ export class DatabaseStorage implements IStorage {
       .from(simulGames)
       .where(eq(simulGames.simulId, simulId))
       .orderBy(simulGames.boardOrder);
+  }
+
+  async completeSimul(userId: string, simulId: string): Promise<{ gamesCompleted: number; ratingChange: number }> {
+    return await db.transaction(async (tx) => {
+      // Get all simul games for this simul session
+      const simulGamesForSession = await tx
+        .select()
+        .from(simulGames)
+        .where(eq(simulGames.simulId, simulId));
+      
+      if (simulGamesForSession.length === 0) {
+        throw new Error('No games found for this simul session');
+      }
+      
+      // Preflight check: if any simulGames entry is already marked inactive, the session was completed
+      const inactiveGames = simulGamesForSession.filter(sg => !sg.isActive);
+      if (inactiveGames.length > 0) {
+        throw new Error('Simul session has already been completed');
+      }
+      
+      // Get all actual game records using proper drizzle inArray query
+      const gameIds = simulGamesForSession.map(sg => sg.gameId);
+      const gameResults = await tx
+        .select()
+        .from(games)
+        .where(inArray(games.id, gameIds));
+      
+      if (gameResults.length === 0) {
+        throw new Error('No completed games found for this simul session');
+      }
+      
+      // Verify ownership: all games must belong to the requesting user
+      const invalidGames = gameResults.filter(g => g.userId !== userId);
+      if (invalidGames.length > 0) {
+        throw new Error('Cannot complete simul: some games do not belong to this user');
+      }
+      
+      // Verify all games are completed
+      const incompleteGames = gameResults.filter(g => g.status !== 'completed');
+      if (incompleteGames.length > 0) {
+        throw new Error('Cannot complete simul: some games are still in progress');
+      }
+      
+      // Check if already processed (prevent double-processing)
+      // If ANY game in this simul has been processed, the entire simul was already completed
+      const processedGames = gameResults.filter(g => g.statsProcessed);
+      if (processedGames.length > 0) {
+        throw new Error('Simul session has already been completed and rated');
+      }
+      
+      // Ensure player has a ratings record (create if missing)
+      let playerRating = await tx
+        .select()
+        .from(ratings)
+        .where(eq(ratings.userId, userId))
+        .limit(1);
+      
+      if (playerRating.length === 0) {
+        // Create initial ratings record with default simul rating of 1000
+        const [newRating] = await tx
+          .insert(ratings)
+          .values({
+            userId,
+            bullet: 1200,
+            blitz: 1200,
+            rapid: 1200,
+            classical: 1200,
+            blindfold: 1200,
+            simul: 1000,
+          })
+          .returning();
+        playerRating = [newRating];
+      }
+      
+      const currentRating = playerRating[0]?.simul || 1000;
+      
+      // Calculate wins, draws, losses
+      let wins = 0;
+      let draws = 0;
+      let losses = 0;
+      const totalBoards = gameResults.length;
+      
+      // Calculate expected score for each board
+      let totalExpectedScore = 0;
+      let boardsWithRatings = 0;
+      
+      for (const game of gameResults) {
+        // Determine result from player's perspective
+        const isWin = (game.result === 'white_win' && game.playerColor === 'white') ||
+                     (game.result === 'black_win' && game.playerColor === 'black');
+        const isDraw = game.result === 'draw';
+        
+        if (isWin) wins++;
+        else if (isDraw) draws++;
+        else losses++;
+        
+        // Get opponent's rating for this board
+        const opponentId = game.whitePlayerId === userId ? game.blackPlayerId : game.whitePlayerId;
+        if (opponentId) {
+          const [opponentRating] = await tx
+            .select()
+            .from(ratings)
+            .where(eq(ratings.userId, opponentId))
+            .limit(1);
+          
+          // Default to 1000 if opponent has no simul rating
+          const opponentCurrentRating = opponentRating?.simul || 1000;
+          
+          // Calculate expected score for this board
+          const expectedScore = 1 / (1 + Math.pow(10, (opponentCurrentRating - currentRating) / 400));
+          totalExpectedScore += expectedScore;
+          boardsWithRatings++;
+        }
+      }
+      
+      // Calculate actual score (wins + 0.5 * draws) / totalBoards
+      const actualScore = (wins + 0.5 * draws) / totalBoards;
+      
+      // Calculate average expected score (only divide by boards that had ratings)
+      const avgExpectedScore = boardsWithRatings > 0 
+        ? totalExpectedScore / boardsWithRatings 
+        : 0.5; // Default to 0.5 if no opponent ratings found
+      
+      // Determine K-factor based on current rating
+      const kFactor = currentRating < 1400 ? 40 : currentRating < 2100 ? 20 : 10;
+      
+      // Calculate rating change: K × (actualScore - expectedScore)
+      const ratingChange = Math.round(kFactor * (actualScore - avgExpectedScore));
+      
+      // Update simul rating
+      await tx
+        .update(ratings)
+        .set({ 
+          simul: currentRating + ratingChange,
+          updatedAt: new Date()
+        })
+        .where(eq(ratings.userId, userId));
+      
+      // Mark all games in this simul as processed to prevent reprocessing
+      await tx
+        .update(games)
+        .set({ statsProcessed: true })
+        .where(inArray(games.id, gameIds));
+      
+      // Mark all simulGames entries for this session as inactive/completed
+      const simulGameIds = simulGamesForSession.map(sg => sg.id);
+      await tx
+        .update(simulGames)
+        .set({ 
+          isActive: false,
+          lastMoveAt: new Date()
+        })
+        .where(inArray(simulGames.id, simulGameIds));
+      
+      // Update statistics for simul mode - load existing stats and increment them
+      const existingStats = await tx
+        .select()
+        .from(statistics)
+        .where(and(
+          eq(statistics.userId, userId),
+          eq(statistics.mode, 'simul' as any)
+        ))
+        .limit(1);
+      
+      if (existingStats.length > 0) {
+        // Increment existing stats
+        await tx
+          .update(statistics)
+          .set({
+            gamesPlayed: existingStats[0].gamesPlayed + totalBoards,
+            wins: existingStats[0].wins + wins,
+            draws: existingStats[0].draws + draws,
+            losses: existingStats[0].losses + losses,
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(statistics.userId, userId),
+            eq(statistics.mode, 'simul' as any)
+          ));
+      } else {
+        // Create new stats record
+        await tx
+          .insert(statistics)
+          .values({
+            userId,
+            mode: 'simul' as any,
+            gamesPlayed: totalBoards,
+            wins,
+            draws,
+            losses,
+          });
+      }
+      
+      return {
+        gamesCompleted: totalBoards,
+        ratingChange
+      };
+    });
   }
 
   async joinQueue(queueEntry: InsertMatchmakingQueue): Promise<MatchmakingQueue> {

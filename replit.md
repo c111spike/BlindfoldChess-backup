@@ -12,6 +12,38 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (November 2025)
 
+### Rating System and Dashboard Update (Completed November 22, 2025)
+
+**Schema Changes**
+- Added `simul` rating field to ratings table (default 1000, different from other ratings at 1200)
+- Added `blindfold` rating field to ratings table (default 1200)
+- Added `blindfoldDifficulty` field to userSettings table for storing player's preferred difficulty level
+
+**Dashboard Redesign**
+- Updated homepage to display all 5 Elo ratings in dedicated cards (OTB Bullet, OTB Blitz, OTB Rapid, Blindfold, Simul)
+- Renamed mode cards: "OTB Tournament Mode" → "OTB Mode" and "Simul Exhibition" → "Simul vs Simul"
+- Added Blindfold Settings card with dropdown selector for 6 difficulty levels:
+  - Easy: Unlimited peeks, 3 seconds each
+  - 20/3s: 20 peeks, 3 seconds each
+  - 15/2.5s: 15 peeks, 2.5 seconds each
+  - 10/2s: 10 peeks, 2 seconds each
+  - 5/1.5s: 5 peeks, 1.5 seconds each
+  - Grandmaster: 0 peeks (full blindfold)
+
+**Simul Elo Implementation**
+- Implemented `completeSimul()` function in server/storage.ts with production-ready Simul Elo calculation
+- Rating calculation formula:
+  - actualScore = (wins + 0.5 × draws) / totalBoards
+  - expectedScore = average of individual expected scores per board
+  - ratingChange = K-factor × (actualScore - expectedScore)
+  - K-factor varies by rating: 40 (< 1400), 20 (1400-2099), 10 (≥ 2100)
+- Double-processing protection: checks both simulGames.isActive and games.statsProcessed flags
+- Session state management: marks simulGames as inactive and games as processed after completion
+- Transactional integrity: all operations use transaction client for atomic commits
+- Statistics handling: increments cumulative stats instead of overwriting
+- Ownership validation: verifies all games belong to requesting user
+- Rating record creation: ensures ratings record exists before update (creates with simul=1000 if missing)
+
 ### Multiplayer Fixes (Completed November 22, 2025)
 
 **Rematch Toast Fix**
