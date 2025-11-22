@@ -55,6 +55,7 @@ export default function StandardMode() {
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
   const matchIdRef = useRef<string | null>(null);
+  const rematchExitIntentRef = useRef<boolean>(false);
   const whiteTimeRef = useRef(180);
   const blackTimeRef = useRef(180);
   const movesRef = useRef<string[]>([]);
@@ -245,6 +246,7 @@ export default function StandardMode() {
       // Set refs immediately for synchronous access
       gameIdRef.current = gameData.id;
       matchIdRef.current = matchData.matchId;
+      rematchExitIntentRef.current = false; // Clear exit intent for new match
       console.log('[handleMatchFound] Set matchIdRef to:', matchIdRef.current);
       
       setGameId(gameData.id);
@@ -309,6 +311,7 @@ export default function StandardMode() {
 
   const handleRematchRequest = useCallback((data: { matchId: string; from: string }) => {
     if (data.matchId === matchIdRef.current) {
+      rematchExitIntentRef.current = false; // Clear exit intent for new rematch
       setShowRematchDialog(true);
     }
   }, []);
@@ -316,6 +319,12 @@ export default function StandardMode() {
   const handleRematchResponse = useCallback((data: { matchId: string; accepted: boolean; newMatchId?: string }) => {
     // Clear waiting state
     setWaitingForRematchResponse(false);
+    
+    // If user clicked Main Menu, ignore this response (they've already left)
+    if (rematchExitIntentRef.current) {
+      rematchExitIntentRef.current = false; // Clear for next time
+      return;
+    }
     
     if (data.accepted) {
       // Close both dialogs and wait for match_found event from server
@@ -1024,6 +1033,8 @@ export default function StandardMode() {
               variant="secondary"
               onClick={() => {
                 if (matchId) sendRematchResponse(matchId, false);
+                // Mark exit intent so response handler ignores late responses
+                rematchExitIntentRef.current = true;
                 setShowRematchDialog(false);
                 setShowGameEndDialog(false);
                 resetGameState();
