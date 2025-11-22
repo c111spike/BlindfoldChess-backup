@@ -8,9 +8,11 @@ import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History } from
 import type { Rating, Game, UserSettings } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const { data: ratings, isLoading: ratingsLoading } = useQuery<Rating>({
     queryKey: ["/api/ratings"],
@@ -65,7 +67,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex-1">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4">Dashboard Mode</div>
-          <h1 className="text-4xl font-bold mb-2">Welcome back, Grandmaster</h1>
+          <h1 className="text-4xl font-bold mb-2">Welcome back, {user?.name || 'Player'}</h1>
           <p className="text-muted-foreground">Ready for your daily training?</p>
         </div>
         <Button variant="default" size="lg" className="px-6" data-testid="button-go-premium">
@@ -168,30 +170,30 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="hover-elevate" data-testid="card-otb-mode">
+        <Card className="bg-primary hover-elevate border-primary" data-testid="card-otb-mode">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
-              <Clock className="h-8 w-8 text-foreground" />
+              <Clock className="h-8 w-8 text-primary-foreground" />
             </div>
-            <CardTitle className="text-2xl">OTB Mode</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-primary-foreground text-2xl">OTB Mode</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
               Manual clock. FIDE tournament practice.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild variant="outline" className="w-full" data-testid="button-mode-otb">
+            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-otb">
               <Link href="/otb">Start Game</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="hover-elevate" data-testid="card-blindfold-settings">
+        <Card className="bg-primary hover-elevate border-primary" data-testid="card-blindfold-settings">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
-              <Brain className="h-8 w-8 text-foreground" />
+              <Brain className="h-8 w-8 text-primary-foreground" />
             </div>
-            <CardTitle className="text-2xl">Blindfold Settings</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-primary-foreground text-2xl">Blindfold Settings</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
               Select difficulty for blindfold mode.
             </CardDescription>
           </CardHeader>
@@ -201,7 +203,7 @@ export default function Dashboard() {
               onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
               disabled={updateBlindfolddifficultyMutation.isPending}
             >
-              <SelectTrigger className="w-full" data-testid="select-blindfold-difficulty">
+              <SelectTrigger className="w-full bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground" data-testid="select-blindfold-difficulty">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -218,18 +220,18 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="hover-elevate" data-testid="card-standard-mode">
+        <Card className="bg-primary hover-elevate border-primary" data-testid="card-standard-mode">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
-              <Brain className="h-8 w-8 text-foreground" />
+              <Brain className="h-8 w-8 text-primary-foreground" />
             </div>
-            <CardTitle className="text-2xl">Standard</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-primary-foreground text-2xl">Standard</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
               Online chess. Automatic clocks. Optional blindfold.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild variant="outline" className="w-full" data-testid="button-mode-standard">
+            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-standard">
               <Link href="/standard">Play Standard</Link>
             </Button>
           </CardContent>
