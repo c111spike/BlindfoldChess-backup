@@ -897,13 +897,13 @@ export default function StandardMode() {
   }, [isBlindfold, activeBlindfoldDifficulty, userSettings?.blindfoldDifficulty]);
 
   return (
-    <div className="h-screen flex">
-      <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-        <div className="w-full max-w-3xl space-y-6">
-          <div className="flex items-center justify-between">
+    <div className="h-full md:h-screen flex flex-col md:flex-row overflow-auto md:overflow-hidden">
+      <div className="flex-1 flex items-center justify-center p-4 md:p-8 bg-muted/30 md:overflow-auto">
+        <div className="w-full max-w-3xl space-y-4 md:space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h1 className="text-3xl font-bold">Standard Mode</h1>
-              <p className="text-muted-foreground">Online chess with automatic clocks</p>
+              <h1 className="text-2xl md:text-3xl font-bold">Standard Mode</h1>
+              <p className="text-sm md:text-base text-muted-foreground">Online chess with automatic clocks</p>
             </div>
             {!user?.isPremium && (
               <Badge variant="secondary">
@@ -934,10 +934,11 @@ export default function StandardMode() {
                       </p>
                     )}
 
-                    <h2 className="text-xl font-semibold">Find Opponent</h2>
-                    <div className="grid grid-cols-2 gap-3">
+                    <h2 className="text-lg md:text-xl font-semibold">Find Opponent</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <Button 
-                        variant="outline" 
+                        variant="outline"
+                        size="lg"
                         onClick={() => handleJoinQueue('bullet')}
                         disabled={!isConnected}
                         data-testid="button-queue-bullet"
@@ -946,7 +947,8 @@ export default function StandardMode() {
                         Bullet (1m)
                       </Button>
                       <Button 
-                        variant="outline" 
+                        variant="outline"
+                        size="lg"
                         onClick={() => handleJoinQueue('blitz')}
                         disabled={!isConnected}
                         data-testid="button-queue-blitz"
@@ -955,7 +957,8 @@ export default function StandardMode() {
                         Blitz (5m)
                       </Button>
                       <Button 
-                        variant="outline" 
+                        variant="outline"
+                        size="lg"
                         onClick={() => handleJoinQueue('rapid')}
                         disabled={!isConnected}
                         data-testid="button-queue-rapid"
@@ -964,7 +967,8 @@ export default function StandardMode() {
                         Rapid (15m)
                       </Button>
                       <Button 
-                        variant="outline" 
+                        variant="outline"
+                        size="lg"
                         onClick={() => handleJoinQueue('classical')}
                         disabled={!isConnected}
                         data-testid="button-queue-classical"
@@ -1094,30 +1098,30 @@ export default function StandardMode() {
               </div>
 
               <Card>
-                <CardContent className="py-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-3">
+                <CardContent className="py-4 md:py-6">
+                  <div className="grid grid-cols-2 gap-4 md:gap-6">
+                    <div className="space-y-2 md:space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-muted-foreground">White</span>
+                        <span className="text-xs md:text-sm font-medium text-muted-foreground">White</span>
                         {game && game.turn() === "w" && (
                           <Badge variant="default" className="text-xs">Active</Badge>
                         )}
                       </div>
-                      <div className={`text-5xl font-mono font-bold ${
+                      <div className={`text-3xl md:text-5xl font-mono font-bold ${
                         game && game.turn() === "w" ? "text-foreground" : "text-muted-foreground"
                       }`} data-testid="text-white-time">
                         {formatTime(whiteTime)}
                       </div>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-2 md:space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-muted-foreground">Black</span>
+                        <span className="text-xs md:text-sm font-medium text-muted-foreground">Black</span>
                         {game && game.turn() === "b" && (
                           <Badge variant="default" className="text-xs">Active</Badge>
                         )}
                       </div>
-                      <div className={`text-5xl font-mono font-bold ${
+                      <div className={`text-3xl md:text-5xl font-mono font-bold ${
                         game && game.turn() === "b" ? "text-foreground" : "text-muted-foreground"
                       }`} data-testid="text-black-time">
                         {formatTime(blackTime)}
@@ -1125,7 +1129,7 @@ export default function StandardMode() {
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-6 border-t flex gap-3">
+                  <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t flex flex-col sm:flex-row gap-3">
                     <Button 
                       variant="outline" 
                       className="flex-1" 
@@ -1149,7 +1153,7 @@ export default function StandardMode() {
       </div>
 
       {gameStarted && (
-        <div className="w-80 border-l bg-card flex flex-col">
+        <div className="w-full md:w-80 md:max-h-screen border-t md:border-t-0 md:border-l bg-card flex flex-col">
           {isBlindfold ? (
             <>
               <div className="p-4 border-b">

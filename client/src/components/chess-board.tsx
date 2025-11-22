@@ -65,7 +65,7 @@ export function ChessBoard({
   };
 
   return (
-    <Card className={`aspect-square w-full max-w-[600px] p-2 ${className}`}>
+    <Card className={`aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${className}`}>
       <div className="relative w-full h-full">
         <div className="grid grid-cols-8 grid-rows-8 gap-0 w-full h-full">
           {displayRanks.map((rank, rankIndex) =>
@@ -91,7 +91,7 @@ export function ChessBoard({
                   `}
                 >
                   {piece && (
-                    <span className={`text-5xl select-none ${
+                    <span className={`text-3xl sm:text-4xl md:text-5xl select-none ${
                       piece === piece.toUpperCase() ? "text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]" : "text-black"
                     }`}>
                       {PIECE_SYMBOLS[piece]}
