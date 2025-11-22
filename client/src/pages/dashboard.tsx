@@ -203,7 +203,7 @@ export default function Dashboard() {
               onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
               disabled={updateBlindfolddifficultyMutation.isPending}
             >
-              <SelectTrigger className="w-full" data-testid="select-blindfold-difficulty">
+              <SelectTrigger className="w-full bg-secondary text-secondary-foreground border-secondary-border" data-testid="select-blindfold-difficulty">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
