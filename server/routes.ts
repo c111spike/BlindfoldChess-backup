@@ -509,8 +509,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Clean up WebSocket room and queue
-      matchRooms.delete(matchId);
+      // Clean up queue (players can rejoin if they want)
+      // NOTE: Do NOT delete matchRooms here! Players need to stay in the room
+      // to receive rematch offers. Room cleanup happens when:
+      // 1. Rematch is declined (in respond_rematch handler)
+      // 2. Players disconnect (in WebSocket close handler)
       queueManager.leave(match.player1Id);
       queueManager.leave(match.player2Id);
 
@@ -797,6 +800,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
 
+          // Clean up: Remove player from any previous match room before joining new queue
+          // This prevents memory leaks and duplicate events from old completed matches
+          if (ws.matchId) {
+            const oldRoom = matchRooms.get(ws.matchId);
+            if (oldRoom) {
+              oldRoom.delete(userId);
+              if (oldRoom.size === 0) {
+                matchRooms.delete(ws.matchId);
+              }
+            }
+            ws.matchId = undefined;
+          }
+
           const { timeControl } = data;
           if (!['bullet', 'blitz', 'rapid', 'classical'].includes(timeControl)) {
             ws.send(JSON.stringify({ type: 'error', message: 'Invalid time control' }));
@@ -1035,13 +1051,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const matchId = data.matchId;
           const userId = ws.userId;
           
+          console.log('[WS request_rematch] Received from:', userId, 'matchId:', matchId);
+          
           if (!matchId || !userId) return;
           
           const roomUsers = matchRooms.get(matchId);
+          console.log('[WS request_rematch] Room users:', roomUsers ? Array.from(roomUsers) : 'NO ROOM FOUND');
+          
           if (roomUsers) {
             roomUsers.forEach((roomUserId) => {
               if (roomUserId !== userId) {
                 const opponentWs = userConnections.get(roomUserId);
+                console.log('[WS request_rematch] Sending to opponent:', roomUserId, 'WS ready:', opponentWs?.readyState === WebSocket.OPEN);
                 if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
                   opponentWs.send(JSON.stringify({
                     type: 'rematch_request',
