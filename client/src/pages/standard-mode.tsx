@@ -51,6 +51,7 @@ export default function StandardMode() {
   const [gameResult, setGameResult] = useState<"white_win" | "black_win" | "draw" | null>(null);
   const [waitingForDrawResponse, setWaitingForDrawResponse] = useState(false);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
+  const [rematchDenied, setRematchDenied] = useState(false);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -251,6 +252,7 @@ export default function StandardMode() {
       
       setGameId(gameData.id);
       setMatchId(matchData.matchId);
+      setRematchDenied(false); // Reset denied state for new game
       const chess = new Chess(gameData.fen);
       gameRef.current = chess;
       setGame(chess);
@@ -330,19 +332,20 @@ export default function StandardMode() {
       // Close both dialogs and wait for match_found event from server
       setShowGameEndDialog(false);
       setShowRematchDialog(false);
+      setRematchDenied(false); // Reset denied state on successful rematch
       toast({
         title: "Rematch accepted!",
         description: "Starting new game...",
       });
       // Don't reset game state - the match_found event will set up the new game
     } else {
-      // Could be either: opponent declined, or match creation failed
-      // Close rematch dialog, show error, and re-show game end dialog
+      // Opponent declined (clicked Main Menu or No)
       setShowRematchDialog(false);
       setShowGameEndDialog(true);
+      setRematchDenied(true); // Mark as denied - button should stay disabled until next game
       toast({
-        title: "Rematch failed",
-        description: "The rematch could not be created",
+        title: "Rematch denied",
+        description: "Your opponent declined the rematch",
         variant: "destructive",
       });
     }
@@ -1083,7 +1086,7 @@ export default function StandardMode() {
                   });
                 }
               }}
-              disabled={waitingForRematchResponse}
+              disabled={waitingForRematchResponse || rematchDenied}
               data-testid="button-request-rematch"
             >
               {waitingForRematchResponse ? "Waiting..." : "Ask for Rematch"}
