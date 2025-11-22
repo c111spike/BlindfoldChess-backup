@@ -25,6 +25,10 @@ export default function Dashboard() {
   const { data: userSettings } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
   });
+  
+  const { data: ongoingGame } = useQuery<Game>({
+    queryKey: ["/api/games/ongoing"],
+  });
 
   const updateBlindfolddifficultyMutation = useMutation({
     mutationFn: async (difficulty: string) => {
@@ -194,14 +198,16 @@ export default function Dashboard() {
             </div>
             <CardTitle className="text-primary-foreground text-2xl">Blindfold Settings</CardTitle>
             <CardDescription className="text-primary-foreground/80">
-              Select difficulty for blindfold mode.
+              {ongoingGame && ongoingGame.status === 'active' 
+                ? "Finish your current game to change difficulty" 
+                : "Select difficulty for blindfold mode"}
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
             <Select
               value={userSettings?.blindfoldDifficulty || "medium"}
               onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
-              disabled={updateBlindfolddifficultyMutation.isPending}
+              disabled={updateBlindfolddifficultyMutation.isPending || (ongoingGame?.status === 'active')}
             >
               <SelectTrigger className="w-full bg-secondary text-secondary-foreground border-secondary-border" data-testid="select-blindfold-difficulty">
                 <SelectValue />

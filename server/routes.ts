@@ -847,6 +847,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const player1 = await storage.getUser(match.player1.userId);
             const player2 = await storage.getUser(match.player2.userId);
+            
+            // Get user settings to check blindfold configuration
+            const player1Settings = await storage.getUserSettings(match.player1.userId);
+            const player2Settings = await storage.getUserSettings(match.player2.userId);
 
             const player1Name = `${player1?.firstName || 'Opponent'} ${player1?.lastName || ''}`.trim();
             const player2Name = `${player2?.firstName || 'Opponent'} ${player2?.lastName || ''}`.trim();
@@ -857,7 +861,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const blackPlayerName = player1Color === "black" ? player1Name : player2Name;
 
             // Create game for player 1
-            const player1Game = await storage.createGame({
+            const player1GameData: any = {
               userId: match.player1.userId,
               whitePlayerId: whitePlayerId,
               blackPlayerId: blackPlayerId,
@@ -869,10 +873,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               whiteTime: time * 60,
               blackTime: time * 60,
               opponentName: player2Name,
-            });
+            };
+            if (player1Settings?.blindfoldDifficulty) {
+              player1GameData.blindfoldDifficulty = player1Settings.blindfoldDifficulty;
+            }
+            const player1Game = await storage.createGame(player1GameData);
 
             // Create game for player 2
-            const player2Game = await storage.createGame({
+            const player2GameData: any = {
               userId: match.player2.userId,
               whitePlayerId: whitePlayerId,
               blackPlayerId: blackPlayerId,
@@ -884,7 +892,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               whiteTime: time * 60,
               blackTime: time * 60,
               opponentName: player1Name,
-            });
+            };
+            if (player2Settings?.blindfoldDifficulty) {
+              player2GameData.blindfoldDifficulty = player2Settings.blindfoldDifficulty;
+            }
+            const player2Game = await storage.createGame(player2GameData);
 
             // Create match record with both game IDs
             const matchRecord = await storage.createMatch({

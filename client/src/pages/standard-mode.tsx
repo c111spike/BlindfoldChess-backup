@@ -614,6 +614,12 @@ export default function StandardMode() {
           setWhiteTime(ongoingGame.whiteTime || 180);
           setBlackTime(ongoingGame.blackTime || 180);
           setIncrement(ongoingGame.increment || 0);
+          
+          // Restore blindfold difficulty if it was saved with the game
+          if ((ongoingGame as any).blindfoldDifficulty) {
+            setActiveBlindfoldDifficulty((ongoingGame as any).blindfoldDifficulty);
+          }
+          
           setGameStarted(true);
           setRestoredGame(true);
           

@@ -101,6 +101,7 @@ export const games = pgTable("games", {
   peeksUsed: integer("peeks_used").default(0),
   peeksRemaining: integer("peeks_remaining"),
   blindfoldEnabled: boolean("blindfold_enabled").default(false),
+  blindfoldDifficulty: varchar("blindfold_difficulty"),
   boardCount: integer("board_count"),
   ratingChange: integer("rating_change"),
   arbiterWarnings: jsonb("arbiter_warnings").$type<string[]>().default([]),
