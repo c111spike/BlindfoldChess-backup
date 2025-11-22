@@ -37,6 +37,12 @@ export default function StandardMode() {
   const [increment, setIncrement] = useState(0);
   const [opponentName, setOpponentName] = useState<string>("");
   const [playerName, setPlayerName] = useState<string>("");
+  const [showDrawOfferDialog, setShowDrawOfferDialog] = useState(false);
+  const [showRematchDialog, setShowRematchDialog] = useState(false);
+  const [showGameEndDialog, setShowGameEndDialog] = useState(false);
+  const [gameResult, setGameResult] = useState<"white_win" | "black_win" | "draw" | null>(null);
+  const [waitingForDrawResponse, setWaitingForDrawResponse] = useState(false);
+  const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -146,11 +152,8 @@ export default function StandardMode() {
           });
         }
         
-        toast({
-          title: "Game Over",
-          description: result === "white_win" ? "White wins!" : "Black wins!",
-        });
-        
+        setGameResult(result);
+        setShowGameEndDialog(true);
         setGameStarted(false);
         setShowBoard(true);
       } else if (currentGame.isDraw() || currentGame.isStalemate() || currentGame.isThreefoldRepetition() || currentGame.isInsufficientMaterial()) {
@@ -180,11 +183,8 @@ export default function StandardMode() {
           });
         }
         
-        toast({
-          title: "Game Over",
-          description: "Game drawn",
-        });
-        
+        setGameResult("draw");
+        setShowGameEndDialog(true);
         setGameStarted(false);
         setShowBoard(true);
       } else {
@@ -257,10 +257,60 @@ export default function StandardMode() {
     }
   }, [toast]);
 
-  const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus, joinMatch } = useWebSocket({
+  const handleDrawOffer = useCallback((data: { matchId: string; from: string }) => {
+    if (data.matchId === matchIdRef.current) {
+      setShowDrawOfferDialog(true);
+    }
+  }, []);
+
+  const handleDrawResponse = useCallback((data: { matchId: string; accepted: boolean }) => {
+    if (data.matchId === matchIdRef.current) {
+      setWaitingForDrawResponse(false);
+      if (data.accepted) {
+        setGameResult("draw");
+        setShowGameEndDialog(true);
+        setGameStarted(false);
+      } else {
+        toast({
+          title: "Draw declined",
+          description: "Your opponent declined the draw offer",
+        });
+      }
+    }
+  }, [toast]);
+
+  const handleRematchRequest = useCallback((data: { matchId: string; from: string }) => {
+    if (data.matchId === matchIdRef.current) {
+      setShowRematchDialog(true);
+    }
+  }, []);
+
+  const handleRematchResponse = useCallback((data: { matchId: string; accepted: boolean; newMatchId?: string }) => {
+    setWaitingForRematchResponse(false);
+    if (data.accepted && data.newMatchId) {
+      toast({
+        title: "Rematch accepted!",
+        description: "Starting new game...",
+      });
+      // The match_found event will handle the new game setup
+    } else {
+      toast({
+        title: "Rematch declined",
+        description: "Your opponent declined the rematch",
+      });
+      setShowGameEndDialog(false);
+      resetGameState();
+    }
+  }, [toast, resetGameState]);
+
+  const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus, joinMatch, sendDrawOffer, sendDrawResponse, sendRematchRequest, sendRematchResponse } = useWebSocket({
     userId: user?.id,
     onMove: handleOpponentMove,
     onMatchFound: handleMatchFound,
+    onDrawOffer: handleDrawOffer,
+    onDrawResponse: handleDrawResponse,
+    onRematchRequest: handleRematchRequest,
+    onRematchResponse: handleRematchResponse,
   });
 
   // Join the match room when a match is found
@@ -454,14 +504,11 @@ export default function StandardMode() {
       blackTime: blackTimeRef.current,
     });
 
-    toast({
-      title: "Game Over",
-      description: result === "draw" ? "Game drawn" : result === "white_win" ? "White wins!" : "Black wins!",
-    });
-
+    setGameResult(result);
+    setShowGameEndDialog(true);
     setGameStarted(false);
     setShowBoard(true);
-  }, [game, gameId, updateGameMutation, toast]);
+  }, [game, gameId, updateGameMutation]);
 
   useEffect(() => {
     if (gameStarted && game) {
@@ -609,7 +656,13 @@ export default function StandardMode() {
   };
 
   const handleOfferDraw = () => {
-    handleGameEnd("draw");
+    if (!matchId) return;
+    setWaitingForDrawResponse(true);
+    sendDrawOffer(matchId);
+    toast({
+      title: "Draw offer sent",
+      description: "Waiting for opponent's response...",
+    });
   };
 
   const handlePeek = () => {

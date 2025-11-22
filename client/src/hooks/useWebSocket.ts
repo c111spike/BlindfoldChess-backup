@@ -21,10 +21,14 @@ interface UseWebSocketOptions {
   onMove?: (data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => void;
   onClockSync?: (data: { matchId: string; whiteTime: number; blackTime: number }) => void;
   onMatchFound?: (data: MatchFoundData) => void;
+  onDrawOffer?: (data: { matchId: string; from: string }) => void;
+  onDrawResponse?: (data: { matchId: string; accepted: boolean }) => void;
+  onRematchRequest?: (data: { matchId: string; from: string }) => void;
+  onRematchResponse?: (data: { matchId: string; accepted: boolean; newMatchId?: string }) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions) {
-  const { userId, onMove, onClockSync, onMatchFound } = options;
+  const { userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -100,6 +104,39 @@ export function useWebSocket(options: UseWebSocketOptions) {
               });
             }
             break;
+          case 'draw_offer':
+            if (onDrawOffer) {
+              onDrawOffer({
+                matchId: message.matchId,
+                from: message.from,
+              });
+            }
+            break;
+          case 'draw_response':
+            if (onDrawResponse) {
+              onDrawResponse({
+                matchId: message.matchId,
+                accepted: message.accepted,
+              });
+            }
+            break;
+          case 'rematch_request':
+            if (onRematchRequest) {
+              onRematchRequest({
+                matchId: message.matchId,
+                from: message.from,
+              });
+            }
+            break;
+          case 'rematch_response':
+            if (onRematchResponse) {
+              onRematchResponse({
+                matchId: message.matchId,
+                accepted: message.accepted,
+                newMatchId: message.newMatchId,
+              });
+            }
+            break;
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
@@ -116,7 +153,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       setIsAuthenticated(false);
       setQueueStatus({ inQueue: false });
     };
-  }, [userId, onMove, onClockSync, onMatchFound]);
+  }, [userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse]);
 
   const joinQueue = useCallback((timeControl: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN && isAuthenticated) {
@@ -160,6 +197,30 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, [isAuthenticated]);
 
+  const sendDrawOffer = useCallback((matchId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'offer_draw', matchId }));
+    }
+  }, []);
+
+  const sendDrawResponse = useCallback((matchId: string, accepted: boolean) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'respond_draw', matchId, accepted }));
+    }
+  }, []);
+
+  const sendRematchRequest = useCallback((matchId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'request_rematch', matchId }));
+    }
+  }, []);
+
+  const sendRematchResponse = useCallback((matchId: string, accepted: boolean) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'respond_rematch', matchId, accepted }));
+    }
+  }, []);
+
   useEffect(() => {
     if (userId) {
       connect();
@@ -183,5 +244,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
     sendMove,
     sendClockUpdate,
     joinMatch,
+    sendDrawOffer,
+    sendDrawResponse,
+    sendRematchRequest,
+    sendRematchResponse,
   };
 }
