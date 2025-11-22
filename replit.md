@@ -46,7 +46,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Training Modes
 **OTB Tournament Mode**: Simulates tournament play with clocks, move recording, and time controls.
-**Blindfold Mode**: Memory training with configurable "peek" limits and difficulty levels. Blindfold players see only the opponent's last move (not full move history) to prevent position reconstruction. Each player's view is independent - one can play blindfolded while their opponent sees the board normally. The interface shows "Last Move" panel for blindfold players and "Score Sheet" for non-blindfold players.
+**Blindfold Mode**: Memory training with configurable "peek" limits and difficulty levels. Blindfold players see both their own last move (for confirmation) and the opponent's last move in a single "Last Move" card (not full move history) to prevent position reconstruction. Each player's view is independent - one can play blindfolded while their opponent sees the board normally. The interface shows "Last Move" panel for blindfold players and "Score Sheet" for non-blindfold players.
 **Simul Mode**: Manages multiple concurrent games with sequential move-making.
 **Puzzle Training**: Random puzzles with tracking of attempts and success rates.
 
