@@ -1165,21 +1165,26 @@ export default function StandardMode() {
               </div>
               <div className="flex-1 p-4">
                 {(() => {
-                  // Compute last opponent move
-                  let lastOpponentMove: string | null = null;
+                  // Compute both your last move and opponent's last move
+                  let myLastMove: string | null = null;
+                  let opponentLastMove: string | null = null;
                   
                   if (moves.length > 0 && matchId && playerColor) {
-                    const lastMoveIndex = moves.length - 1;
-                    const lastMoveIsWhite = lastMoveIndex % 2 === 0;
-                    const lastMoveColor = lastMoveIsWhite ? 'w' : 'b';
                     const myColor = playerColor === "white" ? 'w' : 'b';
                     
-                    // If the last move was not made by me, it's the opponent's move
-                    if (lastMoveColor !== myColor) {
-                      lastOpponentMove = moves[lastMoveIndex];
-                    } else if (moves.length >= 2) {
-                      // If the last move was mine, get the second-to-last move
-                      lastOpponentMove = moves[lastMoveIndex - 1];
+                    // Find your last move and opponent's last move
+                    for (let i = moves.length - 1; i >= 0; i--) {
+                      const moveIsWhite = i % 2 === 0;
+                      const moveColor = moveIsWhite ? 'w' : 'b';
+                      
+                      if (moveColor === myColor && myLastMove === null) {
+                        myLastMove = moves[i];
+                      } else if (moveColor !== myColor && opponentLastMove === null) {
+                        opponentLastMove = moves[i];
+                      }
+                      
+                      // Stop once we have both
+                      if (myLastMove && opponentLastMove) break;
                     }
                   }
                   
@@ -1189,26 +1194,41 @@ export default function StandardMode() {
                         No moves yet
                       </p>
                     );
-                  } else if (lastOpponentMove) {
-                    return (
-                      <Card className="bg-muted/50">
-                        <CardContent className="p-4">
-                          <div className="text-sm text-muted-foreground mb-1">
-                            Opponent's last move:
-                          </div>
-                          <div className="font-mono text-2xl font-semibold" data-testid="text-last-opponent-move">
-                            {lastOpponentMove}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  } else {
-                    return (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        Waiting for opponent...
-                      </p>
-                    );
                   }
+                  
+                  return (
+                    <Card className="bg-muted/50">
+                      <CardContent className="p-4 space-y-4">
+                        {myLastMove && (
+                          <div>
+                            <div className="text-sm text-muted-foreground mb-1">
+                              Your move:
+                            </div>
+                            <div className="font-mono text-2xl font-semibold" data-testid="text-your-last-move">
+                              {myLastMove}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div>
+                          {opponentLastMove ? (
+                            <>
+                              <div className="text-sm text-muted-foreground mb-1">
+                                Opponent's move:
+                              </div>
+                              <div className="font-mono text-2xl font-semibold" data-testid="text-last-opponent-move">
+                                {opponentLastMove}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-sm text-muted-foreground italic text-center">
+                              Waiting for opponent...
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
                 })()}
               </div>
             </>
