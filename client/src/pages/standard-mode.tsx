@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, Play, HandshakeIcon, Flag, Eye } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon } from "lucide-react";
 import type { Game, Rating } from "@shared/schema";
 
 const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classical' => {
@@ -30,6 +30,15 @@ const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classica
   return 'classical';
 };
 
+const BLINDFOLD_CONFIG = {
+  easy: { maxPeeks: Number.POSITIVE_INFINITY, peekDuration: 3000 },
+  medium: { maxPeeks: 20, peekDuration: 3000 },
+  hard: { maxPeeks: 15, peekDuration: 2500 },
+  expert: { maxPeeks: 10, peekDuration: 2000 },
+  master: { maxPeeks: 5, peekDuration: 1500 },
+  grandmaster: { maxPeeks: 0, peekDuration: 0 },
+};
+
 export default function StandardMode() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -37,6 +46,11 @@ export default function StandardMode() {
   const { data: playerRatings } = useQuery<Rating>({
     queryKey: ["/api/ratings"],
   });
+  
+  const { data: userSettings } = useQuery<any>({
+    queryKey: ["/api/settings"],
+  });
+  
   const [game, setGame] = useState<Chess | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);
@@ -51,7 +65,6 @@ export default function StandardMode() {
   const [inQueue, setInQueue] = useState(false);
   const [queueType, setQueueType] = useState<string | null>(null);
   const [isBlindfold, setIsBlindfold] = useState(false);
-  const [showBoard, setShowBoard] = useState(true);
   const [playerColor, setPlayerColor] = useState<"white" | "black">("white");
   const [increment, setIncrement] = useState(0);
   const [opponentName, setOpponentName] = useState<string>("");
@@ -65,6 +78,11 @@ export default function StandardMode() {
   const [waitingForDrawResponse, setWaitingForDrawResponse] = useState(false);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
   const [rematchDenied, setRematchDenied] = useState(false);
+  
+  const [remainingPeeks, setRemainingPeeks] = useState<number>(Number.POSITIVE_INFINITY);
+  const [isPeeking, setIsPeeking] = useState(false);
+  const [peekCountdown, setPeekCountdown] = useState<number>(0);
+  const peekTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -121,7 +139,6 @@ export default function StandardMode() {
       // Update UI state first
       setGameResult(result);
       setGameStarted(false);
-      setShowBoard(true);
 
       // Save final game state - MUST succeed before completion
       try {
@@ -182,6 +199,10 @@ export default function StandardMode() {
       clearInterval(clockIntervalRef.current);
       clockIntervalRef.current = null;
     }
+    if (peekTimerRef.current) {
+      clearInterval(peekTimerRef.current);
+      peekTimerRef.current = null;
+    }
     gameCompletionInProgressRef.current = false;
     setGame(null);
     setGameId(null);
@@ -196,7 +217,8 @@ export default function StandardMode() {
     setRestoredGame(false);
     setPlayerColor("white");
     setIncrement(0);
-    setShowBoard(true);
+    setIsPeeking(false);
+    setPeekCountdown(0);
     gameRef.current = null;
     gameIdRef.current = null;
     matchIdRef.current = null;
@@ -797,9 +819,65 @@ export default function StandardMode() {
   };
 
   const handlePeek = () => {
-    setShowBoard(true);
-    setTimeout(() => setShowBoard(false), 2000);
+    if (!isBlindfold || remainingPeeks <= 0 || isPeeking) return;
+    
+    const difficulty = userSettings?.blindfoldDifficulty || 'easy';
+    const config = BLINDFOLD_CONFIG[difficulty as keyof typeof BLINDFOLD_CONFIG];
+    
+    if (config.peekDuration === 0) return;
+    
+    if (isFinite(config.maxPeeks)) {
+      setRemainingPeeks(prev => prev - 1);
+    }
+    
+    setIsPeeking(true);
+    setPeekCountdown(config.peekDuration);
+    
+    const startTime = Date.now();
+    const endTime = startTime + config.peekDuration;
+    
+    peekTimerRef.current = setInterval(() => {
+      const remaining = Math.max(0, endTime - Date.now());
+      setPeekCountdown(remaining);
+      
+      if (remaining <= 0 && peekTimerRef.current) {
+        clearInterval(peekTimerRef.current);
+        peekTimerRef.current = null;
+        setIsPeeking(false);
+        setPeekCountdown(0);
+      }
+    }, 100);
   };
+  
+  useEffect(() => {
+    // Clean up any active peek timer
+    if (peekTimerRef.current) {
+      clearInterval(peekTimerRef.current);
+      peekTimerRef.current = null;
+    }
+    
+    // Reset peek state
+    setIsPeeking(false);
+    setPeekCountdown(0);
+    
+    // Initialize peek count based on mode
+    if (isBlindfold && userSettings?.blindfoldDifficulty) {
+      const difficulty = userSettings.blindfoldDifficulty;
+      const config = BLINDFOLD_CONFIG[difficulty as keyof typeof BLINDFOLD_CONFIG];
+      setRemainingPeeks(config.maxPeeks);
+    } else {
+      // Not in blindfold mode - reset to infinity (doesn't matter)
+      setRemainingPeeks(Number.POSITIVE_INFINITY);
+    }
+    
+    // Cleanup function for when effect re-runs or component unmounts
+    return () => {
+      if (peekTimerRef.current) {
+        clearInterval(peekTimerRef.current);
+        peekTimerRef.current = null;
+      }
+    };
+  }, [isBlindfold, userSettings?.blindfoldDifficulty]);
 
   return (
     <div className="h-screen flex">
@@ -902,42 +980,21 @@ export default function StandardMode() {
             </>
           ) : (
             <>
-              {isBlindfold && !showBoard ? (
+              <div className="space-y-2">
                 <Card>
-                  <CardContent className="py-24 text-center">
-                    <div className="space-y-4">
-                      <p className="text-2xl font-semibold text-muted-foreground">
-                        Board Hidden
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Visualize the position in your mind
-                      </p>
-                      <Button
-                        onClick={handlePeek}
-                        variant="outline"
-                        size="lg"
-                        data-testid="button-peek"
-                      >
-                        <Eye className="mr-2 h-5 w-5" />
-                        Peek (2s)
-                      </Button>
+                  <CardContent className="py-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-sm font-medium" data-testid="text-opponent-name">
+                        {opponentName}
+                      </span>
+                      <span className="text-sm text-muted-foreground font-mono" data-testid="text-opponent-rating">
+                        ({opponentRating})
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
-              ) : (
-                <div className="space-y-2">
-                  <Card>
-                    <CardContent className="py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="text-sm font-medium" data-testid="text-opponent-name">
-                          {opponentName}
-                        </span>
-                        <span className="text-sm text-muted-foreground font-mono" data-testid="text-opponent-rating">
-                          ({opponentRating})
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
+                
+                <div className="relative">
                   <ChessBoard 
                     fen={fen}
                     orientation={playerColor}
@@ -945,20 +1002,79 @@ export default function StandardMode() {
                     highlightedSquares={legalMoves}
                     onSquareClick={handleSquareClick}
                   />
-                  <Card>
-                    <CardContent className="py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="text-sm font-medium" data-testid="text-player-name">
-                          {playerName}
-                        </span>
-                        <span className="text-sm text-muted-foreground font-mono" data-testid="text-player-rating">
-                          ({playerRatings?.[getRatingCategory(timeControl)] || 1200})
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  
+                  {isBlindfold && !isPeeking && (
+                    <div className="absolute inset-0 bg-black pointer-events-none overflow-visible">
+                      <svg className="w-full h-full" viewBox="0 0 8 8" preserveAspectRatio="none">
+                        {Array.from({ length: 9 }).map((_, i) => (
+                          <line
+                            key={`h-${i}`}
+                            x1="0"
+                            y1={i}
+                            x2="8"
+                            y2={i}
+                            stroke="white"
+                            strokeWidth="0.02"
+                          />
+                        ))}
+                        {Array.from({ length: 9 }).map((_, i) => (
+                          <line
+                            key={`v-${i}`}
+                            x1={i}
+                            y1="0"
+                            x2={i}
+                            y2="8"
+                            stroke="white"
+                            strokeWidth="0.02"
+                          />
+                        ))}
+                      </svg>
+                    </div>
+                  )}
                 </div>
-              )}
+                
+                {isBlindfold && (userSettings?.blindfoldDifficulty !== 'grandmaster') && (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    {isPeeking && peekCountdown > 0 && (
+                      <div className="text-2xl font-mono font-bold text-primary" data-testid="text-peek-countdown">
+                        {(peekCountdown / 1000).toFixed(1)}s
+                      </div>
+                    )}
+                    <Button
+                      onClick={handlePeek}
+                      variant="outline"
+                      size="lg"
+                      disabled={remainingPeeks === 0 || isPeeking}
+                      data-testid="button-peek"
+                    >
+                      <Eye className="mr-2 h-5 w-5" />
+                      Peek
+                    </Button>
+                    <div className="text-sm text-muted-foreground" data-testid="text-remaining-peeks">
+                      {!isFinite(remainingPeeks) ? (
+                        <span className="flex items-center gap-1">
+                          <InfinityIcon className="h-4 w-4" /> peeks left
+                        </span>
+                      ) : (
+                        <span>{remainingPeeks} peeks left</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                <Card>
+                  <CardContent className="py-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-sm font-medium" data-testid="text-player-name">
+                        {playerName}
+                      </span>
+                      <span className="text-sm text-muted-foreground font-mono" data-testid="text-player-rating">
+                        ({playerRatings?.[getRatingCategory(timeControl)] || 1200})
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
               <Card>
                 <CardContent className="py-6">
@@ -1039,11 +1155,15 @@ export default function StandardMode() {
                     {Array.from({ length: Math.ceil(moves.length / 2) }).map((_, moveNumber) => {
                       const whiteMove = moves[moveNumber * 2];
                       const blackMove = moves[moveNumber * 2 + 1];
+                      
+                      const displayWhiteMove = (isBlindfold && playerColor === "white") ? "" : (whiteMove || "");
+                      const displayBlackMove = (isBlindfold && playerColor === "black") ? "" : (blackMove || "");
+                      
                       return (
                         <tr key={moveNumber} className="border-b border-border/50">
                           <td className="py-2 px-2 text-muted-foreground">{moveNumber + 1}</td>
-                          <td className="py-2 px-2">{whiteMove}</td>
-                          <td className="py-2 px-2">{blackMove || "-"}</td>
+                          <td className="py-2 px-2">{displayWhiteMove || "-"}</td>
+                          <td className="py-2 px-2">{displayBlackMove || "-"}</td>
                         </tr>
                       );
                     })}

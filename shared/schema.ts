@@ -177,7 +177,7 @@ export const userSettings = pgTable("user_settings", {
   highlightLegalMoves: boolean("highlight_legal_moves").default(true),
   confirmMoves: boolean("confirm_moves").default(false),
   arbiterWarnings: boolean("arbiter_warnings").default(true),
-  blindfoldDifficulty: varchar("blindfold_difficulty").default("medium"),
+  blindfoldDifficulty: varchar("blindfold_difficulty").default("easy"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
