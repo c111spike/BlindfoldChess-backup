@@ -1150,45 +1150,94 @@ export default function StandardMode() {
 
       {gameStarted && (
         <div className="w-80 border-l bg-card flex flex-col">
-          <div className="p-4 border-b">
-            <h3 className="font-semibold">Score Sheet</h3>
-          </div>
-          <ScrollArea className="flex-1 p-4">
-            {moves.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No moves yet
-              </p>
-            ) : (
-              <div className="font-mono text-sm">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2 px-2 w-12 text-muted-foreground font-medium">#</th>
-                      <th className="text-left py-2 px-2 font-medium">White</th>
-                      <th className="text-left py-2 px-2 font-medium">Black</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: Math.ceil(moves.length / 2) }).map((_, moveNumber) => {
-                      const whiteMove = moves[moveNumber * 2];
-                      const blackMove = moves[moveNumber * 2 + 1];
-                      
-                      const displayWhiteMove = (isBlindfold && playerColor === "white") ? "" : (whiteMove || "");
-                      const displayBlackMove = (isBlindfold && playerColor === "black") ? "" : (blackMove || "");
-                      
-                      return (
-                        <tr key={moveNumber} className="border-b border-border/50">
-                          <td className="py-2 px-2 text-muted-foreground">{moveNumber + 1}</td>
-                          <td className="py-2 px-2">{displayWhiteMove || "-"}</td>
-                          <td className="py-2 px-2">{displayBlackMove || "-"}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          {isBlindfold ? (
+            <>
+              <div className="p-4 border-b">
+                <h3 className="font-semibold">Last Move</h3>
               </div>
-            )}
-          </ScrollArea>
+              <div className="flex-1 p-4">
+                {moves.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No moves yet
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {(() => {
+                      // Get the last move made by the opponent
+                      const opponentColor = playerColor === "white" ? "black" : "white";
+                      let lastOpponentMove = null;
+                      
+                      // Search backwards through moves to find opponent's last move
+                      for (let i = moves.length - 1; i >= 0; i--) {
+                        const isWhiteMove = i % 2 === 0;
+                        if ((opponentColor === "white" && isWhiteMove) || 
+                            (opponentColor === "black" && !isWhiteMove)) {
+                          lastOpponentMove = moves[i];
+                          break;
+                        }
+                      }
+                      
+                      return lastOpponentMove ? (
+                        <Card className="bg-muted/50">
+                          <CardContent className="p-4">
+                            <div className="text-sm text-muted-foreground mb-1">
+                              Opponent's last move:
+                            </div>
+                            <div className="font-mono text-2xl font-semibold" data-testid="text-last-opponent-move">
+                              {lastOpponentMove}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-8">
+                          Waiting for opponent...
+                        </p>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="p-4 border-b">
+                <h3 className="font-semibold">Score Sheet</h3>
+              </div>
+              <ScrollArea className="flex-1 p-4">
+                {moves.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No moves yet
+                  </p>
+                ) : (
+                  <div className="font-mono text-sm">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 px-2 w-12 text-muted-foreground font-medium">#</th>
+                          <th className="text-left py-2 px-2 font-medium">White</th>
+                          <th className="text-left py-2 px-2 font-medium">Black</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: Math.ceil(moves.length / 2) }).map((_, moveNumber) => {
+                          const whiteMove = moves[moveNumber * 2];
+                          const blackMove = moves[moveNumber * 2 + 1];
+                          
+                          return (
+                            <tr key={moveNumber} className="border-b border-border/50">
+                              <td className="py-2 px-2 text-muted-foreground">{moveNumber + 1}</td>
+                              <td className="py-2 px-2">{whiteMove || "-"}</td>
+                              <td className="py-2 px-2">{blackMove || "-"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </ScrollArea>
+            </>
+          )}
         </div>
       )}
 
