@@ -72,6 +72,8 @@ export interface IStorage {
   getActiveMatchForUser(userId: string): Promise<Match | undefined>;
   updateMatchStatus(id: string, status: string): Promise<Match>;
   updateMatch(id: string, data: Partial<Match>): Promise<Match>;
+  getGamesByMatchId(matchId: string): Promise<Game[]>;
+  completeMatch(matchId: string, result: string): Promise<{ match: Match; games: Game[] }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -506,6 +508,166 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return match;
+  }
+
+  async getGamesByMatchId(matchId: string): Promise<Game[]> {
+    return await db
+      .select()
+      .from(games)
+      .where(eq(games.matchId, matchId))
+      .orderBy(games.createdAt);
+  }
+
+  async completeMatch(matchId: string, result: string): Promise<{ match: Match; games: Game[] }> {
+    return await db.transaction(async (tx) => {
+      // Load match and validate
+      const [match] = await tx.select().from(matches).where(eq(matches.id, matchId));
+      if (!match) {
+        throw new Error(`Match ${matchId} not found`);
+      }
+      if (match.status === 'completed') {
+        throw new Error(`Match ${matchId} is already completed`);
+      }
+
+      // Load both games
+      const matchGames = await tx
+        .select()
+        .from(games)
+        .where(eq(games.matchId, matchId))
+        .orderBy(games.createdAt);
+
+      if (matchGames.length !== 2) {
+        throw new Error(`Expected 2 games for match ${matchId}, found ${matchGames.length}`);
+      }
+
+      // Validate games belong to this match
+      if (matchGames.some(g => g.matchId !== matchId)) {
+        throw new Error(`Game matchId mismatch for match ${matchId}`);
+      }
+
+      // Update match
+      const [updatedMatch] = await tx
+        .update(matches)
+        .set({
+          status: 'completed' as any,
+          result: result as any,
+          completedAt: new Date(),
+        })
+        .where(eq(matches.id, matchId))
+        .returning();
+
+      // Update both games and calculate ratings/stats
+      const updatedGames: Game[] = [];
+      
+      for (const game of matchGames) {
+        // Skip if already processed
+        if (game.statsProcessed) {
+          updatedGames.push(game);
+          continue;
+        }
+
+        // Determine game result based on match result and player color
+        let gameResult: string;
+        if (result === 'draw') {
+          gameResult = 'draw';
+        } else if (result === 'white_win') {
+          gameResult = game.playerColor === 'white' ? 'white_win' : 'black_win';
+        } else if (result === 'black_win') {
+          gameResult = game.playerColor === 'black' ? 'black_win' : 'white_win';
+        } else {
+          throw new Error(`Invalid result: ${result}`);
+        }
+
+        // Update game record
+        const [updatedGame] = await tx
+          .update(games)
+          .set({
+            result: gameResult as any,
+            completedAt: new Date(),
+            statsProcessed: true,
+          })
+          .where(eq(games.id, game.id))
+          .returning();
+
+        updatedGames.push(updatedGame);
+
+        // Calculate stats
+        const stats = await tx.select().from(statistics).where(eq(statistics.userId, game.userId));
+        const existingStat = stats.find(s => s.mode === game.mode);
+
+        const isWin =
+          (gameResult === 'white_win' && game.playerColor === 'white') ||
+          (gameResult === 'black_win' && game.playerColor === 'black');
+        const isDraw = gameResult === 'draw';
+
+        const newStats = {
+          userId: game.userId,
+          mode: game.mode,
+          gamesPlayed: (existingStat?.gamesPlayed || 0) + 1,
+          wins: (existingStat?.wins || 0) + (isWin ? 1 : 0),
+          losses: (existingStat?.losses || 0) + (!isWin && !isDraw ? 1 : 0),
+          draws: (existingStat?.draws || 0) + (isDraw ? 1 : 0),
+          totalTime: (existingStat?.totalTime || 0) + (game.timeControl || 0),
+          winStreak: isWin ? (existingStat?.winStreak || 0) + 1 : 0,
+        };
+
+        await tx
+          .insert(statistics)
+          .values(newStats)
+          .onConflictDoUpdate({
+            target: [statistics.userId, statistics.mode],
+            set: {
+              ...newStats,
+              updatedAt: new Date(),
+            },
+          });
+
+        // Calculate rating
+        const [userRating] = await tx.select().from(ratings).where(eq(ratings.userId, game.userId));
+        if (!userRating) {
+          throw new Error(`No rating found for user ${game.userId}`);
+        }
+
+        // Determine rating field based on time control
+        let ratingField: 'bullet' | 'blitz' | 'rapid' | 'classical';
+        const tc = game.timeControl || 0;
+        if (tc <= 180) ratingField = 'bullet';
+        else if (tc <= 600) ratingField = 'blitz';
+        else if (tc <= 1200) ratingField = 'rapid';
+        else ratingField = 'classical';
+
+        const currentRating = userRating[ratingField] || 1200;
+
+        // Get opponent rating
+        const opponentGame = matchGames.find(g => g.id !== game.id);
+        if (!opponentGame) {
+          throw new Error(`Could not find opponent game for ${game.id}`);
+        }
+
+        const [opponentRating] = await tx
+          .select()
+          .from(ratings)
+          .where(eq(ratings.userId, opponentGame.userId));
+        
+        const opponentCurrentRating = opponentRating?.[ratingField] || 1200;
+
+        // Calculate Elo rating change
+        const kFactor = currentRating < 1400 ? 40 : currentRating < 2100 ? 20 : 10;
+        const score = isWin ? 1 : isDraw ? 0.5 : 0;
+        const expectedScore = 1 / (1 + Math.pow(10, (opponentCurrentRating - currentRating) / 400));
+        const ratingChange = Math.round(kFactor * (score - expectedScore));
+
+        const ratingUpdate: any = {};
+        ratingUpdate[ratingField] = currentRating + ratingChange;
+
+        await tx
+          .update(ratings)
+          .set(ratingUpdate)
+          .where(eq(ratings.userId, game.userId));
+      }
+
+      return { match: updatedMatch, games: updatedGames };
+    });
   }
 }
 
