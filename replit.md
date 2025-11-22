@@ -10,6 +10,31 @@ The platform emphasizes serious skill development over casual play, with a desig
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (November 2025)
+
+### Multiplayer Fixes
+
+**Rematch Functionality (Fixed)**
+- **Issue**: After a game ended, rematch offers from one player weren't reaching the opponent
+- **Root Cause**: Match rooms were being deleted immediately on game completion, preventing WebSocket message delivery
+- **Solution**: Match rooms now persist after game completion to enable rematch offers. Room cleanup occurs when:
+  - Rematch is explicitly declined
+  - Rematch is accepted (old room deleted, new room created)
+  - Player joins a new queue (removed from old room)
+  - Player disconnects (WebSocket close handler)
+- **Testing**: End-to-end tests confirm both players receive rematch requests and can accept/decline successfully
+
+**Color Randomization (Already Working)**
+- Colors are randomly assigned each match using Math.random()
+- Players do not consistently get the same color in sequential matches
+- Applies to both initial matchmaking and rematch acceptance
+
+**Match Completion**
+- Fixed critical bug where both players now see Game Over dialog when either player resigns
+- Match completion uses centralized POST /api/matches/:id/complete endpoint
+- WebSocket broadcasts game_end event to both players in the match room
+- Statistics and ratings update atomically on match completion
+
 ## System Architecture
 
 ### Frontend Architecture
