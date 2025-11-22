@@ -103,6 +103,8 @@ export const games = pgTable("games", {
   boardCount: integer("board_count"),
   ratingChange: integer("rating_change"),
   arbiterWarnings: jsonb("arbiter_warnings").$type<string[]>().default([]),
+  statsProcessed: boolean("stats_processed").default(false),
+  matchId: varchar("match_id"),
   startedAt: timestamp("started_at").defaultNow(),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -220,6 +222,7 @@ export const matches = pgTable("matches", {
     .notNull(),
   matchType: varchar("match_type").notNull(), // "standard_bullet", "otb_blitz", "simul_4", etc.
   status: matchStatusEnum("status").default("matched").notNull(),
+  result: gameResultEnum("result"),
   gameIds: jsonb("game_ids").$type<string[]>().notNull(), // Array of game IDs
   simulId: varchar("simul_id"), // For simul matches, shared simul session ID
   createdAt: timestamp("created_at").defaultNow(),
