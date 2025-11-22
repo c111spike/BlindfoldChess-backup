@@ -153,7 +153,7 @@ export default function StandardMode() {
       const chess = new Chess(gameData.fen);
       gameRef.current = chess;
       setGame(chess);
-      setPlayerColor(matchData.color);
+      setPlayerColor(matchData.color as "white" | "black");
       console.log('[handleMatchFound] SET playerColor STATE TO:', matchData.color);
       setFen(gameData.fen);
       
@@ -453,6 +453,20 @@ export default function StandardMode() {
     
     if (!game || !gameStarted) {
       console.log('[handleSquareClick] Skipping - no game or not started');
+      return;
+    }
+
+    // Check if it's the player's turn
+    const currentTurn = game.turn();
+    const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
+    
+    if (!isMyTurn) {
+      console.log('[handleSquareClick] Not your turn');
+      toast({
+        title: "Not your turn",
+        description: "Wait for your opponent to move",
+        variant: "destructive",
+      });
       return;
     }
 
