@@ -570,10 +570,16 @@ export default function StandardMode() {
           setGameStarted(true);
           setRestoredGame(true);
           
-          toast({
-            title: "Game restored",
-            description: "Your ongoing game has been loaded with live sync",
-          });
+          // Only show "Game restored" toast if this is a real restoration (not a new game from matchmaking)
+          if (!gameFromMatchmakingRef.current) {
+            toast({
+              title: "Game restored",
+              description: "Your ongoing game has been loaded with live sync",
+            });
+          }
+          
+          // Reset the matchmaking flag after restoration logic runs
+          gameFromMatchmakingRef.current = false;
         } catch (error) {
           console.error("Error restoring game:", error);
           toast({
