@@ -970,13 +970,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
+          console.log(`[Reconnect] User ${userId} joining match ${matchId} at ${new Date().toISOString()}`);
+          console.log(`[Reconnect] disconnectTimers has entry for ${userId}: ${disconnectTimers.has(userId)}`);
           ws.matchId = matchId;
+          
+          // Add to match room first
+          if (!matchRooms.has(matchId)) {
+            matchRooms.set(matchId, new Set());
+          }
+          matchRooms.get(matchId)!.add(userId);
+          console.log(`[Reconnect] Added user ${userId} to match room ${matchId}`);
           
           // Cancel any pending disconnect timer (player reconnected)
           if (disconnectTimers.has(userId)) {
             clearTimeout(disconnectTimers.get(userId)!);
             disconnectTimers.delete(userId);
-            console.log(`[Reconnect] Cancelled disconnect timer for user ${userId}`);
+            console.log(`[Reconnect] Cancelled disconnect timer for user ${userId} in match ${matchId}`);
             
             // Notify opponent that player reconnected
             try {
@@ -990,17 +999,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     type: 'opponent_reconnected',
                     matchId: matchId,
                   }));
+                  console.log(`[Reconnect] Notified opponent ${opponentUserId} of reconnection`);
                 }
               }
             } catch (error) {
               console.error('[Reconnect] Error notifying opponent:', error);
             }
+          } else {
+            console.log(`[Reconnect] No disconnect timer found for user ${userId} (normal first join or rematch)`);
           }
-          
-          if (!matchRooms.has(matchId)) {
-            matchRooms.set(matchId, new Set());
-          }
-          matchRooms.get(matchId)!.add(userId);
           
           ws.send(JSON.stringify({ type: 'joined_match', matchId }));
         } else if (data.type === 'move') {
@@ -1452,9 +1459,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const timer = setTimeout(async () => {
                   console.log(`[Disconnect] Timer fired for user ${userId}, checking if they reconnected`);
                   try {
-                    // Double-check user hasn't reconnected
-                    if (!userConnections.has(userId)) {
-                      console.log(`[Disconnect] User ${userId} did not reconnect, processing disconnect`);
+                    // Double-check user hasn't reconnected (either in userConnections OR in match room)
+                    const userReconnected = userConnections.has(userId) || 
+                                          (matchRooms.has(matchId) && matchRooms.get(matchId)!.has(userId));
+                    
+                    if (!userReconnected) {
+                      console.log(`[Disconnect] User ${userId} did not reconnect (not in connections or match room), processing disconnect`);
                       const whiteMoves = userGame.whiteMoveCount || 0;
                       const blackMoves = userGame.blackMoveCount || 0;
                       const noMovesYet = whiteMoves === 0 && blackMoves === 0;
@@ -1516,6 +1526,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       
                       // Clean up rooms
                       matchRooms.delete(matchId);
+                    } else {
+                      console.log(`[Disconnect] User ${userId} successfully reconnected - cancelling disconnect processing`);
+                      console.log(`[Disconnect] User in connections: ${userConnections.has(userId)}, User in match room: ${matchRooms.has(matchId) && matchRooms.get(matchId)!.has(userId)}`);
                     }
                   } catch (error) {
                     console.error('[Disconnect] Error handling disconnect:', error);
@@ -1525,6 +1538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }, DISCONNECT_GRACE_PERIOD);
                 
                 disconnectTimers.set(userId, timer);
+                console.log(`[Disconnect] Timer set for user ${userId}, will fire in ${DISCONNECT_GRACE_PERIOD}ms at approximately ${new Date(Date.now() + DISCONNECT_GRACE_PERIOD).toISOString()}`);
               }
             }
             
