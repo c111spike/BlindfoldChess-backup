@@ -25,10 +25,11 @@ interface UseWebSocketOptions {
   onDrawResponse?: (data: { matchId: string; accepted: boolean }) => void;
   onRematchRequest?: (data: { matchId: string; from: string }) => void;
   onRematchResponse?: (data: { matchId: string; accepted: boolean; newMatchId?: string }) => void;
+  onGameEnd?: (data: { result: string; reason: string }) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions) {
-  const { userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse } = options;
+  const { userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -137,6 +138,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
               });
             }
             break;
+          case 'game_end':
+            if (onGameEnd) {
+              onGameEnd({
+                result: message.result,
+                reason: message.reason,
+              });
+            }
+            break;
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
@@ -153,7 +162,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       setIsAuthenticated(false);
       setQueueStatus({ inQueue: false });
     };
-  }, [userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse]);
+  }, [userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd]);
 
   const joinQueue = useCallback((timeControl: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN && isAuthenticated) {

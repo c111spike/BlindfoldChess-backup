@@ -170,10 +170,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const userId = req.user.claims.sub;
       
+      console.log('[PATCH /api/games/:id] START - gameId:', id, 'userId:', userId, 'body:', JSON.stringify(req.body));
+      
       const game = await storage.getGame(id);
       if (!game) {
         return res.status(404).json({ message: "Game not found" });
       }
+      
+      console.log('[PATCH /api/games/:id] Found game - matchId:', game.matchId, 'result:', game.result);
       
       const isAuthorized = game.userId === userId || 
                            game.whitePlayerId === userId || 
@@ -185,14 +189,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updatedGame = await storage.updateGame(id, req.body);
       
-      if (req.body.result && req.body.result !== 'ongoing') {
+      console.log('[PATCH /api/games/:id] After update - game.result was:', game.result, 'updatedGame.result is:', updatedGame.result);
+      
+      // Only run completion logic if game just NOW transitioned to completed (wasn't completed before)
+      const gameJustCompleted = game.result === 'ongoing' && updatedGame.result && updatedGame.result !== 'ongoing';
+      
+      if (gameJustCompleted) {
         const stats = await storage.getStatistics(userId);
         const existingStat = stats.find(s => s.mode === game.mode);
         
         const isWin = 
-          (req.body.result === 'white_win' && game.playerColor === 'white') ||
-          (req.body.result === 'black_win' && game.playerColor === 'black');
-        const isDraw = req.body.result === 'draw';
+          (updatedGame.result === 'white_win' && game.playerColor === 'white') ||
+          (updatedGame.result === 'black_win' && game.playerColor === 'black');
+        const isDraw = updatedGame.result === 'draw';
         
         await storage.upsertStatistics({
           userId,
@@ -229,6 +238,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ratingUpdate[ratingField] = currentRating + ratingChange;
         
         await storage.updateRating(userId, ratingUpdate);
+        
+        // If this is a multiplayer game (has matchId), notify both players and clean up state
+        if (game.matchId) {
+          console.log('[PATCH /api/games/:id] Game has matchId:', game.matchId);
+          const match = await storage.getMatch(game.matchId);
+          if (match && match.status !== 'completed') {
+            // Only run cleanup once - skip if match already completed
+            const player1Id = match.player1Id;
+            const player2Id = match.player2Id;
+            console.log('[PATCH /api/games/:id] Found match, players:', player1Id, player2Id);
+            
+            // Broadcast game_end to ALL users in match room FIRST (before cleanup)
+            // Use the same pattern as moves/draws/clock_updates
+            const roomUsers = matchRooms.get(game.matchId);
+            console.log('[PATCH /api/games/:id] Match room users:', roomUsers ? Array.from(roomUsers) : 'none');
+            if (roomUsers) {
+              roomUsers.forEach((roomUserId) => {
+                const playerWs = userConnections.get(roomUserId);
+                if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                  console.log('[PATCH /api/games/:id] Sending game_end to user:', roomUserId);
+                  playerWs.send(JSON.stringify({
+                    type: 'game_end',
+                    result: updatedGame.result,
+                    reason: 'game_completed'
+                  }));
+                } else {
+                  console.log('[PATCH /api/games/:id] User WS not ready:', roomUserId, 'exists:', !!playerWs, 'state:', playerWs?.readyState);
+                }
+              });
+            }
+            
+            // NOW clean up state after broadcasting
+            // Finalize the match
+            await storage.updateMatch(match.id, {
+              status: 'completed',
+              completedAt: new Date()
+            });
+            
+            // Remove both players from match room
+            if (roomUsers) {
+              roomUsers.delete(player1Id);
+              roomUsers.delete(player2Id);
+              if (roomUsers.size === 0) {
+                matchRooms.delete(game.matchId);
+              }
+            }
+            
+            // Clear WebSocket matchId for both players
+            const player1Ws = userConnections.get(player1Id);
+            const player2Ws = userConnections.get(player2Id);
+            if (player1Ws) {
+              (player1Ws as any).matchId = null;
+            }
+            if (player2Ws) {
+              (player2Ws as any).matchId = null;
+            }
+            
+            // Remove both players from queue manager
+            queueManager.leave(player1Id);
+            queueManager.leave(player2Id);
+          } else {
+            console.log('[PATCH /api/games/:id] Match not found for matchId:', game.matchId);
+          }
+        } else {
+          console.log('[PATCH /api/games/:id] Game does not have matchId');
+        }
       }
       
       res.json(updatedGame);

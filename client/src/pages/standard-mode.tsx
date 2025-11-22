@@ -351,6 +351,28 @@ export default function StandardMode() {
     }
   }, [toast]);
 
+  const handleGameEndEvent = useCallback((data: { result: string; reason: string }) => {
+    console.log('[handleGameEndEvent] Received game_end WebSocket event:', data);
+    
+    // Set the game result so the Game Over dialog shows the correct winner
+    setGameResult(data.result as "white_win" | "black_win" | "draw");
+    
+    // Show the Game Over dialog
+    setShowGameEndDialog(true);
+    
+    // Stop all timers
+    if (saveIntervalRef.current) {
+      clearInterval(saveIntervalRef.current);
+      saveIntervalRef.current = null;
+    }
+    if (clockIntervalRef.current) {
+      clearInterval(clockIntervalRef.current);
+      clockIntervalRef.current = null;
+    }
+    
+    setGameStarted(false);
+  }, []);
+
   const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus, joinMatch, sendDrawOffer, sendDrawResponse, sendRematchRequest, sendRematchResponse } = useWebSocket({
     userId: user?.id,
     onMove: handleOpponentMove,
@@ -359,6 +381,7 @@ export default function StandardMode() {
     onDrawResponse: handleDrawResponse,
     onRematchRequest: handleRematchRequest,
     onRematchResponse: handleRematchResponse,
+    onGameEnd: handleGameEndEvent,
   });
 
   // Join the match room when a match is found
