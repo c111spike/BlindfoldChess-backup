@@ -105,3 +105,99 @@ AI bot opponents with distinct personalities to provide training value and fill 
 - Free users: 3 fundamental bot personalities (Balanced, Tactician, Positional)
 - Premium users: Access to 4 specialist bots for advanced training scenarios
 - Complements freemium model: Unlimited bot practice, limited human matchmaking for free tier
+
+## Admin System
+
+### Overview
+Platform administration tools for user management, moderation, and premium grants. Single admin access (platform owner) with database-backed permissions.
+
+### Admin Access Control
+- **Authentication**: Database `isAdmin` flag in users table (boolean field)
+- **Security**: No hardcoded credentials in source code
+- **Grant/Revoke**: SQL command to update `isAdmin` flag
+- **Access Check**: Middleware validates `req.user.isAdmin` before allowing admin routes
+- **UI Access**: Admin panel button visible only to admin users in sidebar
+
+### Premium Management
+**Manual Premium Grants:**
+- 7 days - Testing/rewards
+- 30 days - Monthly trials
+- 60 days - Playtester rewards
+- 90 days - Special promotions
+- 1 year - Annual subscriptions
+
+**Implementation:**
+- Set `premiumUntil` date field in users table
+- Simple expiration tracking (no payment integration needed for manual grants)
+- Admin can extend/modify expiration dates
+
+### User Moderation
+
+**Suspension (Temporary Block):**
+- **Fixed Duration Options**: 1 day, 7 days, 30 days
+- **Effect**: User cannot access account during suspension
+- **Active Games**: Auto-resign all active games immediately
+- **Reason Required**: Admin must provide reason visible to user
+- **User Message**:
+  ```
+  ❌ Account Suspended
+  Reason: Inappropriate behavior
+  Duration: Until Jan 30, 2025
+  ```
+- **No Appeals**: Duration displayed to inform user when they can return
+
+**Ban (Permanent Block):**
+- **Effect**: User cannot access account permanently
+- **Active Games**: Auto-resign all active games immediately
+- **Reason Required**: Admin must provide reason visible to user
+- **User Message**:
+  ```
+  ❌ Account Banned
+  Reason: Cheating detected
+  This ban is permanent.
+  ```
+
+### Admin Panel Features
+
+**User Search:**
+- Search by username or email
+- View user profile (stats, games played, recent activity)
+
+**Moderation Actions:**
+- Grant premium (select duration: 7/30/60/90/365 days)
+- Suspend user (select duration: 1/7/30 days + reason)
+- Ban user (permanent + reason)
+- View user's active games
+- View moderation history per user
+
+**Audit Log:**
+- Track all admin actions with timestamps
+- Log format: "Admin [name] [action] for User [username] on [date]: [reason]"
+- Examples:
+  - "Admin granted 30-day premium to User123 on 2025-01-15"
+  - "Admin suspended User456 for 7 days on 2025-01-16: Inappropriate behavior"
+
+### Database Schema Requirements
+**Users Table Additions:**
+- `isAdmin` (boolean, default false) - Admin flag
+- `isSuspended` (boolean, default false) - Suspension status
+- `suspendedUntil` (timestamp, nullable) - Suspension expiration
+- `suspensionReason` (text, nullable) - Reason for suspension
+- `isBanned` (boolean, default false) - Permanent ban status
+- `banReason` (text, nullable) - Reason for ban
+
+**Admin Actions Table (Audit Log):**
+- `id` (primary key)
+- `adminId` (admin user ID)
+- `targetUserId` (affected user ID)
+- `action` (enum: grant_premium, suspend, ban, unsuspend)
+- `reason` (text)
+- `duration` (integer, days - for suspensions/premium)
+- `createdAt` (timestamp)
+
+### Security Considerations
+- Admin routes protected by middleware checking `isAdmin` flag
+- Database access required to grant initial admin status
+- All admin actions logged for accountability
+- No hardcoded credentials in codebase
+- Admin status can be revoked via database SQL command
