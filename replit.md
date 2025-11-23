@@ -56,6 +56,35 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **Features**: Manual premium grants, user suspension (temporary), permanent banning, user search, audit log of admin actions.
 - **Security**: All admin actions logged, no hardcoded credentials, strong authentication.
 
+### Profile System
+- **Purpose**: User profiles with avatar, game statistics, and account management.
+- **Features**: Profile picture upload, win/loss/draw statistics by mode, rating history display, alt account management.
+- **Profile Display**: Avatar shown next to player names during games (top for opponent, bottom for user).
+- **Statistics Tracking**: Games played, win rate, rating progression across all 7 rating pools.
+
+### Alt Account System
+- **Purpose**: Allows players to practice new openings, create rating climb content, and experiment without affecting main account rating.
+- **Account Limit**: Each user gets 1 alt account (not multiple).
+- **Alt Account Creation**: User chooses custom name (profanity filtered) and starting ELO (400 to main account's current rating).
+- **Account Switching**: Manual switch between main/alt (cannot switch during active games). User can only be logged into one account at a time.
+- **Allowed Modes**: Alts can play in Standard and Blindfold modes only (NOT in OTB Tournament or Simul modes).
+- **Rating System**: Alt has separate ratings for Bullet/Blitz/Rapid/Classical/Blindfold. Alt cannot exceed main account's rating (dynamic hard cap per rating pool).
+- **ELO Reset**: 
+  - Free users: 1 reset per 30 days (rolling window from last reset).
+  - Premium users: Unlimited resets.
+  - User chooses new starting ELO (400-main) on each reset.
+  - No alt deletion - alts exist forever, can only reset ELO.
+- **Loss Protection (Anti-Smurf)**:
+  - When losing to an alt, system compares main account ratings in the same rating pool (Blitz-to-Blitz, Rapid-to-Rapid).
+  - Rating difference 500+: Lose 0% ELO.
+  - Rating difference 300-499: Lose 25% ELO.
+  - Rating difference 150-299: Lose 50% ELO.
+  - Rating difference 0-149: Lose 100% (normal) ELO.
+  - When WINNING against alt: Normal ELO gain (no bonus).
+  - Alt vs Alt: No loss protection, normal ELO calculation for both players.
+- **Profile Images**: Alt accounts can have separate profile pictures from main account.
+- **Use Cases**: Practice new openings without tanking main rating, YouTube rating climb content, experimenting with specific strategies.
+
 ### Legal Compliance (Pre-Launch Requirements)
 - **Legal Pages**: Mandatory Terms of Service, Privacy Policy, and Cookie Consent.
 - **GDPR Features**: Account deletion, data export (JSON), age verification (13+ requirement).
