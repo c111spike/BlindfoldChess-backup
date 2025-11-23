@@ -26,7 +26,7 @@ import {
   Crown,
   LogOut,
 } from "lucide-react";
-import logoImage from "@assets/SimulChess Logo_1763799395309.png";
+import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
 
 const menuItems = [
   {
