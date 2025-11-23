@@ -67,3 +67,107 @@ Preferred communication style: Simple, everyday language.
 **Wouter**: Client-side routing library.
 **Vite**: Build tool and dev server.
 **date-fns**: Date manipulation utilities.
+
+## Planned Features
+
+### Audio + Keyboard Input for Blindfold Mode (Future Enhancement)
+**Status**: Planned - 7 tasks defined, ready for implementation  
+**Goal**: Enable triple input methods (mouse, keyboard, voice) for true blindfold chess experience
+
+**Key Features:**
+- **Voice Input**: Web Speech API for hands-free move entry ("e4", "knight f3", "castle kingside")
+- **Keyboard Input**: Text field for typing moves in standard algebraic notation
+- **Audio Feedback**: Speech Synthesis API for move confirmations and opponent move announcements
+- **Multiple Notation Support**: Standard algebraic, coordinate pairs, NATO phonetic alphabet
+- **Browser Native**: $0 cost using Web Speech API (Chrome, Edge, Safari - not Firefox)
+- **All Difficulty Levels**: Works with existing peek system (Easy → Grandmaster)
+
+**Implementation Tasks:**
+1. Add voice and keyboard input UI to blindfold mode: microphone button, move input field, status indicator, enable/disable toggle
+2. Implement keyboard move input parser for standard chess notation (e4, Nf3, O-O, etc.)
+3. Implement Web Speech API integration for voice recognition (with browser compatibility checks)
+4. Build voice move parser to handle multiple notation formats (standard, coordinate pairs, NATO phonetic)
+5. Add Speech Synthesis API for audio feedback (move played, opponent moves, errors)
+6. Integrate keyboard and voice inputs with existing game logic and WebSocket for real-time play
+7. Test keyboard and voice inputs end-to-end across all difficulty levels
+
+**Testing Strategy**: Use cheap/budget microphone ($10-20 range) to ensure quality experience for all users, not just ideal conditions
+
+**Market Differentiation**: Will be the first web-based platform combining multiplayer blindfold chess with dedicated rating system, progressive peek difficulty, AND triple input methods (mouse, keyboard, voice).
+
+---
+
+### Ultra-Realistic OTB Tournament Mode (Future Enhancement)
+**Status**: Planned - 12 tasks defined, ready for implementation  
+**Goal**: Create the most authentic over-the-board chess experience available online, following FIDE Laws of Chess (worldwide tournament standard)
+
+**Core Philosophy**: Strict, realistic, worldwide tournament standards. Flag fall = loss. Learn your time management!
+
+**Key Features:**
+
+1. **Touch-Move Rule (FIDE Art. 4.3)**
+   - Once player clicks a piece, they MUST move it (cannot select another)
+   - Visual lock indicator shows committed piece
+   - No takebacks - just like physical OTB
+
+2. **Manual Clock System (FIDE Art. 6)**
+   - Physical clock button to press after each move
+   - Spacebar keyboard shortcut
+   - Clock sound effects ("clack")
+   - Clock only advances when player manually presses
+
+3. **Realistic Castling (FIDE Art. 4.4)**
+   - King-first method: Click king → then click rook
+   - Once king touched, must castle that side (if legal) or move king
+
+4. **Free Piece Placement**
+   - Client-side validation disabled in OTB mode
+   - Pieces can move anywhere on board (illegal moves possible)
+   - Simulates physical board where illegal moves are physically possible
+
+5. **Arbiter System (FIDE Art. 13)**
+   - "Call Arbiter" button pauses clocks
+   - Claims: Illegal move, threefold repetition, 50-move rule, draw offer
+   - Arbiter reviews and makes binding decisions
+
+6. **Illegal Move Penalties (FIDE Art. 7)**
+   - First illegal move: Warning + restore position + 2min to opponent
+   - Second illegal move: Instant loss
+   - Opponent must call arbiter to claim illegal move
+
+7. **Strict Time Management (FIDE Standard)**
+   - Flag fall = instant loss, even with insufficient mating material (K+B vs K)
+   - No USCF exceptions - learn your time management!
+
+8. **Draw Claim Mechanisms (FIDE Art. 9)**
+   - Threefold repetition claim (arbiter verifies)
+   - 50-move rule claim (arbiter verifies)
+   - Draw by agreement (mutual consent)
+   - Dead position auto-detection (insufficient material)
+
+9. **Score Sheet (FIDE Art. 8)**
+   - Automatic move recording
+   - Grays out when time < 5 minutes (recording optional in time trouble)
+   - Full game notation available for review
+
+**Optional Visual Aids (Player Preferences):**
+- Move Highlights (toggle on/off) - Show legal squares
+- Last Move Highlight (toggle on/off) - Highlight opponent's last move
+- Arrow Drawing (coming later) - Right-click to draw arrows (with mobile/tablet toggle)
+- No Premoves in OTB mode (premoves for Standard mode only, added later)
+
+**Implementation Tasks:**
+1. Add OTB Mode toggle to game creation with rules explanation
+2. Touch-move enforcement system with visual lock indicator
+3. Manual clock with press button and spacebar shortcut
+4. King-first castling mechanics
+5. Disable client-side move validation (allow illegal moves)
+6. Arbiter call system with clock pause
+7. Illegal move penalty tracking (first warning, second loss)
+8. Draw claim mechanisms (threefold, 50-move, agreement)
+9. Database schema updates (otbMode, illegalMoveCount, touchMoveEnabled fields)
+10. OTB-specific UI components (clock button, arbiter panel, score sheet)
+11. WebSocket sync for OTB features (manual clock, arbiter calls, claims)
+12. End-to-end testing of all OTB features
+
+**Market Differentiation**: First online chess platform to faithfully recreate authentic FIDE-standard OTB tournament conditions with touch-move enforcement, manual clock, arbiter system, and strict time management. No "easy mode" exceptions - pure tournament realism.
