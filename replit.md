@@ -1,7 +1,7 @@
 # SimulChess - Professional Chess Training Platform
 
 ## Overview
-SimulChess is a professional chess training platform designed to enhance over-the-board (OTB) chess habits, strengthen memory skills, and master simultaneous exhibition gameplay. It offers three core training modes: OTB Tournament Mode (with bullet, blitz, and rapid time controls), Blindfold Mode (memory-focused), and Simul Mode (managing multiple concurrent games). The platform aims for serious skill development, combining precision and clarity with organized information density, featuring rating systems, daily game limits, puzzle training, comprehensive statistics, and a premium subscription model.
+SimulChess is a professional chess training platform designed to enhance over-the-board (OTB) chess habits, strengthen memory skills, and master simultaneous exhibition gameplay. It offers three core training modes: OTB Tournament Mode (authentic FIDE-based tournament play with manual clock, touch-move enforcement, and arbiter system), Blindfold Mode (memory-focused visualization training), and Simul Mode (managing multiple concurrent games). The platform features separate rating systems for each mode (Bullet, Blitz, Rapid, Classical, OTB, Blindfold, Simul), dedicated matchmaking queues, daily game limits, puzzle training, comprehensive statistics, and a premium subscription model.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -41,13 +41,16 @@ Preferred communication style: Simple, everyday language.
 **Move Validation**: `chess.js` validation.
 **Game Completion**: Games end via checkmate, resignation, timeout, draw, or disconnect; updates ratings and statistics.
 **Daily Limits**: Free users have daily limits (5 standard, 3 blindfold), reset at midnight.
-**Rating System**: Separate rating pools per mode, new users start at 1200 (Simul starts at 1000).
+**Rating System**: Separate rating pools per mode - Bullet, Blitz, Rapid, Classical, OTB, Blindfold, and Simul. New users start at 1200 (Simul and OTB start at 1000). Each mode has its own matchmaking queue with FIFO (First In First Out) matching within ±300 Elo range.
 **Disconnect Handling**: 30-second grace period when players disconnect. Auto-abort (no rating change) if no moves made; auto-resign (normal rating update) if moves made. Players can reconnect within grace period to continue. Move tracking via `whiteMoveCount` and `blackMoveCount` columns determines abort vs resign behavior.
 
 ### Training Modes
-**OTB Tournament Mode**: Simulates tournament play with clocks, move recording, and time controls.
-**Blindfold Mode**: Memory training with configurable "peek" limits and difficulty levels. Blindfold players see both their own last move (for confirmation) and the opponent's last move in a single "Last Move" card (not full move history) to prevent position reconstruction. Each player's view is independent - one can play blindfolded while their opponent sees the board normally. The interface shows "Last Move" panel for blindfold players and "Score Sheet" for non-blindfold players.
+**OTB Tournament Mode**: Authentic FIDE-based tournament play with realistic features including manual clock system (must press clock after each move), touch-move enforcement (clicked piece must be moved), king-first castling, arbiter system for claims, and strict time management (flag fall = loss). Board is visible with optional visual aids (move highlights, last move indicator). Has dedicated OTB Elo rating and separate matchmaking queue (FIFO ±300 Elo). Cannot be combined with Blindfold mode. See Planned Features for full implementation roadmap.
+
+**Blindfold Mode**: Memory training with configurable "peek" limits and difficulty levels. Board is always hidden behind overlay; difficulty controls peek allowances (Easy = unlimited 3s peeks, Grandmaster = 0 peeks). Blindfold players see both their own last move (for confirmation) and the opponent's last move in a single "Last Move" card (not full move history) to prevent position reconstruction. Each player's view is independent - one can play blindfolded while their opponent sees the board normally. The interface shows "Last Move" panel for blindfold players and "Score Sheet" for non-blindfold players. Cannot be combined with OTB mode.
+
 **Simul Mode**: Manages multiple concurrent games with sequential move-making.
+
 **Puzzle Training**: Random puzzles with tracking of attempts and success rates.
 
 ### Design System
@@ -99,9 +102,15 @@ Preferred communication style: Simple, everyday language.
 
 ### Ultra-Realistic OTB Tournament Mode (Future Enhancement)
 **Status**: Planned - 12 tasks defined, ready for implementation  
-**Goal**: Create the most authentic over-the-board chess experience available online, following FIDE Laws of Chess (worldwide tournament standard)
+**Goal**: Implementation roadmap for OTB Tournament Mode features. This mode represents the authentic over-the-board chess experience, following FIDE Laws of Chess (worldwide tournament standard).
 
 **Core Philosophy**: Strict, realistic, worldwide tournament standards. Flag fall = loss. Learn your time management!
+
+**Mode Details:**
+- Separate OTB Elo rating (starts at 1000)
+- Dedicated matchmaking queue (FIFO ±300 Elo)
+- Cannot be combined with Blindfold mode
+- Board visible (unlike Blindfold mode)
 
 **Key Features:**
 
