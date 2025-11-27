@@ -1,10 +1,42 @@
 # SimulChess - Professional Chess Training Platform
 
 ## Overview
-SimulChess is a professional chess training platform designed to enhance over-the-board (OTB) chess habits, strengthen memory skills, and master simultaneous exhibition gameplay. It offers three core training modes: OTB Tournament Mode, Blindfold Mode, and Simul Mode, alongside AI bot opponents with distinct personalities and difficulty levels. The platform aims to provide a unique, realistic, and competitive chess training experience with features like separate rating systems, matchmaking, daily game limits, puzzle training, and comprehensive statistics, while adhering to strict legal compliance for a global user base.
+SimulChess is a professional chess training platform designed to enhance over-the-board (OTB) chess habits, strengthen memory skills, and master simultaneous exhibition gameplay. It offers four core training modes: Standard (multiplayer), OTB Tournament Mode, Blindfold Mode, and Simul Mode, alongside AI bot opponents with distinct personalities and difficulty levels.
+
+**Brand Positioning:** "Chess.com and Lichess is where you go to play chess. SimulChess is where you go to be better at chess."
+
+**Market Position:** Complementary to Chess.com/Lichess, not competing. SimulChess is the "batting cage" to their "major league baseball."
+
+**Unique Value Propositions:**
+- Only platform offering simulated OTB tournaments online
+- World's first Simul vs Simul championships
+- Blindfold training with progressive difficulty and press-and-hold peek system
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
+
+## Business Model
+
+### Monetization Strategy: Ads-Only (Launch)
+- **Model:** 100% free access to all features + ads
+- **Positioning:** Between Lichess (100% free, no ads) and Chess.com (freemium + ads)
+- **Ads:** 3 rotating ads every 37.5 seconds
+- **Projected Revenue:** $69K-101K/year at 5K daily active users ($0.20-0.25 CPM)
+- **Hosting Costs:** $80-150/month on Replit (~$1.5K/year)
+- **Premium Tier:** May be added later based on demand once user base is established
+
+### Marketing Channels
+- Reddit (r/chess, r/chessbeginners)
+- Discord (chess server communities)
+- X (Twitter) - chess content creators, tournament clips
+- YouTube Shorts - quick clips of Simul/Blindfold moments
+- TikTok - short-form viral potential
+
+### Marketing Hooks
+1. "Can you manage 5 chess games at once?"
+2. "Play blindfold chess with training wheels"
+3. "Practice OTB tournaments without leaving home"
+4. "The world's first Simul vs Simul championship"
 
 ## System Architecture
 
@@ -39,10 +71,65 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **Disconnect Handling**: 30-second grace period; auto-abort or auto-resign based on moves made.
 
 ### Training Modes
-- **OTB Tournament Mode**: FIDE-based play with manual clock, touch-move enforcement, king-first castling, arbiter system, and strict time management.
-- **Blindfold Mode**: Memory training with configurable "peek" limits and difficulty levels.
-- **Simul Mode**: Manages multiple concurrent games with sequential move-making, auto-cycle system, and a 30-second timer reset per board.
-- **Puzzle Training**: Random puzzles with tracking.
+
+#### Standard Mode
+- **Purpose**: Traditional multiplayer chess
+- **Time Controls**: Blitz (3|0) and Rapid (15|10) only - simplified for queue concentration
+- **Matchmaking**: FIFO within ±300 Elo
+
+#### OTB Tournament Mode
+- **Purpose**: FIDE-authentic tournament simulation - the only platform offering this online
+- **Features**:
+  - Ready handshake button to start game (simulates real tournament etiquette)
+  - Manual clock tap after each move
+  - Touch-move enforcement (own pieces)
+  - Optional touch-capture rule (opponent pieces) - toggle in settings
+  - King-first castling requirement
+  - Arbiter warning system
+  - Forfeit for no-show (30-second timeout on ready)
+- **Customizable Settings** (per player):
+  - Touch-capture rule (ON/OFF) - default OFF for mobile users
+  - Highlight last move (ON/OFF)
+  - Show legal moves (ON/OFF)
+  - Training reminder notes (ON/OFF with selectable notes)
+
+#### Blindfold Mode
+- **Purpose**: Memory and visualization training
+- **Peek System**: Press-and-hold to see board (not timer-based) - better for learning
+- **Tracking**: Total peek time tracked as improvement metric
+- **Difficulty Levels**: Progressive difficulty scaling
+
+#### Simul Mode
+- **Purpose**: Multi-board management training
+- **Structure**: 5 boards per player (accessible entry point)
+- **Vs Bots**: Always available - solves cold start problem
+- **Vs Humans (Casual)**: Queue-based when players online
+- **Tournaments**: Scheduled events with scaling structure
+
+#### Simul vs Simul Tournament Structure
+- **Format**: All players in a group play each other simultaneously (each manages multiple boards)
+- **Move Timer**: 30 seconds per move
+- **Season 1 (121 players)**:
+  - 11 groups of 11 players (10 boards each)
+  - 11 winners advance to championship
+  - 1 World Champion crowned
+- **Season 2 Scaling (1,331 players)**:
+  - Quarter Finals: 121 groups of 11 players → 121 winners
+  - Semi Finals: 11 groups of 11 players → 11 winners
+  - Championship: 11 finalists → 1 World Champion
+- **Tiebreakers**: Win % → Fewest moves → Least time used
+
+#### Training Notes System
+- **Purpose**: Develop good thinking habits during games
+- **Display**: Optional reminder notes shown above game board
+- **Limit**: Up to 10 notes displayed at once
+- **Selection**: User chooses from 49 chess principles across categories:
+  - Opening principles
+  - Middlegame strategy
+  - Tactical awareness
+  - Endgame technique
+  - Psychology/discipline
+- **Learning Progression**: Beginners use all notes, advanced players turn them off
 
 ### Bot Training System
 - **Purpose**: AI bot opponents with distinct personalities to provide training and fill matchmaking queues.
