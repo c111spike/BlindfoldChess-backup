@@ -78,6 +78,9 @@ export default function OTBMode() {
     countdown: number;
   } | null>(null);
   const [legalChessGame, setLegalChessGame] = useState<Chess | null>(null);
+  const [opponentName, setOpponentName] = useState<string>("Opponent");
+  const [opponentRating, setOpponentRating] = useState<number>(1200);
+  const [playerRating, setPlayerRating] = useState<number>(1200);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -391,6 +394,14 @@ export default function OTBMode() {
           setOpponentViolations(0);
           setMyFalseClaims(0);
           setOpponentFalseClaims(0);
+          
+          if (response.opponent) {
+            setOpponentName(response.opponent.name || "Opponent");
+            setOpponentRating(response.opponent.rating || 1200);
+          }
+          if (response.playerRating) {
+            setPlayerRating(response.playerRating);
+          }
 
           toast({
             title: "Match found!",
@@ -581,6 +592,8 @@ export default function OTBMode() {
     setOpponentViolations(0);
     setMyFalseClaims(0);
     setOpponentFalseClaims(0);
+    setOpponentName("Practice Partner");
+    setOpponentRating(1200);
     
     const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
     
@@ -937,6 +950,24 @@ export default function OTBMode() {
                 </Card>
               )}
 
+              {/* Opponent timer (top) */}
+              <Card className={`${activeColor !== playerColor ? "ring-2 ring-primary" : ""}`}>
+                <CardContent className="py-2 px-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-black" : "bg-white border border-gray-400"}`} />
+                      <span className="font-medium text-sm">{opponentName}</span>
+                      <span className="text-xs text-muted-foreground">({opponentRating})</span>
+                    </div>
+                    <div className={`text-2xl font-mono font-bold ${
+                      activeColor !== playerColor ? "text-foreground" : "text-muted-foreground"
+                    }`} data-testid={playerColor === "white" ? "text-black-time" : "text-white-time"}>
+                      {formatTime(playerColor === "white" ? blackTime : whiteTime)}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <ChessBoard 
                 fen={fen}
                 orientation={playerColor}
@@ -948,81 +979,62 @@ export default function OTBMode() {
                 onSquareClick={handleSquareClick}
               />
 
-              <Card>
-                <CardContent className="py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">White</span>
-                        <div className="flex items-center gap-1">
-                          {playerColor === "white" && <Badge variant="outline" className="text-xs py-0">You</Badge>}
-                          {activeColor === "white" && (
-                            <Badge variant="default" className="text-xs py-0">Active</Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className={`text-4xl font-mono font-bold ${
-                        activeColor === "white" ? "text-foreground" : "text-muted-foreground"
-                      }`} data-testid="text-white-time">
-                        {formatTime(whiteTime)}
-                      </div>
+              {/* Player timer (bottom) */}
+              <Card className={`${activeColor === playerColor ? "ring-2 ring-primary" : ""}`}>
+                <CardContent className="py-2 px-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-white border border-gray-400" : "bg-black"}`} />
+                      <span className="font-medium text-sm">{user?.firstName || "You"}</span>
+                      <span className="text-xs text-muted-foreground">({playerRating})</span>
+                      <Badge variant="outline" className="text-xs py-0">You</Badge>
                     </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">Black</span>
-                        <div className="flex items-center gap-1">
-                          {playerColor === "black" && <Badge variant="outline" className="text-xs py-0">You</Badge>}
-                          {activeColor === "black" && (
-                            <Badge variant="default" className="text-xs py-0">Active</Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className={`text-4xl font-mono font-bold ${
-                        activeColor === "black" ? "text-foreground" : "text-muted-foreground"
-                      }`} data-testid="text-black-time">
-                        {formatTime(blackTime)}
-                      </div>
+                    <div className={`text-2xl font-mono font-bold ${
+                      activeColor === playerColor ? "text-foreground" : "text-muted-foreground"
+                    }`} data-testid={playerColor === "white" ? "text-white-time" : "text-black-time"}>
+                      {formatTime(playerColor === "white" ? whiteTime : blackTime)}
                     </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-center gap-3 text-xs">
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">Violations:</span>
-                      <Badge variant={myViolations > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myViolations}/2</Badge>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">False claims:</span>
-                      <Badge variant={myFalseClaims > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myFalseClaims}/2</Badge>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex gap-2">
-                    <Button variant="outline" className="flex-1" onClick={handleOfferDraw} data-testid="button-offer-draw">
-                      <HandshakeIcon className="mr-2 h-4 w-4" />
-                      Offer Draw
-                    </Button>
-                    <Button variant="destructive" className="flex-1" onClick={handleResign} data-testid="button-resign">
-                      <Flag className="mr-2 h-4 w-4" />
-                      Resign
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Violations and game controls */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-xs">
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Violations:</span>
+                    <Badge variant={myViolations > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myViolations}/2</Badge>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">False claims:</span>
+                    <Badge variant={myFalseClaims > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myFalseClaims}/2</Badge>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleOfferDraw} data-testid="button-offer-draw">
+                    <HandshakeIcon className="mr-1 h-3 w-3" />
+                    Draw
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={handleResign} data-testid="button-resign">
+                    <Flag className="mr-1 h-3 w-3" />
+                    Resign
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
 
       {gameStarted && (
-        <div className="w-80 border-l bg-card flex flex-col">
+        <div className="w-72 border-l bg-card flex flex-col">
           <div className="p-3 border-b">
             <h3 className="font-semibold text-sm">Move List</h3>
             <p className="text-xs text-muted-foreground">Free movement - arbiter validates</p>
           </div>
-          <ScrollArea className="h-32 p-3">
+          <ScrollArea className="h-28 p-3">
             {moves.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
+              <p className="text-sm text-muted-foreground text-center py-3">
                 No moves yet
               </p>
             ) : (
@@ -1037,11 +1049,11 @@ export default function OTBMode() {
             )}
           </ScrollArea>
           
-          <div className="p-3 border-t space-y-3">
+          <div className="p-3 border-t">
             <Button
               onClick={handleClockPress}
               size="lg"
-              className="w-full min-h-14 text-lg font-semibold"
+              className="w-full min-h-12 text-base font-semibold"
               disabled={arbiterPending || !!pendingCheckmate}
               data-testid="button-press-clock"
             >
@@ -1049,7 +1061,19 @@ export default function OTBMode() {
               Press Clock
               <span className="ml-2 text-xs font-normal opacity-70">(Space)</span>
             </Button>
-            
+          </div>
+          
+          <div className="p-3 border-t bg-muted/30">
+            <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
+            <ul className="text-xs text-muted-foreground space-y-0.5">
+              <li>• Illegal move: Caller +2 min</li>
+              <li>• 2nd illegal: Forfeit</li>
+              <li>• False claim: Opponent +2 min</li>
+              <li>• 2nd false claim: Forfeit</li>
+            </ul>
+          </div>
+          
+          <div className="p-3 border-t mt-auto">
             <Button
               onClick={handleCallArbiter}
               size="default"
@@ -1061,16 +1085,6 @@ export default function OTBMode() {
               <Gavel className="mr-2 h-4 w-4" />
               Call Arbiter
             </Button>
-          </div>
-          
-          <div className="p-3 border-t bg-muted/30 mt-auto">
-            <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
-            <ul className="text-xs text-muted-foreground space-y-0.5">
-              <li>• Illegal move: Caller +2 min</li>
-              <li>• 2nd illegal: Forfeit</li>
-              <li>• False claim: Opponent +2 min</li>
-              <li>• 2nd false claim: Forfeit</li>
-            </ul>
           </div>
         </div>
       )}

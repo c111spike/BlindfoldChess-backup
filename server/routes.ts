@@ -326,6 +326,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const isSimul = existingMatch.matchType.startsWith('simul_');
         const opponentId = existingMatch.player1Id === userId ? existingMatch.player2Id : existingMatch.player1Id;
+        
+        const opponent = await storage.getUser(opponentId);
+        const opponentName = `${opponent?.firstName || 'Opponent'} ${opponent?.lastName || ''}`.trim();
+        
+        const ratingCategory = existingMatch.matchType.includes('bullet') ? 'bullet' : 
+                              existingMatch.matchType.includes('blitz') ? 'blitz' : 
+                              existingMatch.matchType.includes('rapid') ? 'rapid' : 
+                              existingMatch.matchType.includes('classical') ? 'classical' : 'otb';
+        const playerRatingsData = await storage.getRating(userId);
+        const opponentRatingsData = await storage.getRating(opponentId);
+        const playerRating = (playerRatingsData as any)?.[ratingCategory] || 1200;
+        const opponentRating = (opponentRatingsData as any)?.[ratingCategory] || 1200;
 
         return res.json({
           matchId: existingMatch.id,
@@ -334,6 +346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           game: !isSimul && userGames.length > 0 ? userGames[0] : undefined,
           boardCount: isSimul ? userGames.length : undefined,
           opponentId,
+          opponent: { name: opponentName, rating: opponentRating },
+          playerRating,
         });
       }
 
@@ -430,6 +444,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { match, games } = result;
       const userGames = games.filter(g => g.userId === userId);
+      
+      const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+      const opponent = await storage.getUser(opponentId);
+      const opponentName = `${opponent?.firstName || 'Opponent'} ${opponent?.lastName || ''}`.trim();
+      
+      const ratingCategory = queueType.includes('bullet') ? 'bullet' : 
+                            queueType.includes('blitz') ? 'blitz' : 
+                            queueType.includes('rapid') ? 'rapid' : 
+                            queueType.includes('classical') ? 'classical' : 'otb';
+      const playerRatingsData = await storage.getRating(userId);
+      const opponentRatingsData = await storage.getRating(opponentId);
+      const playerRating = (playerRatingsData as any)?.[ratingCategory] || 1200;
+      const opponentRating = (opponentRatingsData as any)?.[ratingCategory] || 1200;
 
       if (isSimul) {
         res.json({ 
@@ -437,7 +464,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           matchId: match.id,
           games: userGames,
           boardCount,
-          opponentId: match.player2Id 
+          opponentId,
+          opponent: { name: opponentName, rating: opponentRating },
+          playerRating,
         });
       } else {
         res.json({ 
@@ -447,7 +476,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ...userGames[0],
             playerColor: userGames[0].playerColor || "white"
           }, 
-          opponentId: match.player2Id 
+          opponentId,
+          opponent: { name: opponentName, rating: opponentRating },
+          playerRating,
         });
       }
     } catch (error) {
