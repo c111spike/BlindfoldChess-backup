@@ -1101,7 +1101,7 @@ export default function OTBMode() {
               size="default"
               variant="outline"
               className="w-full border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
-              disabled={arbiterPending || moves.length === 0 || clockTurn === playerColor}
+              disabled={arbiterPending || moves.length === 0 || clockTurn !== playerColor}
               data-testid="button-call-arbiter"
             >
               <Gavel className="mr-2 h-4 w-4" />
