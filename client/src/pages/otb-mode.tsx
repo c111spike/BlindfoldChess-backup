@@ -1005,35 +1005,6 @@ export default function OTBMode() {
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-6 border-t">
-                    <Button
-                      onClick={handleClockPress}
-                      size="lg"
-                      className="w-full min-h-20 text-xl font-semibold"
-                      disabled={arbiterPending || !!pendingCheckmate}
-                      data-testid="button-press-clock"
-                    >
-                      <Clock className="mr-3 h-6 w-6" />
-                      Press Clock
-                      <span className="ml-2 text-sm font-normal opacity-70">(Spacebar)</span>
-                    </Button>
-                  </div>
-
-                  <div className="mt-4">
-                    <Button
-                      onClick={handleCallArbiter}
-                      size="lg"
-                      variant="outline"
-                      className="w-full min-h-14 text-lg font-semibold border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
-                      disabled={arbiterPending || moves.length === 0 || activeColor === playerColor}
-                      data-testid="button-call-arbiter"
-                    >
-                      <Gavel className="mr-3 h-5 w-5" />
-                      Call Arbiter
-                      <span className="ml-2 text-sm font-normal opacity-70">(Dispute last move)</span>
-                    </Button>
-                  </div>
-
                   <div className="mt-4 flex gap-3">
                     <Button variant="outline" className="flex-1" onClick={handleOfferDraw} data-testid="button-offer-draw">
                       <HandshakeIcon className="mr-2 h-4 w-4" />
@@ -1053,32 +1024,58 @@ export default function OTBMode() {
 
       {gameStarted && (
         <div className="w-80 border-l bg-card flex flex-col">
-          <div className="p-4 border-b">
-            <h3 className="font-semibold">Move List</h3>
-            <p className="text-xs text-muted-foreground mt-1">Free movement mode - arbiter validates</p>
+          <div className="p-3 border-b">
+            <h3 className="font-semibold text-sm">Move List</h3>
+            <p className="text-xs text-muted-foreground">Free movement - arbiter validates</p>
           </div>
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="h-32 p-3">
             {moves.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
+              <p className="text-sm text-muted-foreground text-center py-4">
                 No moves yet
               </p>
             ) : (
-              <div className="space-y-2 font-mono text-sm">
+              <div className="space-y-1 font-mono text-sm">
                 {moves.map((move, i) => (
                   <div key={i} className="flex items-center gap-2" data-testid={`move-${i}`}>
-                    <span className="text-muted-foreground w-8">{Math.floor(i / 2) + 1}.</span>
-                    <span>{move.notation}</span>
+                    <span className="text-muted-foreground w-6 text-xs">{Math.floor(i / 2) + 1}.</span>
+                    <span className="text-sm">{move.notation}</span>
                   </div>
                 ))}
               </div>
             )}
           </ScrollArea>
           
-          <div className="p-4 border-t bg-muted/30">
-            <h4 className="text-sm font-semibold mb-2">Arbiter Rules</h4>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• Illegal move caught: Caller +2 min</li>
-              <li>• 2nd illegal move: Forfeit</li>
+          <div className="p-3 border-t space-y-3">
+            <Button
+              onClick={handleClockPress}
+              size="lg"
+              className="w-full min-h-14 text-lg font-semibold"
+              disabled={arbiterPending || !!pendingCheckmate}
+              data-testid="button-press-clock"
+            >
+              <Clock className="mr-2 h-5 w-5" />
+              Press Clock
+              <span className="ml-2 text-xs font-normal opacity-70">(Space)</span>
+            </Button>
+            
+            <Button
+              onClick={handleCallArbiter}
+              size="default"
+              variant="outline"
+              className="w-full border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+              disabled={arbiterPending || moves.length === 0 || activeColor === playerColor}
+              data-testid="button-call-arbiter"
+            >
+              <Gavel className="mr-2 h-4 w-4" />
+              Call Arbiter
+            </Button>
+          </div>
+          
+          <div className="p-3 border-t bg-muted/30 mt-auto">
+            <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
+            <ul className="text-xs text-muted-foreground space-y-0.5">
+              <li>• Illegal move: Caller +2 min</li>
+              <li>• 2nd illegal: Forfeit</li>
               <li>• False claim: Opponent +2 min</li>
               <li>• 2nd false claim: Forfeit</li>
             </ul>
