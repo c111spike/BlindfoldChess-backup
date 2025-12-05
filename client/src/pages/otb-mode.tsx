@@ -90,6 +90,7 @@ export default function OTBMode() {
   const blackTimeRef = useRef(180);
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pendingCheckmateRef = useRef<NodeJS.Timeout | null>(null);
+  const handleGameEndRef = useRef<((result: "white_win" | "black_win" | "draw") => void) | null>(null);
 
   useEffect(() => {
     gameRef.current = game;
@@ -230,10 +231,15 @@ export default function OTBMode() {
         description: data.forfeitReason || "Forfeit due to violations",
         variant: "destructive",
       });
-      handleGameEnd(data.violatorId === user?.id ? 
+      
+      // Use ref to access latest handleGameEnd
+      const result = data.violatorId === user?.id ? 
         (playerColor === "white" ? "black_win" : "white_win") : 
-        (playerColor === "white" ? "white_win" : "black_win")
-      );
+        (playerColor === "white" ? "white_win" : "black_win");
+      
+      if (handleGameEndRef.current) {
+        handleGameEndRef.current(result);
+      }
       return;
     }
     
@@ -545,6 +551,11 @@ export default function OTBMode() {
     setGameStarted(false);
     setPendingCheckmate(null);
   }, [gameId, boardState, activeColor, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast]);
+
+  // Keep ref updated with latest handleGameEnd
+  useEffect(() => {
+    handleGameEndRef.current = handleGameEnd;
+  }, [handleGameEnd]);
 
   useEffect(() => {
     if (pendingCheckmate) {
