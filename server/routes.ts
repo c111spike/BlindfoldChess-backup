@@ -227,11 +227,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const currentRating = getRatingForTimeControl(effectiveTimeControl);
+      const effectiveQueueType = queueType || `standard_${effectiveTimeControl}`;
+      
+      // Calculate rating range for matchmaking (±300 Elo)
+      const getRatingRange = (rating: number): string => {
+        const lower = Math.max(0, rating - 300);
+        const upper = rating + 300;
+        return `${lower}-${upper}`;
+      };
+      
+      // Actually add user to the matchmaking queue in the database
+      await storage.joinQueue({
+        userId,
+        queueType: effectiveQueueType,
+        ratingRange: getRatingRange(currentRating),
+      });
       
       res.json({
         success: true,
         timeControl: effectiveTimeControl,
-        queueType: queueType || `standard_${effectiveTimeControl}`,
+        queueType: effectiveQueueType,
         position: 1,
         message: "Joined queue successfully"
       });
@@ -244,6 +259,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/queue/leave', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const { queueType } = req.body;
+      
+      if (queueType) {
+        await storage.leaveQueue(userId, queueType);
+      }
+      
       res.json({ success: true });
     } catch (error) {
       console.error("Error leaving queue:", error);
