@@ -1095,7 +1095,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const matchId = ws.matchId;
           const userId = ws.userId;
           
+          console.log(`[WS Move] Received move from ${userId} in match ${matchId}: ${data.move}`);
+          
           if (!matchId || !userId) {
+            console.log(`[WS Move] ERROR: Not in a match - matchId: ${matchId}, userId: ${userId}`);
             ws.send(JSON.stringify({ type: 'error', message: 'Not in a match' }));
             return;
           }
@@ -1121,10 +1124,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const roomUsers = matchRooms.get(matchId);
+          console.log(`[WS Move] Match room ${matchId} has users:`, roomUsers ? Array.from(roomUsers) : 'NO ROOM');
+          
           if (roomUsers) {
             roomUsers.forEach((roomUserId) => {
               if (roomUserId !== userId) {
                 const opponentWs = userConnections.get(roomUserId);
+                console.log(`[WS Move] Sending to opponent ${roomUserId}, connected: ${!!opponentWs}, readyState: ${opponentWs?.readyState}`);
                 if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
                   opponentWs.send(JSON.stringify({
                     type: 'opponent_move',
@@ -1138,6 +1144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     piece: data.piece,
                     captured: data.captured,
                   }));
+                  console.log(`[WS Move] Sent opponent_move to ${roomUserId}`);
                 }
               }
             });
