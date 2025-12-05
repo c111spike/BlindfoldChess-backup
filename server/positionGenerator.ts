@@ -243,16 +243,16 @@ export function calculateScore(
   multiplier: number,
   gotBestMove: boolean
 ): { score: number; accuracy: number; correctPieces: number; totalPieces: number } {
-  // Rotate the original board to match the player's perspective
-  const nearestRotation = Math.round(rotation / 90) * 90;
-  const rotatedOriginal = rotateBoard(originalBoard, nearestRotation);
+  // The visual rotation is CSS-only - DOM grid positions don't change
+  // When players click squares, they're clicking on original grid positions
+  // So we compare originalBoard directly to playerBoard WITHOUT rotation
   
   let correctPieces = 0;
   let totalPieces = 0;
   
   for (let rank = 0; rank < 8; rank++) {
     for (let file = 0; file < 8; file++) {
-      const originalPiece = rotatedOriginal[rank][file];
+      const originalPiece = originalBoard[rank][file];
       const playerPiece = playerBoard[rank][file];
       
       if (originalPiece) {
