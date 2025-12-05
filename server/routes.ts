@@ -193,6 +193,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('[PATCH /api/games/:id] Game updated successfully');
       
+      // If the game is being marked as completed and has a matchId, also update the match
+      if (req.body.status === 'completed' && game.matchId) {
+        console.log('[PATCH /api/games/:id] Game completed, updating match status');
+        
+        const match = await storage.getMatch(game.matchId);
+        if (match && match.status !== 'completed') {
+          // Update match to completed
+          await storage.updateMatch(game.matchId, { status: 'completed' });
+          console.log('[PATCH /api/games/:id] Match updated to completed');
+          
+          // Clean up queue entries for both players
+          if (match.player1Id) {
+            await storage.leaveAllQueues(match.player1Id);
+          }
+          if (match.player2Id) {
+            await storage.leaveAllQueues(match.player2Id);
+          }
+          console.log('[PATCH /api/games/:id] Queue entries cleaned up');
+        }
+      }
+      
       res.json(updatedGame);
     } catch (error) {
       console.error("Error updating game:", error);

@@ -64,6 +64,7 @@ export interface IStorage {
   
   joinQueue(queueEntry: InsertMatchmakingQueue): Promise<MatchmakingQueue>;
   leaveQueue(userId: string, queueType: string): Promise<void>;
+  leaveAllQueues(userId: string): Promise<void>;
   findMatch(userId: string, queueType: string): Promise<MatchmakingQueue | undefined>;
   atomicMatchPairing(userId: string, queueType: string, matchData: InsertMatch, player1GameTemplates: Partial<InsertGame>[], player2GameTemplates: Partial<InsertGame>[]): Promise<{ match: Match; games: Game[] } | null>;
   getUserQueueStatus(userId: string): Promise<MatchmakingQueue | undefined>;
@@ -510,6 +511,12 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(matchmakingQueues)
       .where(and(eq(matchmakingQueues.userId, userId), eq(matchmakingQueues.queueType, queueType)));
+  }
+
+  async leaveAllQueues(userId: string): Promise<void> {
+    await db
+      .delete(matchmakingQueues)
+      .where(eq(matchmakingQueues.userId, userId));
   }
 
   async findMatch(userId: string, queueType: string): Promise<MatchmakingQueue | undefined> {
