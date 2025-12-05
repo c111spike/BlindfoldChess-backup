@@ -49,6 +49,7 @@ export default function BoardSpin() {
   const [finalRotation, setFinalRotation] = useState(0);
   const [scoreSaved, setScoreSaved] = useState(false);
   const [timeSpent, setTimeSpent] = useState(0);
+  const [bonusSelectedSquare, setBonusSelectedSquare] = useState<{rank: number; file: number} | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recreationStartTime = useRef<number>(0);
 
@@ -272,6 +273,30 @@ export default function BoardSpin() {
     }
   };
 
+  const handleBonusSquareClick = (rank: number, file: number, board: (string | null)[][]) => {
+    if (phase !== 'bonus') return;
+    
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+    const piece = board[rank][file];
+    const whiteToMove = position?.fen.split(' ')[1] === 'w';
+    
+    if (bonusSelectedSquare) {
+      // Second click - complete the move
+      const fromSquare = files[bonusSelectedSquare.file] + ranks[bonusSelectedSquare.rank];
+      const toSquare = files[file] + ranks[rank];
+      const move = fromSquare + toSquare;
+      setPlayerMove(move);
+      setBonusSelectedSquare(null);
+    } else if (piece) {
+      // First click - select a piece (must be correct color)
+      const isWhitePiece = piece === piece.toUpperCase();
+      if ((whiteToMove && isWhitePiece) || (!whiteToMove && !isWhitePiece)) {
+        setBonusSelectedSquare({ rank, file });
+      }
+    }
+  };
+
   const resetGame = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -292,6 +317,7 @@ export default function BoardSpin() {
     setFinalRotation(0);
     setScoreSaved(false);
     setTimeSpent(0);
+    setBonusSelectedSquare(null);
     recreationStartTime.current = 0;
   };
 
@@ -309,9 +335,10 @@ export default function BoardSpin() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive: boolean = false) => {
+  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive: boolean = false, bonusMode: boolean = false) => {
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+    const whiteToMove = position?.fen.split(' ')[1] === 'w';
     
     return (
       <motion.div 
@@ -330,6 +357,11 @@ export default function BoardSpin() {
               const piece = board[rankIdx][fileIdx];
               const isA1 = file === 'a' && rank === '1';
               const isH8 = file === 'h' && rank === '8';
+              const isBonusSelected = bonusMode && bonusSelectedSquare?.rank === rankIdx && bonusSelectedSquare?.file === fileIdx;
+              const isClickablePiece = bonusMode && piece && (
+                (whiteToMove && piece === piece.toUpperCase()) || 
+                (!whiteToMove && piece !== piece.toUpperCase())
+              );
               
               return (
                 <div
@@ -338,8 +370,14 @@ export default function BoardSpin() {
                     ${isLight ? 'bg-amber-100 dark:bg-amber-200' : 'bg-amber-700 dark:bg-amber-800'}
                     ${interactive ? 'hover:brightness-110' : ''}
                     ${interactive && selectedPiece ? 'hover:ring-2 hover:ring-primary' : ''}
+                    ${bonusMode ? 'hover:brightness-110' : ''}
+                    ${isBonusSelected ? 'ring-4 ring-green-500 ring-inset brightness-110' : ''}
+                    ${bonusMode && isClickablePiece && !isBonusSelected ? 'ring-2 ring-primary/50 ring-inset' : ''}
                   `}
-                  onClick={() => interactive && handleSquareClick(rankIdx, fileIdx)}
+                  onClick={() => {
+                    if (interactive) handleSquareClick(rankIdx, fileIdx);
+                    if (bonusMode) handleBonusSquareClick(rankIdx, fileIdx, board);
+                  }}
                   data-testid={`square-${file}${rank}`}
                 >
                   {/* Corner markers for a1 and h8 - counter-rotate to stay readable */}
@@ -665,7 +703,11 @@ export default function BoardSpin() {
                 </Badge>
               </div>
               
-              {renderBoard(position.board, 0, false)}
+              <p className="text-sm text-muted-foreground">
+                Click a piece to select it, then click the destination square. Or type your move below.
+              </p>
+              
+              {renderBoard(position.board, 0, false, true)}
               
               <div className="flex items-center gap-2 w-full max-w-xs">
                 <input
@@ -676,7 +718,7 @@ export default function BoardSpin() {
                   className="flex-1 px-3 py-2 border rounded-md bg-background"
                   data-testid="input-move"
                 />
-                <Button onClick={handleBonusSubmit} data-testid="button-bonus-submit">
+                <Button onClick={handleBonusSubmit} disabled={!playerMove} data-testid="button-bonus-submit">
                   Submit
                 </Button>
               </div>
