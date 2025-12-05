@@ -18,6 +18,7 @@ interface MatchFoundData {
 
 interface UseWebSocketOptions {
   userId?: string;
+  matchId?: string;
   onMove?: (data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => void;
   onClockSync?: (data: { matchId: string; whiteTime: number; blackTime: number }) => void;
   onMatchFound?: (data: MatchFoundData) => void;
@@ -26,10 +27,11 @@ interface UseWebSocketOptions {
   onRematchRequest?: (data: { matchId: string; from: string }) => void;
   onRematchResponse?: (data: { matchId: string; accepted: boolean; newMatchId?: string }) => void;
   onGameEnd?: (data: { result: string; reason: string }) => void;
+  onPieceTouch?: (data: { matchId: string; square: string }) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions) {
-  const { userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd } = options;
+  const { userId, matchId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd, onPieceTouch } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -146,6 +148,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
               });
             }
             break;
+          case 'opponent_touch':
+            if (onPieceTouch) {
+              onPieceTouch({
+                matchId: message.matchId,
+                square: message.square,
+              });
+            }
+            break;
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
@@ -162,7 +172,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       setIsAuthenticated(false);
       setQueueStatus({ inQueue: false });
     };
-  }, [userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd]);
+  }, [userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd, onPieceTouch]);
 
   const joinQueue = useCallback((timeControl: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN && isAuthenticated) {
@@ -230,6 +240,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
+  const sendPieceTouch = useCallback((square: string | null) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'piece_touch', square }));
+    }
+  }, []);
+
   useEffect(() => {
     if (userId) {
       connect();
@@ -257,5 +273,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
     sendDrawResponse,
     sendRematchRequest,
     sendRematchResponse,
+    sendPieceTouch,
   };
 }

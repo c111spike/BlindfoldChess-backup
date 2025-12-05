@@ -6,6 +6,9 @@ interface ChessBoardProps {
   orientation?: "white" | "black";
   showCoordinates?: boolean;
   highlightedSquares?: string[];
+  touchedSquare?: string | null;
+  lastMoveSquares?: string[];
+  selectedSquare?: string | null;
   onSquareClick?: (square: string) => void;
   className?: string;
 }
@@ -23,10 +26,14 @@ export function ChessBoard({
   orientation = "white",
   showCoordinates = true,
   highlightedSquares = [],
+  touchedSquare = null,
+  lastMoveSquares = [],
+  selectedSquare: externalSelectedSquare = null,
   onSquareClick,
   className = "",
 }: ChessBoardProps) {
-  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const [internalSelectedSquare, setInternalSelectedSquare] = useState<string | null>(null);
+  const selectedSquare = externalSelectedSquare !== null ? externalSelectedSquare : internalSelectedSquare;
 
   const parseFen = (fen: string) => {
     const rows = fen.split(" ")[0].split("/");
@@ -55,7 +62,9 @@ export function ChessBoard({
 
   const handleSquareClick = (file: string, rank: string) => {
     const square = `${file}${rank}`;
-    setSelectedSquare(square);
+    if (externalSelectedSquare === null) {
+      setInternalSelectedSquare(square);
+    }
     onSquareClick?.(square);
   };
 
@@ -76,6 +85,8 @@ export function ChessBoard({
               const piece = board[boardRank]?.[boardFile];
               const isHighlighted = highlightedSquares.includes(square);
               const isSelected = selectedSquare === square;
+              const isOpponentTouched = touchedSquare === square;
+              const isLastMove = lastMoveSquares.includes(square);
 
               return (
                 <div
@@ -87,6 +98,8 @@ export function ChessBoard({
                     ${getSquareColor(fileIndex, rankIndex)}
                     ${isHighlighted ? "ring-2 ring-primary ring-inset" : ""}
                     ${isSelected ? "ring-4 ring-yellow-400 ring-inset" : ""}
+                    ${isOpponentTouched ? "ring-4 ring-orange-500 ring-inset animate-pulse" : ""}
+                    ${isLastMove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-yellow-400/30" : ""}
                     hover-elevate
                   `}
                 >

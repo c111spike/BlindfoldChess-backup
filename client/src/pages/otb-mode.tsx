@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import type { Game } from "@shared/schema";
 
 export default function OTBMode() {
@@ -34,6 +36,10 @@ export default function OTBMode() {
   const [restoredGame, setRestoredGame] = useState(false);
   const [inQueue, setInQueue] = useState(false);
   const [queueType, setQueueType] = useState<string | null>(null);
+  const [opponentTouchedSquare, setOpponentTouchedSquare] = useState<string | null>(null);
+  const [lastMoveSquares, setLastMoveSquares] = useState<string[]>([]);
+  const [showLegalMoves, setShowLegalMoves] = useState(true);
+  const [highlightLastMove, setHighlightLastMove] = useState(true);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -48,8 +54,8 @@ export default function OTBMode() {
     blackTimeRef.current = blackTime;
   }, [game, gameId, whiteTime, blackTime]);
 
-  const handleOpponentMove = useCallback((data: { gameId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
-    if (data.gameId !== gameId) return;
+  const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
+    if (data.matchId !== matchId) return;
     
     const currentGame = gameRef.current;
     if (!currentGame) return;
@@ -59,12 +65,18 @@ export default function OTBMode() {
         throw new Error("Invalid move payload");
       }
       
-      const newGame = new Chess(data.fen);
       currentGame.load(data.fen);
       setFen(data.fen);
       setMoves(prev => [...prev, data.move]);
       setWhiteTime(data.whiteTime);
       setBlackTime(data.blackTime);
+      setOpponentTouchedSquare(null);
+      
+      const history = currentGame.history({ verbose: true });
+      if (history.length > 0) {
+        const lastMove = history[history.length - 1];
+        setLastMoveSquares([lastMove.from, lastMove.to]);
+      }
       
       toast({
         title: "Opponent moved",
@@ -78,12 +90,18 @@ export default function OTBMode() {
         variant: "destructive",
       });
     }
-  }, [gameId, toast]);
+  }, [matchId, toast]);
 
-  const { sendMove } = useWebSocket({
+  const handleOpponentTouch = useCallback((data: { matchId: string; square: string }) => {
+    if (data.matchId !== matchId) return;
+    setOpponentTouchedSquare(data.square);
+  }, [matchId]);
+
+  const { sendMove, sendPieceTouch } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
+    onPieceTouch: handleOpponentTouch,
   });
 
   const createGameMutation = useMutation({
@@ -456,9 +474,11 @@ export default function OTBMode() {
           setMoves(prev => [...prev, move.san]);
           setSelectedSquare(null);
           setLegalMoves([]);
+          setLastMoveSquares([move.from, move.to]);
           
-          if (gameId && matchId) {
-            sendMove(gameId, move.san, newFen, whiteTime, blackTime, increment);
+          if (matchId) {
+            sendMove(matchId, move.san, newFen, whiteTime, blackTime);
+            sendPieceTouch(null);
           }
           
           if (game.isCheckmate()) {
@@ -473,6 +493,9 @@ export default function OTBMode() {
           if (moves.length > 0) {
             setSelectedSquare(square);
             setLegalMoves(moves.map((m: any) => m.to));
+            if (matchId) {
+              sendPieceTouch(square);
+            }
           }
         }
       } catch (e) {
@@ -480,6 +503,9 @@ export default function OTBMode() {
         if (moves.length > 0) {
           setSelectedSquare(square);
           setLegalMoves(moves.map((m: any) => m.to));
+          if (matchId) {
+            sendPieceTouch(square);
+          }
         }
       }
     } else {
@@ -487,6 +513,9 @@ export default function OTBMode() {
       if (moves.length > 0) {
         setSelectedSquare(square);
         setLegalMoves(moves.map((m: any) => m.to));
+        if (matchId) {
+          sendPieceTouch(square);
+        }
       }
     }
   };
@@ -625,9 +654,47 @@ export default function OTBMode() {
                 fen={fen}
                 orientation="white"
                 showCoordinates={true}
-                highlightedSquares={legalMoves}
+                highlightedSquares={showLegalMoves ? legalMoves : []}
+                touchedSquare={opponentTouchedSquare}
+                lastMoveSquares={highlightLastMove ? lastMoveSquares : []}
+                selectedSquare={selectedSquare}
                 onSquareClick={handleSquareClick}
               />
+
+              <Card className="mb-4">
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Training Wheels</span>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="show-legal-moves"
+                          checked={showLegalMoves}
+                          onCheckedChange={setShowLegalMoves}
+                          data-testid="switch-show-legal-moves"
+                        />
+                        <Label htmlFor="show-legal-moves" className="text-sm cursor-pointer">
+                          Legal Moves
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="highlight-last-move"
+                          checked={highlightLastMove}
+                          onCheckedChange={setHighlightLastMove}
+                          data-testid="switch-highlight-last-move"
+                        />
+                        <Label htmlFor="highlight-last-move" className="text-sm cursor-pointer">
+                          Last Move
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               <Card>
                 <CardContent className="py-6">
