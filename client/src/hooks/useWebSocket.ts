@@ -26,6 +26,7 @@ interface MoveData {
   to?: string;
   piece?: string;
   captured?: string;
+  promotion?: string;
 }
 
 interface ArbiterCallData {
@@ -288,7 +289,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     fen: string, 
     whiteTime: number, 
     blackTime: number,
-    otbMoveData?: { from: string; to: string; piece: string; captured?: string }
+    otbMoveData?: { from: string; to: string; piece: string; captured?: string; promotion?: string }
   ) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({

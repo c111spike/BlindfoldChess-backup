@@ -150,7 +150,7 @@ export default function OTBMode() {
     return piece === piece.toUpperCase() ? "white" : "black";
   };
 
-  const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number; from?: string; to?: string; piece?: string; captured?: string }) => {
+  const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number; from?: string; to?: string; piece?: string; captured?: string; promotion?: string }) => {
     if (data.matchId !== matchId) return;
     
     console.log('[OTB] Received opponent message:', data.move);
@@ -176,7 +176,8 @@ export default function OTBMode() {
         const newBoard = prev.map(row => [...row]);
         const piece = newBoard[fromRank][fromFile];
         newBoard[fromRank][fromFile] = null;
-        newBoard[toRank][toFile] = piece;
+        // If there's a promotion piece, use that instead of the original pawn
+        newBoard[toRank][toFile] = data.promotion || piece;
         return newBoard;
       });
       
@@ -761,6 +762,7 @@ export default function OTBMode() {
         to: toSquare,
         piece: originalPiece,
         captured: captured || undefined,
+        promotion: promotedPiece || undefined,
       });
       sendPieceTouch(null);
     }
