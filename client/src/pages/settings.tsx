@@ -232,7 +232,7 @@ export default function Settings() {
                 <div className="space-y-0.5">
                   <Label htmlFor="arbiter">Arbiter Warnings</Label>
                   <p className="text-sm text-muted-foreground">
-                    Receive FIDE-accurate arbiter notifications
+                    Receive OTB-accurate arbiter notifications
                   </p>
                 </div>
                 <Switch

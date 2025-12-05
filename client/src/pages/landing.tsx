@@ -88,7 +88,7 @@ export default function Landing() {
                 </div>
                 <CardTitle className="text-2xl">OTB Tournament Mode</CardTitle>
                 <CardDescription className="text-base">
-                  99% realistic FIDE tournament practice
+                  99% realistic OTB tournament practice
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -98,7 +98,7 @@ export default function Landing() {
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-muted-foreground">Arbiter AI with FIDE-accurate warnings</p>
+                  <p className="text-sm text-muted-foreground">Arbiter AI with OTB-accurate warnings</p>
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
