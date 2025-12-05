@@ -36,7 +36,7 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 
 ### Training Modes
 - **Standard Mode**: Traditional multiplayer chess with simplified time controls (Blitz 3|0, Rapid 15|10).
-- **OTB Tournament Mode**: FIDE-authentic tournament simulation, featuring ready handshakes, manual clock taps, touch-move enforcement, optional touch-capture, king-first castling, and an arbiter warning system.
+- **OTB Tournament Mode**: FIDE-authentic tournament simulation, featuring ready handshakes, manual clock taps, touch-move enforcement, optional touch-capture, king-first castling, touch highlight for opponent (shows which piece opponent touched in real-time), and an arbiter warning system. Training wheels toggles available (highlight last move, show legal moves).
 - **Blindfold Mode**: Memory and visualization training with a unique press-and-hold peek system and progressive difficulty.
 - **Simul Mode**: Multi-board management training, starting with 5 boards per player. Supports playing against bots or humans, and scheduled tournaments.
 - **Simul vs Simul Tournaments**: Structured events where all players in a group play each other simultaneously across multiple boards, with scaling formats for increasing participants.
