@@ -650,6 +650,21 @@ export default function BoardSpin() {
             <CardContent className="flex flex-col items-center gap-4">
               <p className="text-lg">Find the best move for double points!</p>
               
+              {/* Show whose turn it is */}
+              <div className="flex items-center gap-2 text-lg font-medium">
+                <span>Turn:</span>
+                <Badge 
+                  variant="outline" 
+                  className={`text-base px-3 py-1 ${
+                    position.fen.split(' ')[1] === 'w' 
+                      ? 'bg-white text-black border-gray-400' 
+                      : 'bg-gray-800 text-white border-gray-600'
+                  }`}
+                >
+                  {position.fen.split(' ')[1] === 'w' ? 'White to move' : 'Black to move'}
+                </Badge>
+              </div>
+              
               {renderBoard(position.board, 0, false)}
               
               <div className="flex items-center gap-2 w-full max-w-xs">
