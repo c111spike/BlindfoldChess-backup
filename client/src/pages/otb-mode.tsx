@@ -799,11 +799,11 @@ export default function OTBMode() {
 
   return (
     <div className="h-screen flex">
-      <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-        <div className="w-full max-w-3xl space-y-6">
+      <div className="flex-1 flex items-center justify-center p-4 bg-muted/30 overflow-auto">
+        <div className="w-full max-w-2xl space-y-3">
           <div>
-            <h1 className="text-3xl font-bold">OTB Tournament Mode</h1>
-            <p className="text-muted-foreground">Free movement · FIDE-style arbiter disputes</p>
+            <h1 className="text-2xl font-bold">OTB Tournament Mode</h1>
+            <p className="text-sm text-muted-foreground">Free movement · FIDE-style arbiter disputes</p>
           </div>
 
           {!gameStarted ? (
@@ -851,6 +851,22 @@ export default function OTBMode() {
                         <Play className="mr-2 h-4 w-4" />
                         Practice (Solo)
                       </Button>
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <h3 className="text-sm font-semibold mb-3">Game Settings</h3>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="highlight-last-move-pregame" className="text-sm cursor-pointer">
+                          Highlight Last Move
+                        </Label>
+                        <Switch
+                          id="highlight-last-move-pregame"
+                          checked={highlightLastMove}
+                          onCheckedChange={setHighlightLastMove}
+                          data-testid="switch-highlight-last-move"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">Settings cannot be changed during gameplay</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -932,61 +948,37 @@ export default function OTBMode() {
                 onSquareClick={handleSquareClick}
               />
 
-              <Card className="mb-4">
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Settings className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Settings</span>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="highlight-last-move"
-                          checked={highlightLastMove}
-                          onCheckedChange={setHighlightLastMove}
-                          data-testid="switch-highlight-last-move"
-                        />
-                        <Label htmlFor="highlight-last-move" className="text-sm cursor-pointer">
-                          Last Move
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
               <Card>
-                <CardContent className="py-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-3">
+                <CardContent className="py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-muted-foreground">White</span>
-                        <div className="flex items-center gap-2">
-                          {playerColor === "white" && <Badge variant="outline" className="text-xs">You</Badge>}
+                        <span className="text-xs font-medium text-muted-foreground">White</span>
+                        <div className="flex items-center gap-1">
+                          {playerColor === "white" && <Badge variant="outline" className="text-xs py-0">You</Badge>}
                           {activeColor === "white" && (
-                            <Badge variant="default" className="text-xs">Active</Badge>
+                            <Badge variant="default" className="text-xs py-0">Active</Badge>
                           )}
                         </div>
                       </div>
-                      <div className={`text-5xl font-mono font-bold ${
+                      <div className={`text-4xl font-mono font-bold ${
                         activeColor === "white" ? "text-foreground" : "text-muted-foreground"
                       }`} data-testid="text-white-time">
                         {formatTime(whiteTime)}
                       </div>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-muted-foreground">Black</span>
-                        <div className="flex items-center gap-2">
-                          {playerColor === "black" && <Badge variant="outline" className="text-xs">You</Badge>}
+                        <span className="text-xs font-medium text-muted-foreground">Black</span>
+                        <div className="flex items-center gap-1">
+                          {playerColor === "black" && <Badge variant="outline" className="text-xs py-0">You</Badge>}
                           {activeColor === "black" && (
-                            <Badge variant="default" className="text-xs">Active</Badge>
+                            <Badge variant="default" className="text-xs py-0">Active</Badge>
                           )}
                         </div>
                       </div>
-                      <div className={`text-5xl font-mono font-bold ${
+                      <div className={`text-4xl font-mono font-bold ${
                         activeColor === "black" ? "text-foreground" : "text-muted-foreground"
                       }`} data-testid="text-black-time">
                         {formatTime(blackTime)}
@@ -994,18 +986,18 @@ export default function OTBMode() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+                  <div className="mt-3 flex items-center justify-center gap-3 text-xs">
                     <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">Your violations:</span>
-                      <Badge variant={myViolations > 0 ? "destructive" : "secondary"}>{myViolations}/2</Badge>
+                      <span className="text-muted-foreground">Violations:</span>
+                      <Badge variant={myViolations > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myViolations}/2</Badge>
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-muted-foreground">False claims:</span>
-                      <Badge variant={myFalseClaims > 0 ? "destructive" : "secondary"}>{myFalseClaims}/2</Badge>
+                      <Badge variant={myFalseClaims > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myFalseClaims}/2</Badge>
                     </div>
                   </div>
 
-                  <div className="mt-4 flex gap-3">
+                  <div className="mt-3 flex gap-2">
                     <Button variant="outline" className="flex-1" onClick={handleOfferDraw} data-testid="button-offer-draw">
                       <HandshakeIcon className="mr-2 h-4 w-4" />
                       Offer Draw
