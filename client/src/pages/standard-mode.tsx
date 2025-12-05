@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon } from "lucide-react";
+import { PromotionDialog } from "@/components/promotion-dialog";
 import type { Game, Rating } from "@shared/schema";
 
 const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classical' => {
@@ -84,6 +85,11 @@ export default function StandardMode() {
   const [isPeeking, setIsPeeking] = useState(false);
   const [peekCountdown, setPeekCountdown] = useState<number>(0);
   const peekTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const [pendingPromotion, setPendingPromotion] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -724,16 +730,75 @@ export default function StandardMode() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const isPromotionMove = (from: string, to: string): boolean => {
+    if (!game) return false;
+    const piece = game.get(from as any);
+    if (!piece || piece.type !== 'p') return false;
+    const toRank = to[1];
+    return (piece.color === 'w' && toRank === '8') || (piece.color === 'b' && toRank === '1');
+  };
+
+  const executeMove = async (from: string, to: string, promotion: "q" | "r" | "b" | "n" = "q") => {
+    if (!game) return;
+    
+    try {
+      const move = game.move({
+        from,
+        to,
+        promotion,
+      });
+
+      console.log('[executeMove] Move result:', move);
+
+      if (move) {
+        const newFen = game.fen();
+        console.log('[executeMove] New FEN:', newFen);
+        console.log('[executeMove] Move SAN:', move.san);
+        
+        setFen(newFen);
+        
+        const newMoves = [...movesRef.current, move.san];
+        console.log('[executeMove] New moves array:', newMoves);
+        setMoves(newMoves);
+        movesRef.current = newMoves;
+        
+        setSelectedSquare(null);
+        setLegalMoves([]);
+        
+        console.log('[executeMove] gameId:', gameId, 'matchId:', matchId);
+        if (gameId && matchId) {
+          console.log('[executeMove] Sending move via WebSocket');
+          sendMove(matchId, move.san, newFen, whiteTime, blackTime);
+        }
+        
+        if (game.isCheckmate()) {
+          await handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
+        } else if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
+          await handleGameEnd("draw");
+        } else {
+          saveGameState();
+        }
+      }
+    } catch (e) {
+      console.error('[executeMove] Move error:', e);
+    }
+  };
+
+  const handlePromotionSelect = async (piece: "q" | "r" | "b" | "n") => {
+    if (!pendingPromotion) return;
+    await executeMove(pendingPromotion.from, pendingPromotion.to, piece);
+    setPendingPromotion(null);
+  };
+
   const handleSquareClick = async (square: string) => {
     console.log('[handleSquareClick] Square clicked:', square);
     console.log('[handleSquareClick] game:', !!game, 'gameStarted:', gameStarted);
     
-    if (!game || !gameStarted) {
-      console.log('[handleSquareClick] Skipping - no game or not started');
+    if (!game || !gameStarted || pendingPromotion) {
+      console.log('[handleSquareClick] Skipping - no game, not started, or pending promotion');
       return;
     }
 
-    // Check if it's the player's turn
     const currentTurn = game.turn();
     const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
     
@@ -744,53 +809,22 @@ export default function StandardMode() {
 
     if (selectedSquare) {
       console.log('[handleSquareClick] Selected square exists:', selectedSquare, '-> attempting move to:', square);
-      try {
-        const move = game.move({
-          from: selectedSquare,
-          to: square,
-          promotion: "q",
-        });
-
-        console.log('[handleSquareClick] Move result:', move);
-
-        if (move) {
-          const newFen = game.fen();
-          console.log('[handleSquareClick] New FEN:', newFen);
-          console.log('[handleSquareClick] Move SAN:', move.san);
-          
-          setFen(newFen);
-          
-          const newMoves = [...movesRef.current, move.san];
-          console.log('[handleSquareClick] New moves array:', newMoves);
-          setMoves(newMoves);
-          movesRef.current = newMoves;
-          
-          setSelectedSquare(null);
-          setLegalMoves([]);
-          
-          console.log('[handleSquareClick] gameId:', gameId, 'matchId:', matchId);
-          if (gameId && matchId) {
-            console.log('[handleSquareClick] Sending move via WebSocket');
-            sendMove(matchId, move.san, newFen, whiteTime, blackTime);
-          }
-          
-          if (game.isCheckmate()) {
-            await handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
-          } else if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
-            await handleGameEnd("draw");
-          } else {
-            saveGameState();
-          }
+      
+      const legalMovesForPiece = game.moves({ square: selectedSquare as any, verbose: true });
+      const isLegalMove = legalMovesForPiece.some((m: any) => m.to === square);
+      
+      if (isLegalMove && isPromotionMove(selectedSquare, square)) {
+        if (userSettings?.autoQueen) {
+          await executeMove(selectedSquare, square, "q");
         } else {
-          console.log('[handleSquareClick] Move failed - selecting new square');
-          const moves = game.moves({ square: square as any, verbose: true });
-          if (moves.length > 0) {
-            setSelectedSquare(square);
-            setLegalMoves(moves.map((m: any) => m.to));
-          }
+          setPendingPromotion({ from: selectedSquare, to: square });
         }
-      } catch (e) {
-        console.error('[handleSquareClick] Move error:', e);
+        return;
+      }
+      
+      await executeMove(selectedSquare, square);
+      
+      if (!game.get(square as any) || game.get(selectedSquare as any)) {
         const moves = game.moves({ square: square as any, verbose: true });
         if (moves.length > 0) {
           setSelectedSquare(square);
@@ -1364,6 +1398,12 @@ export default function StandardMode() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PromotionDialog
+        open={!!pendingPromotion}
+        color={playerColor}
+        onSelect={handlePromotionSelect}
+      />
     </div>
   );
 }
