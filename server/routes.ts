@@ -907,8 +907,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "FEN is required" });
       }
       
+      // Parse FEN to get turn and board
+      const fenParts = fen.split(' ');
+      const boardPart = fenParts[0];
+      const turn = fenParts[1]; // 'w' or 'b'
+      
+      console.log(`[BoardSpin] Getting best move for FEN: ${fen}`);
+      console.log(`[BoardSpin] Turn: ${turn === 'w' ? 'White' : 'Black'}`);
+      
       const result = await stockfishService.getBestMove(fen, 15);
-      res.json(result);
+      
+      // Validate that the best move is for the correct color
+      const fromSquare = result.bestMove.substring(0, 2);
+      const fromFile = fromSquare.charCodeAt(0) - 'a'.charCodeAt(0);
+      const fromRank = 8 - parseInt(fromSquare[1]);
+      
+      // Parse board to find piece on from square
+      const rows = boardPart.split('/');
+      let pieceOnFromSquare = '';
+      let fileIdx = 0;
+      for (const char of rows[fromRank]) {
+        if (/\d/.test(char)) {
+          fileIdx += parseInt(char);
+        } else {
+          if (fileIdx === fromFile) {
+            pieceOnFromSquare = char;
+            break;
+          }
+          fileIdx++;
+        }
+      }
+      
+      const pieceIsWhite = pieceOnFromSquare === pieceOnFromSquare.toUpperCase();
+      const turnIsWhite = turn === 'w';
+      
+      console.log(`[BoardSpin] Best move: ${result.bestMove}, Piece: ${pieceOnFromSquare}, PieceIsWhite: ${pieceIsWhite}, TurnIsWhite: ${turnIsWhite}`);
+      
+      if (pieceIsWhite !== turnIsWhite) {
+        console.error(`[BoardSpin] MISMATCH: Turn is ${turn} but piece ${pieceOnFromSquare} is ${pieceIsWhite ? 'white' : 'black'}`);
+      }
+      
+      res.json({ ...result, turn });
     } catch (error) {
       console.error("Error getting best move:", error);
       res.status(500).json({ message: "Failed to get best move" });

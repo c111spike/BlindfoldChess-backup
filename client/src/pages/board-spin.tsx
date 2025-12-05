@@ -215,7 +215,9 @@ export default function BoardSpin() {
       if (result.accuracy === 100) {
         // Get best move from Stockfish
         const bestMoveResponse = await apiRequest('POST', '/api/boardspin/bestmove', { fen: position.fen });
-        const bestMoveResult = await bestMoveResponse.json() as { bestMove: string };
+        const bestMoveResult = await bestMoveResponse.json() as { bestMove: string; turn?: string };
+        console.log(`[BoardSpin Frontend] Best move: ${bestMoveResult.bestMove}, Turn from API: ${bestMoveResult.turn}`);
+        console.log(`[BoardSpin Frontend] FEN turn: ${position.fen.split(' ')[1]}`);
         setBestMove(bestMoveResult.bestMove);
         setPhase('bonus');
       } else {

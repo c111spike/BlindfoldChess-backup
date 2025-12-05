@@ -8,6 +8,18 @@ interface DifficultyConfig {
   multiplier: number;
 }
 
+// Validate that a FEN is legal and the side to move has at least one legal move
+function isValidPosition(fen: string): boolean {
+  try {
+    const chess = new Chess(fen);
+    // Check if position is valid and has legal moves
+    const moves = chess.moves();
+    return moves.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
   'beginner': {
     minPieces: 3,
@@ -132,6 +144,18 @@ function generateRandomPosition(targetPieces: number): string {
   return fen;
 }
 
+// Generate a valid random position with retry logic
+function generateValidRandomPosition(targetPieces: number, maxAttempts: number = 20): string {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const fen = generateRandomPosition(targetPieces);
+    if (isValidPosition(fen)) {
+      return fen;
+    }
+  }
+  // Fallback to a simple known-valid position
+  return '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1';
+}
+
 function getRandomRotation(config: DifficultyConfig): number {
   const possibleAngles: number[] = [];
   
@@ -210,12 +234,14 @@ export function generatePosition(difficulty: string): GeneratedPosition {
   }
   
   const targetPieces = getRandomInt(config.minPieces, config.maxPieces);
-  const fen = generateRandomPosition(targetPieces);
+  const fen = generateValidRandomPosition(targetPieces);
   const board = fenToBoard(fen);
   const rotation = getRandomRotation(config);
   const pieceCount = countPieces(fen);
   const pointsPerPiece = 10;
   const maxScore = pieceCount * pointsPerPiece * config.multiplier;
+  
+  console.log(`[BoardSpin] Generated position: ${fen}, Turn: ${fen.split(' ')[1] === 'w' ? 'White' : 'Black'}`);
   
   return {
     fen,
