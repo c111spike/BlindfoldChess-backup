@@ -277,13 +277,41 @@ export default function OTBMode() {
     setTimeout(() => setArbiterResult(null), 4000);
   }, [matchId, user?.id, playerColor, moves, toast]);
 
-  const { sendMove, sendPieceTouch, sendArbiterCall, sendArbiterRuling, joinMatch, isConnected, isAuthenticated } = useWebSocket({
+  const handleOpponentGameEnd = useCallback((data: { result: string; reason: string }) => {
+    console.log('[OTB] Opponent ended game:', data);
+    
+    if (saveIntervalRef.current) {
+      clearInterval(saveIntervalRef.current);
+      saveIntervalRef.current = null;
+    }
+    
+    if (pendingCheckmateRef.current) {
+      clearTimeout(pendingCheckmateRef.current);
+      pendingCheckmateRef.current = null;
+    }
+    
+    toast({
+      title: "Game Over",
+      description: data.reason,
+    });
+    
+    setGameStarted(false);
+    setPendingCheckmate(null);
+    
+    // Invalidate queries to refresh data
+    queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+  }, [toast]);
+
+  const { sendMove, sendPieceTouch, sendArbiterCall, sendArbiterRuling, sendGameEnd, joinMatch, isConnected, isAuthenticated } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
     onPieceTouch: handleOpponentTouch,
     onArbiterCall: handleArbiterCall,
     onArbiterRuling: handleArbiterRuling,
+    onGameEnd: handleOpponentGameEnd,
   });
 
   useEffect(() => {
@@ -842,11 +870,22 @@ export default function OTBMode() {
   };
 
   const handleResign = () => {
-    handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
+    const result = playerColor === "white" ? "black_win" : "white_win";
+    handleGameEnd(result);
+    
+    // Notify opponent via WebSocket
+    if (matchId) {
+      sendGameEnd(matchId, result, "Opponent resigned");
+    }
   };
 
   const handleOfferDraw = () => {
     handleGameEnd("draw");
+    
+    // Notify opponent via WebSocket
+    if (matchId) {
+      sendGameEnd(matchId, "draw", "Game drawn by agreement");
+    }
   };
 
   useEffect(() => {

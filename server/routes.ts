@@ -1564,6 +1564,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
             notifyBothPlayers(false);
             return;
           }
+        } else if (data.type === 'game_end') {
+          // Player resigned or other game-ending action
+          const matchId = data.matchId || ws.matchId;
+          const userId = ws.userId;
+          const result = data.result;
+          const reason = data.reason;
+          
+          console.log(`[WS game_end] User ${userId} ended game in match ${matchId}: result=${result}, reason=${reason}`);
+          
+          if (!matchId || !userId) {
+            console.log('[WS game_end] Missing matchId or userId');
+            return;
+          }
+          
+          // Get match to find opponent
+          const match = await storage.getMatch(matchId);
+          if (!match) {
+            console.log('[WS game_end] Match not found:', matchId);
+            return;
+          }
+          
+          // Notify opponent of game end
+          const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+          const opponentWs = userConnections.get(opponentId);
+          
+          console.log(`[WS game_end] Notifying opponent ${opponentId}...`);
+          
+          if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+            opponentWs.send(JSON.stringify({
+              type: 'game_end',
+              matchId,
+              result,
+              reason,
+            }));
+            console.log(`[WS game_end] Sent game_end to opponent ${opponentId}`);
+          } else {
+            console.log(`[WS game_end] Opponent ${opponentId} not connected`);
+          }
         }
       } catch (error) {
         console.error('WebSocket error:', error);

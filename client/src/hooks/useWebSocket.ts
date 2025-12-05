@@ -377,6 +377,17 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
+  const sendGameEnd = useCallback((matchId: string, result: string, reason: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'game_end', 
+        matchId, 
+        result,
+        reason,
+      }));
+    }
+  }, []);
+
   useEffect(() => {
     if (userId) {
       connect();
@@ -407,5 +418,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
     sendPieceTouch,
     sendArbiterCall,
     sendArbiterRuling,
+    sendGameEnd,
   };
 }
