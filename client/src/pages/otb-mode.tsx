@@ -258,7 +258,7 @@ export default function OTBMode() {
     setTimeout(() => setArbiterResult(null), 4000);
   }, [matchId, user?.id, playerColor, moves, toast]);
 
-  const { sendMove, sendPieceTouch, sendArbiterCall, sendArbiterRuling } = useWebSocket({
+  const { sendMove, sendPieceTouch, sendArbiterCall, sendArbiterRuling, joinMatch, isConnected, isAuthenticated } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
@@ -266,6 +266,13 @@ export default function OTBMode() {
     onArbiterCall: handleArbiterCall,
     onArbiterRuling: handleArbiterRuling,
   });
+
+  useEffect(() => {
+    if (matchId && isConnected && isAuthenticated) {
+      console.log('[OTB] Joining match room:', matchId);
+      joinMatch(matchId);
+    }
+  }, [matchId, isConnected, isAuthenticated, joinMatch]);
 
   const createGameMutation = useMutation({
     mutationFn: async (data: any) => {
