@@ -339,25 +339,36 @@ export default function BoardSpin() {
                     ${interactive ? 'hover:brightness-110' : ''}
                     ${interactive && selectedPiece ? 'hover:ring-2 hover:ring-primary' : ''}
                   `}
-                  style={{ transform: `rotate(${-rotation}deg)` }}
                   onClick={() => interactive && handleSquareClick(rankIdx, fileIdx)}
                   data-testid={`square-${file}${rank}`}
                 >
-                  {/* Corner markers for a1 and h8 */}
+                  {/* Corner markers for a1 and h8 - counter-rotate to stay readable */}
                   {isA1 && (
-                    <span className="absolute bottom-0.5 left-0.5 text-[10px] font-bold text-red-600 dark:text-red-500 bg-white/70 dark:bg-black/50 px-0.5 rounded" data-testid="marker-a1">
+                    <span 
+                      className="absolute bottom-0.5 left-0.5 text-[10px] font-bold text-red-600 dark:text-red-500 bg-white/70 dark:bg-black/50 px-0.5 rounded" 
+                      style={{ transform: `rotate(${-rotation}deg)` }}
+                      data-testid="marker-a1"
+                    >
                       a1
                     </span>
                   )}
                   {isH8 && (
-                    <span className="absolute top-0.5 right-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-white/70 dark:bg-black/50 px-0.5 rounded" data-testid="marker-h8">
+                    <span 
+                      className="absolute top-0.5 right-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-white/70 dark:bg-black/50 px-0.5 rounded" 
+                      style={{ transform: `rotate(${-rotation}deg)` }}
+                      data-testid="marker-h8"
+                    >
                       h8
                     </span>
                   )}
+                  {/* Pieces counter-rotate to stay upright */}
                   {piece && (
-                    <span className={`text-2xl sm:text-3xl md:text-4xl select-none
-                      ${piece === piece.toUpperCase() ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : 'text-gray-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.5)]'}
-                    `}>
+                    <span 
+                      className={`text-2xl sm:text-3xl md:text-4xl select-none
+                        ${piece === piece.toUpperCase() ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : 'text-gray-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.5)]'}
+                      `}
+                      style={{ transform: `rotate(${-rotation}deg)` }}
+                    >
                       {PIECE_UNICODE[piece]}
                     </span>
                   )}
