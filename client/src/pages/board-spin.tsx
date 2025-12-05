@@ -279,14 +279,17 @@ export default function BoardSpin() {
     if (phase !== 'bonus') return;
     
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-    const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+    // Board convention: board[0] = rank 1, board[7] = rank 8
+    // So chess rank = boardRank + 1
     const piece = board[rank][file];
     const whiteToMove = position?.fen.split(' ')[1] === 'w';
     
     if (bonusSelectedSquare) {
       // Second click - complete the move
-      const fromSquare = files[bonusSelectedSquare.file] + ranks[bonusSelectedSquare.rank];
-      const toSquare = files[file] + ranks[rank];
+      const fromChessRank = bonusSelectedSquare.rank + 1;
+      const toChessRank = rank + 1;
+      const fromSquare = files[bonusSelectedSquare.file] + fromChessRank;
+      const toSquare = files[file] + toChessRank;
       const move = fromSquare + toSquare;
       setPlayerMove(move);
       setBonusSelectedSquare(null);
@@ -356,10 +359,14 @@ export default function BoardSpin() {
           {ranks.map((rank, rankIdx) => (
             files.map((file, fileIdx) => {
               const isLight = (rankIdx + fileIdx) % 2 === 0;
-              const piece = board[rankIdx][fileIdx];
+              // Board array: board[0] = rank 1, board[7] = rank 8
+              // Visual: rankIdx 0 = rank 8 (top), rankIdx 7 = rank 1 (bottom)
+              // So we need to flip: actualRank = 7 - rankIdx
+              const actualRank = 7 - rankIdx;
+              const piece = board[actualRank][fileIdx];
               const isA1 = file === 'a' && rank === '1';
               const isH8 = file === 'h' && rank === '8';
-              const isBonusSelected = bonusMode && bonusSelectedSquare?.rank === rankIdx && bonusSelectedSquare?.file === fileIdx;
+              const isBonusSelected = bonusMode && bonusSelectedSquare?.rank === actualRank && bonusSelectedSquare?.file === fileIdx;
               const isClickablePiece = bonusMode && piece && (
                 (whiteToMove && piece === piece.toUpperCase()) || 
                 (!whiteToMove && piece !== piece.toUpperCase())
@@ -377,8 +384,8 @@ export default function BoardSpin() {
                     ${bonusMode && isClickablePiece && !isBonusSelected ? 'ring-2 ring-primary/50 ring-inset' : ''}
                   `}
                   onClick={() => {
-                    if (interactive) handleSquareClick(rankIdx, fileIdx);
-                    if (bonusMode) handleBonusSquareClick(rankIdx, fileIdx, board);
+                    if (interactive) handleSquareClick(actualRank, fileIdx);
+                    if (bonusMode) handleBonusSquareClick(actualRank, fileIdx, board);
                   }}
                   data-testid={`square-${file}${rank}`}
                 >
