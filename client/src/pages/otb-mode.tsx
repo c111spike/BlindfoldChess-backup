@@ -241,25 +241,29 @@ export default function OTBMode() {
     setBlackTime(prev => prev + data.timeAdjustment.black);
     
     if (data.ruling === "illegal") {
+      // Reset the board for BOTH players when a move is ruled illegal
+      if (moves.length > 0) {
+        const lastMove = moves[moves.length - 1];
+        const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
+        const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
+        
+        setBoardState(prev => {
+          const newBoard = prev.map(row => [...row]);
+          newBoard[fromRank][fromFile] = lastMove.piece;
+          newBoard[toRank][toFile] = lastMove.captured || null;
+          return newBoard;
+        });
+        
+        setMoves(prev => prev.slice(0, -1));
+        setLastMoveSquares([]);
+        setActiveColor(prev => prev === "white" ? "black" : "white");
+        setClockTurn(prev => prev === "white" ? "black" : "white");
+        setHasMadeMove(false);
+      }
+      
       if (data.violatorId === user?.id) {
         setMyViolations(prev => prev + 1);
         setArbiterResult({ type: "illegal", message: "Your move was illegal! Opponent gains 2 minutes." });
-        
-        if (moves.length > 0) {
-          const lastMove = moves[moves.length - 1];
-          const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
-          const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
-          
-          setBoardState(prev => {
-            const newBoard = prev.map(row => [...row]);
-            newBoard[fromRank][fromFile] = lastMove.piece;
-            newBoard[toRank][toFile] = lastMove.captured || null;
-            return newBoard;
-          });
-          
-          setMoves(prev => prev.slice(0, -1));
-          setActiveColor(prev => prev === "white" ? "black" : "white");
-        }
       } else {
         setOpponentViolations(prev => prev + 1);
         setArbiterResult({ type: "illegal", message: "Opponent's move was illegal! You gain 2 minutes." });
