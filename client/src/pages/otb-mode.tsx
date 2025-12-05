@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { PromotionDialog } from "@/components/promotion-dialog";
 import type { Game } from "@shared/schema";
 
 const INITIAL_BOARD = [
@@ -83,6 +84,16 @@ export default function OTBMode() {
   const [playerRating, setPlayerRating] = useState<number>(1200);
   const [clockTurn, setClockTurn] = useState<"white" | "black">("white");
   const [hasMadeMove, setHasMadeMove] = useState(false);
+  const [pendingPromotion, setPendingPromotion] = useState<{
+    from: string;
+    to: string;
+    fromRank: number;
+    fromFile: number;
+    toRank: number;
+    toFile: number;
+    piece: string;
+    captured: string | null;
+  } | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -699,13 +710,88 @@ export default function OTBMode() {
     });
   };
 
+  const isPawnPromotion = (piece: string | null, toRank: number): boolean => {
+    if (!piece) return false;
+    const isPawn = piece.toLowerCase() === 'p';
+    if (!isPawn) return false;
+    const isWhitePawn = piece === 'P';
+    return (isWhitePawn && toRank === 0) || (!isWhitePawn && toRank === 7);
+  };
+
+  const completeMove = (
+    fromSquare: string,
+    toSquare: string,
+    fromRank: number,
+    fromFile: number,
+    toRank: number,
+    toFile: number,
+    originalPiece: string,
+    captured: string | null,
+    promotedPiece?: string
+  ) => {
+    const newBoard = boardState.map(row => [...row]);
+    newBoard[fromRank][fromFile] = null;
+    newBoard[toRank][toFile] = promotedPiece || originalPiece;
+    setBoardState(newBoard);
+    
+    const promotionSuffix = promotedPiece ? `=${promotedPiece.toUpperCase()}` : '';
+    const moveNotation = `${originalPiece.toUpperCase()}${fromSquare}-${toSquare}${captured ? 'x' + captured.toUpperCase() : ''}${promotionSuffix}`;
+    const newMove: MoveRecord = {
+      from: fromSquare,
+      to: toSquare,
+      piece: originalPiece,
+      captured: captured || undefined,
+      notation: moveNotation,
+      timestamp: Date.now(),
+    };
+    
+    setMoves(prev => [...prev, newMove]);
+    setSelectedSquare(null);
+    setLastMoveSquares([fromSquare, toSquare]);
+    
+    if (matchId) {
+      setHasMadeMove(true);
+    }
+    
+    const newFen = boardToFen(newBoard, activeColor === "white" ? "black" : "white");
+    
+    if (matchId) {
+      sendMove(matchId, moveNotation, newFen, whiteTime, blackTime, {
+        from: fromSquare,
+        to: toSquare,
+        piece: originalPiece,
+        captured: captured || undefined,
+      });
+      sendPieceTouch(null);
+    }
+    
+    if (captured?.toLowerCase() === "k") {
+      setPendingCheckmate({
+        winner: captured === "K" ? "black" : "white",
+        countdown: 5,
+      });
+    }
+    
+    saveGameState();
+  };
+
+  const handlePromotionSelect = (promotionPiece: "q" | "r" | "b" | "n") => {
+    if (!pendingPromotion) return;
+    
+    const { from, to, fromRank, fromFile, toRank, toFile, piece, captured } = pendingPromotion;
+    const isWhite = piece === 'P';
+    const promotedPiece = isWhite ? promotionPiece.toUpperCase() : promotionPiece.toLowerCase();
+    
+    completeMove(from, to, fromRank, fromFile, toRank, toFile, piece, captured, promotedPiece);
+    setPendingPromotion(null);
+  };
+
   const handleSquareClick = (square: string) => {
-    if (!gameStarted || arbiterPending || pendingCheckmate) return;
+    if (!gameStarted || arbiterPending || pendingCheckmate || pendingPromotion) return;
     
     const isMyTurn = activeColor === playerColor;
     if (!isMyTurn && matchId) return;
     
-    // In OTB mode, only allow one move per clock turn
     if (hasMadeMove && matchId) {
       toast({
         title: "Press clock first",
@@ -734,51 +820,23 @@ export default function OTBMode() {
         return;
       }
       
-      const newBoard = boardState.map(row => [...row]);
-      const captured = newBoard[rank][file];
-      newBoard[fromRank][fromFile] = null;
-      newBoard[rank][file] = movingPiece;
-      setBoardState(newBoard);
+      const captured = boardState[rank][file];
       
-      const moveNotation = `${movingPiece?.toUpperCase()}${selectedSquare}-${square}${captured ? 'x' + captured.toUpperCase() : ''}`;
-      const newMove: MoveRecord = {
-        from: selectedSquare,
-        to: square,
-        piece: movingPiece || "?",
-        captured: captured || undefined,
-        notation: moveNotation,
-        timestamp: Date.now(),
-      };
-      
-      setMoves(prev => [...prev, newMove]);
-      setSelectedSquare(null);
-      setLastMoveSquares([selectedSquare, square]);
-      
-      // Mark that player has made a move this turn (must press clock before making another)
-      if (matchId) {
-        setHasMadeMove(true);
-      }
-      
-      const newFen = boardToFen(newBoard, activeColor === "white" ? "black" : "white");
-      
-      if (matchId) {
-        sendMove(matchId, moveNotation, newFen, whiteTime, blackTime, {
+      if (isPawnPromotion(movingPiece, rank)) {
+        setPendingPromotion({
           from: selectedSquare,
           to: square,
-          piece: movingPiece || "?",
-          captured: captured || undefined,
+          fromRank,
+          fromFile,
+          toRank: rank,
+          toFile: file,
+          piece: movingPiece!,
+          captured,
         });
-        sendPieceTouch(null);
+        return;
       }
       
-      if (captured?.toLowerCase() === "k") {
-        setPendingCheckmate({
-          winner: captured === "K" ? "black" : "white",
-          countdown: 5,
-        });
-      }
-      
-      saveGameState();
+      completeMove(selectedSquare, square, fromRank, fromFile, rank, file, movingPiece!, captured);
     } else {
       if (pieceOnSquare && pieceColor === activeColor) {
         setSelectedSquare(square);
@@ -1200,6 +1258,12 @@ export default function OTBMode() {
           </div>
         </div>
       )}
+
+      <PromotionDialog
+        open={!!pendingPromotion}
+        color={activeColor}
+        onSelect={handlePromotionSelect}
+      />
     </div>
   );
 }
