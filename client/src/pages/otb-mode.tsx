@@ -81,6 +81,7 @@ export default function OTBMode() {
   const [opponentName, setOpponentName] = useState<string>("Opponent");
   const [opponentRating, setOpponentRating] = useState<number>(1200);
   const [playerRating, setPlayerRating] = useState<number>(1200);
+  const [clockTurn, setClockTurn] = useState<"white" | "black">("white");
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -161,7 +162,6 @@ export default function OTBMode() {
       }]);
       
       setLastMoveSquares([data.from, data.to]);
-      setActiveColor(prev => prev === "white" ? "black" : "white");
       
       if (data.captured?.toLowerCase() === "k") {
         setPendingCheckmate({
@@ -385,6 +385,7 @@ export default function OTBMode() {
           const assignedColor = response.game.playerColor === "white" ? "white" : "black";
           setPlayerColor(assignedColor);
           setActiveColor("white");
+          setClockTurn("white");
           
           setWhiteTime(response.game.whiteTime || 300);
           setBlackTime(response.game.blackTime || 300);
@@ -513,7 +514,7 @@ export default function OTBMode() {
   useEffect(() => {
     if (gameStarted && !pendingCheckmate && !arbiterPending) {
       const timer = setInterval(() => {
-        if (activeColor === "white") {
+        if (clockTurn === "white") {
           setWhiteTime((t) => {
             const newTime = Math.max(0, t - 1);
             if (newTime === 0 && t > 0) {
@@ -534,7 +535,7 @@ export default function OTBMode() {
 
       return () => clearInterval(timer);
     }
-  }, [gameStarted, activeColor, handleGameEnd, pendingCheckmate, arbiterPending]);
+  }, [gameStarted, clockTurn, handleGameEnd, pendingCheckmate, arbiterPending]);
 
   useEffect(() => {
     if (gameStarted && gameId) {
@@ -560,16 +561,17 @@ export default function OTBMode() {
   const handleClockPress = useCallback(() => {
     if (!gameStarted || arbiterPending || pendingCheckmate) return;
 
-    if (activeColor === "white") {
+    if (clockTurn === "white") {
       setWhiteTime((t) => t + increment);
     } else {
       setBlackTime((t) => t + increment);
     }
 
-    const newActiveColor = activeColor === "white" ? "black" : "white";
-    setActiveColor(newActiveColor);
+    const newClockTurn = clockTurn === "white" ? "black" : "white";
+    setClockTurn(newClockTurn);
+    setActiveColor(newClockTurn);
     setClockPresses(clockPresses + 1);
-  }, [gameStarted, activeColor, increment, clockPresses, arbiterPending, pendingCheckmate]);
+  }, [gameStarted, clockTurn, increment, clockPresses, arbiterPending, pendingCheckmate]);
 
   const handleStartGame = () => {
     const minutes = parseInt(timeControl);
@@ -587,6 +589,7 @@ export default function OTBMode() {
     setMoves([]);
     setActiveColor("white");
     setPlayerColor("white");
+    setClockTurn("white");
     setClockPresses(0);
     setMyViolations(0);
     setOpponentViolations(0);
@@ -672,10 +675,9 @@ export default function OTBMode() {
           winner: captured === "K" ? "black" : "white",
           countdown: 5,
         });
-      } else {
-        setActiveColor(activeColor === "white" ? "black" : "white");
-        saveGameState();
       }
+      
+      saveGameState();
     } else {
       if (pieceOnSquare && pieceColor === activeColor) {
         setSelectedSquare(square);
@@ -951,7 +953,7 @@ export default function OTBMode() {
               )}
 
               {/* Opponent timer (top) */}
-              <Card className={`${activeColor !== playerColor ? "ring-2 ring-primary" : ""}`}>
+              <Card className={`${clockTurn !== playerColor ? "ring-2 ring-primary" : ""}`}>
                 <CardContent className="py-2 px-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -960,7 +962,7 @@ export default function OTBMode() {
                       <span className="text-xs text-muted-foreground">({opponentRating})</span>
                     </div>
                     <div className={`text-2xl font-mono font-bold ${
-                      activeColor !== playerColor ? "text-foreground" : "text-muted-foreground"
+                      clockTurn !== playerColor ? "text-foreground" : "text-muted-foreground"
                     }`} data-testid={playerColor === "white" ? "text-black-time" : "text-white-time"}>
                       {formatTime(playerColor === "white" ? blackTime : whiteTime)}
                     </div>
@@ -980,7 +982,7 @@ export default function OTBMode() {
               />
 
               {/* Player timer (bottom) */}
-              <Card className={`${activeColor === playerColor ? "ring-2 ring-primary" : ""}`}>
+              <Card className={`${clockTurn === playerColor ? "ring-2 ring-primary" : ""}`}>
                 <CardContent className="py-2 px-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -990,7 +992,7 @@ export default function OTBMode() {
                       <Badge variant="outline" className="text-xs py-0">You</Badge>
                     </div>
                     <div className={`text-2xl font-mono font-bold ${
-                      activeColor === playerColor ? "text-foreground" : "text-muted-foreground"
+                      clockTurn === playerColor ? "text-foreground" : "text-muted-foreground"
                     }`} data-testid={playerColor === "white" ? "text-white-time" : "text-black-time"}>
                       {formatTime(playerColor === "white" ? whiteTime : blackTime)}
                     </div>
@@ -1028,11 +1030,37 @@ export default function OTBMode() {
 
       {gameStarted && (
         <div className="w-72 border-l bg-card flex flex-col">
+          <div className="p-3 border-b space-y-2">
+            <Button
+              onClick={handleClockPress}
+              size="lg"
+              className="w-full min-h-12 text-base font-semibold"
+              disabled={arbiterPending || !!pendingCheckmate}
+              data-testid="button-press-clock"
+            >
+              <Clock className="mr-2 h-5 w-5" />
+              Press Clock
+              <span className="ml-2 text-xs font-normal opacity-70">(Space)</span>
+            </Button>
+            
+            <Button
+              onClick={handleCallArbiter}
+              size="default"
+              variant="outline"
+              className="w-full border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+              disabled={arbiterPending || moves.length === 0 || clockTurn === playerColor}
+              data-testid="button-call-arbiter"
+            >
+              <Gavel className="mr-2 h-4 w-4" />
+              Call Arbiter
+            </Button>
+          </div>
+          
           <div className="p-3 border-b">
             <h3 className="font-semibold text-sm">Move List</h3>
             <p className="text-xs text-muted-foreground">Free movement - arbiter validates</p>
           </div>
-          <ScrollArea className="h-28 p-3">
+          <ScrollArea className="flex-1 p-3">
             {moves.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-3">
                 No moves yet
@@ -1049,20 +1077,6 @@ export default function OTBMode() {
             )}
           </ScrollArea>
           
-          <div className="p-3 border-t">
-            <Button
-              onClick={handleClockPress}
-              size="lg"
-              className="w-full min-h-12 text-base font-semibold"
-              disabled={arbiterPending || !!pendingCheckmate}
-              data-testid="button-press-clock"
-            >
-              <Clock className="mr-2 h-5 w-5" />
-              Press Clock
-              <span className="ml-2 text-xs font-normal opacity-70">(Space)</span>
-            </Button>
-          </div>
-          
           <div className="p-3 border-t bg-muted/30">
             <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
             <ul className="text-xs text-muted-foreground space-y-0.5">
@@ -1071,20 +1085,6 @@ export default function OTBMode() {
               <li>• False claim: Opponent +2 min</li>
               <li>• 2nd false claim: Forfeit</li>
             </ul>
-          </div>
-          
-          <div className="p-3 border-t mt-auto">
-            <Button
-              onClick={handleCallArbiter}
-              size="default"
-              variant="outline"
-              className="w-full border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
-              disabled={arbiterPending || moves.length === 0 || activeColor === playerColor}
-              data-testid="button-call-arbiter"
-            >
-              <Gavel className="mr-2 h-4 w-4" />
-              Call Arbiter
-            </Button>
           </div>
         </div>
       )}
