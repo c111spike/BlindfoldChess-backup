@@ -7,8 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCw, Clock, Target, Trophy, Play, Sparkles, Medal, User } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RotateCw, Clock, Target, Trophy, Play, Sparkles } from "lucide-react";
 
 const PIECE_UNICODE: Record<string, string> = {
   'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
@@ -53,27 +52,17 @@ export default function BoardSpin() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recreationStartTime = useRef<number>(0);
 
-  interface LeaderboardEntry {
+  interface PersonalBest {
     id: string;
-    userId: string;
-    difficulty: string;
     score: number;
     accuracy: number;
     pieceCount: number;
-    rotation: number;
     bonusEarned: boolean;
-    timeSpent: number | null;
     createdAt: string;
-    user: {
-      id: string;
-      firstName: string | null;
-      lastName: string | null;
-      profileImageUrl: string | null;
-    };
   }
 
-  const { data: leaderboard, refetch: refetchLeaderboard } = useQuery<LeaderboardEntry[]>({
-    queryKey: ['/api/boardspin/leaderboard', difficulty],
+  const { data: personalBest, refetch: refetchPersonalBest } = useQuery<PersonalBest | null>({
+    queryKey: ['/api/boardspin/my-highscore', difficulty],
     enabled: phase === 'select' || phase === 'results',
   });
 
@@ -190,7 +179,7 @@ export default function BoardSpin() {
         timeSpent: elapsed,
       });
       setScoreSaved(true);
-      refetchLeaderboard();
+      refetchPersonalBest();
     } catch (error: any) {
       // Silently ignore auth errors - users can play without login, scores just won't be saved
       if (error?.message?.includes('401')) {
@@ -491,47 +480,52 @@ export default function BoardSpin() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Medal className="w-5 h-5" />
-                Leaderboard
+                <Trophy className="w-5 h-5" />
+                Personal Best
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {leaderboard && leaderboard.length > 0 ? (
-                <div className="space-y-2">
-                  {leaderboard.slice(0, 10).map((entry, index) => (
-                    <div 
-                      key={entry.id} 
-                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/50"
-                      data-testid={`leaderboard-entry-${index}`}
-                    >
-                      <span className={`font-bold text-lg w-6 ${
-                        index === 0 ? 'text-yellow-500' : 
-                        index === 1 ? 'text-gray-400' : 
-                        index === 2 ? 'text-amber-600' : 'text-muted-foreground'
-                      }`}>
-                        {index + 1}
-                      </span>
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                        <span className="truncate">
-                          {entry.user.firstName || 'Player'} {entry.user.lastName?.[0] || ''}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="shrink-0">
-                          {entry.score}
-                        </Badge>
-                        {entry.bonusEarned && (
-                          <Trophy className="w-4 h-4 text-yellow-500" />
-                        )}
-                      </div>
+              {personalBest ? (
+                <div className="space-y-4" data-testid="personal-best">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-primary" data-testid="personal-best-score">
+                      {personalBest.score}
                     </div>
-                  ))}
+                    <p className="text-sm text-muted-foreground">points</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-center">
+                    <div className="p-2 rounded-lg bg-muted/50">
+                      <div className="text-lg font-semibold" data-testid="personal-best-accuracy">
+                        {Math.round(personalBest.accuracy)}%
+                      </div>
+                      <p className="text-xs text-muted-foreground">Accuracy</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-muted/50">
+                      <div className="text-lg font-semibold">
+                        {personalBest.pieceCount}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Pieces</p>
+                    </div>
+                  </div>
+                  
+                  {personalBest.bonusEarned && (
+                    <div className="flex items-center justify-center gap-2 text-yellow-500">
+                      <Sparkles className="w-4 h-4" />
+                      <span className="text-sm font-medium">Best Move Bonus Earned</span>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center py-4">
-                  No scores yet. Be the first to play!
-                </p>
+                <div className="text-center py-4 space-y-2">
+                  <Trophy className="w-12 h-12 mx-auto text-muted-foreground/30" />
+                  <p className="text-muted-foreground">
+                    No personal best yet for this difficulty.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Play a game to set your record!
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
