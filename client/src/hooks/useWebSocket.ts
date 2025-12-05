@@ -16,10 +16,37 @@ interface MatchFoundData {
   };
 }
 
+interface MoveData {
+  matchId: string;
+  move: string;
+  fen: string;
+  whiteTime: number;
+  blackTime: number;
+  from?: string;
+  to?: string;
+  piece?: string;
+  captured?: string;
+}
+
+interface ArbiterCallData {
+  matchId: string;
+  callerId: string;
+  moveIndex: number;
+}
+
+interface ArbiterRulingData {
+  matchId: string;
+  ruling: "illegal" | "legal";
+  violatorId: string;
+  timeAdjustment: { white: number; black: number };
+  forfeit?: boolean;
+  forfeitReason?: string;
+}
+
 interface UseWebSocketOptions {
   userId?: string;
   matchId?: string;
-  onMove?: (data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => void;
+  onMove?: (data: MoveData) => void;
   onClockSync?: (data: { matchId: string; whiteTime: number; blackTime: number }) => void;
   onMatchFound?: (data: MatchFoundData) => void;
   onDrawOffer?: (data: { matchId: string; from: string }) => void;
@@ -28,10 +55,26 @@ interface UseWebSocketOptions {
   onRematchResponse?: (data: { matchId: string; accepted: boolean; newMatchId?: string }) => void;
   onGameEnd?: (data: { result: string; reason: string }) => void;
   onPieceTouch?: (data: { matchId: string; square: string }) => void;
+  onArbiterCall?: (data: ArbiterCallData) => void;
+  onArbiterRuling?: (data: ArbiterRulingData) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions) {
-  const { userId, matchId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd, onPieceTouch } = options;
+  const { 
+    userId, 
+    matchId, 
+    onMove, 
+    onClockSync, 
+    onMatchFound, 
+    onDrawOffer, 
+    onDrawResponse, 
+    onRematchRequest, 
+    onRematchResponse, 
+    onGameEnd, 
+    onPieceTouch,
+    onArbiterCall,
+    onArbiterRuling,
+  } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -73,7 +116,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
             break;
           case 'match_found':
             setQueueStatus({ inQueue: false });
-            // Automatically join the match room for real-time move sync
             if (message.matchId && wsRef.current?.readyState === WebSocket.OPEN) {
               wsRef.current.send(JSON.stringify({ type: 'join_match', matchId: message.matchId }));
             }
@@ -95,6 +137,10 @@ export function useWebSocket(options: UseWebSocketOptions) {
                 fen: message.fen,
                 whiteTime: message.whiteTime,
                 blackTime: message.blackTime,
+                from: message.from,
+                to: message.to,
+                piece: message.piece,
+                captured: message.captured,
               });
             }
             break;
@@ -156,6 +202,27 @@ export function useWebSocket(options: UseWebSocketOptions) {
               });
             }
             break;
+          case 'arbiter_call':
+            if (onArbiterCall) {
+              onArbiterCall({
+                matchId: message.matchId,
+                callerId: message.callerId,
+                moveIndex: message.moveIndex,
+              });
+            }
+            break;
+          case 'arbiter_ruling':
+            if (onArbiterRuling) {
+              onArbiterRuling({
+                matchId: message.matchId,
+                ruling: message.ruling,
+                violatorId: message.violatorId,
+                timeAdjustment: message.timeAdjustment,
+                forfeit: message.forfeit,
+                forfeitReason: message.forfeitReason,
+              });
+            }
+            break;
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
@@ -172,7 +239,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       setIsAuthenticated(false);
       setQueueStatus({ inQueue: false });
     };
-  }, [userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd, onPieceTouch]);
+  }, [userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd, onPieceTouch, onArbiterCall, onArbiterRuling]);
 
   const joinQueue = useCallback((timeControl: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN && isAuthenticated) {
@@ -186,7 +253,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
-  const sendMove = useCallback((matchId: string, move: string, fen: string, whiteTime: number, blackTime: number) => {
+  const sendMove = useCallback((
+    matchId: string, 
+    move: string, 
+    fen: string, 
+    whiteTime: number, 
+    blackTime: number,
+    otbMoveData?: { from: string; to: string; piece: string; captured?: string }
+  ) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'move',
@@ -195,6 +269,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
         fen,
         whiteTime,
         blackTime,
+        ...(otbMoveData || {}),
       }));
     }
   }, []);
@@ -246,6 +321,33 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
+  const sendArbiterCall = useCallback((matchId: string, moveIndex: number) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'arbiter_call', matchId, moveIndex }));
+    }
+  }, []);
+
+  const sendArbiterRuling = useCallback((
+    matchId: string, 
+    ruling: "illegal" | "legal", 
+    violatorId: string,
+    timeAdjustment: { white: number; black: number },
+    forfeit?: boolean,
+    forfeitReason?: string
+  ) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'arbiter_ruling', 
+        matchId, 
+        ruling, 
+        violatorId,
+        timeAdjustment,
+        forfeit,
+        forfeitReason,
+      }));
+    }
+  }, []);
+
   useEffect(() => {
     if (userId) {
       connect();
@@ -274,5 +376,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     sendRematchRequest,
     sendRematchResponse,
     sendPieceTouch,
+    sendArbiterCall,
+    sendArbiterRuling,
   };
 }

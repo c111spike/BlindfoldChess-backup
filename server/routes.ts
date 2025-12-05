@@ -1102,6 +1102,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     fen: data.fen,
                     whiteTime: data.whiteTime,
                     blackTime: data.blackTime,
+                    from: data.from,
+                    to: data.to,
+                    piece: data.piece,
+                    captured: data.captured,
+                  }));
+                }
+              }
+            });
+          }
+        } else if (data.type === 'arbiter_call') {
+          const matchId = ws.matchId;
+          const userId = ws.userId;
+          
+          if (!matchId || !userId) return;
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'arbiter_call',
+                    matchId: matchId,
+                    callerId: userId,
+                    moveIndex: data.moveIndex,
+                  }));
+                }
+              }
+            });
+          }
+        } else if (data.type === 'arbiter_ruling') {
+          const matchId = ws.matchId;
+          const userId = ws.userId;
+          
+          if (!matchId || !userId) return;
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'arbiter_ruling',
+                    matchId: matchId,
+                    ruling: data.ruling,
+                    violatorId: data.violatorId,
+                    timeAdjustment: data.timeAdjustment,
+                    forfeit: data.forfeit,
+                    forfeitReason: data.forfeitReason,
                   }));
                 }
               }

@@ -11,10 +11,33 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { Game } from "@shared/schema";
+
+const INITIAL_BOARD = [
+  ["r", "n", "b", "q", "k", "b", "n", "r"],
+  ["p", "p", "p", "p", "p", "p", "p", "p"],
+  [null, null, null, null, null, null, null, null],
+  [null, null, null, null, null, null, null, null],
+  [null, null, null, null, null, null, null, null],
+  [null, null, null, null, null, null, null, null],
+  ["P", "P", "P", "P", "P", "P", "P", "P"],
+  ["R", "N", "B", "Q", "K", "B", "N", "R"],
+];
+
+const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
+
+interface MoveRecord {
+  from: string;
+  to: string;
+  piece: string;
+  captured?: string;
+  notation: string;
+  timestamp: number;
+}
 
 export default function OTBMode() {
   const { user } = useAuth();
@@ -26,26 +49,42 @@ export default function OTBMode() {
   const [whiteTime, setWhiteTime] = useState(180);
   const [blackTime, setBlackTime] = useState(180);
   const [activeColor, setActiveColor] = useState<"white" | "black">("white");
+  const [playerColor, setPlayerColor] = useState<"white" | "black">("white");
   const [timeControl, setTimeControl] = useState("5");
   const [increment, setIncrement] = useState(0);
-  const [moves, setMoves] = useState<string[]>([]);
-  const [fen, setFen] = useState("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+  const [moves, setMoves] = useState<MoveRecord[]>([]);
+  const [boardState, setBoardState] = useState<(string | null)[][]>(INITIAL_BOARD.map(row => [...row]));
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [clockPresses, setClockPresses] = useState(0);
   const [restoredGame, setRestoredGame] = useState(false);
   const [inQueue, setInQueue] = useState(false);
   const [queueType, setQueueType] = useState<string | null>(null);
   const [opponentTouchedSquare, setOpponentTouchedSquare] = useState<string | null>(null);
   const [lastMoveSquares, setLastMoveSquares] = useState<string[]>([]);
-  const [showLegalMoves, setShowLegalMoves] = useState(true);
+  const [showLegalMoves, setShowLegalMoves] = useState(false);
   const [highlightLastMove, setHighlightLastMove] = useState(true);
+  
+  const [myViolations, setMyViolations] = useState(0);
+  const [opponentViolations, setOpponentViolations] = useState(0);
+  const [myFalseClaims, setMyFalseClaims] = useState(0);
+  const [opponentFalseClaims, setOpponentFalseClaims] = useState(0);
+  const [arbiterPending, setArbiterPending] = useState(false);
+  const [arbiterResult, setArbiterResult] = useState<{
+    type: "illegal" | "legal" | null;
+    message: string;
+  } | null>(null);
+  const [pendingCheckmate, setPendingCheckmate] = useState<{
+    winner: "white" | "black";
+    countdown: number;
+  } | null>(null);
+  const [legalChessGame, setLegalChessGame] = useState<Chess | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
   const whiteTimeRef = useRef(180);
   const blackTimeRef = useRef(180);
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingCheckmateRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     gameRef.current = game;
@@ -54,42 +93,89 @@ export default function OTBMode() {
     blackTimeRef.current = blackTime;
   }, [game, gameId, whiteTime, blackTime]);
 
-  const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number }) => {
+  const squareToIndices = (square: string): { rank: number; file: number } => {
+    const file = FILES.indexOf(square[0]);
+    const rank = RANKS.indexOf(square[1]);
+    return { rank, file };
+  };
+
+  const indicesToSquare = (rank: number, file: number): string => {
+    return `${FILES[file]}${RANKS[rank]}`;
+  };
+
+  const boardToFen = (board: (string | null)[][], turn: "white" | "black"): string => {
+    let fen = "";
+    for (let rank = 0; rank < 8; rank++) {
+      let emptyCount = 0;
+      for (let file = 0; file < 8; file++) {
+        const piece = board[rank][file];
+        if (piece) {
+          if (emptyCount > 0) {
+            fen += emptyCount;
+            emptyCount = 0;
+          }
+          fen += piece;
+        } else {
+          emptyCount++;
+        }
+      }
+      if (emptyCount > 0) {
+        fen += emptyCount;
+      }
+      if (rank < 7) fen += "/";
+    }
+    fen += ` ${turn === "white" ? "w" : "b"} KQkq - 0 1`;
+    return fen;
+  };
+
+  const getPieceColor = (piece: string | null): "white" | "black" | null => {
+    if (!piece) return null;
+    return piece === piece.toUpperCase() ? "white" : "black";
+  };
+
+  const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number; from?: string; to?: string; piece?: string; captured?: string }) => {
     if (data.matchId !== matchId) return;
     
-    const currentGame = gameRef.current;
-    if (!currentGame) return;
-    
-    try {
-      if (!data.fen || !data.move) {
-        throw new Error("Invalid move payload");
-      }
+    if (data.from && data.to) {
+      const { rank: fromRank, file: fromFile } = squareToIndices(data.from);
+      const { rank: toRank, file: toFile } = squareToIndices(data.to);
       
-      currentGame.load(data.fen);
-      setFen(data.fen);
-      setMoves(prev => [...prev, data.move]);
-      setWhiteTime(data.whiteTime);
-      setBlackTime(data.blackTime);
-      setOpponentTouchedSquare(null);
-      
-      const history = currentGame.history({ verbose: true });
-      if (history.length > 0) {
-        const lastMove = history[history.length - 1];
-        setLastMoveSquares([lastMove.from, lastMove.to]);
-      }
-      
-      toast({
-        title: "Opponent moved",
-        description: data.move,
+      setBoardState(prev => {
+        const newBoard = prev.map(row => [...row]);
+        const piece = newBoard[fromRank][fromFile];
+        newBoard[fromRank][fromFile] = null;
+        newBoard[toRank][toFile] = piece;
+        return newBoard;
       });
-    } catch (error) {
-      console.error("Error handling opponent move:", error);
-      toast({
-        title: "Error",
-        description: "Failed to process opponent's move. Please refresh.",
-        variant: "destructive",
-      });
+      
+      setMoves(prev => [...prev, {
+        from: data.from!,
+        to: data.to!,
+        piece: data.piece || "?",
+        captured: data.captured,
+        notation: data.move,
+        timestamp: Date.now(),
+      }]);
+      
+      setLastMoveSquares([data.from, data.to]);
+      setActiveColor(prev => prev === "white" ? "black" : "white");
+      
+      if (data.captured?.toLowerCase() === "k") {
+        setPendingCheckmate({
+          winner: data.captured === "K" ? "black" : "white",
+          countdown: 5,
+        });
+      }
     }
+    
+    setWhiteTime(data.whiteTime);
+    setBlackTime(data.blackTime);
+    setOpponentTouchedSquare(null);
+    
+    toast({
+      title: "Opponent moved",
+      description: data.move,
+    });
   }, [matchId, toast]);
 
   const handleOpponentTouch = useCallback((data: { matchId: string; square: string }) => {
@@ -97,11 +183,88 @@ export default function OTBMode() {
     setOpponentTouchedSquare(data.square);
   }, [matchId]);
 
-  const { sendMove, sendPieceTouch } = useWebSocket({
+  const handleArbiterCall = useCallback((data: { matchId: string; callerId: string; moveIndex: number }) => {
+    if (data.matchId !== matchId) return;
+    
+    setArbiterPending(true);
+    toast({
+      title: "Arbiter Called!",
+      description: "Opponent is disputing the last move...",
+    });
+  }, [matchId, toast]);
+
+  const handleArbiterRuling = useCallback((data: { 
+    matchId: string; 
+    ruling: "illegal" | "legal"; 
+    violatorId: string;
+    timeAdjustment: { white: number; black: number };
+    forfeit?: boolean;
+    forfeitReason?: string;
+  }) => {
+    if (data.matchId !== matchId) return;
+    
+    setArbiterPending(false);
+    
+    if (data.forfeit) {
+      toast({
+        title: "Game Over - Forfeit",
+        description: data.forfeitReason || "Forfeit due to violations",
+        variant: "destructive",
+      });
+      handleGameEnd(data.violatorId === user?.id ? 
+        (playerColor === "white" ? "black_win" : "white_win") : 
+        (playerColor === "white" ? "white_win" : "black_win")
+      );
+      return;
+    }
+    
+    setWhiteTime(prev => prev + data.timeAdjustment.white);
+    setBlackTime(prev => prev + data.timeAdjustment.black);
+    
+    if (data.ruling === "illegal") {
+      if (data.violatorId === user?.id) {
+        setMyViolations(prev => prev + 1);
+        setArbiterResult({ type: "illegal", message: "Your move was illegal! Opponent gains 2 minutes." });
+        
+        if (moves.length > 0) {
+          const lastMove = moves[moves.length - 1];
+          const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
+          const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
+          
+          setBoardState(prev => {
+            const newBoard = prev.map(row => [...row]);
+            newBoard[fromRank][fromFile] = lastMove.piece;
+            newBoard[toRank][toFile] = lastMove.captured || null;
+            return newBoard;
+          });
+          
+          setMoves(prev => prev.slice(0, -1));
+          setActiveColor(prev => prev === "white" ? "black" : "white");
+        }
+      } else {
+        setOpponentViolations(prev => prev + 1);
+        setArbiterResult({ type: "illegal", message: "Opponent's move was illegal! You gain 2 minutes." });
+      }
+    } else {
+      if (data.violatorId === user?.id) {
+        setOpponentFalseClaims(prev => prev + 1);
+        setArbiterResult({ type: "legal", message: "Move was legal! Opponent made a false claim. You gain 2 minutes." });
+      } else {
+        setMyFalseClaims(prev => prev + 1);
+        setArbiterResult({ type: "legal", message: "Move was legal! False claim - opponent gains 2 minutes." });
+      }
+    }
+    
+    setTimeout(() => setArbiterResult(null), 4000);
+  }, [matchId, user?.id, playerColor, moves, toast]);
+
+  const { sendMove, sendPieceTouch, sendArbiterCall, sendArbiterRuling } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
     onPieceTouch: handleOpponentTouch,
+    onArbiterCall: handleArbiterCall,
+    onArbiterRuling: handleArbiterRuling,
   });
 
   const createGameMutation = useMutation({
@@ -201,21 +364,30 @@ export default function OTBMode() {
           
           setGameId(response.game.id);
           setMatchId(response.matchId);
-          const chess = new Chess(response.game.fen);
+          
+          const chess = new Chess();
           setGame(chess);
-          setFen(response.game.fen);
+          setLegalChessGame(new Chess());
+          setBoardState(INITIAL_BOARD.map(row => [...row]));
           setMoves([]);
           setGameStarted(true);
           setInQueue(false);
-          setActiveColor(response.game.playerColor === "white" ? "white" : "black");
+          const assignedColor = response.game.playerColor === "white" ? "white" : "black";
+          setPlayerColor(assignedColor);
+          setActiveColor("white");
           
-          setWhiteTime(response.game.whiteTime || 180);
-          setBlackTime(response.game.blackTime || 180);
+          setWhiteTime(response.game.whiteTime || 300);
+          setBlackTime(response.game.blackTime || 300);
           setIncrement(response.game.increment || 0);
+          
+          setMyViolations(0);
+          setOpponentViolations(0);
+          setMyFalseClaims(0);
+          setOpponentFalseClaims(0);
 
           toast({
             title: "Match found!",
-            description: "Game started",
+            description: `You are playing as ${assignedColor}`,
           });
           return;
         }
@@ -244,100 +416,49 @@ export default function OTBMode() {
 
   useEffect(() => {
     if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
-      const restoreGame = async () => {
-        try {
-          const matchResponse = await apiRequest("GET", "/api/matches/active");
-          
-          if (!matchResponse.ok) {
-            toast({
-              title: "Error",
-              description: "Cannot restore match. Please start a new game.",
-              variant: "destructive",
-            });
-            setRestoredGame(true);
-            return;
-          }
-          
-          const matchData = await matchResponse.json();
-          if (!matchData || !matchData.matchId) {
-            toast({
-              title: "Error",
-              description: "Cannot restore match. Please start a new game.",
-              variant: "destructive",
-            });
-            setRestoredGame(true);
-            return;
-          }
-          
-          setMatchId(matchData.matchId);
-          
-          const chess = new Chess(ongoingGame.fen || undefined);
-          setGame(chess);
-          setGameId(ongoingGame.id);
-          setFen(ongoingGame.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-          setMoves(ongoingGame.moves || []);
-          setWhiteTime(ongoingGame.whiteTime || 180);
-          setBlackTime(ongoingGame.blackTime || 180);
-          setGameStarted(true);
-          setActiveColor(chess.turn() === "w" ? "white" : "black");
-          setIncrement(ongoingGame.increment || 0);
-          const tc = ongoingGame.timeControl || 3;
-          const inc = ongoingGame.increment || 0;
-          setTimeControl(`${tc}+${inc}`);
-          setRestoredGame(true);
-          
-          toast({
-            title: "Game restored",
-            description: "Your ongoing game has been loaded with live sync",
-          });
-        } catch (error) {
-          console.error("Error restoring game:", error);
-          toast({
-            title: "Error",
-            description: "Failed to restore game. Please refresh.",
-            variant: "destructive",
-          });
-          setRestoredGame(true);
-        }
-      };
-      
-      restoreGame();
+      setRestoredGame(true);
     }
-  }, [ongoingGame, restoredGame, gameStarted, toast]);
+  }, [ongoingGame, restoredGame, gameStarted]);
 
   const saveGameState = useCallback(async () => {
-    const currentGame = gameRef.current;
     const currentGameId = gameIdRef.current;
     
-    if (!currentGameId || !currentGame) return;
+    if (!currentGameId) return;
     
     try {
+      const fen = boardToFen(boardState, activeColor);
       await apiRequest("PATCH", `/api/games/${currentGameId}`, {
-        fen: currentGame.fen(),
-        moves: currentGame.history(),
+        fen,
+        moves: moves.map(m => m.notation),
         whiteTime: whiteTimeRef.current,
         blackTime: blackTimeRef.current,
-        pgn: currentGame.pgn(),
       });
     } catch (error) {
       console.error("Error saving game state:", error);
     }
-  }, []);
+  }, [boardState, activeColor, moves]);
 
   const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
-    if (!game || !gameId) return;
+    if (!gameId) return;
 
     if (saveIntervalRef.current) {
       clearInterval(saveIntervalRef.current);
       saveIntervalRef.current = null;
     }
+    
+    if (pendingCheckmateRef.current) {
+      clearTimeout(pendingCheckmateRef.current);
+      pendingCheckmateRef.current = null;
+    }
 
+    const fen = boardToFen(boardState, activeColor);
+    
     updateGameMutation.mutate({
       status: "completed",
       result,
       completedAt: new Date(),
-      pgn: game.pgn(),
-      moves,
+      fen,
+      moves: moves.map(m => m.notation),
       whiteTime,
       blackTime,
       manualClockPresses: clockPresses,
@@ -349,10 +470,30 @@ export default function OTBMode() {
     });
 
     setGameStarted(false);
-  }, [game, gameId, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast]);
+    setPendingCheckmate(null);
+  }, [gameId, boardState, activeColor, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast]);
 
   useEffect(() => {
-    if (gameStarted && game) {
+    if (pendingCheckmate) {
+      if (pendingCheckmate.countdown <= 0) {
+        handleGameEnd(pendingCheckmate.winner === "white" ? "white_win" : "black_win");
+        return;
+      }
+      
+      pendingCheckmateRef.current = setTimeout(() => {
+        setPendingCheckmate(prev => prev ? { ...prev, countdown: prev.countdown - 1 } : null);
+      }, 1000);
+      
+      return () => {
+        if (pendingCheckmateRef.current) {
+          clearTimeout(pendingCheckmateRef.current);
+        }
+      };
+    }
+  }, [pendingCheckmate, handleGameEnd]);
+
+  useEffect(() => {
+    if (gameStarted && !pendingCheckmate && !arbiterPending) {
       const timer = setInterval(() => {
         if (activeColor === "white") {
           setWhiteTime((t) => {
@@ -375,7 +516,7 @@ export default function OTBMode() {
 
       return () => clearInterval(timer);
     }
-  }, [gameStarted, activeColor, game, handleGameEnd]);
+  }, [gameStarted, activeColor, handleGameEnd, pendingCheckmate, arbiterPending]);
 
   useEffect(() => {
     if (gameStarted && gameId) {
@@ -392,12 +533,6 @@ export default function OTBMode() {
     };
   }, [gameStarted, gameId, saveGameState]);
 
-  useEffect(() => {
-    if (whiteTime === 0 || blackTime === 0) {
-      handleGameEnd(whiteTime === 0 ? "black_win" : "white_win");
-    }
-  }, [whiteTime, blackTime, handleGameEnd]);
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -405,7 +540,7 @@ export default function OTBMode() {
   };
 
   const handleClockPress = useCallback(() => {
-    if (!game) return;
+    if (!gameStarted || arbiterPending || pendingCheckmate) return;
 
     if (activeColor === "white") {
       setWhiteTime((t) => t + increment);
@@ -416,23 +551,29 @@ export default function OTBMode() {
     const newActiveColor = activeColor === "white" ? "black" : "white";
     setActiveColor(newActiveColor);
     setClockPresses(clockPresses + 1);
-  }, [game, activeColor, increment, clockPresses]);
+  }, [gameStarted, activeColor, increment, clockPresses, arbiterPending, pendingCheckmate]);
 
   const handleStartGame = () => {
-    const [minutes, inc] = timeControl.split("+").map(Number);
+    const minutes = parseInt(timeControl);
     const seconds = minutes * 60;
     
     setWhiteTime(seconds);
     setBlackTime(seconds);
-    setIncrement(inc);
+    setIncrement(0);
     setGameStarted(true);
     
     const newGame = new Chess();
     setGame(newGame);
-    setFen(newGame.fen());
+    setLegalChessGame(new Chess());
+    setBoardState(INITIAL_BOARD.map(row => [...row]));
     setMoves([]);
     setActiveColor("white");
+    setPlayerColor("white");
     setClockPresses(0);
+    setMyViolations(0);
+    setOpponentViolations(0);
+    setMyFalseClaims(0);
+    setOpponentFalseClaims(0);
     
     const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
     
@@ -440,71 +581,84 @@ export default function OTBMode() {
       mode,
       playerColor: "white",
       timeControl: minutes,
-      increment: inc,
+      increment: 0,
       fen: newGame.fen(),
       moves: [],
       whiteTime: seconds,
       blackTime: seconds,
-      opponentName: "Computer",
+      opponentName: "Practice",
     });
   };
 
   const handleSquareClick = (square: string) => {
-    if (!game || !gameStarted) return;
+    if (!gameStarted || arbiterPending || pendingCheckmate) return;
+    
+    const isMyTurn = activeColor === playerColor;
+    if (!isMyTurn && matchId) return;
+
+    const { rank, file } = squareToIndices(square);
+    const pieceOnSquare = boardState[rank][file];
+    const pieceColor = getPieceColor(pieceOnSquare);
 
     if (selectedSquare) {
-      try {
-        const move = game.move({
+      const { rank: fromRank, file: fromFile } = squareToIndices(selectedSquare);
+      const movingPiece = boardState[fromRank][fromFile];
+      const movingPieceColor = getPieceColor(movingPiece);
+      
+      if (movingPieceColor !== activeColor) {
+        setSelectedSquare(null);
+        return;
+      }
+      
+      if (pieceColor === activeColor) {
+        setSelectedSquare(square);
+        return;
+      }
+      
+      const newBoard = boardState.map(row => [...row]);
+      const captured = newBoard[rank][file];
+      newBoard[fromRank][fromFile] = null;
+      newBoard[rank][file] = movingPiece;
+      setBoardState(newBoard);
+      
+      const moveNotation = `${movingPiece?.toUpperCase()}${selectedSquare}-${square}${captured ? 'x' + captured.toUpperCase() : ''}`;
+      const newMove: MoveRecord = {
+        from: selectedSquare,
+        to: square,
+        piece: movingPiece || "?",
+        captured: captured || undefined,
+        notation: moveNotation,
+        timestamp: Date.now(),
+      };
+      
+      setMoves(prev => [...prev, newMove]);
+      setSelectedSquare(null);
+      setLastMoveSquares([selectedSquare, square]);
+      
+      const newFen = boardToFen(newBoard, activeColor === "white" ? "black" : "white");
+      
+      if (matchId) {
+        sendMove(matchId, moveNotation, newFen, whiteTime, blackTime, {
           from: selectedSquare,
           to: square,
-          promotion: "q",
+          piece: movingPiece || "?",
+          captured: captured || undefined,
         });
-
-        if (move) {
-          const newFen = game.fen();
-          setFen(newFen);
-          setMoves(prev => [...prev, move.san]);
-          setSelectedSquare(null);
-          setLegalMoves([]);
-          setLastMoveSquares([move.from, move.to]);
-          
-          if (matchId) {
-            sendMove(matchId, move.san, newFen, whiteTime, blackTime);
-            sendPieceTouch(null);
-          }
-          
-          if (game.isCheckmate()) {
-            handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
-          } else if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
-            handleGameEnd("draw");
-          } else {
-            saveGameState();
-          }
-        } else {
-          const moves = game.moves({ square: square as any, verbose: true });
-          if (moves.length > 0) {
-            setSelectedSquare(square);
-            setLegalMoves(moves.map((m: any) => m.to));
-            if (matchId) {
-              sendPieceTouch(square);
-            }
-          }
-        }
-      } catch (e) {
-        const moves = game.moves({ square: square as any, verbose: true });
-        if (moves.length > 0) {
-          setSelectedSquare(square);
-          setLegalMoves(moves.map((m: any) => m.to));
-          if (matchId) {
-            sendPieceTouch(square);
-          }
-        }
+        sendPieceTouch(null);
+      }
+      
+      if (captured?.toLowerCase() === "k") {
+        setPendingCheckmate({
+          winner: captured === "K" ? "black" : "white",
+          countdown: 5,
+        });
+      } else {
+        setActiveColor(activeColor === "white" ? "black" : "white");
+        saveGameState();
       }
     } else {
-      const moves = game.moves({ square: square as any, verbose: true });
-      if (moves.length > 0) {
+      if (pieceOnSquare && pieceColor === activeColor) {
         setSelectedSquare(square);
-        setLegalMoves(moves.map((m: any) => m.to));
         if (matchId) {
           sendPieceTouch(square);
         }
@@ -512,8 +666,108 @@ export default function OTBMode() {
     }
   };
 
+  const handleCallArbiter = () => {
+    if (!matchId || moves.length === 0 || arbiterPending) return;
+    
+    const lastMove = moves[moves.length - 1];
+    
+    setArbiterPending(true);
+    
+    const tempChess = new Chess();
+    let isLegal = false;
+    
+    try {
+      for (let i = 0; i < moves.length - 1; i++) {
+        const move = moves[i];
+        const result = tempChess.move({
+          from: move.from,
+          to: move.to,
+          promotion: 'q',
+        });
+        if (!result) break;
+      }
+      
+      const result = tempChess.move({
+        from: lastMove.from,
+        to: lastMove.to,
+        promotion: 'q',
+      });
+      isLegal = !!result;
+    } catch (e) {
+      isLegal = false;
+    }
+    
+    const ruling = isLegal ? "legal" : "illegal";
+    const opponentIsViolator = !isLegal;
+    const violatorId = opponentIsViolator ? "opponent" : user?.id || "";
+    
+    let forfeit = false;
+    let forfeitReason = "";
+    
+    if (ruling === "illegal") {
+      const newOpponentViolations = opponentViolations + 1;
+      if (newOpponentViolations >= 2) {
+        forfeit = true;
+        forfeitReason = "Opponent forfeited due to 2 illegal moves";
+      }
+    } else {
+      const newMyFalseClaims = myFalseClaims + 1;
+      if (newMyFalseClaims >= 2) {
+        forfeit = true;
+        forfeitReason = "You forfeited due to 2 false arbiter claims";
+      }
+    }
+    
+    const timeAdjustment = {
+      white: ruling === "illegal" ? (playerColor === "white" ? 120 : 0) : (playerColor === "white" ? 0 : 120),
+      black: ruling === "illegal" ? (playerColor === "black" ? 120 : 0) : (playerColor === "black" ? 0 : 120),
+    };
+    
+    if (forfeit) {
+      handleGameEnd(forfeitReason.includes("You forfeited") ? 
+        (playerColor === "white" ? "black_win" : "white_win") : 
+        (playerColor === "white" ? "white_win" : "black_win")
+      );
+      return;
+    }
+    
+    setWhiteTime(prev => prev + timeAdjustment.white);
+    setBlackTime(prev => prev + timeAdjustment.black);
+    
+    if (ruling === "illegal") {
+      setOpponentViolations(prev => prev + 1);
+      setArbiterResult({ type: "illegal", message: "Opponent's move was illegal! You gain 2 minutes." });
+      
+      const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
+      const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
+      
+      setBoardState(prev => {
+        const newBoard = prev.map(row => [...row]);
+        newBoard[fromRank][fromFile] = lastMove.piece;
+        newBoard[toRank][toFile] = lastMove.captured || null;
+        return newBoard;
+      });
+      
+      setMoves(prev => prev.slice(0, -1));
+      setActiveColor(prev => prev === "white" ? "black" : "white");
+      setPendingCheckmate(null);
+    } else {
+      setMyFalseClaims(prev => prev + 1);
+      setArbiterResult({ type: "legal", message: "Move was legal! False claim - opponent gains 2 minutes." });
+    }
+    
+    setTimeout(() => {
+      setArbiterResult(null);
+      setArbiterPending(false);
+    }, 3000);
+    
+    if (matchId) {
+      sendArbiterRuling?.(matchId, ruling, violatorId, timeAdjustment, forfeit, forfeitReason);
+    }
+  };
+
   const handleResign = () => {
-    handleGameEnd(activeColor === "white" ? "black_win" : "white_win");
+    handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
   };
 
   const handleOfferDraw = () => {
@@ -534,13 +788,15 @@ export default function OTBMode() {
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [gameStarted, handleClockPress]);
 
+  const fen = boardToFen(boardState, activeColor);
+
   return (
     <div className="h-screen flex">
       <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
         <div className="w-full max-w-3xl space-y-6">
           <div>
             <h1 className="text-3xl font-bold">OTB Tournament Mode</h1>
-            <p className="text-muted-foreground">Manual clock · FIDE-accurate arbiter</p>
+            <p className="text-muted-foreground">Free movement · FIDE-style arbiter disputes</p>
           </div>
 
           {!gameStarted ? (
@@ -586,7 +842,7 @@ export default function OTBMode() {
                       </div>
                       <Button onClick={handleStartGame} className="w-full mt-4" data-testid="button-start-game">
                         <Play className="mr-2 h-4 w-4" />
-                        Practice vs Computer
+                        Practice (Solo)
                       </Button>
                     </div>
                   </CardContent>
@@ -613,11 +869,56 @@ export default function OTBMode() {
             </>
           ) : (
             <>
+              {pendingCheckmate && (
+                <Card className="border-destructive bg-destructive/10">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className="h-6 w-6 text-destructive" />
+                        <div>
+                          <p className="font-semibold">King Captured!</p>
+                          <p className="text-sm text-muted-foreground">
+                            {pendingCheckmate.winner === playerColor ? "You win" : "Opponent wins"} in {pendingCheckmate.countdown}s...
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleCallArbiter}
+                        disabled={arbiterPending || moves.length === 0}
+                        data-testid="button-call-arbiter-checkmate"
+                      >
+                        <Gavel className="mr-2 h-4 w-4" />
+                        Call Arbiter
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {arbiterResult && (
+                <Card className={arbiterResult.type === "illegal" ? "border-green-500 bg-green-500/10" : "border-red-500 bg-red-500/10"}>
+                  <CardContent className="py-4">
+                    <div className="flex items-center gap-3">
+                      {arbiterResult.type === "illegal" ? (
+                        <CheckCircle className="h-6 w-6 text-green-500" />
+                      ) : (
+                        <XCircle className="h-6 w-6 text-red-500" />
+                      )}
+                      <div>
+                        <p className="font-semibold">Arbiter Ruling</p>
+                        <p className="text-sm">{arbiterResult.message}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <ChessBoard 
                 fen={fen}
-                orientation="white"
+                orientation={playerColor}
                 showCoordinates={true}
-                highlightedSquares={showLegalMoves ? legalMoves : []}
+                highlightedSquares={[]}
                 touchedSquare={opponentTouchedSquare}
                 lastMoveSquares={highlightLastMove ? lastMoveSquares : []}
                 selectedSquare={selectedSquare}
@@ -629,20 +930,9 @@ export default function OTBMode() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Settings className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Training Wheels</span>
+                      <span className="text-sm font-medium">Settings</span>
                     </div>
                     <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="show-legal-moves"
-                          checked={showLegalMoves}
-                          onCheckedChange={setShowLegalMoves}
-                          data-testid="switch-show-legal-moves"
-                        />
-                        <Label htmlFor="show-legal-moves" className="text-sm cursor-pointer">
-                          Legal Moves
-                        </Label>
-                      </div>
                       <div className="flex items-center gap-2">
                         <Switch
                           id="highlight-last-move"
@@ -665,9 +955,12 @@ export default function OTBMode() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-muted-foreground">White</span>
-                        {activeColor === "white" && (
-                          <Badge variant="default" className="text-xs">Active</Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {playerColor === "white" && <Badge variant="outline" className="text-xs">You</Badge>}
+                          {activeColor === "white" && (
+                            <Badge variant="default" className="text-xs">Active</Badge>
+                          )}
+                        </div>
                       </div>
                       <div className={`text-5xl font-mono font-bold ${
                         activeColor === "white" ? "text-foreground" : "text-muted-foreground"
@@ -679,9 +972,12 @@ export default function OTBMode() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-muted-foreground">Black</span>
-                        {activeColor === "black" && (
-                          <Badge variant="default" className="text-xs">Active</Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {playerColor === "black" && <Badge variant="outline" className="text-xs">You</Badge>}
+                          {activeColor === "black" && (
+                            <Badge variant="default" className="text-xs">Active</Badge>
+                          )}
+                        </div>
                       </div>
                       <div className={`text-5xl font-mono font-bold ${
                         activeColor === "black" ? "text-foreground" : "text-muted-foreground"
@@ -691,16 +987,43 @@ export default function OTBMode() {
                     </div>
                   </div>
 
+                  <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Your violations:</span>
+                      <Badge variant={myViolations > 0 ? "destructive" : "secondary"}>{myViolations}/2</Badge>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">False claims:</span>
+                      <Badge variant={myFalseClaims > 0 ? "destructive" : "secondary"}>{myFalseClaims}/2</Badge>
+                    </div>
+                  </div>
+
                   <div className="mt-6 pt-6 border-t">
                     <Button
                       onClick={handleClockPress}
                       size="lg"
                       className="w-full min-h-20 text-xl font-semibold"
+                      disabled={arbiterPending || !!pendingCheckmate}
                       data-testid="button-press-clock"
                     >
                       <Clock className="mr-3 h-6 w-6" />
                       Press Clock
                       <span className="ml-2 text-sm font-normal opacity-70">(Spacebar)</span>
+                    </Button>
+                  </div>
+
+                  <div className="mt-4">
+                    <Button
+                      onClick={handleCallArbiter}
+                      size="lg"
+                      variant="outline"
+                      className="w-full min-h-14 text-lg font-semibold border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+                      disabled={arbiterPending || moves.length === 0 || activeColor === playerColor}
+                      data-testid="button-call-arbiter"
+                    >
+                      <Gavel className="mr-3 h-5 w-5" />
+                      Call Arbiter
+                      <span className="ml-2 text-sm font-normal opacity-70">(Dispute last move)</span>
                     </Button>
                   </div>
 
@@ -725,6 +1048,7 @@ export default function OTBMode() {
         <div className="w-80 border-l bg-card flex flex-col">
           <div className="p-4 border-b">
             <h3 className="font-semibold">Move List</h3>
+            <p className="text-xs text-muted-foreground mt-1">Free movement mode - arbiter validates</p>
           </div>
           <ScrollArea className="flex-1 p-4">
             {moves.length === 0 ? (
@@ -734,14 +1058,24 @@ export default function OTBMode() {
             ) : (
               <div className="space-y-2 font-mono text-sm">
                 {moves.map((move, i) => (
-                  <div key={i} className="flex items-center gap-2">
+                  <div key={i} className="flex items-center gap-2" data-testid={`move-${i}`}>
                     <span className="text-muted-foreground w-8">{Math.floor(i / 2) + 1}.</span>
-                    <span>{move}</span>
+                    <span>{move.notation}</span>
                   </div>
                 ))}
               </div>
             )}
           </ScrollArea>
+          
+          <div className="p-4 border-t bg-muted/30">
+            <h4 className="text-sm font-semibold mb-2">Arbiter Rules</h4>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• Illegal move caught: Caller +2 min</li>
+              <li>• 2nd illegal move: Forfeit</li>
+              <li>• False claim: Opponent +2 min</li>
+              <li>• 2nd false claim: Forfeit</li>
+            </ul>
+          </div>
         </div>
       )}
     </div>
