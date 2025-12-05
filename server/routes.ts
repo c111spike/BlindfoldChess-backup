@@ -5,6 +5,8 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema } from "@shared/schema";
 import { createQueueManager } from "./queueManager";
+import { generatePosition, calculateScore, getAllDifficulties } from "./positionGenerator";
+import { stockfishService } from "./stockfish";
 
 const { queueManager } = createQueueManager();
 
@@ -852,6 +854,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating settings:", error);
       res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  // Board Spin API Routes
+  app.get('/api/boardspin/difficulties', async (_req, res) => {
+    try {
+      const difficulties = getAllDifficulties();
+      res.json(difficulties);
+    } catch (error) {
+      console.error("Error fetching difficulties:", error);
+      res.status(500).json({ message: "Failed to fetch difficulties" });
+    }
+  });
+
+  app.post('/api/boardspin/generate', async (req, res) => {
+    try {
+      const { difficulty } = req.body;
+      if (!difficulty) {
+        return res.status(400).json({ message: "Difficulty is required" });
+      }
+      
+      const position = generatePosition(difficulty);
+      res.json(position);
+    } catch (error) {
+      console.error("Error generating position:", error);
+      res.status(500).json({ message: "Failed to generate position" });
+    }
+  });
+
+  app.post('/api/boardspin/check', async (req, res) => {
+    try {
+      const { originalBoard, playerBoard, rotation, multiplier } = req.body;
+      
+      if (!originalBoard || !playerBoard) {
+        return res.status(400).json({ message: "Boards are required" });
+      }
+      
+      const result = calculateScore(originalBoard, playerBoard, rotation, multiplier, false);
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking position:", error);
+      res.status(500).json({ message: "Failed to check position" });
+    }
+  });
+
+  app.post('/api/boardspin/bestmove', async (req, res) => {
+    try {
+      const { fen } = req.body;
+      
+      if (!fen) {
+        return res.status(400).json({ message: "FEN is required" });
+      }
+      
+      const result = await stockfishService.getBestMove(fen, 15);
+      res.json(result);
+    } catch (error) {
+      console.error("Error getting best move:", error);
+      res.status(500).json({ message: "Failed to get best move" });
+    }
+  });
+
+  app.post('/api/boardspin/validate-move', async (req, res) => {
+    try {
+      const { fen, move, expectedBestMove } = req.body;
+      
+      if (!fen || !move) {
+        return res.status(400).json({ message: "FEN and move are required" });
+      }
+      
+      // Check if player's move matches the best move
+      const isCorrect = move === expectedBestMove;
+      res.json({ isCorrect, expectedBestMove });
+    } catch (error) {
+      console.error("Error validating move:", error);
+      res.status(500).json({ message: "Failed to validate move" });
     }
   });
 

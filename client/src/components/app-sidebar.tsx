@@ -22,6 +22,7 @@ import {
   Shield,
   FileText,
   HelpCircle,
+  RotateCw,
 } from "lucide-react";
 import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
 
@@ -45,6 +46,11 @@ const menuItems = [
     title: "Simul",
     url: "/simul",
     icon: Grid3x3,
+  },
+  {
+    title: "Board Spin",
+    url: "/boardspin",
+    icon: RotateCw,
   },
   {
     title: "Game History",
