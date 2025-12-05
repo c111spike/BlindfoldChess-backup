@@ -79,6 +79,34 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [queueStatus, setQueueStatus] = useState<{ inQueue: boolean; timeControl?: string }>({ inQueue: false });
+  
+  // Use refs for callbacks to avoid stale closure issues
+  const onMoveRef = useRef(onMove);
+  const onClockSyncRef = useRef(onClockSync);
+  const onMatchFoundRef = useRef(onMatchFound);
+  const onDrawOfferRef = useRef(onDrawOffer);
+  const onDrawResponseRef = useRef(onDrawResponse);
+  const onRematchRequestRef = useRef(onRematchRequest);
+  const onRematchResponseRef = useRef(onRematchResponse);
+  const onGameEndRef = useRef(onGameEnd);
+  const onPieceTouchRef = useRef(onPieceTouch);
+  const onArbiterCallRef = useRef(onArbiterCall);
+  const onArbiterRulingRef = useRef(onArbiterRuling);
+  
+  // Keep refs updated with latest callbacks
+  useEffect(() => {
+    onMoveRef.current = onMove;
+    onClockSyncRef.current = onClockSync;
+    onMatchFoundRef.current = onMatchFound;
+    onDrawOfferRef.current = onDrawOffer;
+    onDrawResponseRef.current = onDrawResponse;
+    onRematchRequestRef.current = onRematchRequest;
+    onRematchResponseRef.current = onRematchResponse;
+    onGameEndRef.current = onGameEnd;
+    onPieceTouchRef.current = onPieceTouch;
+    onArbiterCallRef.current = onArbiterCall;
+    onArbiterRulingRef.current = onArbiterRuling;
+  });
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -119,8 +147,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
             if (message.matchId && wsRef.current?.readyState === WebSocket.OPEN) {
               wsRef.current.send(JSON.stringify({ type: 'join_match', matchId: message.matchId }));
             }
-            if (onMatchFound) {
-              onMatchFound({
+            if (onMatchFoundRef.current) {
+              onMatchFoundRef.current({
                 matchId: message.matchId,
                 game: message.game,
                 timeControl: message.timeControl,
@@ -130,8 +158,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
             }
             break;
           case 'opponent_move':
-            if (onMove) {
-              onMove({
+            console.log('[WebSocket] Calling onMove handler with:', message);
+            if (onMoveRef.current) {
+              onMoveRef.current({
                 matchId: message.matchId,
                 move: message.move,
                 fen: message.fen,
@@ -145,8 +174,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
             }
             break;
           case 'clock_sync':
-            if (onClockSync) {
-              onClockSync({
+            if (onClockSyncRef.current) {
+              onClockSyncRef.current({
                 matchId: message.matchId,
                 whiteTime: message.whiteTime,
                 blackTime: message.blackTime,
@@ -154,32 +183,32 @@ export function useWebSocket(options: UseWebSocketOptions) {
             }
             break;
           case 'draw_offer':
-            if (onDrawOffer) {
-              onDrawOffer({
+            if (onDrawOfferRef.current) {
+              onDrawOfferRef.current({
                 matchId: message.matchId,
                 from: message.from,
               });
             }
             break;
           case 'draw_response':
-            if (onDrawResponse) {
-              onDrawResponse({
+            if (onDrawResponseRef.current) {
+              onDrawResponseRef.current({
                 matchId: message.matchId,
                 accepted: message.accepted,
               });
             }
             break;
           case 'rematch_request':
-            if (onRematchRequest) {
-              onRematchRequest({
+            if (onRematchRequestRef.current) {
+              onRematchRequestRef.current({
                 matchId: message.matchId,
                 from: message.from,
               });
             }
             break;
           case 'rematch_response':
-            if (onRematchResponse) {
-              onRematchResponse({
+            if (onRematchResponseRef.current) {
+              onRematchResponseRef.current({
                 matchId: message.matchId,
                 accepted: message.accepted,
                 newMatchId: message.newMatchId,
@@ -187,24 +216,24 @@ export function useWebSocket(options: UseWebSocketOptions) {
             }
             break;
           case 'game_end':
-            if (onGameEnd) {
-              onGameEnd({
+            if (onGameEndRef.current) {
+              onGameEndRef.current({
                 result: message.result,
                 reason: message.reason,
               });
             }
             break;
           case 'opponent_touch':
-            if (onPieceTouch) {
-              onPieceTouch({
+            if (onPieceTouchRef.current) {
+              onPieceTouchRef.current({
                 matchId: message.matchId,
                 square: message.square,
               });
             }
             break;
           case 'arbiter_call':
-            if (onArbiterCall) {
-              onArbiterCall({
+            if (onArbiterCallRef.current) {
+              onArbiterCallRef.current({
                 matchId: message.matchId,
                 callerId: message.callerId,
                 moveIndex: message.moveIndex,
@@ -212,8 +241,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
             }
             break;
           case 'arbiter_ruling':
-            if (onArbiterRuling) {
-              onArbiterRuling({
+            if (onArbiterRulingRef.current) {
+              onArbiterRulingRef.current({
                 matchId: message.matchId,
                 ruling: message.ruling,
                 violatorId: message.violatorId,
@@ -239,7 +268,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       setIsAuthenticated(false);
       setQueueStatus({ inQueue: false });
     };
-  }, [userId, onMove, onClockSync, onMatchFound, onDrawOffer, onDrawResponse, onRematchRequest, onRematchResponse, onGameEnd, onPieceTouch, onArbiterCall, onArbiterRuling]);
+  }, [userId]);
 
   const joinQueue = useCallback((timeControl: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN && isAuthenticated) {

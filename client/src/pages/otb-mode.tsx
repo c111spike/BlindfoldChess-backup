@@ -82,6 +82,7 @@ export default function OTBMode() {
   const [opponentRating, setOpponentRating] = useState<number>(1200);
   const [playerRating, setPlayerRating] = useState<number>(1200);
   const [clockTurn, setClockTurn] = useState<"white" | "black">("white");
+  const [hasMadeMove, setHasMadeMove] = useState(false);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -140,6 +141,21 @@ export default function OTBMode() {
   const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number; from?: string; to?: string; piece?: string; captured?: string }) => {
     if (data.matchId !== matchId) return;
     
+    console.log('[OTB] Received opponent message:', data.move);
+    
+    // Handle clock press message - opponent pressed their clock, now it's our turn
+    if (data.move === "__CLOCK_PRESS__") {
+      console.log('[OTB] Opponent pressed clock, switching turn');
+      setClockTurn(playerColor);
+      setActiveColor(playerColor);
+      setHasMadeMove(false);
+      setWhiteTime(data.whiteTime);
+      setBlackTime(data.blackTime);
+      setOpponentTouchedSquare(null);
+      return;
+    }
+    
+    // Handle regular move
     if (data.from && data.to) {
       const { rank: fromRank, file: fromFile } = squareToIndices(data.from);
       const { rank: toRank, file: toFile } = squareToIndices(data.to);
@@ -179,7 +195,7 @@ export default function OTBMode() {
       title: "Opponent moved",
       description: data.move,
     });
-  }, [matchId, toast]);
+  }, [matchId, toast, playerColor]);
 
   const handleOpponentTouch = useCallback((data: { matchId: string; square: string }) => {
     if (data.matchId !== matchId) return;
@@ -395,6 +411,7 @@ export default function OTBMode() {
           setOpponentViolations(0);
           setMyFalseClaims(0);
           setOpponentFalseClaims(0);
+          setHasMadeMove(false);
           
           if (response.opponent) {
             setOpponentName(response.opponent.name || "Opponent");
@@ -560,6 +577,16 @@ export default function OTBMode() {
 
   const handleClockPress = useCallback(() => {
     if (!gameStarted || arbiterPending || pendingCheckmate) return;
+    
+    // Must have made a move before pressing clock (in multiplayer)
+    if (matchId && !hasMadeMove && clockTurn === playerColor) {
+      toast({
+        title: "Make a move first",
+        description: "You must make a move before pressing the clock",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (clockTurn === "white") {
       setWhiteTime((t) => t + increment);
@@ -571,7 +598,13 @@ export default function OTBMode() {
     setClockTurn(newClockTurn);
     setActiveColor(newClockTurn);
     setClockPresses(clockPresses + 1);
-  }, [gameStarted, clockTurn, increment, clockPresses, arbiterPending, pendingCheckmate]);
+    setHasMadeMove(false);
+    
+    // Send clock press to opponent via WebSocket
+    if (matchId) {
+      sendMove(matchId, "__CLOCK_PRESS__", "", whiteTime, blackTime, undefined);
+    }
+  }, [gameStarted, clockTurn, increment, clockPresses, arbiterPending, pendingCheckmate, matchId, hasMadeMove, playerColor, toast, sendMove, whiteTime, blackTime]);
 
   const handleStartGame = () => {
     const minutes = parseInt(timeControl);
@@ -618,6 +651,16 @@ export default function OTBMode() {
     
     const isMyTurn = activeColor === playerColor;
     if (!isMyTurn && matchId) return;
+    
+    // In OTB mode, only allow one move per clock turn
+    if (hasMadeMove && matchId) {
+      toast({
+        title: "Press clock first",
+        description: "You must press the clock before making another move",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const { rank, file } = squareToIndices(square);
     const pieceOnSquare = boardState[rank][file];
@@ -657,6 +700,11 @@ export default function OTBMode() {
       setMoves(prev => [...prev, newMove]);
       setSelectedSquare(null);
       setLastMoveSquares([selectedSquare, square]);
+      
+      // Mark that player has made a move this turn (must press clock before making another)
+      if (matchId) {
+        setHasMadeMove(true);
+      }
       
       const newFen = boardToFen(newBoard, activeColor === "white" ? "black" : "white");
       
