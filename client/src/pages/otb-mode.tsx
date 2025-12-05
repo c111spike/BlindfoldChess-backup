@@ -578,8 +578,13 @@ export default function OTBMode() {
   const handleClockPress = useCallback(() => {
     if (!gameStarted || arbiterPending || pendingCheckmate) return;
     
+    // In multiplayer, can only press clock on your turn
+    if (matchId && clockTurn !== playerColor) {
+      return; // Not your turn, can't press clock
+    }
+    
     // Must have made a move before pressing clock (in multiplayer)
-    if (matchId && !hasMadeMove && clockTurn === playerColor) {
+    if (matchId && !hasMadeMove) {
       toast({
         title: "Make a move first",
         description: "You must make a move before pressing the clock",
