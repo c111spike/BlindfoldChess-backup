@@ -23,14 +23,14 @@ const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
     excludedAngles: [0],
     multiplier: 1.5
   },
-  'medium': {
+  'intermediate': {
     minPieces: 11,
     maxPieces: 17,
     rotationInterval: 60,
     excludedAngles: [0],
     multiplier: 2.0
   },
-  'hard': {
+  'advanced': {
     minPieces: 18,
     maxPieces: 24,
     rotationInterval: 45,

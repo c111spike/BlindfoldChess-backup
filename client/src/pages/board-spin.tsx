@@ -5,8 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCw, Clock, Target, Trophy, Play, Sparkles } from "lucide-react";
+import { RotateCw, Clock, Target, Trophy, Play, Sparkles, Medal, User } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const PIECE_UNICODE: Record<string, string> = {
   'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
@@ -46,13 +48,40 @@ export default function BoardSpin() {
   const [playerMove, setPlayerMove] = useState<string>('');
   const [bonusResult, setBonusResult] = useState<boolean | null>(null);
   const [finalRotation, setFinalRotation] = useState(0);
+  const [scoreSaved, setScoreSaved] = useState(false);
+  const [timeSpent, setTimeSpent] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const recreationStartTime = useRef<number>(0);
+
+  interface LeaderboardEntry {
+    id: string;
+    userId: string;
+    difficulty: string;
+    score: number;
+    accuracy: number;
+    pieceCount: number;
+    rotation: number;
+    bonusEarned: boolean;
+    timeSpent: number | null;
+    createdAt: string;
+    user: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      profileImageUrl: string | null;
+    };
+  }
+
+  const { data: leaderboard, refetch: refetchLeaderboard } = useQuery<LeaderboardEntry[]>({
+    queryKey: ['/api/boardspin/leaderboard', difficulty],
+    enabled: phase === 'select' || phase === 'results',
+  });
 
   const difficulties = [
     { value: 'beginner', label: 'Beginner (3-5 pieces)', multiplier: '1.0x' },
     { value: 'easy', label: 'Easy (6-10 pieces)', multiplier: '1.5x' },
-    { value: 'medium', label: 'Medium (11-17 pieces)', multiplier: '2.0x' },
-    { value: 'hard', label: 'Hard (18-24 pieces)', multiplier: '2.5x' },
+    { value: 'intermediate', label: 'Intermediate (11-17 pieces)', multiplier: '2.0x' },
+    { value: 'advanced', label: 'Advanced (18-24 pieces)', multiplier: '2.5x' },
     { value: 'expert', label: 'Expert (25-31 pieces)', multiplier: '3.0x' },
     { value: 'master', label: 'Master (32 pieces)', multiplier: '4.0x' },
   ];
@@ -123,6 +152,7 @@ export default function BoardSpin() {
           setFlyingPieces([]);
           setPhase('recreate');
           setTimeLeft(120);
+          recreationStartTime.current = Date.now();
           setPlayerBoard(Array(8).fill(null).map(() => Array(8).fill(null)));
           
           // Start countdown timer
@@ -142,6 +172,34 @@ export default function BoardSpin() {
     
     requestAnimationFrame(animateSpin);
   }, [position]);
+
+  const saveScore = async (finalScore: number, finalAccuracy: number, bonusEarned: boolean) => {
+    if (!position || scoreSaved) return;
+    
+    const elapsed = Math.round((Date.now() - recreationStartTime.current) / 1000);
+    setTimeSpent(elapsed);
+    
+    try {
+      await apiRequest('POST', '/api/boardspin/scores', {
+        difficulty: position.difficulty,
+        score: finalScore,
+        accuracy: finalAccuracy,
+        pieceCount: position.pieceCount,
+        rotation: position.rotation,
+        bonusEarned,
+        timeSpent: elapsed,
+      });
+      setScoreSaved(true);
+      refetchLeaderboard();
+    } catch (error: any) {
+      // Silently ignore auth errors - users can play without login, scores just won't be saved
+      if (error?.message?.includes('401')) {
+        console.log('Score not saved - user not logged in');
+      } else {
+        console.error('Failed to save score:', error);
+      }
+    }
+  };
 
   const checkAnswer = async () => {
     if (timerRef.current) {
@@ -171,6 +229,8 @@ export default function BoardSpin() {
         setBestMove(bestMoveResult.bestMove);
         setPhase('bonus');
       } else {
+        // Save score and go to results
+        await saveScore(result.score, result.accuracy, false);
         setPhase('results');
       }
     } catch (error) {
@@ -190,10 +250,19 @@ export default function BoardSpin() {
     
     setBonusResult(isCorrect);
     
+    const finalScore = isCorrect ? score * 2 : score;
     if (isCorrect) {
-      setScore(prev => prev * 2);
+      setScore(finalScore);
     }
     
+    // Save score with bonus status
+    await saveScore(finalScore, accuracy, isCorrect);
+    setPhase('results');
+  };
+  
+  const skipBonus = async () => {
+    // Save score without bonus
+    await saveScore(score, accuracy, false);
     setPhase('results');
   };
 
@@ -232,6 +301,9 @@ export default function BoardSpin() {
     setPlayerMove('');
     setBonusResult(null);
     setFinalRotation(0);
+    setScoreSaved(false);
+    setTimeSpent(0);
+    recreationStartTime.current = 0;
   };
 
   useEffect(() => {
@@ -267,11 +339,13 @@ export default function BoardSpin() {
             files.map((file, fileIdx) => {
               const isLight = (rankIdx + fileIdx) % 2 === 0;
               const piece = board[rankIdx][fileIdx];
+              const isA1 = file === 'a' && rank === '1';
+              const isH8 = file === 'h' && rank === '8';
               
               return (
                 <div
                   key={`${file}${rank}`}
-                  className={`aspect-square flex items-center justify-center cursor-pointer transition-colors
+                  className={`aspect-square flex items-center justify-center cursor-pointer transition-colors relative
                     ${isLight ? 'bg-amber-100 dark:bg-amber-200' : 'bg-amber-700 dark:bg-amber-800'}
                     ${interactive ? 'hover:brightness-110' : ''}
                     ${interactive && selectedPiece ? 'hover:ring-2 hover:ring-primary' : ''}
@@ -280,6 +354,17 @@ export default function BoardSpin() {
                   onClick={() => interactive && handleSquareClick(rankIdx, fileIdx)}
                   data-testid={`square-${file}${rank}`}
                 >
+                  {/* Corner markers for a1 and h8 */}
+                  {isA1 && (
+                    <span className="absolute bottom-0.5 left-0.5 text-[10px] font-bold text-red-600 dark:text-red-500 bg-white/70 dark:bg-black/50 px-0.5 rounded" data-testid="marker-a1">
+                      a1
+                    </span>
+                  )}
+                  {isH8 && (
+                    <span className="absolute top-0.5 right-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-white/70 dark:bg-black/50 px-0.5 rounded" data-testid="marker-h8">
+                      h8
+                    </span>
+                  )}
                   {piece && (
                     <span className={`text-2xl sm:text-3xl md:text-4xl select-none
                       ${piece === piece.toUpperCase() ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : 'text-gray-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.5)]'}
@@ -366,41 +451,91 @@ export default function BoardSpin() {
 
       {/* Phase: Select Difficulty */}
       {phase === 'select' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              Select Difficulty
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Select value={difficulty} onValueChange={setDifficulty}>
-              <SelectTrigger data-testid="select-difficulty">
-                <SelectValue placeholder="Select difficulty" />
-              </SelectTrigger>
-              <SelectContent>
-                {difficulties.map((d) => (
-                  <SelectItem key={d.value} value={d.value} data-testid={`difficulty-${d.value}`}>
-                    <div className="flex items-center justify-between w-full gap-4">
-                      <span>{d.label}</span>
-                      <Badge variant="secondary">{d.multiplier}</Badge>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="w-5 h-5" />
+                Select Difficulty
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Select value={difficulty} onValueChange={setDifficulty}>
+                <SelectTrigger data-testid="select-difficulty">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  {difficulties.map((d) => (
+                    <SelectItem key={d.value} value={d.value} data-testid={`difficulty-${d.value}`}>
+                      <div className="flex items-center justify-between w-full gap-4">
+                        <span>{d.label}</span>
+                        <Badge variant="secondary">{d.multiplier}</Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button 
+                className="w-full" 
+                size="lg"
+                onClick={generateNewPosition}
+                data-testid="button-start"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Start Game
+              </Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Medal className="w-5 h-5" />
+                Leaderboard
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {leaderboard && leaderboard.length > 0 ? (
+                <div className="space-y-2">
+                  {leaderboard.slice(0, 10).map((entry, index) => (
+                    <div 
+                      key={entry.id} 
+                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/50"
+                      data-testid={`leaderboard-entry-${index}`}
+                    >
+                      <span className={`font-bold text-lg w-6 ${
+                        index === 0 ? 'text-yellow-500' : 
+                        index === 1 ? 'text-gray-400' : 
+                        index === 2 ? 'text-amber-600' : 'text-muted-foreground'
+                      }`}>
+                        {index + 1}
+                      </span>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="truncate">
+                          {entry.user.firstName || 'Player'} {entry.user.lastName?.[0] || ''}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="shrink-0">
+                          {entry.score}
+                        </Badge>
+                        {entry.bonusEarned && (
+                          <Trophy className="w-4 h-4 text-yellow-500" />
+                        )}
+                      </div>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Button 
-              className="w-full" 
-              size="lg"
-              onClick={generateNewPosition}
-              data-testid="button-start"
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Start Game
-            </Button>
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">
+                  No scores yet. Be the first to play!
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Phase: Memorize */}
@@ -526,7 +661,7 @@ export default function BoardSpin() {
                 </Button>
               </div>
               
-              <Button variant="outline" onClick={() => setPhase('results')}>
+              <Button variant="outline" onClick={skipBonus} data-testid="button-skip-bonus">
                 Skip Bonus
               </Button>
             </CardContent>

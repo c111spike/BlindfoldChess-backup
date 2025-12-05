@@ -932,6 +932,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/boardspin/scores', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const { difficulty, score, accuracy, pieceCount, rotation, bonusEarned, timeSpent } = req.body;
+      
+      if (!difficulty || score === undefined || accuracy === undefined) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      const savedScore = await storage.saveBoardSpinScore({
+        userId,
+        difficulty,
+        score,
+        accuracy,
+        pieceCount: pieceCount || 0,
+        rotation: rotation || 0,
+        bonusEarned: bonusEarned || false,
+        timeSpent: timeSpent || null,
+      });
+      
+      res.json(savedScore);
+    } catch (error) {
+      console.error("Error saving Board Spin score:", error);
+      res.status(500).json({ message: "Failed to save score" });
+    }
+  });
+
+  app.get('/api/boardspin/leaderboard', async (req, res) => {
+    try {
+      const { difficulty, limit } = req.query;
+      const leaderboard = await storage.getBoardSpinLeaderboard(
+        difficulty as string | undefined,
+        limit ? parseInt(limit as string) : 10
+      );
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  app.get('/api/boardspin/my-scores', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const { limit } = req.query;
+      const scores = await storage.getUserBoardSpinScores(
+        userId,
+        limit ? parseInt(limit as string) : 20
+      );
+      res.json(scores);
+    } catch (error) {
+      console.error("Error fetching user scores:", error);
+      res.status(500).json({ message: "Failed to fetch scores" });
+    }
+  });
+
+  app.get('/api/boardspin/my-highscore', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const { difficulty } = req.query;
+      const highScore = await storage.getUserBoardSpinHighScore(
+        userId,
+        difficulty as string | undefined
+      );
+      res.json(highScore || null);
+    } catch (error) {
+      console.error("Error fetching high score:", error);
+      res.status(500).json({ message: "Failed to fetch high score" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });

@@ -240,6 +240,33 @@ export const matches = pgTable("matches", {
   completedAt: timestamp("completed_at"),
 });
 
+export const boardSpinDifficultyEnum = pgEnum("board_spin_difficulty", [
+  "beginner",
+  "easy",
+  "intermediate",
+  "advanced",
+  "expert",
+  "master",
+]);
+
+export const boardSpinScores = pgTable("board_spin_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  difficulty: boardSpinDifficultyEnum("difficulty").notNull(),
+  score: integer("score").notNull(),
+  accuracy: integer("accuracy").notNull(),
+  pieceCount: integer("piece_count").notNull(),
+  rotation: integer("rotation").notNull(),
+  bonusEarned: boolean("bonus_earned").default(false),
+  timeSpent: integer("time_spent"), // seconds spent on recreation
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  scoreIdx: index("board_spin_score_idx").on(table.score),
+  userIdx: index("board_spin_user_idx").on(table.userId),
+}));
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertGame = typeof games.$inferInsert;
@@ -260,6 +287,8 @@ export type InsertMatchmakingQueue = typeof matchmakingQueues.$inferInsert;
 export type MatchmakingQueue = typeof matchmakingQueues.$inferSelect;
 export type InsertMatch = typeof matches.$inferInsert;
 export type Match = typeof matches.$inferSelect;
+export type InsertBoardSpinScore = typeof boardSpinScores.$inferInsert;
+export type BoardSpinScore = typeof boardSpinScores.$inferSelect;
 
 export const insertGameSchema = createInsertSchema(games).omit({
   id: true,

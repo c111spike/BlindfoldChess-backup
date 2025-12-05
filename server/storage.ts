@@ -9,6 +9,7 @@ import {
   simulGames,
   matchmakingQueues,
   matches,
+  boardSpinScores,
   type User,
   type UpsertUser,
   type Game,
@@ -28,6 +29,8 @@ import {
   type InsertMatchmakingQueue,
   type Match,
   type InsertMatch,
+  type BoardSpinScore,
+  type InsertBoardSpinScore,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
@@ -76,6 +79,11 @@ export interface IStorage {
   updateMatch(id: string, data: Partial<Match>): Promise<Match>;
   getGamesByMatchId(matchId: string): Promise<Game[]>;
   completeMatch(matchId: string, result: string): Promise<{ match: Match; games: Game[] }>;
+  
+  saveBoardSpinScore(score: InsertBoardSpinScore): Promise<BoardSpinScore>;
+  getBoardSpinLeaderboard(difficulty?: string, limit?: number): Promise<(BoardSpinScore & { user: User })[]>;
+  getUserBoardSpinScores(userId: string, limit?: number): Promise<BoardSpinScore[]>;
+  getUserBoardSpinHighScore(userId: string, difficulty?: string): Promise<BoardSpinScore | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -909,6 +917,54 @@ export class DatabaseStorage implements IStorage {
 
       return { match: updatedMatch, games: updatedGames };
     });
+  }
+
+  async saveBoardSpinScore(scoreData: InsertBoardSpinScore): Promise<BoardSpinScore> {
+    const [score] = await db.insert(boardSpinScores).values(scoreData).returning();
+    return score;
+  }
+
+  async getBoardSpinLeaderboard(difficulty?: string, limit: number = 10): Promise<(BoardSpinScore & { user: User })[]> {
+    const whereClause = difficulty 
+      ? eq(boardSpinScores.difficulty, difficulty as any)
+      : undefined;
+
+    const results = await db
+      .select()
+      .from(boardSpinScores)
+      .innerJoin(users, eq(boardSpinScores.userId, users.id))
+      .where(whereClause)
+      .orderBy(desc(boardSpinScores.score))
+      .limit(limit);
+
+    return results.map(r => ({
+      ...r.board_spin_scores,
+      user: r.users,
+    }));
+  }
+
+  async getUserBoardSpinScores(userId: string, limit: number = 20): Promise<BoardSpinScore[]> {
+    return await db
+      .select()
+      .from(boardSpinScores)
+      .where(eq(boardSpinScores.userId, userId))
+      .orderBy(desc(boardSpinScores.createdAt))
+      .limit(limit);
+  }
+
+  async getUserBoardSpinHighScore(userId: string, difficulty?: string): Promise<BoardSpinScore | undefined> {
+    const whereClause = difficulty 
+      ? and(eq(boardSpinScores.userId, userId), eq(boardSpinScores.difficulty, difficulty as any))
+      : eq(boardSpinScores.userId, userId);
+
+    const [highScore] = await db
+      .select()
+      .from(boardSpinScores)
+      .where(whereClause)
+      .orderBy(desc(boardSpinScores.score))
+      .limit(1);
+
+    return highScore;
   }
 }
 
