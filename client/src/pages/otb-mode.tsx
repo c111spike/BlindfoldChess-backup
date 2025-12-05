@@ -424,6 +424,8 @@ export default function OTBMode() {
           setLegalChessGame(new Chess());
           setBoardState(INITIAL_BOARD.map(row => [...row]));
           setMoves([]);
+          setLastMoveSquares([]);
+          setSelectedSquare(null);
           setGameStarted(true);
           setInQueue(false);
           const assignedColor = response.game.playerColor === "white" ? "white" : "black";
@@ -440,6 +442,9 @@ export default function OTBMode() {
           setMyFalseClaims(0);
           setOpponentFalseClaims(0);
           setHasMadeMove(false);
+          setPendingCheckmate(null);
+          setArbiterPending(false);
+          setArbiterResult(null);
           
           if (response.opponent) {
             setOpponentName(response.opponent.name || "Opponent");
