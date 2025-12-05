@@ -969,15 +969,19 @@ export default function StandardMode() {
           ) : (
             <>
               <div className="space-y-2">
-                <Card>
-                  <CardContent className="py-3">
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-sm font-medium" data-testid="text-opponent-name">
-                        ({playerColor === 'white' ? 'Black' : 'White'}) {opponentName}
-                      </span>
-                      <span className="text-sm text-muted-foreground font-mono" data-testid="text-opponent-rating">
-                        ({opponentRating})
-                      </span>
+                <Card className={`${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-primary" : ""}`}>
+                  <CardContent className="py-2 px-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-black" : "bg-white border border-gray-400"}`} />
+                        <span className="font-medium text-sm" data-testid="text-opponent-name">{opponentName}</span>
+                        <span className="text-xs text-muted-foreground" data-testid="text-opponent-rating">({opponentRating})</span>
+                      </div>
+                      <div className={`text-2xl font-mono font-bold ${
+                        game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "text-foreground" : "text-muted-foreground"
+                      }`} data-testid={playerColor === "white" ? "text-black-time" : "text-white-time"}>
+                        {formatTime(playerColor === "white" ? blackTime : whiteTime)}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1050,15 +1054,20 @@ export default function StandardMode() {
                   </div>
                 )}
                 
-                <Card>
-                  <CardContent className="py-3">
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-sm font-medium" data-testid="text-player-name">
-                        ({playerColor === 'white' ? 'White' : 'Black'}) {playerName}
-                      </span>
-                      <span className="text-sm text-muted-foreground font-mono" data-testid="text-player-rating">
-                        ({playerRatings?.[getRatingCategory(timeControl)] || 1200})
-                      </span>
+                <Card className={`${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-primary" : ""}`}>
+                  <CardContent className="py-2 px-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-white border border-gray-400" : "bg-black"}`} />
+                        <span className="font-medium text-sm" data-testid="text-player-name">{playerName}</span>
+                        <span className="text-xs text-muted-foreground" data-testid="text-player-rating">({playerRatings?.[getRatingCategory(timeControl)] || 1200})</span>
+                        <Badge variant="outline" className="text-xs py-0">You</Badge>
+                      </div>
+                      <div className={`text-2xl font-mono font-bold ${
+                        game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "text-foreground" : "text-muted-foreground"
+                      }`} data-testid={playerColor === "white" ? "text-white-time" : "text-black-time"}>
+                        {formatTime(playerColor === "white" ? whiteTime : blackTime)}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1066,37 +1075,7 @@ export default function StandardMode() {
 
               <Card>
                 <CardContent className="py-4 md:py-6">
-                  <div className="grid grid-cols-2 gap-4 md:gap-6">
-                    <div className="space-y-2 md:space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs md:text-sm font-medium text-muted-foreground">White</span>
-                        {game && game.turn() === "w" && (
-                          <Badge variant="default" className="text-xs">Active</Badge>
-                        )}
-                      </div>
-                      <div className={`text-3xl md:text-5xl font-mono font-bold ${
-                        game && game.turn() === "w" ? "text-foreground" : "text-muted-foreground"
-                      }`} data-testid="text-white-time">
-                        {formatTime(whiteTime)}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 md:space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs md:text-sm font-medium text-muted-foreground">Black</span>
-                        {game && game.turn() === "b" && (
-                          <Badge variant="default" className="text-xs">Active</Badge>
-                        )}
-                      </div>
-                      <div className={`text-3xl md:text-5xl font-mono font-bold ${
-                        game && game.turn() === "b" ? "text-foreground" : "text-muted-foreground"
-                      }`} data-testid="text-black-time">
-                        {formatTime(blackTime)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button 
                       variant="outline" 
                       className="flex-1" 
