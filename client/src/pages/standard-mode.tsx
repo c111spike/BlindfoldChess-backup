@@ -925,23 +925,12 @@ export default function StandardMode() {
                         variant="outline"
                         size="lg"
                         className="min-h-11"
-                        onClick={() => handleJoinQueue('bullet')}
-                        disabled={!isConnected}
-                        data-testid="button-queue-bullet"
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Bullet (1m)
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        size="lg"
-                        className="min-h-11"
                         onClick={() => handleJoinQueue('blitz')}
                         disabled={!isConnected}
                         data-testid="button-queue-blitz"
                       >
                         <Clock className="mr-2 h-4 w-4" />
-                        Blitz (5m)
+                        Blitz (5 min)
                       </Button>
                       <Button 
                         variant="outline"
@@ -952,18 +941,7 @@ export default function StandardMode() {
                         data-testid="button-queue-rapid"
                       >
                         <Clock className="mr-2 h-4 w-4" />
-                        Rapid (15m)
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        size="lg"
-                        className="min-h-11"
-                        onClick={() => handleJoinQueue('classical')}
-                        disabled={!isConnected}
-                        data-testid="button-queue-classical"
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Classical (30m)
+                        Rapid (15 min)
                       </Button>
                     </div>
                   </CardContent>

@@ -552,21 +552,12 @@ export default function OTBMode() {
                     <div className="grid grid-cols-2 gap-3">
                       <Button 
                         variant="outline" 
-                        onClick={() => handleJoinQueue('1')}
-                        disabled={joinQueueMutation.isPending}
-                        data-testid="button-queue-bullet"
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Bullet (1m)
-                      </Button>
-                      <Button 
-                        variant="outline" 
                         onClick={() => handleJoinQueue('5')}
                         disabled={joinQueueMutation.isPending}
                         data-testid="button-queue-blitz"
                       >
                         <Clock className="mr-2 h-4 w-4" />
-                        Blitz (5m)
+                        Blitz (5 min)
                       </Button>
                       <Button 
                         variant="outline" 
@@ -575,16 +566,7 @@ export default function OTBMode() {
                         data-testid="button-queue-rapid"
                       >
                         <Clock className="mr-2 h-4 w-4" />
-                        Rapid (15m)
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleJoinQueue('30')}
-                        disabled={joinQueueMutation.isPending}
-                        data-testid="button-queue-classical"
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Classical (30m)
+                        Rapid (15 min)
                       </Button>
                     </div>
 
@@ -597,12 +579,8 @@ export default function OTBMode() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1">Bullet: 1m</SelectItem>
-                            <SelectItem value="3">Blitz: 3m</SelectItem>
-                            <SelectItem value="5">Blitz: 5m</SelectItem>
-                            <SelectItem value="10">Rapid: 10m</SelectItem>
-                            <SelectItem value="15">Rapid: 15m</SelectItem>
-                            <SelectItem value="30">Classical: 30m</SelectItem>
+                            <SelectItem value="5">Blitz: 5 min</SelectItem>
+                            <SelectItem value="15">Rapid: 15 min</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
