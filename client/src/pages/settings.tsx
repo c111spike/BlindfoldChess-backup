@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Crown, User, Settings as SettingsIcon, CreditCard, LogOut } from "lucide-react";
+import { User, Settings as SettingsIcon, LogOut } from "lucide-react";
 import type { UserSettings } from "@shared/schema";
 
 export default function Settings() {
@@ -99,10 +99,6 @@ export default function Settings() {
             <SettingsIcon className="mr-2 h-4 w-4" />
             Preferences
           </TabsTrigger>
-          <TabsTrigger value="subscription" data-testid="tab-subscription">
-            <CreditCard className="mr-2 h-4 w-4" />
-            Subscription
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="account" className="space-y-4">
@@ -125,19 +121,6 @@ export default function Settings() {
                     ? `${user?.firstName || ""} ${user?.lastName || ""}`.trim()
                     : "Not set"}
                 </p>
-              </div>
-              <div className="space-y-2">
-                <Label>Account Type</Label>
-                <div>
-                  {user?.isPremium ? (
-                    <Badge variant="default" className="gap-1">
-                      <Crown className="h-3 w-3" />
-                      Premium
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">Free</Badge>
-                  )}
-                </div>
               </div>
               <div className="pt-4 border-t">
                 <Button variant="outline" asChild data-testid="button-logout">
@@ -301,83 +284,6 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="subscription" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscription Status</CardTitle>
-              <CardDescription>Manage your premium membership</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                <div>
-                  <p className="font-semibold">Current Plan</p>
-                  <p className="text-sm text-muted-foreground">
-                    {user?.isPremium ? "Premium" : "Free"}
-                  </p>
-                </div>
-                {user?.isPremium ? (
-                  <Badge variant="default" className="gap-1">
-                    <Crown className="h-3 w-3" />
-                    Active
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">Free</Badge>
-                )}
-              </div>
-
-              {!user?.isPremium && (
-                <div className="space-y-4">
-                  <div className="p-6 border-2 border-primary rounded-lg space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-xl font-bold">Premium</h3>
-                        <p className="text-sm text-muted-foreground">Unlock unlimited training</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-3xl font-bold">$4.99</p>
-                        <p className="text-sm text-muted-foreground">/month</p>
-                      </div>
-                    </div>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-center gap-2">
-                        <Crown className="h-4 w-4 text-primary" />
-                        Unlimited games across all modes
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Crown className="h-4 w-4 text-primary" />
-                        Unlimited game history
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Crown className="h-4 w-4 text-primary" />
-                        Advanced statistics & analytics
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Crown className="h-4 w-4 text-primary" />
-                        Priority support
-                      </li>
-                    </ul>
-                    <Button className="w-full" data-testid="button-upgrade-premium">
-                      <Crown className="mr-2 h-4 w-4" />
-                      Upgrade to Premium
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">
-                    PPP-adjusted pricing: $0.99-$4.99 based on your location
-                  </p>
-                </div>
-              )}
-
-              {user?.isPremium && user?.premiumUntil && (
-                <div className="space-y-2">
-                  <Label>Next Billing Date</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(user.premiumUntil).toLocaleDateString()}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );

@@ -21,9 +21,7 @@ import {
   Grid3x3, 
   History, 
   BarChart3, 
-  Puzzle, 
   Settings,
-  Crown,
   LogOut,
 } from "lucide-react";
 import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
@@ -58,11 +56,6 @@ const menuItems = [
     title: "Statistics",
     url: "/statistics",
     icon: BarChart3,
-  },
-  {
-    title: "Puzzles",
-    url: "/puzzles",
-    icon: Puzzle,
   },
   {
     title: "Settings",

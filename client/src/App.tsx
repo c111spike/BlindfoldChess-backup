@@ -19,7 +19,6 @@ import BlindfoldMode from "@/pages/blindfold-mode";
 import SimulMode from "@/pages/simul-mode";
 import History from "@/pages/history";
 import StatisticsPage from "@/pages/statistics";
-import Puzzles from "@/pages/puzzles";
 import Settings from "@/pages/settings";
 
 function Router() {
@@ -42,7 +41,6 @@ function Router() {
       <Route path="/simul" component={SimulMode} />
       <Route path="/history" component={History} />
       <Route path="/statistics" component={StatisticsPage} />
-      <Route path="/puzzles" component={Puzzles} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>

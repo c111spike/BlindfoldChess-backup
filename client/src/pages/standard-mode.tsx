@@ -500,20 +500,12 @@ export default function StandardMode() {
         description: "Good luck!",
       });
     },
-    onError: (error: any) => {
-      if (error.message.includes("limit reached")) {
-        toast({
-          title: "Daily limit reached",
-          description: "Upgrade to Premium for unlimited games",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to start game",
-          variant: "destructive",
-        });
-      }
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to start game",
+        variant: "destructive",
+      });
     },
   });
 
@@ -900,16 +892,9 @@ export default function StandardMode() {
     <div className="h-full md:h-screen flex flex-col md:flex-row overflow-auto md:overflow-hidden">
       <div className="flex-1 flex items-center justify-center p-4 md:p-8 bg-muted/30 md:overflow-auto">
         <div className="w-full max-w-3xl space-y-4 md:space-y-6">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Standard Mode</h1>
-              <p className="text-sm md:text-base text-muted-foreground">Online chess with automatic clocks</p>
-            </div>
-            {!user?.isPremium && (
-              <Badge variant="secondary">
-                {5 - (user?.dailyGamesPlayed || 0)} free games left today
-              </Badge>
-            )}
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold">Standard Mode</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Online chess with automatic clocks</p>
           </div>
 
           {!gameStarted ? (

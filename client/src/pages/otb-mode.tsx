@@ -116,20 +116,12 @@ export default function OTBMode() {
         description: "Good luck!",
       });
     },
-    onError: (error: any) => {
-      if (error.message.includes("limit reached")) {
-        toast({
-          title: "Daily limit reached",
-          description: "Upgrade to Premium for unlimited games",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to start game",
-          variant: "destructive",
-        });
-      }
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to start game",
+        variant: "destructive",
+      });
     },
   });
 
@@ -546,16 +538,9 @@ export default function OTBMode() {
     <div className="h-screen flex">
       <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
         <div className="w-full max-w-3xl space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">OTB Tournament Mode</h1>
-              <p className="text-muted-foreground">Manual clock · FIDE-accurate arbiter</p>
-            </div>
-            {!user?.isPremium && (
-              <Badge variant="secondary">
-                {5 - (user?.dailyGamesPlayed || 0)} free games left today
-              </Badge>
-            )}
+          <div>
+            <h1 className="text-3xl font-bold">OTB Tournament Mode</h1>
+            <p className="text-muted-foreground">Manual clock · FIDE-accurate arbiter</p>
           </div>
 
           {!gameStarted ? (

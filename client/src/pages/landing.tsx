@@ -234,7 +234,7 @@ export default function Landing() {
                   </div>
                   <div>
                     <p className="font-semibold">Game History</p>
-                    <p className="text-sm text-muted-foreground">Last 50 games (Free)</p>
+                    <p className="text-sm text-muted-foreground">Complete history</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -242,8 +242,8 @@ export default function Landing() {
                     <Brain className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold">Puzzle Training</p>
-                    <p className="text-sm text-muted-foreground">Lichess database</p>
+                    <p className="font-semibold">Board Spin Training</p>
+                    <p className="text-sm text-muted-foreground">Memory & tactics</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -260,104 +260,11 @@ export default function Landing() {
             <div className="space-y-6 order-1 md:order-2">
               <h3 className="text-3xl font-semibold">Complete Training Ecosystem</h3>
               <p className="text-lg text-muted-foreground leading-relaxed">
-                Beyond game modes, SimulChess offers puzzle training, comprehensive statistics, 
-                and unlimited game history for premium users. Everything you need to improve your chess 
+                Beyond game modes, SimulChess offers Board Spin memory training, comprehensive statistics, 
+                and complete game history. Everything you need to improve your chess 
                 in one professional platform.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24 bg-background" id="pricing">
-        <div className="container max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Simple, Fair Pricing</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Start free, upgrade when you're ready. PPP-adjusted pricing for global accessibility.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <Card>
-              <CardHeader className="space-y-4">
-                <CardTitle className="text-2xl">Free</CardTitle>
-                <div>
-                  <span className="text-5xl font-bold">$0</span>
-                  <span className="text-muted-foreground ml-2">forever</span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">5 OTB games per day</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">5 Blindfold games per day</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Last 50 games in history</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Unlimited puzzles</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Full statistics access</span>
-                  </li>
-                </ul>
-                <Button variant="outline" className="w-full" asChild data-testid="button-pricing-free">
-                  <a href="/api/login">Start Free</a>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="border-primary shadow-lg">
-              <CardHeader className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-2xl">Premium</CardTitle>
-                  <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
-                    Popular
-                  </span>
-                </div>
-                <div>
-                  <span className="text-5xl font-bold">$4.99</span>
-                  <span className="text-muted-foreground ml-2">/ month</span>
-                </div>
-                <p className="text-sm text-muted-foreground">PPP-adjusted: $0.99-$4.99 globally</p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm font-semibold">Unlimited games across all modes</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm font-semibold">Unlimited game history</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Advanced statistics & analytics</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Priority support</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Early access to new features</span>
-                  </li>
-                </ul>
-                <Button className="w-full" asChild data-testid="button-pricing-premium">
-                  <a href="/api/login">Upgrade to Premium</a>
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </section>
@@ -370,7 +277,6 @@ export default function Landing() {
               <ul className="space-y-2">
                 <li><a href="#modes" className="text-sm text-muted-foreground hover:text-foreground">Modes</a></li>
                 <li><a href="#features" className="text-sm text-muted-foreground hover:text-foreground">Features</a></li>
-                <li><a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground">Pricing</a></li>
               </ul>
             </div>
             <div>
