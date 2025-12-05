@@ -1,7 +1,4 @@
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
-import type { Rating } from "@shared/schema";
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +10,6 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
 import { 
   LayoutDashboard, 
   Clock, 
@@ -23,6 +19,9 @@ import {
   BarChart3, 
   Settings,
   LogOut,
+  Shield,
+  FileText,
+  HelpCircle,
 } from "lucide-react";
 import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
 
@@ -66,30 +65,6 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user } = useAuth();
-  const { data: ratings } = useQuery<Rating>({
-    queryKey: ["/api/ratings"],
-  });
-
-  const getHighestRating = () => {
-    if (!ratings) return 1200;
-    return Math.max(
-      ratings.bullet || 0,
-      ratings.blitz || 0,
-      ratings.rapid || 0,
-      ratings.classical || 0
-    );
-  };
-
-  const getRatingTitle = (rating: number) => {
-    if (rating < 1200) return "Beginner";
-    if (rating < 1400) return "Novice";
-    if (rating < 1600) return "Tactician";
-    if (rating < 1800) return "Expert";
-    if (rating < 2000) return "Master";
-    if (rating < 2200) return "International Master";
-    return "Grandmaster";
-  };
 
   return (
     <Sidebar>
@@ -123,27 +98,42 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="px-4 py-4 border-t border-sidebar-border">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
-            Current ELO
-          </div>
-          <div className="text-3xl font-bold font-mono" data-testid="text-sidebar-elo">
-            {getHighestRating()}
-          </div>
-          <div className="text-sm text-primary mt-1">
-            {getRatingTitle(getHighestRating())}
-          </div>
+        <div className="px-2 py-2 border-t border-sidebar-border">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href="/privacy" data-testid="link-privacy">
+                  <Shield className="h-4 w-4" />
+                  <span>Privacy Policy</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href="/terms" data-testid="link-terms">
+                  <FileText className="h-4 w-4" />
+                  <span>Terms of Service</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href="/help" data-testid="link-help">
+                  <HelpCircle className="h-4 w-4" />
+                  <span>Help & Support</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <a href="/api/logout" data-testid="button-logout-sidebar">
+                  <LogOut className="h-4 w-4" />
+                  <span>Log Out</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </div>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <a href="/api/logout" data-testid="button-logout-sidebar">
-                <LogOut className="h-4 w-4" />
-                <span>Log Out</span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );

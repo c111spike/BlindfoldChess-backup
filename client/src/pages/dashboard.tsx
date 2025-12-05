@@ -76,22 +76,7 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Ready for your daily training?</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">OTB Bullet</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-bullet">
-              {ratings?.bullet || 1200}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3" />
-              <span>+12</span>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="space-y-0 pb-3">
             <CardDescription className="text-xs font-medium">OTB Blitz</CardDescription>
@@ -118,21 +103,6 @@ export default function Dashboard() {
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <TrendingDown className="h-3 w-3 text-destructive" />
               <span className="text-destructive">-5</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">Classical Elo</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-classical">
-              {ratings?.classical || 1400}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3" />
-              <span>+15</span>
             </div>
           </CardContent>
         </Card>
