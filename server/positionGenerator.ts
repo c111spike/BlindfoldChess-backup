@@ -125,8 +125,9 @@ function generateRandomPosition(targetPieces: number): string {
     if (rank > 0) fen += '/';
   }
   
-  // Add game state (white to move, no castling, no en passant)
-  fen += ' w - - 0 1';
+  // Randomly choose whose turn it is
+  const turn = Math.random() > 0.5 ? 'w' : 'b';
+  fen += ` ${turn} - - 0 1`;
   
   return fen;
 }
