@@ -203,9 +203,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/queue/join', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { timeControl } = req.body;
+      const { timeControl, queueType } = req.body;
 
-      if (!['bullet', 'blitz', 'rapid', 'classical'].includes(timeControl)) {
+      // Extract time control from queueType if provided (e.g., 'otb_blitz' -> 'blitz')
+      let effectiveTimeControl = timeControl;
+      if (!effectiveTimeControl && queueType) {
+        const parts = queueType.split('_');
+        effectiveTimeControl = parts[parts.length - 1]; // Get last part (blitz, rapid, etc.)
+      }
+
+      if (!['bullet', 'blitz', 'rapid', 'classical'].includes(effectiveTimeControl)) {
         return res.status(400).json({ message: "Invalid time control" });
       }
 
@@ -219,11 +226,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return 1200;
       };
 
-      const currentRating = getRatingForTimeControl(timeControl);
+      const currentRating = getRatingForTimeControl(effectiveTimeControl);
       
       res.json({
         success: true,
-        timeControl,
+        timeControl: effectiveTimeControl,
+        queueType: queueType || `standard_${effectiveTimeControl}`,
         position: 1,
         message: "Joined queue successfully"
       });
