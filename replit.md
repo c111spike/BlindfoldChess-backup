@@ -44,6 +44,13 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 ### Training Tools
 - **Training Notes System**: Optional reminder notes based on user-selected chess principles (opening, middlegame, tactics, endgame, psychology) displayed during games.
 - **Bot Training System**: AI opponents with 7 distinct personalities (Balanced, Tactician, Positional, Bishop/Knight Specialist, Aggressor, Defender) and 7 Elo levels (400-2000) for unrated practice.
+- **Board Spin**: Memory and tactics training game. Step 1: Memorize a position. Step 2: Recreate it from memory. Step 3 (optional): Find the best move. Uses Stockfish as a separate process (UCI protocol) for infinite random position generation and best move evaluation. No GPL exposure since Stockfish runs as independent executable.
+
+### Post-Game Options
+After each game, players choose between two modes:
+- **Review**: SimulChess's unique coaching system analyzing player psychology and time management (Focus Check, Efficiency Factor, VSS Mismatch, Burnout Line). Answers "How did YOU play?"
+- **Analyze**: Traditional Stockfish-powered engine analysis with line-by-line evaluation, variation exploration, and centipawn loss. Answers "What were the best moves?"
+Both options use Stockfish as a separate process, keeping all application code private.
 
 ### User Systems
 - **Profile System**: User profiles with avatar, game statistics (win/loss/draw by mode), rating history, and account management.
