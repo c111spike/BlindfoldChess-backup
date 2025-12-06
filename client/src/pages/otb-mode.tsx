@@ -996,6 +996,11 @@ export default function OTBMode() {
       opponentName: bot.name,
     });
     
+    // If player is black, set botThinking BEFORE gameStarted to prevent useEffect from also triggering
+    if (assignedColor === "black") {
+      setBotThinking(true);
+    }
+    
     setGameStarted(true);
     
     if (assignedColor === "black") {
@@ -1035,8 +1040,13 @@ export default function OTBMode() {
               setClockTurn("black");
               setActiveColor("black");
               setClockPresses(1);
+              setBotThinking(false);
             }, 500);
+          } else {
+            setBotThinking(false);
           }
+        } else {
+          setBotThinking(false);
         }
       }, 500);
     }
