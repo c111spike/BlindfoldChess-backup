@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Clock, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
+import { Play, Clock, Trophy, ChevronLeft, ChevronRight, BarChart3 } from "lucide-react";
 import type { Game } from "@shared/schema";
 
 interface SimulBoard {
@@ -33,6 +34,7 @@ interface SimulBoard {
 export default function SimulMode() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   
   const [gameStarted, setGameStarted] = useState(false);
   const [boardCount, setBoardCount] = useState("4");
@@ -647,9 +649,23 @@ export default function SimulMode() {
                   <p className="text-xl font-semibold mb-2">
                     Board Result: {boards[activeBoard].result?.toUpperCase()}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mb-3">
                     Continue playing on other boards
                   </p>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      const board = boards[activeBoard];
+                      if (board?.gameId) {
+                        setLocation(`/analysis/${board.gameId}`);
+                      }
+                    }}
+                    disabled={!boards[activeBoard]?.gameId}
+                    data-testid="button-analyze-board"
+                  >
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    Analyze This Board
+                  </Button>
                 </CardContent>
               </Card>
             )}

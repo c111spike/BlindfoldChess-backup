@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -55,6 +56,7 @@ interface MoveRecord {
 export default function OTBMode() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [game, setGame] = useState<Chess | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);
@@ -1577,33 +1579,48 @@ export default function OTBMode() {
                           </p>
                         </div>
                       </div>
-                      <Button 
-                        onClick={() => {
-                          setGameResult(null);
-                          setGameStarted(false);
-                          setGameId(null);
-                          setMatchId(null);
-                          setMoves([]);
-                          setBoardState(INITIAL_BOARD.map(row => [...row]));
-                          setSelectedSquare(null);
-                          setClockPresses(0);
-                          setMyViolations(0);
-                          setOpponentViolations(0);
-                          setMyFalseClaims(0);
-                          setOpponentFalseClaims(0);
-                          setArbiterResult(null);
-                          setRestoredGame(false);
-                          setIsBotGame(false);
-                          setSelectedBot(null);
-                          setShowBotSelection(false);
-                          setSelectedBotDifficulty(null);
-                          setBotThinking(false);
-                          setLegalChessGame(new Chess());
-                        }}
-                        data-testid="button-main-menu"
-                      >
-                        Main Menu
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="secondary"
+                          onClick={() => {
+                            if (gameId) {
+                              setLocation(`/analysis/${gameId}`);
+                            }
+                          }}
+                          disabled={!gameId}
+                          data-testid="button-analyze-game"
+                        >
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          Analyze
+                        </Button>
+                        <Button 
+                          onClick={() => {
+                            setGameResult(null);
+                            setGameStarted(false);
+                            setGameId(null);
+                            setMatchId(null);
+                            setMoves([]);
+                            setBoardState(INITIAL_BOARD.map(row => [...row]));
+                            setSelectedSquare(null);
+                            setClockPresses(0);
+                            setMyViolations(0);
+                            setOpponentViolations(0);
+                            setMyFalseClaims(0);
+                            setOpponentFalseClaims(0);
+                            setArbiterResult(null);
+                            setRestoredGame(false);
+                            setIsBotGame(false);
+                            setSelectedBot(null);
+                            setShowBotSelection(false);
+                            setSelectedBotDifficulty(null);
+                            setBotThinking(false);
+                            setLegalChessGame(new Chess());
+                          }}
+                          data-testid="button-main-menu"
+                        >
+                          Main Menu
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

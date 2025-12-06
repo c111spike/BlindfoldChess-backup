@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -21,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3 } from "lucide-react";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import type { Game, Rating } from "@shared/schema";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
@@ -55,6 +56,7 @@ const BLINDFOLD_CONFIG = {
 export default function StandardMode() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   
   const { data: playerRatings } = useQuery<Rating>({
     queryKey: ["/api/ratings"],
@@ -1639,36 +1641,55 @@ export default function StandardMode() {
                 : "Black wins!"}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowGameEndDialog(false);
+                  resetGameState();
+                }}
+                data-testid="button-main-menu"
+              >
+                Main Menu
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  if (matchId) {
+                    setWaitingForRematchResponse(true);
+                    didSendRematchRequestRef.current = true;
+                    console.log('[Rematch Button] Set didSendRematchRequestRef to true');
+                    sendRematchRequest(matchId);
+                    toast({
+                      title: "Rematch requested",
+                      description: "Waiting for opponent...",
+                    });
+                  }
+                }}
+                disabled={waitingForRematchResponse || rematchDenied || isBotGame}
+                data-testid="button-request-rematch"
+              >
+                {waitingForRematchResponse ? "Waiting..." : "Ask for Rematch"}
+              </Button>
+            </div>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
-                setShowGameEndDialog(false);
-                resetGameState();
-              }}
-              data-testid="button-main-menu"
-            >
-              Main Menu
-            </Button>
-            <Button
-              onClick={() => {
-                if (matchId) {
-                  setWaitingForRematchResponse(true);
-                  didSendRematchRequestRef.current = true; // Mark that we sent the request
-                  console.log('[Rematch Button] Set didSendRematchRequestRef to true');
-                  sendRematchRequest(matchId);
-                  toast({
-                    title: "Rematch requested",
-                    description: "Waiting for opponent...",
-                  });
+                if (gameId) {
+                  setShowGameEndDialog(false);
+                  resetGameState();
+                  setLocation(`/analysis/${gameId}`);
                 }
               }}
-              disabled={waitingForRematchResponse || rematchDenied}
-              data-testid="button-request-rematch"
+              disabled={!gameId}
+              data-testid="button-analyze-game"
             >
-              {waitingForRematchResponse ? "Waiting..." : "Ask for Rematch"}
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analyze Game
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
