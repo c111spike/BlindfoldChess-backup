@@ -62,86 +62,51 @@ const CLASSIFICATION_LABELS: Record<MoveClassification, string> = {
   forced: 'Forced',
 };
 
-function EvaluationGraph({ 
-  moves, 
-  currentIndex, 
-  onMoveClick 
+function VerticalEvalBar({ 
+  evaluation,
+  flipped = false
 }: { 
-  moves: MoveAnalysis[]; 
-  currentIndex: number;
-  onMoveClick: (index: number) => void;
+  evaluation: number | null;
+  flipped?: boolean;
 }) {
-  if (moves.length === 0) return null;
-
-  const maxEval = 5;
-  const minEval = -5;
-
-  const clampEval = (val: number) => Math.max(minEval, Math.min(maxEval, val));
+  const maxEval = 10;
+  const evalValue = evaluation ?? 0;
+  const clampedEval = Math.max(-maxEval, Math.min(maxEval, evalValue));
+  
+  const whitePercentage = 50 + (clampedEval / maxEval) * 50;
+  const blackPercentage = 100 - whitePercentage;
+  
+  const formatEval = (val: number) => {
+    if (Math.abs(val) >= 999) {
+      return val > 0 ? 'M' : '-M';
+    }
+    return val > 0 ? `+${val.toFixed(1)}` : val.toFixed(1);
+  };
 
   return (
-    <div className="w-full h-32 relative bg-muted rounded-lg overflow-hidden" data-testid="evaluation-graph">
-      <div className="absolute inset-0 flex items-center">
-        <div className="w-full h-px bg-muted-foreground/30" />
+    <div 
+      className={`w-6 h-full rounded overflow-hidden border border-border flex relative ${
+        flipped ? 'flex-col-reverse' : 'flex-col'
+      }`}
+      data-testid="eval-bar"
+    >
+      <div 
+        className="bg-zinc-800 transition-all duration-300"
+        style={{ height: `${blackPercentage}%` }}
+      />
+      <div 
+        className="bg-zinc-100 transition-all duration-300"
+        style={{ height: `${whitePercentage}%` }}
+      />
+      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center">
+        <span 
+          className={`text-[10px] font-bold px-0.5 rounded ${
+            evalValue >= 0 ? 'bg-zinc-100 text-zinc-800' : 'bg-zinc-800 text-zinc-100'
+          }`}
+        >
+          {formatEval(evalValue)}
+        </span>
       </div>
-      
-      <svg className="w-full h-full" viewBox={`0 0 ${moves.length} 100`} preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="evalGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity="0.3" />
-            <stop offset="50%" stopColor="hsl(var(--chart-1))" stopOpacity="0.1" />
-            <stop offset="100%" stopColor="hsl(var(--chart-2))" stopOpacity="0.3" />
-          </linearGradient>
-        </defs>
-        
-        <path
-          d={moves.map((m, i) => {
-            const eval_val = m.evalAfter ?? 0;
-            const y = 50 - (clampEval(eval_val) / maxEval) * 45;
-            return `${i === 0 ? 'M' : 'L'} ${i} ${y}`;
-          }).join(' ')}
-          fill="none"
-          stroke="hsl(var(--primary))"
-          strokeWidth="0.5"
-        />
-        
-        {moves.map((m, i) => {
-          const eval_val = m.evalAfter ?? 0;
-          const y = 50 - (clampEval(eval_val) / maxEval) * 45;
-          const isCritical = m.isCriticalMoment;
-          
-          return (
-            <g key={i}>
-              <rect
-                x={i - 0.4}
-                y={0}
-                width={0.8}
-                height={100}
-                fill="transparent"
-                className="cursor-pointer"
-                onClick={() => onMoveClick(i)}
-              />
-              {isCritical && (
-                <circle
-                  cx={i}
-                  cy={y}
-                  r={2}
-                  fill="hsl(var(--destructive))"
-                />
-              )}
-              {i === currentIndex && (
-                <line
-                  x1={i}
-                  y1={0}
-                  x2={i}
-                  y2={100}
-                  stroke="hsl(var(--primary))"
-                  strokeWidth="0.3"
-                />
-              )}
-            </g>
-          );
-        })}
-      </svg>
     </div>
   );
 }
@@ -753,14 +718,22 @@ export default function GameAnalysisPage() {
             <TabsContent value="analyze" className="space-y-4">
               <Card>
                 <CardContent className="p-4">
-                  <ChessBoard 
-                    fen={currentFen()} 
-                    lastMove={currentMove ? { 
-                      from: currentMove.move.substring(0, 2), 
-                      to: currentMove.move.substring(2, 4) 
-                    } : undefined}
-                    flipped={playerColor === 'black'}
-                  />
+                  <div className="flex gap-2">
+                    <VerticalEvalBar 
+                      evaluation={currentMove?.evalAfter ?? 0} 
+                      flipped={playerColor === 'black'}
+                    />
+                    <div className="flex-1">
+                      <ChessBoard 
+                        fen={currentFen()} 
+                        lastMove={currentMove ? { 
+                          from: currentMove.move.substring(0, 2), 
+                          to: currentMove.move.substring(2, 4) 
+                        } : undefined}
+                        flipped={playerColor === 'black'}
+                      />
+                    </div>
+                  </div>
                   
                   <div className="flex items-center justify-center gap-2 mt-4">
                     <Button
@@ -805,12 +778,6 @@ export default function GameAnalysisPage() {
                   </div>
                 </CardContent>
               </Card>
-              
-              <EvaluationGraph 
-                moves={moves} 
-                currentIndex={currentMoveIndex}
-                onMoveClick={setCurrentMoveIndex}
-              />
               
               {currentMove && (
                 <Card data-testid="current-move-details">
