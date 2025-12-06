@@ -1356,6 +1356,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const matchRooms = new Map<string, Set<string>>();
   const disconnectTimers = new Map<string, NodeJS.Timeout>();
   const DISCONNECT_GRACE_PERIOD = 30000; // 30 seconds
+  
+  // Track handshake state per match for OTB mode
+  // Key: matchId, Value: { whiteOfferedHandshake: boolean, blackOfferedHandshake: boolean, whiteMoved: boolean, blackMoved: boolean }
+  interface HandshakeState {
+    whiteOfferedHandshake: boolean;
+    blackOfferedHandshake: boolean;
+    whiteMoved: boolean;
+    blackMoved: boolean;
+    // Track whether each player offered handshake BEFORE their first move (clean hands)
+    whiteOfferedBeforeFirstMove: boolean;
+    blackOfferedBeforeFirstMove: boolean;
+    player1Color: "white" | "black";
+    player1Id: string;
+    player2Id: string;
+  }
+  const matchHandshakeState = new Map<string, HandshakeState>();
 
   wss.on('connection', (ws: WebSocket & { userId?: string; matchId?: string }) => {
     console.log('WebSocket client connected');
@@ -1583,17 +1599,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`[Reconnect] No disconnect timer found for user ${userId} (normal first join or rematch)`);
           }
           
-          ws.send(JSON.stringify({ type: 'joined_match', matchId }));
+          // Initialize handshake state for this match if it doesn't exist
+          // This ensures we can track moves and handshakes from the start
+          let handshakeState = matchHandshakeState.get(matchId);
+          if (!handshakeState) {
+            handshakeState = {
+              whiteOfferedHandshake: false,
+              blackOfferedHandshake: false,
+              whiteMoved: false,
+              blackMoved: false,
+              whiteOfferedBeforeFirstMove: false,
+              blackOfferedBeforeFirstMove: false,
+              player1Color: "white",
+              player1Id: "",
+              player2Id: "",
+            };
+            matchHandshakeState.set(matchId, handshakeState);
+          }
+          
+          // Send current handshake state to the joining player
+          ws.send(JSON.stringify({ 
+            type: 'joined_match', 
+            matchId,
+            handshakeState: {
+              whiteOfferedHandshake: handshakeState.whiteOfferedHandshake,
+              blackOfferedHandshake: handshakeState.blackOfferedHandshake,
+              whiteMoved: handshakeState.whiteMoved,
+              blackMoved: handshakeState.blackMoved,
+              whiteOfferedBeforeFirstMove: handshakeState.whiteOfferedBeforeFirstMove,
+              blackOfferedBeforeFirstMove: handshakeState.blackOfferedBeforeFirstMove,
+            },
+          }));
         } else if (data.type === 'move') {
           const matchId = ws.matchId;
           const userId = ws.userId;
+          const playerColor = data.playerColor as "white" | "black" | undefined;
           
-          console.log(`[WS Move] Received move from ${userId} in match ${matchId}: ${data.move}`);
+          console.log(`[WS Move] Received move from ${userId} (${playerColor}) in match ${matchId}: ${data.move}`);
           
           if (!matchId || !userId) {
             console.log(`[WS Move] ERROR: Not in a match - matchId: ${matchId}, userId: ${userId}`);
             ws.send(JSON.stringify({ type: 'error', message: 'Not in a match' }));
             return;
+          }
+          
+          // Track first move for handshake violation detection
+          // Initialize state if it doesn't exist (important: player may move before handshake)
+          let state = matchHandshakeState.get(matchId);
+          if (!state) {
+            state = {
+              whiteOfferedHandshake: false,
+              blackOfferedHandshake: false,
+              whiteMoved: false,
+              blackMoved: false,
+              whiteOfferedBeforeFirstMove: false,
+              blackOfferedBeforeFirstMove: false,
+              player1Color: "white",
+              player1Id: "",
+              player2Id: "",
+            };
+            matchHandshakeState.set(matchId, state);
+          }
+          
+          if (playerColor) {
+            if (playerColor === "white" && !state.whiteMoved) {
+              state.whiteMoved = true;
+              console.log(`[Handshake] White made first move. Offered handshake before: ${state.whiteOfferedBeforeFirstMove}`);
+            } else if (playerColor === "black" && !state.blackMoved) {
+              state.blackMoved = true;
+              console.log(`[Handshake] Black made first move. Offered handshake before: ${state.blackOfferedBeforeFirstMove}`);
+            }
           }
           
           try {
@@ -1735,8 +1810,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (data.type === 'handshake_offer') {
           const matchId = data.matchId;
           const userId = ws.userId;
+          const playerColor = data.playerColor as "white" | "black";
           
           if (!matchId || !userId) return;
+          
+          // Track handshake state for this match
+          let state = matchHandshakeState.get(matchId);
+          if (!state) {
+            // Initialize state - we'll set player IDs when we have both
+            state = {
+              whiteOfferedHandshake: false,
+              blackOfferedHandshake: false,
+              whiteMoved: false,
+              blackMoved: false,
+              whiteOfferedBeforeFirstMove: false,
+              blackOfferedBeforeFirstMove: false,
+              player1Color: "white",
+              player1Id: "",
+              player2Id: "",
+            };
+            matchHandshakeState.set(matchId, state);
+          }
+          
+          // Update handshake state based on player color
+          // Track if handshake is offered BEFORE first move (clean hands)
+          if (playerColor === "white") {
+            state.whiteOfferedHandshake = true;
+            // Mark as offered before first move if they haven't moved yet
+            if (!state.whiteMoved) {
+              state.whiteOfferedBeforeFirstMove = true;
+            }
+          } else if (playerColor === "black") {
+            state.blackOfferedHandshake = true;
+            // Mark as offered before first move if they haven't moved yet
+            if (!state.blackMoved) {
+              state.blackOfferedBeforeFirstMove = true;
+            }
+          }
+          console.log(`[Handshake] Player ${userId} (${playerColor}) offered handshake in match ${matchId}. State:`, state);
           
           const roomUsers = matchRooms.get(matchId);
           if (roomUsers) {

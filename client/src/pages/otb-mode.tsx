@@ -398,6 +398,76 @@ export default function OTBMode() {
       toast({ title: "Handshake complete!", description: "Good luck!" });
     }
   }, [matchId, playerColor, moves.length, myHandshakeOffered, toast]);
+  
+  // Handle receiving handshake state when joining a match (detect violations retroactively)
+  const handleJoinedMatch = useCallback((data: { 
+    matchId: string; 
+    handshakeState: { 
+      whiteOfferedHandshake: boolean; 
+      blackOfferedHandshake: boolean; 
+      whiteMoved: boolean; 
+      blackMoved: boolean;
+      whiteOfferedBeforeFirstMove: boolean;
+      blackOfferedBeforeFirstMove: boolean;
+    } | null 
+  }) => {
+    console.log('[OTB] Joined match, handshake state:', data.handshakeState);
+    
+    if (!data.handshakeState) return;
+    
+    const { 
+      whiteOfferedHandshake, blackOfferedHandshake, 
+      whiteMoved, blackMoved,
+      whiteOfferedBeforeFirstMove, blackOfferedBeforeFirstMove
+    } = data.handshakeState;
+    
+    if (playerColor === "white") {
+      // Restore my own handshake state (I am white)
+      if (whiteOfferedHandshake) {
+        setMyHandshakeOffered(true);
+      }
+      // Server tracks if handshake was offered before first move
+      if (whiteOfferedBeforeFirstMove) {
+        setMyHandshakeBeforeFirstMove(true);
+      }
+      
+      // Set opponent's handshake offer state (opponent is black)
+      if (blackOfferedHandshake) {
+        setOpponentHandshakeOffered(true);
+      }
+      if (blackOfferedBeforeFirstMove) {
+        setOpponentHandshakeBeforeFirstMove(true);
+      }
+      
+      // Detect if opponent (black) moved without offering handshake first
+      if (blackMoved && !blackOfferedBeforeFirstMove) {
+        setOpponentHandshakeViolation(true);
+        console.log('[OTB] Detected handshake violation: Black moved without offering handshake first');
+      }
+    } else {
+      // Restore my own handshake state (I am black)
+      if (blackOfferedHandshake) {
+        setMyHandshakeOffered(true);
+      }
+      if (blackOfferedBeforeFirstMove) {
+        setMyHandshakeBeforeFirstMove(true);
+      }
+      
+      // Set opponent's handshake offer state (opponent is white)
+      if (whiteOfferedHandshake) {
+        setOpponentHandshakeOffered(true);
+      }
+      if (whiteOfferedBeforeFirstMove) {
+        setOpponentHandshakeBeforeFirstMove(true);
+      }
+      
+      // Detect if opponent (white) moved without offering handshake first
+      if (whiteMoved && !whiteOfferedBeforeFirstMove) {
+        setOpponentHandshakeViolation(true);
+        console.log('[OTB] Detected handshake violation: White moved without offering handshake first');
+      }
+    }
+  }, [playerColor]);
 
   const { sendMove, sendPieceTouch, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, joinMatch, isConnected, isAuthenticated } = useWebSocket({
     userId: user?.id,
@@ -408,6 +478,7 @@ export default function OTBMode() {
     onArbiterRuling: handleArbiterRuling,
     onGameEnd: handleOpponentGameEnd,
     onHandshakeOffer: handleOpponentHandshake,
+    onJoinedMatch: handleJoinedMatch,
   });
 
   useEffect(() => {
@@ -1176,6 +1247,7 @@ export default function OTBMode() {
         piece: originalPiece,
         captured: captured || undefined,
         promotion: promotedPiece || undefined,
+        playerColor: playerColor,
       });
       sendPieceTouch(null);
     }
@@ -1334,11 +1406,35 @@ export default function OTBMode() {
     let isValidClaim = false;
     
     if (claimType === "unsportsmanlike") {
-      // Valid claim if opponent committed a handshake violation (moved before offering handshake)
-      // The violation flag is set when opponent makes their first move without having offered handshake
-      // Claim is only valid once (can't claim twice for same offense)
+      // Valid claim if:
+      // 1. Opponent committed a handshake violation (moved before offering handshake)
+      // 2. You have "clean hands" (offered handshake before your first move)
+      //    - If you haven't made your first move yet, you still have clean hands
+      //    - If you made your first move but offered handshake before it, you still have clean hands
+      //    - Clean hands persist even after making subsequent moves
+      // 3. Haven't already penalized opponent for this
       const alreadyPenalized = opponentViolations.unsportsmanlike > 0;
-      isValidClaim = opponentHandshakeViolation && !alreadyPenalized;
+      
+      // Check if player has "clean hands":
+      // - Either they haven't made their first move yet (can still offer handshake)
+      // - OR they offered handshake before making their first move (clean hands persist)
+      const myFirstMoveNotMade = (playerColor === "white" && moves.length === 0) || 
+                                  (playerColor === "black" && moves.length < 2);
+      // Clean hands = offered before first move, OR haven't moved yet (still have chance to offer)
+      const haveCleanHands = myHandshakeBeforeFirstMove || myFirstMoveNotMade;
+      
+      isValidClaim = opponentHandshakeViolation && haveCleanHands && !alreadyPenalized;
+      
+      // Only show "lost the right" message if they've made their first move without offering handshake
+      const madeMoveWithoutHandshake = !myHandshakeBeforeFirstMove && !myFirstMoveNotMade;
+      if (opponentHandshakeViolation && madeMoveWithoutHandshake && !alreadyPenalized) {
+        // Player lost the right to complain because they also didn't handshake before their first move
+        toast({
+          title: "Claim Invalid",
+          description: "You cannot claim unsportsmanlike conduct because you also moved without offering a handshake.",
+          variant: "destructive",
+        });
+      }
     } else if (claimType === "illegal") {
       if (moves.length === 0) {
         isValidClaim = false;
@@ -2025,7 +2121,7 @@ export default function OTBMode() {
                   }
                   // Send handshake offer to opponent via WebSocket for multiplayer
                   if (matchId && !isBotGame) {
-                    sendHandshakeOffer(matchId);
+                    sendHandshakeOffer(matchId, playerColor);
                   }
                   if (opponentHandshakeOffered) {
                     setHandshakeComplete(true);

@@ -44,12 +44,25 @@ interface ArbiterRulingData {
   forfeitReason?: string;
 }
 
+interface HandshakeStateData {
+  whiteOfferedHandshake: boolean;
+  blackOfferedHandshake: boolean;
+  whiteMoved: boolean;
+  blackMoved: boolean;
+}
+
+interface JoinedMatchData {
+  matchId: string;
+  handshakeState: HandshakeStateData | null;
+}
+
 interface UseWebSocketOptions {
   userId?: string;
   matchId?: string;
   onMove?: (data: MoveData) => void;
   onClockSync?: (data: { matchId: string; whiteTime: number; blackTime: number }) => void;
   onMatchFound?: (data: MatchFoundData) => void;
+  onJoinedMatch?: (data: JoinedMatchData) => void;
   onDrawOffer?: (data: { matchId: string; from: string }) => void;
   onDrawResponse?: (data: { matchId: string; accepted: boolean }) => void;
   onRematchRequest?: (data: { matchId: string; from: string }) => void;
@@ -67,7 +80,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
     matchId, 
     onMove, 
     onClockSync, 
-    onMatchFound, 
+    onMatchFound,
+    onJoinedMatch,
     onDrawOffer, 
     onDrawResponse, 
     onRematchRequest, 
@@ -87,6 +101,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const onMoveRef = useRef(onMove);
   const onClockSyncRef = useRef(onClockSync);
   const onMatchFoundRef = useRef(onMatchFound);
+  const onJoinedMatchRef = useRef(onJoinedMatch);
   const onDrawOfferRef = useRef(onDrawOffer);
   const onDrawResponseRef = useRef(onDrawResponse);
   const onRematchRequestRef = useRef(onRematchRequest);
@@ -102,6 +117,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onMoveRef.current = onMove;
     onClockSyncRef.current = onClockSync;
     onMatchFoundRef.current = onMatchFound;
+    onJoinedMatchRef.current = onJoinedMatch;
     onDrawOfferRef.current = onDrawOffer;
     onDrawResponseRef.current = onDrawResponse;
     onRematchRequestRef.current = onRematchRequest;
@@ -159,6 +175,15 @@ export function useWebSocket(options: UseWebSocketOptions) {
                 timeControl: message.timeControl,
                 color: message.color,
                 opponent: message.opponent,
+              });
+            }
+            break;
+          case 'joined_match':
+            console.log('[WebSocket] Received joined_match with handshake state:', message.handshakeState);
+            if (onJoinedMatchRef.current) {
+              onJoinedMatchRef.current({
+                matchId: message.matchId,
+                handshakeState: message.handshakeState,
               });
             }
             break;
@@ -300,7 +325,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     fen: string, 
     whiteTime: number, 
     blackTime: number,
-    otbMoveData?: { from: string; to: string; piece: string; captured?: string; promotion?: string }
+    otbMoveData?: { from: string; to: string; piece: string; captured?: string; promotion?: string; playerColor?: "white" | "black" }
   ) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
@@ -400,11 +425,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
-  const sendHandshakeOffer = useCallback((matchId: string) => {
+  const sendHandshakeOffer = useCallback((matchId: string, playerColor?: "white" | "black") => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ 
         type: 'handshake_offer', 
         matchId,
+        playerColor,
       }));
     }
   }, []);
