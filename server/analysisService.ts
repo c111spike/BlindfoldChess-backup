@@ -259,7 +259,6 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
     for (let i = 0; i < moveResults.length; i++) {
       const result = moveResults[i];
       
-      chess.load(i === 0 ? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' : moveResults[i - 1].fen);
       const isForced = isMoveForcedPosition(chess);
       chess.move(result.move);
       

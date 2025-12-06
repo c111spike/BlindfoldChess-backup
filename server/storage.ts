@@ -1247,7 +1247,10 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(moveAnalysis)
       .where(eq(moveAnalysis.gameAnalysisId, gameAnalysisId))
-      .orderBy(moveAnalysis.moveNumber);
+      .orderBy(
+        moveAnalysis.moveNumber,
+        sql`CASE WHEN ${moveAnalysis.color} = 'white' THEN 0 ELSE 1 END`
+      );
   }
 
   // Shared Analysis methods
