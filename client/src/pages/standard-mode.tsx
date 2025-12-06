@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3 } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3, Pencil } from "lucide-react";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import type { Game, Rating } from "@shared/schema";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
@@ -116,9 +116,15 @@ export default function StandardMode() {
     to: string;
   } | null>(null);
   
+  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
+  const [premove, setPremove] = useState<{ from: string; to: string } | null>(null);
+  const [arrowDrawMode, setArrowDrawMode] = useState(false);
+  
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
   const matchIdRef = useRef<string | null>(null);
+  const premoveRef = useRef<{ from: string; to: string } | null>(null);
+  const sendMoveRef = useRef<((matchId: string, move: string, fen: string, whiteTime: number, blackTime: number) => void) | null>(null);
   const rematchExitIntentRef = useRef<boolean>(false);
   const didSendRematchRequestRef = useRef<boolean>(false);
   const gameFromMatchmakingRef = useRef<boolean>(false);
@@ -136,7 +142,8 @@ export default function StandardMode() {
     whiteTimeRef.current = whiteTime;
     blackTimeRef.current = blackTime;
     movesRef.current = moves;
-  }, [game, gameId, matchId, whiteTime, blackTime, moves]);
+    premoveRef.current = premove;
+  }, [game, gameId, matchId, whiteTime, blackTime, moves, premove]);
 
   const completeGame = useCallback(async (result: "white_win" | "black_win" | "draw") => {
     // Guard against duplicate execution
@@ -246,6 +253,9 @@ export default function StandardMode() {
     setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     setSelectedSquare(null);
     setLegalMoves([]);
+    setLastMove(null);
+    setPremove(null);
+    setArrowDrawMode(false);
     setRestoredGame(false);
     setPlayerColor("white");
     setIncrement(0);
@@ -286,6 +296,14 @@ export default function StandardMode() {
       }
       
       console.log('[handleOpponentMove] Loading FEN:', data.fen);
+      
+      const prevFen = currentGame.fen();
+      const tempGame = new Chess(prevFen);
+      const moveResult = tempGame.move(data.move);
+      if (moveResult) {
+        setLastMove({ from: moveResult.from, to: moveResult.to });
+      }
+      
       currentGame.load(data.fen);
       setFen(data.fen);
       
@@ -313,6 +331,58 @@ export default function StandardMode() {
           title: "Opponent moved",
           description: data.move,
         });
+        
+        if (premoveRef.current) {
+          const pendingPremove = premoveRef.current;
+          console.log('[handleOpponentMove] Executing premove:', pendingPremove);
+          setPremove(null);
+          premoveRef.current = null;
+          
+          setTimeout(() => {
+            try {
+              const premoveMoveObj = currentGame.move({
+                from: pendingPremove.from,
+                to: pendingPremove.to,
+                promotion: 'q',
+              });
+              
+              if (premoveMoveObj) {
+                const newFen = currentGame.fen();
+                setFen(newFen);
+                setLastMove({ from: premoveMoveObj.from, to: premoveMoveObj.to });
+                
+                const updatedMoves = [...movesRef.current, premoveMoveObj.san];
+                setMoves(updatedMoves);
+                movesRef.current = updatedMoves;
+                
+                if (matchIdRef.current && sendMoveRef.current) {
+                  sendMoveRef.current(matchIdRef.current, premoveMoveObj.san, newFen, data.whiteTime, data.blackTime);
+                }
+                
+                if (currentGame.isCheckmate()) {
+                  const result = currentGame.turn() === "w" ? "black_win" : "white_win";
+                  completeGame(result);
+                } else if (currentGame.isDraw() || currentGame.isStalemate() || currentGame.isThreefoldRepetition() || currentGame.isInsufficientMaterial()) {
+                  completeGame("draw");
+                }
+              } else {
+                console.log('[handleOpponentMove] Premove was illegal, cancelled');
+                toast({
+                  title: "Premove cancelled",
+                  description: "The planned move is no longer legal.",
+                  variant: "destructive",
+                });
+              }
+            } catch (e) {
+              console.log('[handleOpponentMove] Premove error:', e);
+              toast({
+                title: "Premove cancelled",
+                description: "The planned move is no longer legal.",
+                variant: "destructive",
+              });
+            }
+          }, 50);
+        }
       }
     } catch (error) {
       console.error("[handleOpponentMove] Error:", error);
@@ -516,6 +586,10 @@ export default function StandardMode() {
     onGameEnd: handleGameEndEvent,
   });
 
+  useEffect(() => {
+    sendMoveRef.current = sendMove;
+  }, [sendMove]);
+
   // Join the match room when a match is found
   useEffect(() => {
     if (matchId && isConnected) {
@@ -681,7 +755,10 @@ export default function StandardMode() {
     if (assignedColor === "black") {
       const botMove = await requestBotMove(newGame.fen(), bot.id);
       if (botMove) {
-        newGame.move(botMove.move);
+        const moveResult = newGame.move(botMove.move);
+        if (moveResult) {
+          setLastMove({ from: moveResult.from, to: moveResult.to });
+        }
         setFen(newGame.fen());
         setMoves([botMove.move]);
         movesRef.current = [botMove.move];
@@ -875,6 +952,7 @@ export default function StandardMode() {
         console.log('[executeMove] Move SAN:', move.san);
         
         setFen(newFen);
+        setLastMove({ from: move.from, to: move.to });
         
         const newMoves = [...movesRef.current, move.san];
         console.log('[executeMove] New moves array:', newMoves);
@@ -900,7 +978,10 @@ export default function StandardMode() {
           if (isBotGame && selectedBot) {
             const botMove = await requestBotMove(newFen, selectedBot.id);
             if (botMove && game) {
-              game.move(botMove.move);
+              const botMoveResult = game.move(botMove.move);
+              if (botMoveResult) {
+                setLastMove({ from: botMoveResult.from, to: botMoveResult.to });
+              }
               const botNewFen = game.fen();
               setFen(botNewFen);
               const updatedMoves = [...movesRef.current, botMove.move];
@@ -941,8 +1022,31 @@ export default function StandardMode() {
     const currentTurn = game.turn();
     const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
     
-    if (!isMyTurn) {
-      console.log('[handleSquareClick] Not your turn');
+    if (!isMyTurn && !isBotGame) {
+      const piece = game.get(square as any);
+      const myPieceColor = playerColor === "white" ? "w" : "b";
+      
+      if (selectedSquare) {
+        if (selectedSquare === square) {
+          setSelectedSquare(null);
+          setLegalMoves([]);
+          setPremove(null);
+          return;
+        }
+        
+        setPremove({ from: selectedSquare, to: square });
+        setSelectedSquare(null);
+        setLegalMoves([]);
+        console.log('[handleSquareClick] Premove set:', selectedSquare, '->', square);
+        return;
+      } else {
+        if (piece && piece.color === myPieceColor) {
+          setSelectedSquare(square);
+          setLegalMoves([]);
+          setPremove(null);
+          console.log('[handleSquareClick] Selected piece for premove:', square);
+        }
+      }
       return;
     }
 
@@ -1301,7 +1405,14 @@ export default function StandardMode() {
                     orientation={playerColor}
                     showCoordinates={true}
                     highlightedSquares={legalMoves}
+                    lastMove={lastMove || undefined}
                     onSquareClick={handleSquareClick}
+                    enableArrows={true}
+                    enablePremoves={!isBotGame}
+                    isPlayerTurn={game ? ((game.turn() === "w" && playerColor === "white") || (game.turn() === "b" && playerColor === "black")) : true}
+                    premove={premove}
+                    onPremove={setPremove}
+                    arrowDrawMode={arrowDrawMode}
                   />
                   
                   {isBlindfold && !isPeeking && (
@@ -1383,7 +1494,7 @@ export default function StandardMode() {
               </div>
 
               <Card>
-                <CardContent className="py-4 md:py-6">
+                <CardContent className="py-4 md:py-6 space-y-3">
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button 
                       variant="outline" 
@@ -1399,6 +1510,20 @@ export default function StandardMode() {
                       <Flag className="mr-2 h-4 w-4" />
                       Resign
                     </Button>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center gap-2">
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor="arrow-draw-mode" className="text-sm">
+                        Draw Arrows (Touch)
+                      </Label>
+                    </div>
+                    <Switch
+                      id="arrow-draw-mode"
+                      checked={arrowDrawMode}
+                      onCheckedChange={setArrowDrawMode}
+                      data-testid="switch-arrow-draw-mode"
+                    />
                   </div>
                 </CardContent>
               </Card>

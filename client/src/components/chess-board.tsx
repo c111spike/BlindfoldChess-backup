@@ -1,5 +1,16 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Card } from "@/components/ui/card";
+
+interface Arrow {
+  from: string;
+  to: string;
+  color?: string;
+}
+
+interface Premove {
+  from: string;
+  to: string;
+}
 
 interface ChessBoardProps {
   fen?: string;
@@ -13,6 +24,12 @@ interface ChessBoardProps {
   onSquareClick?: (square: string) => void;
   className?: string;
   noCard?: boolean;
+  enableArrows?: boolean;
+  enablePremoves?: boolean;
+  isPlayerTurn?: boolean;
+  premove?: Premove | null;
+  onPremove?: (premove: Premove | null) => void;
+  arrowDrawMode?: boolean;
 }
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -35,9 +52,20 @@ export function ChessBoard({
   onSquareClick,
   className = "",
   noCard = false,
+  enableArrows = true,
+  enablePremoves = false,
+  isPlayerTurn = true,
+  premove = null,
+  onPremove,
+  arrowDrawMode = false,
 }: ChessBoardProps) {
   const [internalSelectedSquare, setInternalSelectedSquare] = useState<string | null>(null);
   const selectedSquare = externalSelectedSquare !== null ? externalSelectedSquare : internalSelectedSquare;
+  
+  const [arrows, setArrows] = useState<Arrow[]>([]);
+  const [drawingArrow, setDrawingArrow] = useState<{ from: string; currentSquare: string } | null>(null);
+  const [isRightMouseDown, setIsRightMouseDown] = useState(false);
+  const boardRef = useRef<HTMLDivElement>(null);
   
   const effectiveLastMoveSquares = lastMove 
     ? [lastMove.from, lastMove.to] 
@@ -68,6 +96,29 @@ export function ChessBoard({
   const displayRanks = orientation === "white" ? RANKS : [...RANKS].reverse();
   const displayFiles = orientation === "white" ? FILES : [...FILES].reverse();
 
+  const getSquareFromPosition = useCallback((clientX: number, clientY: number): string | null => {
+    if (!boardRef.current) return null;
+    
+    const rect = boardRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    const squareWidth = rect.width / 8;
+    const squareHeight = rect.height / 8;
+    
+    const fileIndex = Math.floor(x / squareWidth);
+    const rankIndex = Math.floor(y / squareHeight);
+    
+    if (fileIndex < 0 || fileIndex > 7 || rankIndex < 0 || rankIndex > 7) {
+      return null;
+    }
+    
+    const file = displayFiles[fileIndex];
+    const rank = displayRanks[rankIndex];
+    
+    return `${file}${rank}`;
+  }, [displayFiles, displayRanks]);
+
   const handleSquareClick = (file: string, rank: string) => {
     const square = `${file}${rank}`;
     if (externalSelectedSquare === null) {
@@ -76,13 +127,182 @@ export function ChessBoard({
     onSquareClick?.(square);
   };
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!enableArrows) return;
+    
+    setArrows([]);
+  }, [enableArrows]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!enableArrows) return;
+    
+    if (e.button === 2 || arrowDrawMode) {
+      e.preventDefault();
+      setIsRightMouseDown(true);
+      const square = getSquareFromPosition(e.clientX, e.clientY);
+      if (square) {
+        setDrawingArrow({ from: square, currentSquare: square });
+      }
+    }
+  }, [enableArrows, arrowDrawMode, getSquareFromPosition]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!drawingArrow || !isRightMouseDown) return;
+    
+    const square = getSquareFromPosition(e.clientX, e.clientY);
+    if (square && square !== drawingArrow.currentSquare) {
+      setDrawingArrow({ ...drawingArrow, currentSquare: square });
+    }
+  }, [drawingArrow, isRightMouseDown, getSquareFromPosition]);
+
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    if (!enableArrows) return;
+    
+    if ((e.button === 2 || arrowDrawMode) && drawingArrow && isRightMouseDown) {
+      const toSquare = getSquareFromPosition(e.clientX, e.clientY);
+      
+      if (toSquare && toSquare !== drawingArrow.from) {
+        const newArrow = { from: drawingArrow.from, to: toSquare };
+        const existingIndex = arrows.findIndex(
+          a => a.from === newArrow.from && a.to === newArrow.to
+        );
+        
+        if (existingIndex >= 0) {
+          setArrows(arrows.filter((_, i) => i !== existingIndex));
+        } else {
+          setArrows([...arrows, newArrow]);
+        }
+      }
+      
+      setDrawingArrow(null);
+      setIsRightMouseDown(false);
+    }
+  }, [enableArrows, arrowDrawMode, drawingArrow, isRightMouseDown, arrows, getSquareFromPosition]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!enableArrows || !arrowDrawMode) return;
+    
+    const touch = e.touches[0];
+    const square = getSquareFromPosition(touch.clientX, touch.clientY);
+    if (square) {
+      setDrawingArrow({ from: square, currentSquare: square });
+      setIsRightMouseDown(true);
+    }
+  }, [enableArrows, arrowDrawMode, getSquareFromPosition]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!drawingArrow || !isRightMouseDown) return;
+    
+    const touch = e.touches[0];
+    const square = getSquareFromPosition(touch.clientX, touch.clientY);
+    if (square && square !== drawingArrow.currentSquare) {
+      setDrawingArrow({ ...drawingArrow, currentSquare: square });
+    }
+  }, [drawingArrow, isRightMouseDown, getSquareFromPosition]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!enableArrows || !arrowDrawMode) return;
+    
+    if (drawingArrow && isRightMouseDown) {
+      const changedTouch = e.changedTouches[0];
+      const toSquare = getSquareFromPosition(changedTouch.clientX, changedTouch.clientY);
+      
+      if (toSquare && toSquare !== drawingArrow.from) {
+        const newArrow = { from: drawingArrow.from, to: toSquare };
+        const existingIndex = arrows.findIndex(
+          a => a.from === newArrow.from && a.to === newArrow.to
+        );
+        
+        if (existingIndex >= 0) {
+          setArrows(arrows.filter((_, i) => i !== existingIndex));
+        } else {
+          setArrows([...arrows, newArrow]);
+        }
+      }
+      
+      setDrawingArrow(null);
+      setIsRightMouseDown(false);
+    }
+  }, [enableArrows, arrowDrawMode, drawingArrow, isRightMouseDown, arrows, getSquareFromPosition]);
+
+  const getSquareCenter = useCallback((square: string): { x: number; y: number } => {
+    const file = square[0];
+    const rank = square[1];
+    
+    const fileIndex = displayFiles.indexOf(file);
+    const rankIndex = displayRanks.indexOf(rank);
+    
+    return {
+      x: (fileIndex + 0.5) * 12.5,
+      y: (rankIndex + 0.5) * 12.5,
+    };
+  }, [displayFiles, displayRanks]);
+
   const getSquareColor = (fileIndex: number, rankIndex: number) => {
     const isLight = (fileIndex + rankIndex) % 2 === 0;
     return isLight ? "bg-[#f0d9b5]" : "bg-[#b58863]";
   };
 
+  const isPremoveSquare = (square: string) => {
+    return premove && (premove.from === square || premove.to === square);
+  };
+
+  const renderArrow = (arrow: Arrow, index: number, isPreview: boolean = false) => {
+    const from = getSquareCenter(arrow.from);
+    const to = getSquareCenter(arrow.to);
+    
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    
+    const headLength = 3;
+    const adjustedLength = length - headLength * 0.7;
+    const ratio = adjustedLength / length;
+    
+    const toX = from.x + dx * ratio;
+    const toY = from.y + dy * ratio;
+    
+    const color = isPreview ? "rgba(255, 170, 0, 0.7)" : "rgba(255, 170, 0, 0.8)";
+    
+    return (
+      <g key={`arrow-${index}`}>
+        <line
+          x1={from.x}
+          y1={from.y}
+          x2={toX}
+          y2={toY}
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+        <polygon
+          points={`0,-2 4,0 0,2`}
+          fill={color}
+          transform={`translate(${to.x},${to.y}) rotate(${Math.atan2(dy, dx) * 180 / Math.PI})`}
+        />
+      </g>
+    );
+  };
+
   const boardContent = (
-    <div className="relative w-full h-full">
+    <div 
+      ref={boardRef}
+      className="relative w-full h-full select-none"
+      onContextMenu={handleContextMenu}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={() => {
+        if (isRightMouseDown) {
+          setDrawingArrow(null);
+          setIsRightMouseDown(false);
+        }
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="grid grid-cols-8 grid-rows-8 gap-0 w-full h-full">
         {displayRanks.map((rank, rankIndex) =>
           displayFiles.map((file, fileIndex) => {
@@ -94,11 +314,13 @@ export function ChessBoard({
               const isSelected = selectedSquare === square;
               const isOpponentTouched = touchedSquare === square;
               const isLastMove = effectiveLastMoveSquares.includes(square);
+              const isPremove = isPremoveSquare(square);
 
               return (
                 <div
                   key={square}
                   data-testid={`square-${square}`}
+                  data-square={square}
                   onClick={() => handleSquareClick(file, rank)}
                   className={`
                     relative flex items-center justify-center cursor-pointer
@@ -107,6 +329,7 @@ export function ChessBoard({
                     ${isSelected ? "ring-4 ring-yellow-400 ring-inset" : ""}
                     ${isOpponentTouched ? "ring-4 ring-orange-500 ring-inset animate-pulse" : ""}
                     ${isLastMove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-yellow-400/30" : ""}
+                    ${isPremove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-blue-500/40" : ""}
                     hover-elevate
                   `}
                 >
@@ -133,6 +356,19 @@ export function ChessBoard({
           })
         )}
       </div>
+      
+      {(arrows.length > 0 || drawingArrow) && (
+        <svg 
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+        >
+          {arrows.map((arrow, i) => renderArrow(arrow, i))}
+          {drawingArrow && drawingArrow.from !== drawingArrow.currentSquare && 
+            renderArrow({ from: drawingArrow.from, to: drawingArrow.currentSquare }, -1, true)
+          }
+        </svg>
+      )}
     </div>
   );
 
