@@ -808,8 +808,6 @@ export default function OTBMode() {
   };
 
   const requestBotMove = useCallback(async (currentFen: string, botId: string) => {
-    setBotThinking(true);
-    
     try {
       const response = await apiRequest("POST", "/api/bots/move", {
         fen: currentFen,
@@ -831,8 +829,6 @@ export default function OTBMode() {
         variant: "destructive",
       });
       return null;
-    } finally {
-      setBotThinking(false);
     }
   }, [toast]);
 
@@ -947,6 +943,9 @@ export default function OTBMode() {
     const botColor = playerColor === "white" ? "black" : "white";
     if (activeColor !== botColor) return;
     
+    // Set botThinking immediately to prevent re-triggers
+    setBotThinking(true);
+    
     if (moves.length > 0) {
       const lastMove = moves[moves.length - 1];
       const tempChess = new Chess();
@@ -989,6 +988,7 @@ export default function OTBMode() {
             description: "You forfeited due to 2 illegal moves. You did not heed the warning and now lose Elo.",
             variant: "destructive",
           });
+          setBotThinking(false);
           handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
           return;
         }
@@ -1022,6 +1022,7 @@ export default function OTBMode() {
         
         setActiveColor(playerColor);
         setClockTurn(playerColor);
+        setBotThinking(false);
         
         setTimeout(() => {
           setArbiterResult(null);
@@ -1073,6 +1074,7 @@ export default function OTBMode() {
         setLastMoveSquares([moveResult.from, moveResult.to]);
         
         if (newLegalGame.isCheckmate()) {
+          setBotThinking(false);
           setTimeout(() => {
             handleGameEnd(botColor === "white" ? "white_win" : "black_win");
           }, 500);
@@ -1080,6 +1082,7 @@ export default function OTBMode() {
         }
         
         if (newLegalGame.isDraw() || newLegalGame.isStalemate()) {
+          setBotThinking(false);
           setTimeout(() => {
             handleGameEnd("draw");
           }, 500);
@@ -1095,8 +1098,15 @@ export default function OTBMode() {
           setClockTurn(playerColor);
           setActiveColor(playerColor);
           setClockPresses(prev => prev + 1);
+          setBotThinking(false);
         }, 500);
+      } else {
+        // Bot move failed to execute, reset thinking state
+        setBotThinking(false);
       }
+    } else {
+      // No valid bot move received, reset thinking state
+      setBotThinking(false);
     }
   }, [isBotGame, selectedBot, legalChessGame, gameResult, playerColor, activeColor, moves, myViolations, toast, handleGameEnd, requestBotMove, increment]);
 
