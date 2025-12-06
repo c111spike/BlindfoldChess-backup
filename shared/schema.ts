@@ -267,6 +267,50 @@ export const boardSpinScores = pgTable("board_spin_scores", {
   userIdx: index("board_spin_user_idx").on(table.userId),
 }));
 
+// N-Piece Challenge tables
+export const nPieceTypeEnum = pgEnum("n_piece_type", [
+  "rook",
+  "knight", 
+  "bishop",
+  "queen",
+  "king",
+]);
+
+export const nPieceChallengeProgress = pgTable("n_piece_challenge_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  pieceType: nPieceTypeEnum("piece_type").notNull(),
+  boardSize: integer("board_size").notNull(), // 5-12
+  solutionsFound: integer("solutions_found").default(0),
+  bestTime: integer("best_time"), // fastest solve time in milliseconds
+  lastPlayedAt: timestamp("last_played_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userPieceBoardUnique: unique().on(table.userId, table.pieceType, table.boardSize),
+  userIdx: index("n_piece_progress_user_idx").on(table.userId),
+}));
+
+export const nPieceChallengeSolutions = pgTable("n_piece_challenge_solutions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  progressId: varchar("progress_id")
+    .references(() => nPieceChallengeProgress.id, { onDelete: "cascade" })
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  pieceType: nPieceTypeEnum("piece_type").notNull(),
+  boardSize: integer("board_size").notNull(),
+  solutionIndex: integer("solution_index").notNull(), // Which solution number (1-92 for 8-queens, etc.)
+  positions: text("positions").notNull(), // Canonical position string (e.g., "0,4,7,5,2,6,1,3")
+  solveTime: integer("solve_time").notNull(), // milliseconds to solve
+  solvedAt: timestamp("solved_at").defaultNow(),
+}, (table) => ({
+  userSolutionUnique: unique().on(table.userId, table.pieceType, table.boardSize, table.solutionIndex),
+  progressIdx: index("n_piece_solutions_progress_idx").on(table.progressId),
+}));
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertGame = typeof games.$inferInsert;
@@ -289,6 +333,11 @@ export type InsertMatch = typeof matches.$inferInsert;
 export type Match = typeof matches.$inferSelect;
 export type InsertBoardSpinScore = typeof boardSpinScores.$inferInsert;
 export type BoardSpinScore = typeof boardSpinScores.$inferSelect;
+export type InsertNPieceChallengeProgress = typeof nPieceChallengeProgress.$inferInsert;
+export type NPieceChallengeProgress = typeof nPieceChallengeProgress.$inferSelect;
+export type InsertNPieceChallengeSolution = typeof nPieceChallengeSolutions.$inferInsert;
+export type NPieceChallengeSolution = typeof nPieceChallengeSolutions.$inferSelect;
+export type NPieceType = typeof nPieceTypeEnum.enumValues[number];
 
 export const insertGameSchema = createInsertSchema(games).omit({
   id: true,
