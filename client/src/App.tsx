@@ -23,6 +23,7 @@ import KnightsTour from "@/pages/knights-tour";
 import History from "@/pages/history";
 import StatisticsPage from "@/pages/statistics";
 import Settings from "@/pages/settings";
+import GameAnalysis from "@/pages/game-analysis";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -48,6 +49,8 @@ function Router() {
       <Route path="/history" component={History} />
       <Route path="/statistics" component={StatisticsPage} />
       <Route path="/settings" component={Settings} />
+      <Route path="/analysis/:gameId" component={GameAnalysis} />
+      <Route path="/analysis/shared/:shareCode" component={GameAnalysis} />
       <Route component={NotFound} />
     </Switch>
   );

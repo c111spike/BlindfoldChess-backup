@@ -1194,6 +1194,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Game Analysis Routes
+  app.post('/api/analysis/start/:gameId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { gameId } = req.params;
+      
+      const game = await storage.getGame(gameId);
+      if (!game) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+      
+      if (game.userId !== userId && game.whitePlayerId !== userId && game.blackPlayerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to analyze this game" });
+      }
+      
+      const existingAnalysis = await storage.getGameAnalysis(gameId);
+      if (existingAnalysis?.status === 'completed') {
+        return res.json({ analysis: existingAnalysis, status: 'already_completed' });
+      }
+      
+      if (existingAnalysis?.status === 'processing') {
+        const { getAnalysisProgress } = await import('./analysisService');
+        const progress = getAnalysisProgress(gameId);
+        return res.json({ status: 'processing', progress });
+      }
+      
+      const { analyzeGame } = await import('./analysisService');
+      analyzeGame(gameId, userId).catch(err => {
+        console.error('Background analysis failed:', err);
+      });
+      
+      res.json({ status: 'started', message: 'Analysis started' });
+    } catch (error) {
+      console.error("Error starting game analysis:", error);
+      res.status(500).json({ message: "Failed to start analysis" });
+    }
+  });
+
+  app.get('/api/analysis/:gameId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { gameId } = req.params;
+      
+      const game = await storage.getGame(gameId);
+      if (!game) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+      
+      if (game.userId !== userId && game.whitePlayerId !== userId && game.blackPlayerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to view this analysis" });
+      }
+      
+      const analysis = await storage.getGameAnalysis(gameId);
+      if (!analysis) {
+        return res.status(404).json({ message: "Analysis not found" });
+      }
+      
+      const moves = await storage.getMoveAnalyses(analysis.id);
+      
+      res.json({ analysis, moves, game });
+    } catch (error) {
+      console.error("Error fetching game analysis:", error);
+      res.status(500).json({ message: "Failed to fetch analysis" });
+    }
+  });
+
+  app.get('/api/analysis/progress/:gameId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { gameId } = req.params;
+      const { getAnalysisProgress } = await import('./analysisService');
+      const progress = getAnalysisProgress(gameId);
+      
+      if (!progress) {
+        const analysis = await storage.getGameAnalysis(gameId);
+        if (analysis?.status === 'completed') {
+          return res.json({ status: 'completed' });
+        }
+        return res.json({ status: 'not_started' });
+      }
+      
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching analysis progress:", error);
+      res.status(500).json({ message: "Failed to fetch progress" });
+    }
+  });
+
+  app.post('/api/analysis/:gameId/share', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { gameId } = req.params;
+      
+      const analysis = await storage.getGameAnalysis(gameId);
+      if (!analysis) {
+        return res.status(404).json({ message: "Analysis not found" });
+      }
+      
+      if (analysis.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to share this analysis" });
+      }
+      
+      const { generateShareLink } = await import('./analysisService');
+      const shareCode = await generateShareLink(analysis.id, userId);
+      
+      res.json({ shareCode, shareUrl: `/analysis/shared/${shareCode}` });
+    } catch (error) {
+      console.error("Error creating share link:", error);
+      res.status(500).json({ message: "Failed to create share link" });
+    }
+  });
+
+  app.get('/api/analysis/shared/:shareCode', async (req, res) => {
+    try {
+      const { shareCode } = req.params;
+      const { getAnalysisByShareCode } = await import('./analysisService');
+      const result = await getAnalysisByShareCode(shareCode);
+      
+      if (!result) {
+        return res.status(404).json({ message: "Shared analysis not found" });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching shared analysis:", error);
+      res.status(500).json({ message: "Failed to fetch shared analysis" });
+    }
+  });
+
+  app.get('/api/accuracy-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const history = await storage.getAccuracyHistory(userId, limit);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching accuracy history:", error);
+      res.status(500).json({ message: "Failed to fetch accuracy history" });
+    }
+  });
+
+  app.get('/api/player-weaknesses', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const weaknesses = await storage.getPlayerWeaknesses(userId);
+      res.json(weaknesses);
+    } catch (error) {
+      console.error("Error fetching player weaknesses:", error);
+      res.status(500).json({ message: "Failed to fetch weaknesses" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });

@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, TrendingUp, TrendingDown } from "lucide-react";
+import { Trophy, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
 import type { Game } from "@shared/schema";
 
 export default function History() {
+  const [, setLocation] = useLocation();
   const [modeFilter, setModeFilter] = useState("all");
   const { data: games, isLoading } = useQuery<Game[]>({
     queryKey: ["/api/games/history", modeFilter],
@@ -114,13 +116,25 @@ export default function History() {
                     )}
                   </div>
                   
-                  <div className="col-span-2 text-right">
+                  <div className="col-span-1 text-right">
                     <p className="text-sm text-muted-foreground">
                       {new Date(game.completedAt || game.createdAt!).toLocaleDateString()}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(game.completedAt || game.createdAt!).toLocaleTimeString()}
                     </p>
+                  </div>
+                  
+                  <div className="col-span-1 text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setLocation(`/analysis/${game.id}`)}
+                      data-testid={`button-analyze-${game.id}`}
+                    >
+                      <BarChart3 className="w-4 h-4 mr-1" />
+                      Analyze
+                    </Button>
                   </div>
                 </div>
                 
