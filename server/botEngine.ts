@@ -174,12 +174,12 @@ function minimax(
 function getSearchDepth(difficulty: BotDifficulty): number {
   const depthMap: Record<BotDifficulty, number> = {
     beginner: 1,
-    novice: 1,
-    intermediate: 2,
-    club: 2,
-    advanced: 3,
-    expert: 3,
-    master: 4,
+    novice: 2,
+    intermediate: 3,
+    club: 3,
+    advanced: 4,
+    expert: 5,
+    master: 6,
   };
   return depthMap[difficulty];
 }
@@ -187,12 +187,12 @@ function getSearchDepth(difficulty: BotDifficulty): number {
 function getMistakeProbability(difficulty: BotDifficulty): number {
   const probabilityMap: Record<BotDifficulty, number> = {
     beginner: 0.5,
-    novice: 0.35,
-    intermediate: 0.25,
-    club: 0.15,
-    advanced: 0.08,
+    novice: 0.25,
+    intermediate: 0.2,
+    club: 0.1,
+    advanced: 0.07,
     expert: 0.04,
-    master: 0.02,
+    master: 0.01,
   };
   return probabilityMap[difficulty];
 }
