@@ -18,6 +18,7 @@ import StandardMode from "@/pages/standard-mode";
 import BlindfoldMode from "@/pages/blindfold-mode";
 import SimulMode from "@/pages/simul-mode";
 import BoardSpin from "@/pages/board-spin";
+import NPieceChallenge from "@/pages/n-piece-challenge";
 import History from "@/pages/history";
 import StatisticsPage from "@/pages/statistics";
 import Settings from "@/pages/settings";
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/blindfold" component={BlindfoldMode} />
       <Route path="/simul" component={SimulMode} />
       <Route path="/boardspin" component={BoardSpin} />
+      <Route path="/n-piece" component={NPieceChallenge} />
       <Route path="/history" component={History} />
       <Route path="/statistics" component={StatisticsPage} />
       <Route path="/settings" component={Settings} />

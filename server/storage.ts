@@ -10,6 +10,8 @@ import {
   matchmakingQueues,
   matches,
   boardSpinScores,
+  nPieceChallengeProgress,
+  nPieceChallengeSolutions,
   type User,
   type UpsertUser,
   type Game,
@@ -31,6 +33,11 @@ import {
   type InsertMatch,
   type BoardSpinScore,
   type InsertBoardSpinScore,
+  type NPieceChallengeProgress,
+  type InsertNPieceChallengeProgress,
+  type NPieceChallengeSolution,
+  type InsertNPieceChallengeSolution,
+  type NPieceType,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
@@ -84,6 +91,14 @@ export interface IStorage {
   getBoardSpinLeaderboard(difficulty?: string, limit?: number): Promise<(BoardSpinScore & { user: User })[]>;
   getUserBoardSpinScores(userId: string, limit?: number): Promise<BoardSpinScore[]>;
   getUserBoardSpinHighScore(userId: string, difficulty?: string): Promise<BoardSpinScore | undefined>;
+  
+  // N-Piece Challenge
+  getNPieceProgress(userId: string, pieceType: NPieceType, boardSize: number): Promise<NPieceChallengeProgress | undefined>;
+  getOrCreateNPieceProgress(userId: string, pieceType: NPieceType, boardSize: number): Promise<NPieceChallengeProgress>;
+  getNPieceSolutions(progressId: string): Promise<NPieceChallengeSolution[]>;
+  saveNPieceSolution(solution: InsertNPieceChallengeSolution): Promise<{ solution: NPieceChallengeSolution; isNew: boolean }>;
+  getNPieceOverallProgress(userId: string): Promise<{ total: number; found: number }>;
+  getUserNPieceSolutionByPositions(userId: string, pieceType: NPieceType, boardSize: number, positions: string): Promise<NPieceChallengeSolution | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -967,6 +982,122 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
 
     return highScore;
+  }
+
+  // N-Piece Challenge Methods
+  async getNPieceProgress(userId: string, pieceType: NPieceType, boardSize: number): Promise<NPieceChallengeProgress | undefined> {
+    const [progress] = await db
+      .select()
+      .from(nPieceChallengeProgress)
+      .where(and(
+        eq(nPieceChallengeProgress.userId, userId),
+        eq(nPieceChallengeProgress.pieceType, pieceType),
+        eq(nPieceChallengeProgress.boardSize, boardSize)
+      ));
+    return progress;
+  }
+
+  async getOrCreateNPieceProgress(userId: string, pieceType: NPieceType, boardSize: number): Promise<NPieceChallengeProgress> {
+    const existing = await this.getNPieceProgress(userId, pieceType, boardSize);
+    if (existing) return existing;
+
+    const [progress] = await db
+      .insert(nPieceChallengeProgress)
+      .values({
+        userId,
+        pieceType,
+        boardSize,
+        solutionsFound: 0,
+      })
+      .returning();
+    return progress;
+  }
+
+  async getNPieceSolutions(progressId: string): Promise<NPieceChallengeSolution[]> {
+    return await db
+      .select()
+      .from(nPieceChallengeSolutions)
+      .where(eq(nPieceChallengeSolutions.progressId, progressId))
+      .orderBy(nPieceChallengeSolutions.solutionIndex);
+  }
+
+  async getUserNPieceSolutionByPositions(userId: string, pieceType: NPieceType, boardSize: number, positions: string): Promise<NPieceChallengeSolution | undefined> {
+    const [solution] = await db
+      .select()
+      .from(nPieceChallengeSolutions)
+      .where(and(
+        eq(nPieceChallengeSolutions.userId, userId),
+        eq(nPieceChallengeSolutions.pieceType, pieceType),
+        eq(nPieceChallengeSolutions.boardSize, boardSize),
+        eq(nPieceChallengeSolutions.positions, positions)
+      ));
+    return solution;
+  }
+
+  async saveNPieceSolution(solutionData: InsertNPieceChallengeSolution): Promise<{ solution: NPieceChallengeSolution; isNew: boolean }> {
+    // Check if this exact solution already exists
+    const existing = await this.getUserNPieceSolutionByPositions(
+      solutionData.userId,
+      solutionData.pieceType,
+      solutionData.boardSize,
+      solutionData.positions
+    );
+
+    if (existing) {
+      return { solution: existing, isNew: false };
+    }
+
+    // Get current solution count to determine solutionIndex
+    const progress = await this.getOrCreateNPieceProgress(
+      solutionData.userId,
+      solutionData.pieceType,
+      solutionData.boardSize
+    );
+
+    const existingSolutions = await this.getNPieceSolutions(progress.id);
+    const solutionIndex = existingSolutions.length;
+
+    // Insert new solution
+    const [solution] = await db
+      .insert(nPieceChallengeSolutions)
+      .values({
+        ...solutionData,
+        progressId: progress.id,
+        solutionIndex,
+      })
+      .returning();
+
+    // Update progress
+    const newSolutionsFound = (progress.solutionsFound || 0) + 1;
+    const newBestTime = !progress.bestTime || solutionData.solveTime < progress.bestTime
+      ? solutionData.solveTime
+      : progress.bestTime;
+
+    await db
+      .update(nPieceChallengeProgress)
+      .set({
+        solutionsFound: newSolutionsFound,
+        bestTime: newBestTime,
+        lastPlayedAt: new Date(),
+      })
+      .where(eq(nPieceChallengeProgress.id, progress.id));
+
+    return { solution, isNew: true };
+  }
+
+  async getNPieceOverallProgress(userId: string): Promise<{ total: number; found: number }> {
+    const allProgress = await db
+      .select()
+      .from(nPieceChallengeProgress)
+      .where(eq(nPieceChallengeProgress.userId, userId));
+
+    const found = allProgress.reduce((sum, p) => sum + (p.solutionsFound || 0), 0);
+    
+    // Total trackable solutions across all piece/board combos (capped at 1000 each)
+    // 5 pieces * 8 board sizes * ~estimated solutions
+    const total = allProgress.length > 0 ? found : 0; // Will be updated as user plays
+
+    return { total: Math.max(total, 100), found };
   }
 }
 

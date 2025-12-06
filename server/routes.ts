@@ -1048,6 +1048,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // N-Piece Challenge Routes
+  app.get('/api/n-piece-challenge/progress', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pieceType, boardSize } = req.query;
+      
+      if (!pieceType || !boardSize) {
+        return res.status(400).json({ message: "Missing pieceType or boardSize" });
+      }
+      
+      const progress = await storage.getNPieceProgress(userId, pieceType as any, parseInt(boardSize as string));
+      const solutions = progress ? await storage.getNPieceSolutions(progress.id) : [];
+      const overallProgress = await storage.getNPieceOverallProgress(userId);
+      
+      res.json({ progress, solutions, overallProgress });
+    } catch (error) {
+      console.error("Error fetching N-Piece progress:", error);
+      res.status(500).json({ message: "Failed to fetch progress" });
+    }
+  });
+
+  app.post('/api/n-piece-challenge/solution', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pieceType, boardSize, positions, solveTime } = req.body;
+      
+      if (!pieceType || !boardSize || !positions || solveTime === undefined) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      const result = await storage.saveNPieceSolution({
+        userId,
+        pieceType,
+        boardSize: parseInt(boardSize),
+        positions,
+        solveTime,
+        progressId: '', // Will be set by storage
+        solutionIndex: 0, // Will be set by storage
+      });
+      
+      res.json({ 
+        isNew: result.isNew, 
+        solutionIndex: result.solution.solutionIndex 
+      });
+    } catch (error) {
+      console.error("Error saving N-Piece solution:", error);
+      res.status(500).json({ message: "Failed to save solution" });
+    }
+  });
+
   app.get('/api/bots', async (_req, res) => {
     try {
       res.json(BOTS);
