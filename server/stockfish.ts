@@ -1,4 +1,5 @@
 import { spawn, ChildProcess } from 'child_process';
+import { Chess } from 'chess.js';
 
 interface StockfishResult {
   bestMove: string;
@@ -290,19 +291,24 @@ class StockfishService {
     const results: MoveAnalysisResult[] = [];
     let currentFen = startFen;
     
+    const chess = new Chess(startFen);
+    
     let cachedBeforeAnalysis = await this.analyzePosition(currentFen, depth);
     
     for (let i = 0; i < moves.length; i++) {
-      const move = moves[i];
+      const sanMove = moves[i];
       const moveNumber = Math.floor(i / 2) + 1;
       const color: 'white' | 'black' = i % 2 === 0 ? 'white' : 'black';
 
       const beforeAnalysis = cachedBeforeAnalysis;
 
-      this.sendCommand(`position fen ${currentFen} moves ${move}`);
-      this.sendCommand('d');
-      const fenResponse = await this.waitForFen();
-      const afterFen = fenResponse;
+      const moveResult = chess.move(sanMove);
+      if (!moveResult) {
+        throw new Error(`Invalid move: ${sanMove} at position ${currentFen}`);
+      }
+      
+      const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
+      const afterFen = chess.fen();
 
       const afterAnalysis = await this.analyzePosition(afterFen, depth);
 
@@ -314,7 +320,7 @@ class StockfishService {
       results.push({
         moveNumber,
         color,
-        move,
+        move: sanMove,
         fen: afterFen,
         evalBefore: beforeAnalysis.evaluation,
         evalAfter: -afterAnalysis.evaluation,
