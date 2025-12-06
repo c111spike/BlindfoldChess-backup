@@ -31,7 +31,10 @@ import {
   CheckCircle,
   ChevronDown,
   Sparkles,
+  Settings,
+  Home,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import {
   PieceType,
   BoardSize,
@@ -57,6 +60,7 @@ const PIECE_TYPES: PieceType[] = ["rook", "knight", "bishop", "queen", "king"];
 
 export default function NPieceChallenge() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   
   // Game configuration
   const [pieceType, setPieceType] = useState<PieceType>("queen");
@@ -187,6 +191,38 @@ export default function NPieceChallenge() {
     setIsSolved(false);
     setSolveTime(null);
     setViewingSolution(null);
+  };
+  
+  // Play again with same settings
+  const handlePlayAgain = () => {
+    setPieces([]);
+    setSelectedPiece(null);
+    setHistory([[]]);
+    setHistoryIndex(0);
+    setStartTime(Date.now());
+    setElapsedTime(0);
+    setIsSolved(false);
+    setSolveTime(null);
+    setViewingSolution(null);
+  };
+  
+  // Go back to configuration to change difficulty
+  const handleChangeDifficulty = () => {
+    setGameStarted(false);
+    setPieces([]);
+    setSelectedPiece(null);
+    setHistory([[]]);
+    setHistoryIndex(0);
+    setStartTime(null);
+    setElapsedTime(0);
+    setIsSolved(false);
+    setSolveTime(null);
+    setViewingSolution(null);
+  };
+  
+  // Go to main training menu
+  const handleMainMenu = () => {
+    setLocation("/training");
   };
   
   // Add to history
@@ -509,7 +545,7 @@ export default function NPieceChallenge() {
               {/* Solution found banner */}
               {isSolved && (
                 <Card className="border-green-500 bg-green-500/10">
-                  <CardContent className="py-4">
+                  <CardContent className="py-4 space-y-3">
                     <div className="flex items-center gap-3">
                       <Trophy className="h-6 w-6 text-green-500" />
                       <div>
@@ -520,13 +556,33 @@ export default function NPieceChallenge() {
                           Time: {formatTime(solveTime || 0)}
                         </p>
                       </div>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-2">
                       <Button
-                        onClick={handleReset}
-                        className="ml-auto"
-                        data-testid="button-try-again"
+                        onClick={handlePlayAgain}
+                        className="gap-2"
+                        data-testid="button-play-again"
                       >
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Find Another
+                        <Play className="w-4 h-4" />
+                        Play Again
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleChangeDifficulty}
+                        className="gap-2"
+                        data-testid="button-change-difficulty"
+                      >
+                        <Settings className="w-4 h-4" />
+                        Change Difficulty
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleMainMenu}
+                        className="gap-2"
+                        data-testid="button-main-menu"
+                      >
+                        <Home className="w-4 h-4" />
+                        Main Menu
                       </Button>
                     </div>
                   </CardContent>
