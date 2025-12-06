@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3, Crown, Shuffle } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3, Crown, Shuffle, MessageSquareWarning, Ban } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -79,11 +81,20 @@ export default function OTBMode() {
   const [showLegalMoves, setShowLegalMoves] = useState(false);
   const [highlightLastMove, setHighlightLastMove] = useState(true);
   
-  const [myViolations, setMyViolations] = useState(0);
-  const [opponentViolations, setOpponentViolations] = useState(0);
-  const [myFalseClaims, setMyFalseClaims] = useState(0);
-  const [opponentFalseClaims, setOpponentFalseClaims] = useState(0);
+  const [myViolations, setMyViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+  const [opponentViolations, setOpponentViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+  const [myFalseClaims, setMyFalseClaims] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+  const [opponentFalseClaims, setOpponentFalseClaims] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
   const [arbiterPending, setArbiterPending] = useState(false);
+  const [arbiterDialogOpen, setArbiterDialogOpen] = useState(false);
+  const [arbiterDialogTimer, setArbiterDialogTimer] = useState(15);
+  
+  const [myHandshakeOffered, setMyHandshakeOffered] = useState(false);
+  const [opponentHandshakeOffered, setOpponentHandshakeOffered] = useState(false);
+  const [handshakeComplete, setHandshakeComplete] = useState(false);
+  const [showHandshakeUI, setShowHandshakeUI] = useState(false);
+  
+  const [touchedPiece, setTouchedPiece] = useState<string | null>(null);
   const [arbiterResult, setArbiterResult] = useState<{
     type: "illegal" | "legal" | null;
     message: string;
@@ -124,6 +135,7 @@ export default function OTBMode() {
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pendingCheckmateRef = useRef<NodeJS.Timeout | null>(null);
   const handleGameEndRef = useRef<((result: "white_win" | "black_win" | "draw") => void) | null>(null);
+  const arbiterTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     gameRef.current = game;
@@ -302,18 +314,18 @@ export default function OTBMode() {
       }
       
       if (data.violatorId === user?.id) {
-        setMyViolations(prev => prev + 1);
+        setMyViolations(prev => ({ ...prev, illegal: prev.illegal + 1 }));
         setArbiterResult({ type: "illegal", message: "Your move was illegal! Opponent gains 2 minutes." });
       } else {
-        setOpponentViolations(prev => prev + 1);
+        setOpponentViolations(prev => ({ ...prev, illegal: prev.illegal + 1 }));
         setArbiterResult({ type: "illegal", message: "Opponent's move was illegal! You gain 2 minutes." });
       }
     } else {
       if (data.violatorId === user?.id) {
-        setOpponentFalseClaims(prev => prev + 1);
+        setOpponentFalseClaims(prev => ({ ...prev, illegal: prev.illegal + 1 }));
         setArbiterResult({ type: "legal", message: "Move was legal! Opponent made a false claim. You gain 2 minutes." });
       } else {
-        setMyFalseClaims(prev => prev + 1);
+        setMyFalseClaims(prev => ({ ...prev, illegal: prev.illegal + 1 }));
         setArbiterResult({ type: "legal", message: "Move was legal! False claim - opponent gains 2 minutes." });
       }
     }
@@ -484,10 +496,15 @@ export default function OTBMode() {
           setBlackTime(response.game.blackTime || 300);
           setIncrement(response.game.increment || 0);
           
-          setMyViolations(0);
-          setOpponentViolations(0);
-          setMyFalseClaims(0);
-          setOpponentFalseClaims(0);
+          setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+          setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+          setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+          setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+          setMyHandshakeOffered(false);
+          setOpponentHandshakeOffered(false);
+          setHandshakeComplete(false);
+          setShowHandshakeUI(true);
+          setTouchedPiece(null);
           setHasMadeMove(false);
           setPendingCheckmate(null);
           setArbiterPending(false);
@@ -717,10 +734,15 @@ export default function OTBMode() {
     setPlayerColor("white");
     setClockTurn("white");
     setClockPresses(0);
-    setMyViolations(0);
-    setOpponentViolations(0);
-    setMyFalseClaims(0);
-    setOpponentFalseClaims(0);
+    setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setMyHandshakeOffered(false);
+    setOpponentHandshakeOffered(false);
+    setHandshakeComplete(false);
+    setShowHandshakeUI(false);
+    setTouchedPiece(null);
     setOpponentName("Practice Partner");
     setOpponentRating(1200);
     setIsBotGame(false);
@@ -789,10 +811,15 @@ export default function OTBMode() {
     setActiveColor("white");
     setClockTurn("white");
     setClockPresses(0);
-    setMyViolations(0);
-    setOpponentViolations(0);
-    setMyFalseClaims(0);
-    setOpponentFalseClaims(0);
+    setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setMyHandshakeOffered(false);
+    setOpponentHandshakeOffered(true);
+    setHandshakeComplete(false);
+    setShowHandshakeUI(true);
+    setTouchedPiece(null);
     setIsBotGame(true);
     setSelectedBot(bot);
     setShowBotSelection(false);
@@ -906,19 +933,24 @@ export default function OTBMode() {
       if (!isLegal) {
         setArbiterPending(true);
         
-        const newPlayerViolations = myViolations + 1;
+        const newIllegalCount = myViolations.illegal + 1;
         
-        if (newPlayerViolations >= 2) {
+        if (newIllegalCount >= 2) {
           toast({
             title: "Game Over - Forfeit",
-            description: "You forfeited due to 2 illegal moves",
+            description: "You forfeited due to 2 illegal moves. You did not heed the warning and now lose Elo.",
             variant: "destructive",
           });
           handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
           return;
         }
         
-        setMyViolations(newPlayerViolations);
+        setMyViolations(prev => ({ ...prev, illegal: newIllegalCount }));
+        toast({
+          title: "Illegal Move Warning",
+          description: "Your move was illegal! Bot gains 2 minutes. One more illegal move and you forfeit the game.",
+          variant: "destructive",
+        });
         setArbiterResult({ type: "illegal", message: "Bot called arbiter: Your move was illegal! Bot gains 2 minutes." });
         
         const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
@@ -1171,103 +1203,177 @@ export default function OTBMode() {
   };
 
   const handleCallArbiter = () => {
-    if (!matchId || moves.length === 0 || arbiterPending) return;
+    if (arbiterPending || arbiterDialogOpen) return;
+    setArbiterDialogOpen(true);
+    setArbiterDialogTimer(15);
     
-    const lastMove = moves[moves.length - 1];
+    if (arbiterTimerRef.current) {
+      clearInterval(arbiterTimerRef.current);
+    }
     
-    setArbiterPending(true);
-    
-    const tempChess = new Chess();
-    let isLegal = false;
-    
-    try {
-      for (let i = 0; i < moves.length - 1; i++) {
-        const move = moves[i];
-        const result = tempChess.move({
-          from: move.from,
-          to: move.to,
-          promotion: 'q',
-        });
-        if (!result) break;
-      }
-      
-      const result = tempChess.move({
-        from: lastMove.from,
-        to: lastMove.to,
-        promotion: 'q',
+    arbiterTimerRef.current = setInterval(() => {
+      setArbiterDialogTimer(prev => {
+        if (prev <= 1) {
+          handleArbiterTimeout();
+          return 0;
+        }
+        return prev - 1;
       });
-      isLegal = !!result;
-    } catch (e) {
-      isLegal = false;
+    }, 1000);
+  };
+  
+  const handleArbiterTimeout = () => {
+    if (arbiterTimerRef.current) {
+      clearInterval(arbiterTimerRef.current);
+      arbiterTimerRef.current = null;
     }
+    setArbiterDialogOpen(false);
     
-    const ruling = isLegal ? "legal" : "illegal";
-    const opponentIsViolator = !isLegal;
-    const violatorId = opponentIsViolator ? "opponent" : user?.id || "";
+    toast({
+      title: "Arbiter Call Timed Out",
+      description: "You didn't select a reason within 15 seconds. This counts as a false claim for all offense types.",
+      variant: "destructive",
+    });
     
-    let forfeit = false;
-    let forfeitReason = "";
-    
-    if (ruling === "illegal") {
-      const newOpponentViolations = opponentViolations + 1;
-      if (newOpponentViolations >= 2) {
-        forfeit = true;
-        forfeitReason = "Opponent forfeited due to 2 illegal moves";
-      }
-    } else {
-      const newMyFalseClaims = myFalseClaims + 1;
-      if (newMyFalseClaims >= 2) {
-        forfeit = true;
-        forfeitReason = "You forfeited due to 2 false arbiter claims";
-      }
-    }
-    
-    const timeAdjustment = {
-      white: ruling === "illegal" ? (playerColor === "white" ? 120 : 0) : (playerColor === "white" ? 0 : 120),
-      black: ruling === "illegal" ? (playerColor === "black" ? 120 : 0) : (playerColor === "black" ? 0 : 120),
+    const newFalseClaims = {
+      unsportsmanlike: myFalseClaims.unsportsmanlike + 1,
+      illegal: myFalseClaims.illegal + 1,
+      distraction: myFalseClaims.distraction + 1,
     };
     
-    if (forfeit) {
-      handleGameEnd(forfeitReason.includes("You forfeited") ? 
-        (playerColor === "white" ? "black_win" : "white_win") : 
-        (playerColor === "white" ? "white_win" : "black_win")
-      );
+    const hasForfeit = newFalseClaims.unsportsmanlike >= 2 || newFalseClaims.illegal >= 2 || newFalseClaims.distraction >= 2;
+    
+    if (hasForfeit) {
+      toast({
+        title: "Game Over - Forfeit",
+        description: "You forfeited due to 2 false arbiter claims. You lose Elo.",
+        variant: "destructive",
+      });
+      handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
       return;
     }
     
-    setWhiteTime(prev => prev + timeAdjustment.white);
-    setBlackTime(prev => prev + timeAdjustment.black);
+    setMyFalseClaims(newFalseClaims);
     
-    if (ruling === "illegal") {
-      setOpponentViolations(prev => prev + 1);
-      setArbiterResult({ type: "illegal", message: "Opponent's move was illegal! You gain 2 minutes." });
+    if (playerColor === "white") {
+      setBlackTime(prev => prev + 120);
+    } else {
+      setWhiteTime(prev => prev + 120);
+    }
+  };
+  
+  const handleArbiterClaim = (claimType: "unsportsmanlike" | "illegal" | "distraction") => {
+    if (arbiterTimerRef.current) {
+      clearInterval(arbiterTimerRef.current);
+      arbiterTimerRef.current = null;
+    }
+    setArbiterDialogOpen(false);
+    setArbiterPending(true);
+    
+    let isValidClaim = false;
+    
+    if (claimType === "unsportsmanlike") {
+      isValidClaim = !opponentHandshakeOffered;
+    } else if (claimType === "illegal") {
+      if (moves.length === 0) {
+        isValidClaim = false;
+      } else {
+        const lastMove = moves[moves.length - 1];
+        const tempChess = new Chess();
+        
+        try {
+          for (let i = 0; i < moves.length - 1; i++) {
+            const move = moves[i];
+            tempChess.move({ from: move.from, to: move.to, promotion: 'q' });
+          }
+          const result = tempChess.move({ from: lastMove.from, to: lastMove.to, promotion: 'q' });
+          isValidClaim = !result;
+        } catch {
+          isValidClaim = true;
+        }
+      }
+    } else if (claimType === "distraction") {
+      isValidClaim = false;
+    }
+    
+    if (isValidClaim) {
+      const newViolationCount = opponentViolations[claimType] + 1;
       
-      const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
-      const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
+      if (newViolationCount >= 2) {
+        toast({
+          title: "Opponent Forfeits",
+          description: `Opponent forfeited due to 2 ${claimType} violations. You win!`,
+        });
+        handleGameEnd(playerColor === "white" ? "white_win" : "black_win");
+        return;
+      }
       
-      setBoardState(prev => {
-        const newBoard = prev.map(row => [...row]);
-        newBoard[fromRank][fromFile] = lastMove.piece;
-        newBoard[toRank][toFile] = lastMove.captured || null;
-        return newBoard;
+      setOpponentViolations(prev => ({ ...prev, [claimType]: newViolationCount }));
+      
+      if (playerColor === "white") {
+        setWhiteTime(prev => prev + 120);
+      } else {
+        setBlackTime(prev => prev + 120);
+      }
+      
+      const messages: Record<string, string> = {
+        unsportsmanlike: "Opponent failed to offer handshake! You gain 2 minutes.",
+        illegal: "Opponent's move was illegal! You gain 2 minutes.",
+        distraction: "Opponent was distracting you! You gain 2 minutes.",
+      };
+      
+      setArbiterResult({ type: "illegal", message: messages[claimType] });
+      
+      if (claimType === "illegal" && moves.length > 0) {
+        const lastMove = moves[moves.length - 1];
+        const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
+        const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
+        
+        setBoardState(prev => {
+          const newBoard = prev.map(row => [...row]);
+          newBoard[fromRank][fromFile] = lastMove.piece;
+          newBoard[toRank][toFile] = lastMove.captured || null;
+          return newBoard;
+        });
+        
+        setMoves(prev => prev.slice(0, -1));
+        setActiveColor(prev => prev === "white" ? "black" : "white");
+        setPendingCheckmate(null);
+      }
+    } else {
+      const newFalseClaimCount = myFalseClaims[claimType] + 1;
+      
+      if (newFalseClaimCount >= 2) {
+        toast({
+          title: "Game Over - Forfeit",
+          description: `You forfeited due to 2 false ${claimType} claims. You lose Elo.`,
+          variant: "destructive",
+        });
+        handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
+        return;
+      }
+      
+      setMyFalseClaims(prev => ({ ...prev, [claimType]: newFalseClaimCount }));
+      
+      toast({
+        title: "False Claim Warning",
+        description: `Your ${claimType} claim was invalid! Opponent gains 2 minutes. One more false ${claimType} claim and you forfeit.`,
+        variant: "destructive",
       });
       
-      setMoves(prev => prev.slice(0, -1));
-      setActiveColor(prev => prev === "white" ? "black" : "white");
-      setPendingCheckmate(null);
-    } else {
-      setMyFalseClaims(prev => prev + 1);
-      setArbiterResult({ type: "legal", message: "Move was legal! False claim - opponent gains 2 minutes." });
+      if (playerColor === "white") {
+        setBlackTime(prev => prev + 120);
+      } else {
+        setWhiteTime(prev => prev + 120);
+      }
+      
+      setArbiterResult({ type: "legal", message: `False ${claimType} claim! Opponent gains 2 minutes.` });
     }
     
     setTimeout(() => {
       setArbiterResult(null);
       setArbiterPending(false);
     }, 3000);
-    
-    if (matchId) {
-      sendArbiterRuling?.(matchId, ruling, violatorId, timeAdjustment, forfeit, forfeitReason);
-    }
   };
 
   const handleResign = () => {
@@ -1304,6 +1410,17 @@ export default function OTBMode() {
   }, [gameStarted, handleClockPress]);
 
   const fen = boardToFen(boardState, activeColor);
+
+  const legalMoveSquares = useMemo(() => {
+    if (!showLegalMoves || !selectedSquare || !legalChessGame) return [];
+    
+    try {
+      const moves = legalChessGame.moves({ square: selectedSquare as any, verbose: true });
+      return moves.map(move => move.to);
+    } catch {
+      return [];
+    }
+  }, [showLegalMoves, selectedSquare, legalChessGame]);
 
   return (
     <div className="h-screen flex">
@@ -1357,14 +1474,10 @@ export default function OTBMode() {
                               </SelectContent>
                             </Select>
                           </div>
-                          <Button onClick={handleStartGame} className="w-full mt-4" data-testid="button-start-game">
-                            <Play className="mr-2 h-4 w-4" />
-                            Practice (Solo)
-                          </Button>
                           <Button 
                             variant="default"
                             onClick={() => setShowBotSelection(true)} 
-                            className="w-full mt-2" 
+                            className="w-full mt-4" 
                             data-testid="button-play-bot"
                           >
                             <Bot className="mr-2 h-4 w-4" />
@@ -1560,17 +1673,30 @@ export default function OTBMode() {
                     </div>
 
                     <div className="pt-4 border-t">
-                      <h3 className="text-sm font-semibold mb-3">Game Settings</h3>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="highlight-last-move-pregame" className="text-sm cursor-pointer">
-                          Highlight Last Move
-                        </Label>
-                        <Switch
-                          id="highlight-last-move-pregame"
-                          checked={highlightLastMove}
-                          onCheckedChange={setHighlightLastMove}
-                          data-testid="switch-highlight-last-move"
-                        />
+                      <h3 className="text-sm font-semibold mb-3">Training Wheels</h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="highlight-last-move-pregame" className="text-sm cursor-pointer">
+                            Highlight Last Move
+                          </Label>
+                          <Switch
+                            id="highlight-last-move-pregame"
+                            checked={highlightLastMove}
+                            onCheckedChange={setHighlightLastMove}
+                            data-testid="switch-highlight-last-move"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="show-legal-moves-pregame" className="text-sm cursor-pointer">
+                            Show Legal Moves
+                          </Label>
+                          <Switch
+                            id="show-legal-moves-pregame"
+                            checked={showLegalMoves}
+                            onCheckedChange={setShowLegalMoves}
+                            data-testid="switch-show-legal-moves"
+                          />
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">Settings cannot be changed during gameplay</p>
                     </div>
@@ -1685,10 +1811,15 @@ export default function OTBMode() {
                             setBoardState(INITIAL_BOARD.map(row => [...row]));
                             setSelectedSquare(null);
                             setClockPresses(0);
-                            setMyViolations(0);
-                            setOpponentViolations(0);
-                            setMyFalseClaims(0);
-                            setOpponentFalseClaims(0);
+                            setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+                            setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+                            setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+                            setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+                            setMyHandshakeOffered(false);
+                            setOpponentHandshakeOffered(false);
+                            setHandshakeComplete(false);
+                            setShowHandshakeUI(false);
+                            setTouchedPiece(null);
                             setArbiterResult(null);
                             setRestoredGame(false);
                             setIsBotGame(false);
@@ -1737,6 +1868,7 @@ export default function OTBMode() {
                 orientation={playerColor}
                 showCoordinates={true}
                 highlightedSquares={[]}
+                legalMoveSquares={legalMoveSquares}
                 touchedSquare={opponentTouchedSquare}
                 lastMoveSquares={highlightLastMove ? lastMoveSquares : []}
                 selectedSquare={selectedSquare}
@@ -1762,16 +1894,53 @@ export default function OTBMode() {
                 </CardContent>
               </Card>
 
+              {/* Handshake UI */}
+              {showHandshakeUI && !handshakeComplete && (
+                <Card className="border-primary/50 bg-primary/5">
+                  <CardContent className="py-3 px-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <HandshakeIcon className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="text-sm font-medium">
+                            {opponentHandshakeOffered ? "Opponent offers handshake" : "Waiting for handshake..."}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Good sportsmanship matters in OTB chess</p>
+                        </div>
+                      </div>
+                      {!myHandshakeOffered ? (
+                        <Button 
+                          size="sm" 
+                          onClick={() => {
+                            setMyHandshakeOffered(true);
+                            if (opponentHandshakeOffered) {
+                              setHandshakeComplete(true);
+                              toast({ title: "Handshake accepted!", description: "Good game!" });
+                            }
+                          }}
+                          data-testid="button-offer-handshake"
+                        >
+                          <HandshakeIcon className="mr-1 h-4 w-4" />
+                          Shake
+                        </Button>
+                      ) : (
+                        <Badge variant="secondary">Offered</Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Violations and game controls */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-xs">
                   <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground">Violations:</span>
-                    <Badge variant={myViolations > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myViolations}/2</Badge>
+                    <span className="text-muted-foreground">Illegal:</span>
+                    <Badge variant={myViolations.illegal > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myViolations.illegal}/2</Badge>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground">False claims:</span>
-                    <Badge variant={myFalseClaims > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myFalseClaims}/2</Badge>
+                    <span className="text-muted-foreground">Unsport:</span>
+                    <Badge variant={myViolations.unsportsmanlike > 0 ? "destructive" : "secondary"} className="text-xs py-0">{myViolations.unsportsmanlike}/2</Badge>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -1863,6 +2032,78 @@ export default function OTBMode() {
         color={activeColor}
         onSelect={handlePromotionSelect}
       />
+
+      {/* Arbiter Reason Dialog */}
+      <Dialog open={arbiterDialogOpen} onOpenChange={(open) => {
+        if (!open && arbiterDialogOpen) {
+          handleArbiterTimeout();
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gavel className="h-5 w-5" />
+              Call Arbiter - Select Reason
+            </DialogTitle>
+            <DialogDescription>
+              Choose the reason for calling the arbiter. You have {arbiterDialogTimer} seconds to select.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Progress value={(arbiterDialogTimer / 15) * 100} className="h-2" />
+          
+          <div className="space-y-3 pt-2">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-auto py-3"
+              onClick={() => handleArbiterClaim("unsportsmanlike")}
+              data-testid="button-claim-unsportsmanlike"
+            >
+              <div className="flex items-center gap-3">
+                <HandshakeIcon className="h-5 w-5 text-orange-500" />
+                <div className="text-left">
+                  <p className="font-semibold">Unsportsmanlike Conduct</p>
+                  <p className="text-xs text-muted-foreground">Opponent failed to offer handshake</p>
+                </div>
+              </div>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-auto py-3"
+              onClick={() => handleArbiterClaim("illegal")}
+              data-testid="button-claim-illegal"
+            >
+              <div className="flex items-center gap-3">
+                <Ban className="h-5 w-5 text-red-500" />
+                <div className="text-left">
+                  <p className="font-semibold">Illegal Move</p>
+                  <p className="text-xs text-muted-foreground">Opponent made an illegal move</p>
+                </div>
+              </div>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-auto py-3 opacity-50"
+              disabled
+              data-testid="button-claim-distraction"
+            >
+              <div className="flex items-center gap-3">
+                <MessageSquareWarning className="h-5 w-5 text-gray-400" />
+                <div className="text-left">
+                  <p className="font-semibold">Distraction</p>
+                  <p className="text-xs text-muted-foreground">Coming soon - Chat log verification</p>
+                </div>
+              </div>
+            </Button>
+          </div>
+          
+          <p className="text-xs text-center text-muted-foreground mt-2">
+            Warning: False claims result in +2 min for opponent. 2nd false claim = forfeit.
+          </p>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

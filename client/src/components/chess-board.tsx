@@ -17,6 +17,7 @@ interface ChessBoardProps {
   orientation?: "white" | "black";
   showCoordinates?: boolean;
   highlightedSquares?: string[];
+  legalMoveSquares?: string[];
   touchedSquare?: string | null;
   lastMoveSquares?: string[];
   lastMove?: { from: string; to: string };
@@ -45,6 +46,7 @@ export function ChessBoard({
   orientation = "white",
   showCoordinates = true,
   highlightedSquares = [],
+  legalMoveSquares = [],
   touchedSquare = null,
   lastMoveSquares = [],
   lastMove,
@@ -317,6 +319,8 @@ export function ChessBoard({
               const isOpponentTouched = touchedSquare === square;
               const isLastMove = effectiveLastMoveSquares.includes(square);
               const isPremove = isPremoveSquare(square);
+              const isLegalMove = legalMoveSquares.includes(square);
+              const isLegalCapture = isLegalMove && piece !== null;
 
               return (
                 <div
@@ -341,6 +345,13 @@ export function ChessBoard({
                     }`}>
                       {PIECE_SYMBOLS[piece]}
                     </span>
+                  )}
+                  
+                  {isLegalMove && !isLegalCapture && (
+                    <div className="absolute w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-black/20 pointer-events-none" />
+                  )}
+                  {isLegalCapture && (
+                    <div className="absolute inset-0 rounded-full border-[3px] sm:border-4 border-black/20 pointer-events-none" />
                   )}
                   
                   {showCoordinates && fileIndex === 0 && (
