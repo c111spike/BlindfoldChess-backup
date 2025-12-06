@@ -11,11 +11,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import type { Game } from "@shared/schema";
+import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
+import { 
+  ALL_DIFFICULTIES, 
+  ALL_PERSONALITIES, 
+  BOT_DIFFICULTY_ELO, 
+  BOT_DIFFICULTY_NAMES,
+  BOT_PERSONALITY_NAMES,
+  BOT_PERSONALITY_DESCRIPTIONS,
+  BOT_PERSONALITY_ICONS,
+  getBotByConfig 
+} from "@shared/botTypes";
 
 const INITIAL_BOARD = [
   ["r", "n", "b", "q", "k", "b", "n", "r"],
@@ -95,6 +107,12 @@ export default function OTBMode() {
     captured: string | null;
   } | null>(null);
   const [gameResult, setGameResult] = useState<"white_win" | "black_win" | "draw" | null>(null);
+  
+  const [showBotSelection, setShowBotSelection] = useState(false);
+  const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
+  const [isBotGame, setIsBotGame] = useState(false);
+  const [botThinking, setBotThinking] = useState(false);
+  const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -702,6 +720,8 @@ export default function OTBMode() {
     setOpponentFalseClaims(0);
     setOpponentName("Practice Partner");
     setOpponentRating(1200);
+    setIsBotGame(false);
+    setSelectedBot(null);
     
     const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
     
@@ -717,6 +737,292 @@ export default function OTBMode() {
       opponentName: "Practice",
     });
   };
+
+  const requestBotMove = useCallback(async (currentFen: string, botId: string) => {
+    setBotThinking(true);
+    
+    try {
+      const response = await apiRequest("POST", "/api/bots/move", {
+        fen: currentFen,
+        botId,
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to get bot move");
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error getting bot move:", error);
+      toast({
+        title: "Error",
+        description: "Bot failed to respond",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setBotThinking(false);
+    }
+  }, [toast]);
+
+  const handleStartBotGame = async (bot: BotProfile) => {
+    if (!user) return;
+    
+    const minutes = parseInt(timeControl);
+    const seconds = minutes * 60;
+    
+    setWhiteTime(seconds);
+    setBlackTime(seconds);
+    setIncrement(0);
+    setGameResult(null);
+    
+    const newGame = new Chess();
+    setGame(newGame);
+    setLegalChessGame(new Chess());
+    setBoardState(INITIAL_BOARD.map(row => [...row]));
+    setMoves([]);
+    setActiveColor("white");
+    setClockTurn("white");
+    setClockPresses(0);
+    setMyViolations(0);
+    setOpponentViolations(0);
+    setMyFalseClaims(0);
+    setOpponentFalseClaims(0);
+    setIsBotGame(true);
+    setSelectedBot(bot);
+    setShowBotSelection(false);
+    setSelectedBotDifficulty(null);
+    
+    const assignedColor = Math.random() < 0.5 ? "white" : "black";
+    setPlayerColor(assignedColor);
+    
+    setOpponentName(bot.name);
+    setOpponentRating(bot.elo);
+    
+    const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
+    
+    createGameMutation.mutate({
+      mode,
+      playerColor: assignedColor,
+      timeControl: minutes,
+      increment: 0,
+      fen: newGame.fen(),
+      moves: [],
+      whiteTime: seconds,
+      blackTime: seconds,
+      opponentName: bot.name,
+    });
+    
+    setGameStarted(true);
+    
+    if (assignedColor === "black") {
+      setTimeout(async () => {
+        const botMove = await requestBotMove(newGame.fen(), bot.id);
+        if (botMove) {
+          const legalGame = new Chess();
+          legalGame.move(botMove.move);
+          setLegalChessGame(legalGame);
+          
+          const move = legalGame.history({ verbose: true })[0];
+          if (move) {
+            const { rank: fromRank, file: fromFile } = squareToIndices(move.from);
+            const { rank: toRank, file: toFile } = squareToIndices(move.to);
+            const newBoard = INITIAL_BOARD.map(row => [...row]);
+            const piece = newBoard[fromRank][fromFile];
+            const captured = newBoard[toRank][toFile];
+            newBoard[fromRank][fromFile] = null;
+            newBoard[toRank][toFile] = move.promotion ? 
+              (move.color === 'w' ? move.promotion.toUpperCase() : move.promotion.toLowerCase()) : 
+              piece;
+            setBoardState(newBoard);
+            
+            const moveNotation = `${piece?.toUpperCase()}${move.from}-${move.to}${captured ? 'x' + captured.toUpperCase() : ''}`;
+            setMoves([{
+              from: move.from,
+              to: move.to,
+              piece: piece!,
+              captured: captured || undefined,
+              notation: moveNotation,
+              timestamp: Date.now(),
+            }]);
+            setLastMoveSquares([move.from, move.to]);
+            
+            setTimeout(() => {
+              setClockTurn("white");
+              setActiveColor("white");
+              setClockPresses(1);
+            }, 500);
+          }
+        }
+      }, 500);
+    }
+  };
+
+  const executeBotTurn = useCallback(async () => {
+    if (!isBotGame || !selectedBot || !legalChessGame || gameResult) return;
+    
+    const botColor = playerColor === "white" ? "black" : "white";
+    if (activeColor !== botColor) return;
+    
+    if (moves.length > 0) {
+      const lastMove = moves[moves.length - 1];
+      const tempChess = new Chess();
+      let isLegal = true;
+      
+      try {
+        for (let i = 0; i < moves.length - 1; i++) {
+          const move = moves[i];
+          const result = tempChess.move({
+            from: move.from,
+            to: move.to,
+            promotion: 'q',
+          });
+          if (!result) {
+            isLegal = false;
+            break;
+          }
+        }
+        
+        if (isLegal) {
+          const result = tempChess.move({
+            from: lastMove.from,
+            to: lastMove.to,
+            promotion: 'q',
+          });
+          isLegal = !!result;
+        }
+      } catch (e) {
+        isLegal = false;
+      }
+      
+      if (!isLegal) {
+        setArbiterPending(true);
+        
+        const newPlayerViolations = myViolations + 1;
+        
+        if (newPlayerViolations >= 2) {
+          toast({
+            title: "Game Over - Forfeit",
+            description: "You forfeited due to 2 illegal moves",
+            variant: "destructive",
+          });
+          handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
+          return;
+        }
+        
+        setMyViolations(newPlayerViolations);
+        setArbiterResult({ type: "illegal", message: "Bot called arbiter: Your move was illegal! Bot gains 2 minutes." });
+        
+        const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
+        const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
+        
+        setBoardState(prev => {
+          const newBoard = prev.map(row => [...row]);
+          newBoard[fromRank][fromFile] = lastMove.piece;
+          newBoard[toRank][toFile] = lastMove.captured || null;
+          return newBoard;
+        });
+        
+        setMoves(prev => prev.slice(0, -1));
+        setLastMoveSquares([]);
+        
+        if (botColor === "white") {
+          setWhiteTime(prev => prev + 120);
+        } else {
+          setBlackTime(prev => prev + 120);
+        }
+        
+        setActiveColor(playerColor);
+        setClockTurn(playerColor);
+        
+        setTimeout(() => {
+          setArbiterResult(null);
+          setArbiterPending(false);
+        }, 3000);
+        
+        return;
+      }
+      
+      setLegalChessGame(tempChess);
+    }
+    
+    const currentFen = legalChessGame.fen();
+    const botMove = await requestBotMove(currentFen, selectedBot.id);
+    
+    if (botMove && botMove.move) {
+      const newLegalGame = new Chess(legalChessGame.fen());
+      const moveResult = newLegalGame.move(botMove.move);
+      
+      if (moveResult) {
+        setLegalChessGame(newLegalGame);
+        
+        const { rank: fromRank, file: fromFile } = squareToIndices(moveResult.from);
+        const { rank: toRank, file: toFile } = squareToIndices(moveResult.to);
+        
+        setBoardState(prev => {
+          const newBoard = prev.map(row => [...row]);
+          const piece = newBoard[fromRank][fromFile];
+          const captured = newBoard[toRank][toFile];
+          newBoard[fromRank][fromFile] = null;
+          newBoard[toRank][toFile] = moveResult.promotion ? 
+            (moveResult.color === 'w' ? moveResult.promotion.toUpperCase() : moveResult.promotion.toLowerCase()) : 
+            piece;
+          
+          const moveNotation = `${piece?.toUpperCase()}${moveResult.from}-${moveResult.to}${captured ? 'x' + captured.toUpperCase() : ''}`;
+          setMoves(prevMoves => [...prevMoves, {
+            from: moveResult.from,
+            to: moveResult.to,
+            piece: piece!,
+            captured: captured || undefined,
+            notation: moveNotation,
+            timestamp: Date.now(),
+          }]);
+          
+          return newBoard;
+        });
+        
+        setLastMoveSquares([moveResult.from, moveResult.to]);
+        
+        if (newLegalGame.isCheckmate()) {
+          setTimeout(() => {
+            handleGameEnd(botColor === "white" ? "white_win" : "black_win");
+          }, 500);
+          return;
+        }
+        
+        if (newLegalGame.isDraw() || newLegalGame.isStalemate()) {
+          setTimeout(() => {
+            handleGameEnd("draw");
+          }, 500);
+          return;
+        }
+        
+        setTimeout(() => {
+          if (botColor === "white") {
+            setWhiteTime(t => t + increment);
+          } else {
+            setBlackTime(t => t + increment);
+          }
+          setClockTurn(playerColor);
+          setActiveColor(playerColor);
+          setClockPresses(prev => prev + 1);
+        }, 500);
+      }
+    }
+  }, [isBotGame, selectedBot, legalChessGame, gameResult, playerColor, activeColor, moves, myViolations, toast, handleGameEnd, requestBotMove, increment]);
+
+  useEffect(() => {
+    if (isBotGame && gameStarted && !botThinking && !arbiterPending && !gameResult) {
+      const botColor = playerColor === "white" ? "black" : "white";
+      if (clockTurn === botColor && activeColor === botColor) {
+        const timer = setTimeout(() => {
+          executeBotTurn();
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isBotGame, gameStarted, botThinking, arbiterPending, gameResult, playerColor, clockTurn, activeColor, executeBotTurn]);
 
   const isPawnPromotion = (piece: string | null, toRank: number): boolean => {
     if (!piece) return false;
@@ -796,10 +1102,11 @@ export default function OTBMode() {
   };
 
   const handleSquareClick = (square: string) => {
-    if (!gameStarted || arbiterPending || pendingCheckmate || pendingPromotion) return;
+    if (!gameStarted || arbiterPending || pendingCheckmate || pendingPromotion || botThinking) return;
     
     const isMyTurn = activeColor === playerColor;
     if (!isMyTurn && matchId) return;
+    if (!isMyTurn && isBotGame) return;
     
     if (hasMadeMove && matchId) {
       toast({
@@ -1028,23 +1335,144 @@ export default function OTBMode() {
                     </div>
 
                     <div className="pt-4 border-t">
-                      <h3 className="text-lg font-semibold mb-4">or Start Practice Game</h3>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Time Control</label>
-                        <Select value={timeControl} onValueChange={setTimeControl}>
-                          <SelectTrigger data-testid="select-time-control">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="5">Blitz: 5 min</SelectItem>
-                            <SelectItem value="15">Rapid: 15 min</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button onClick={handleStartGame} className="w-full mt-4" data-testid="button-start-game">
-                        <Play className="mr-2 h-4 w-4" />
-                        Practice (Solo)
-                      </Button>
+                      {!showBotSelection ? (
+                        <>
+                          <h3 className="text-lg font-semibold mb-4">or Start Practice Game</h3>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Time Control</label>
+                            <Select value={timeControl} onValueChange={setTimeControl}>
+                              <SelectTrigger data-testid="select-time-control">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="5">Blitz: 5 min</SelectItem>
+                                <SelectItem value="15">Rapid: 15 min</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button onClick={handleStartGame} className="w-full mt-4" data-testid="button-start-game">
+                            <Play className="mr-2 h-4 w-4" />
+                            Practice (Solo)
+                          </Button>
+                          <Button 
+                            variant="default"
+                            onClick={() => setShowBotSelection(true)} 
+                            className="w-full mt-2" 
+                            data-testid="button-play-bot"
+                          >
+                            <Bot className="mr-2 h-4 w-4" />
+                            Practice vs Bot
+                          </Button>
+                        </>
+                      ) : !selectedBotDifficulty ? (
+                        <>
+                          <div className="flex items-center gap-2 mb-4">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setShowBotSelection(false);
+                                setSelectedBotDifficulty(null);
+                              }}
+                              data-testid="button-back-from-bots"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <h3 className="text-lg font-semibold">Select Bot Difficulty</h3>
+                          </div>
+                          
+                          <div className="space-y-2 mb-4">
+                            <label className="text-sm font-medium">Time Control</label>
+                            <Select value={timeControl} onValueChange={setTimeControl}>
+                              <SelectTrigger data-testid="select-bot-time-control">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="5">Blitz: 5 min</SelectItem>
+                                <SelectItem value="15">Rapid: 15 min</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <ScrollArea className="h-[280px] pr-2">
+                            <div className="grid grid-cols-1 gap-2">
+                              {ALL_DIFFICULTIES.map((difficulty) => (
+                                <Card 
+                                  key={difficulty}
+                                  className="cursor-pointer hover-elevate"
+                                  onClick={() => setSelectedBotDifficulty(difficulty)}
+                                  data-testid={`card-difficulty-${difficulty}`}
+                                >
+                                  <CardContent className="p-3">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-semibold">{BOT_DIFFICULTY_NAMES[difficulty]}</span>
+                                      <Badge variant="secondary">
+                                        {BOT_DIFFICULTY_ELO[difficulty]} Elo
+                                      </Badge>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSelectedBotDifficulty(null)}
+                              data-testid="button-back-from-personality"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <h3 className="text-lg font-semibold">Select Playstyle</h3>
+                            <Badge variant="secondary" className="ml-auto">
+                              {BOT_DIFFICULTY_ELO[selectedBotDifficulty]} Elo
+                            </Badge>
+                          </div>
+                          
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Choose your {BOT_DIFFICULTY_NAMES[selectedBotDifficulty]} opponent's playstyle
+                          </p>
+                          
+                          <ScrollArea className="h-[280px] pr-2">
+                            <div className="grid grid-cols-1 gap-2">
+                              {ALL_PERSONALITIES.map((personality) => {
+                                const bot = getBotByConfig(selectedBotDifficulty, personality);
+                                if (!bot) return null;
+                                return (
+                                  <Card 
+                                    key={personality}
+                                    className="cursor-pointer hover-elevate"
+                                    onClick={() => handleStartBotGame(bot)}
+                                    data-testid={`card-personality-${personality}`}
+                                  >
+                                    <CardContent className="p-3">
+                                      <div className="flex items-center gap-3">
+                                        <Avatar className="h-10 w-10">
+                                          <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+                                            {BOT_PERSONALITY_ICONS[personality]}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold">{BOT_PERSONALITY_NAMES[personality]}</span>
+                                          </div>
+                                          <p className="text-xs text-muted-foreground">
+                                            {BOT_PERSONALITY_DESCRIPTIONS[personality]}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          </ScrollArea>
+                        </>
+                      )}
                     </div>
 
                     <div className="pt-4 border-t">
@@ -1165,6 +1593,10 @@ export default function OTBMode() {
                           setOpponentFalseClaims(0);
                           setArbiterResult(null);
                           setRestoredGame(false);
+                          setIsBotGame(false);
+                          setSelectedBot(null);
+                          setShowBotSelection(false);
+                          setSelectedBotDifficulty(null);
                         }}
                         data-testid="button-main-menu"
                       >
@@ -1181,8 +1613,14 @@ export default function OTBMode() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-black" : "bg-white border border-gray-400"}`} />
-                      <span className="font-medium text-sm">{opponentName}</span>
-                      <span className="text-xs text-muted-foreground">({opponentRating})</span>
+                      {isBotGame && <Bot className="h-4 w-4 text-primary" />}
+                      <span className="font-medium text-sm" data-testid="text-opponent-name">{opponentName}</span>
+                      <span className="text-xs text-muted-foreground" data-testid="text-opponent-rating">({opponentRating})</span>
+                      {botThinking && (
+                        <span className="text-xs text-primary animate-pulse" data-testid="text-bot-thinking">
+                          thinking...
+                        </span>
+                      )}
                     </div>
                     <div className={`text-2xl font-mono font-bold ${
                       clockTurn !== playerColor ? "text-foreground" : "text-muted-foreground"
@@ -1266,17 +1704,24 @@ export default function OTBMode() {
               <span className="ml-2 text-xs font-normal opacity-70">(Space)</span>
             </Button>
             
-            <Button
-              onClick={handleCallArbiter}
-              size="default"
-              variant="outline"
-              className="w-full border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
-              disabled={arbiterPending || moves.length === 0 || clockTurn !== playerColor}
-              data-testid="button-call-arbiter"
-            >
-              <Gavel className="mr-2 h-4 w-4" />
-              Call Arbiter
-            </Button>
+            {!isBotGame && (
+              <Button
+                onClick={handleCallArbiter}
+                size="default"
+                variant="outline"
+                className="w-full border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+                disabled={arbiterPending || moves.length === 0 || clockTurn !== playerColor}
+                data-testid="button-call-arbiter"
+              >
+                <Gavel className="mr-2 h-4 w-4" />
+                Call Arbiter
+              </Button>
+            )}
+            {isBotGame && (
+              <p className="text-xs text-center text-muted-foreground">
+                Bot will call arbiter if you make an illegal move
+              </p>
+            )}
           </div>
           
           <div className="p-3 border-b">
