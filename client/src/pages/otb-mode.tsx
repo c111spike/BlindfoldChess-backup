@@ -871,11 +871,12 @@ export default function OTBMode() {
               piece;
             setBoardState(newBoard);
             
-            const moveNotation = `${piece?.toUpperCase()}${move.from}-${move.to}${captured ? 'x' + captured.toUpperCase() : ''}`;
+            const pieceChar = move.piece.toUpperCase();
+            const moveNotation = `${pieceChar}${move.from}-${move.to}${captured ? 'x' + captured.toUpperCase() : ''}`;
             setMoves([{
               from: move.from,
               to: move.to,
-              piece: piece!,
+              piece: piece || (move.color === 'w' ? pieceChar : pieceChar.toLowerCase()),
               captured: captured || undefined,
               notation: moveNotation,
               timestamp: Date.now(),
@@ -1008,11 +1009,12 @@ export default function OTBMode() {
             (moveResult.color === 'w' ? moveResult.promotion.toUpperCase() : moveResult.promotion.toLowerCase()) : 
             piece;
           
-          const moveNotation = `${piece?.toUpperCase()}${moveResult.from}-${moveResult.to}${captured ? 'x' + captured.toUpperCase() : ''}`;
+          const pieceChar = moveResult.piece.toUpperCase();
+          const moveNotation = `${pieceChar}${moveResult.from}-${moveResult.to}${captured ? 'x' + captured.toUpperCase() : ''}`;
           setMoves(prevMoves => [...prevMoves, {
             from: moveResult.from,
             to: moveResult.to,
-            piece: piece!,
+            piece: piece || (moveResult.color === 'w' ? pieceChar : pieceChar.toLowerCase()),
             captured: captured || undefined,
             notation: moveNotation,
             timestamp: Date.now(),
@@ -1408,6 +1410,13 @@ export default function OTBMode() {
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [gameStarted, handleClockPress]);
+
+  useEffect(() => {
+    if (myHandshakeOffered && opponentHandshakeOffered && !handshakeComplete) {
+      setHandshakeComplete(true);
+      toast({ title: "Handshake complete!", description: "Good sportsmanship!" });
+    }
+  }, [myHandshakeOffered, opponentHandshakeOffered, handshakeComplete, toast]);
 
   const fen = boardToFen(boardState, activeColor);
 
@@ -1894,43 +1903,6 @@ export default function OTBMode() {
                 </CardContent>
               </Card>
 
-              {/* Handshake UI */}
-              {showHandshakeUI && !handshakeComplete && (
-                <Card className="border-primary/50 bg-primary/5">
-                  <CardContent className="py-3 px-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <HandshakeIcon className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="text-sm font-medium">
-                            {opponentHandshakeOffered ? "Opponent offers handshake" : "Waiting for handshake..."}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Good sportsmanship matters in OTB chess</p>
-                        </div>
-                      </div>
-                      {!myHandshakeOffered ? (
-                        <Button 
-                          size="sm" 
-                          onClick={() => {
-                            setMyHandshakeOffered(true);
-                            if (opponentHandshakeOffered) {
-                              setHandshakeComplete(true);
-                              toast({ title: "Handshake accepted!", description: "Good game!" });
-                            }
-                          }}
-                          data-testid="button-offer-handshake"
-                        >
-                          <HandshakeIcon className="mr-1 h-4 w-4" />
-                          Shake
-                        </Button>
-                      ) : (
-                        <Badge variant="secondary">Offered</Badge>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
               {/* Violations and game controls */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-xs">
@@ -1973,6 +1945,27 @@ export default function OTBMode() {
               Press Clock
               <span className="ml-2 text-xs font-normal opacity-70">(Space)</span>
             </Button>
+            
+            {/* Handshake button */}
+            {showHandshakeUI && !handshakeComplete && (
+              <Button
+                onClick={() => {
+                  setMyHandshakeOffered(true);
+                  if (opponentHandshakeOffered) {
+                    setHandshakeComplete(true);
+                    toast({ title: "Handshake accepted!", description: "Good game!" });
+                  }
+                }}
+                size="default"
+                variant="outline"
+                className={`w-full ${myHandshakeOffered ? "border-green-500 text-green-600" : "border-primary"}`}
+                disabled={myHandshakeOffered}
+                data-testid="button-offer-handshake"
+              >
+                <HandshakeIcon className="mr-2 h-4 w-4" />
+                {myHandshakeOffered ? "Handshake Offered" : opponentHandshakeOffered ? "Accept Handshake" : "Offer Handshake"}
+              </Button>
+            )}
             
             {!isBotGame && (
               <Button
