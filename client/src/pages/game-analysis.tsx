@@ -498,7 +498,7 @@ function ReviewTab({ analysis }: { analysis: GameAnalysis }) {
   );
 }
 
-function ChessBoard({ fen, lastMove }: { fen: string; lastMove?: { from: string; to: string } }) {
+function ChessBoard({ fen, lastMove, flipped = false }: { fen: string; lastMove?: { from: string; to: string }; flipped?: boolean }) {
   const chess = new Chess(fen);
   const board = chess.board();
   
@@ -507,10 +507,12 @@ function ChessBoard({ fen, lastMove }: { fen: string; lastMove?: { from: string;
     'K': '\u2654', 'Q': '\u2655', 'R': '\u2656', 'B': '\u2657', 'N': '\u2658', 'P': '\u2659',
   };
 
-  const getSquareColor = (row: number, col: number) => {
-    const isLight = (row + col) % 2 === 0;
-    const file = String.fromCharCode(97 + col);
-    const rank = 8 - row;
+  const getSquareColor = (displayRow: number, displayCol: number) => {
+    const actualRow = flipped ? 7 - displayRow : displayRow;
+    const actualCol = flipped ? 7 - displayCol : displayCol;
+    const isLight = (actualRow + actualCol) % 2 === 0;
+    const file = String.fromCharCode(97 + actualCol);
+    const rank = 8 - actualRow;
     const square = `${file}${rank}`;
     
     if (lastMove && (lastMove.from === square || lastMove.to === square)) {
@@ -520,22 +522,31 @@ function ChessBoard({ fen, lastMove }: { fen: string; lastMove?: { from: string;
     return isLight ? 'bg-amber-100' : 'bg-amber-700';
   };
 
+  const getSquareContent = (displayRow: number, displayCol: number) => {
+    const actualRow = flipped ? 7 - displayRow : displayRow;
+    const actualCol = flipped ? 7 - displayCol : displayCol;
+    return board[actualRow][actualCol];
+  };
+
   return (
     <div className="aspect-square w-full max-w-md mx-auto" data-testid="chessboard">
       <div className="grid grid-cols-8 grid-rows-8 w-full h-full border-2 border-foreground/20 rounded overflow-hidden">
-        {board.map((row, rowIndex) =>
-          row.map((square, colIndex) => (
-            <div
-              key={`${rowIndex}-${colIndex}`}
-              className={`flex items-center justify-center aspect-square ${getSquareColor(rowIndex, colIndex)}`}
-            >
-              {square && (
-                <span className={`text-2xl md:text-4xl ${square.color === 'w' ? 'text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]' : 'text-gray-900'}`}>
-                  {pieceSymbols[square.color === 'w' ? square.type.toUpperCase() : square.type]}
-                </span>
-              )}
-            </div>
-          ))
+        {Array.from({ length: 8 }).map((_, rowIndex) =>
+          Array.from({ length: 8 }).map((_, colIndex) => {
+            const square = getSquareContent(rowIndex, colIndex);
+            return (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className={`flex items-center justify-center aspect-square ${getSquareColor(rowIndex, colIndex)}`}
+              >
+                {square && (
+                  <span className={`text-2xl md:text-4xl ${square.color === 'w' ? 'text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]' : 'text-gray-900'}`}>
+                    {pieceSymbols[square.color === 'w' ? square.type.toUpperCase() : square.type]}
+                  </span>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>
@@ -748,6 +759,7 @@ export default function GameAnalysisPage() {
                       from: currentMove.move.substring(0, 2), 
                       to: currentMove.move.substring(2, 4) 
                     } : undefined}
+                    flipped={playerColor === 'black'}
                   />
                   
                   <div className="flex items-center justify-center gap-2 mt-4">
