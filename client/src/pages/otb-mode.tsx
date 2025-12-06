@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3 } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3, Crown, Shuffle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -115,6 +115,7 @@ export default function OTBMode() {
   const [isBotGame, setIsBotGame] = useState(false);
   const [botThinking, setBotThinking] = useState(false);
   const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
+  const [selectedBotPersonality, setSelectedBotPersonality] = useState<BotProfile | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -769,7 +770,7 @@ export default function OTBMode() {
     }
   }, [toast]);
 
-  const handleStartBotGame = async (bot: BotProfile) => {
+  const handleStartBotGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     if (!user) return;
     
     const minutes = parseInt(timeControl);
@@ -796,8 +797,11 @@ export default function OTBMode() {
     setSelectedBot(bot);
     setShowBotSelection(false);
     setSelectedBotDifficulty(null);
+    setSelectedBotPersonality(null);
     
-    const assignedColor = Math.random() < 0.5 ? "white" : "black";
+    const assignedColor = colorChoice === "random" 
+      ? (Math.random() < 0.5 ? "white" : "black")
+      : colorChoice;
     setPlayerColor(assignedColor);
     
     setOpponentName(bot.name);
@@ -1419,7 +1423,7 @@ export default function OTBMode() {
                             </div>
                           </ScrollArea>
                         </>
-                      ) : (
+                      ) : !selectedBotPersonality ? (
                         <>
                           <div className="flex items-center gap-2 mb-2">
                             <Button
@@ -1449,7 +1453,7 @@ export default function OTBMode() {
                                   <Card 
                                     key={personality}
                                     className="cursor-pointer hover-elevate"
-                                    onClick={() => handleStartBotGame(bot)}
+                                    onClick={() => setSelectedBotPersonality(bot)}
                                     data-testid={`card-personality-${personality}`}
                                   >
                                     <CardContent className="p-3">
@@ -1474,6 +1478,83 @@ export default function OTBMode() {
                               })}
                             </div>
                           </ScrollArea>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSelectedBotPersonality(null)}
+                              data-testid="button-back-from-color"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <h3 className="text-lg font-semibold">Choose Your Color</h3>
+                            <Badge variant="secondary" className="ml-auto">
+                              {BOT_DIFFICULTY_ELO[selectedBotDifficulty]} Elo
+                            </Badge>
+                          </div>
+                          
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Playing against {selectedBotPersonality.name}
+                          </p>
+                          
+                          <div className="grid grid-cols-1 gap-3">
+                            <Card 
+                              className="cursor-pointer hover-elevate"
+                              onClick={() => handleStartBotGame(selectedBotPersonality, "white")}
+                              data-testid="card-color-white"
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-12 h-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center">
+                                    <Crown className="h-6 w-6 text-gray-700" />
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-lg">Play as White</span>
+                                    <p className="text-sm text-muted-foreground">You move first</p>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                            
+                            <Card 
+                              className="cursor-pointer hover-elevate"
+                              onClick={() => handleStartBotGame(selectedBotPersonality, "black")}
+                              data-testid="card-color-black"
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-12 h-12 rounded-full bg-gray-900 border-2 border-gray-700 flex items-center justify-center">
+                                    <Crown className="h-6 w-6 text-white" />
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-lg">Play as Black</span>
+                                    <p className="text-sm text-muted-foreground">Bot moves first</p>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                            
+                            <Card 
+                              className="cursor-pointer hover-elevate"
+                              onClick={() => handleStartBotGame(selectedBotPersonality, "random")}
+                              data-testid="card-color-random"
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-white to-gray-900 border-2 border-gray-500 flex items-center justify-center">
+                                    <Shuffle className="h-6 w-6 text-gray-500" />
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-lg">Random</span>
+                                    <p className="text-sm text-muted-foreground">Let fate decide</p>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
                         </>
                       )}
                     </div>
