@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +21,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft } from "lucide-react";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import type { Game, Rating } from "@shared/schema";
+import type { BotProfile } from "@shared/botTypes";
 
 const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classical' => {
   if (tc <= 180) return 'bullet';
@@ -50,6 +52,10 @@ export default function StandardMode() {
   
   const { data: userSettings } = useQuery<any>({
     queryKey: ["/api/settings"],
+  });
+  
+  const { data: bots } = useQuery<BotProfile[]>({
+    queryKey: ["/api/bots"],
   });
   
   const [game, setGame] = useState<Chess | null>(null);
@@ -85,6 +91,12 @@ export default function StandardMode() {
   const [isPeeking, setIsPeeking] = useState(false);
   const [peekCountdown, setPeekCountdown] = useState<number>(0);
   const peekTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const [showBotSelection, setShowBotSelection] = useState(false);
+  const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
+  const [isBotGame, setIsBotGame] = useState(false);
+  const [botThinking, setBotThinking] = useState(false);
+  const [botTimeControl, setBotTimeControl] = useState<"blitz" | "rapid">("blitz");
   
   const [pendingPromotion, setPendingPromotion] = useState<{
     from: string;
@@ -227,6 +239,10 @@ export default function StandardMode() {
     setIsPeeking(false);
     setPeekCountdown(0);
     setActiveBlindfoldDifficulty(null);
+    setIsBotGame(false);
+    setSelectedBot(null);
+    setBotThinking(false);
+    setShowBotSelection(false);
     gameRef.current = null;
     gameIdRef.current = null;
     matchIdRef.current = null;
@@ -572,6 +588,93 @@ export default function StandardMode() {
     });
   };
 
+  const requestBotMove = useCallback(async (currentFen: string, botId: string) => {
+    if (!botId) return;
+    
+    setBotThinking(true);
+    
+    try {
+      const response = await apiRequest("POST", "/api/bots/move", {
+        fen: currentFen,
+        botId,
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to get bot move");
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error getting bot move:", error);
+      toast({
+        title: "Error",
+        description: "Bot failed to respond",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setBotThinking(false);
+    }
+  }, [toast]);
+
+  const handleStartBotGame = async (bot: BotProfile) => {
+    if (!user) return;
+    
+    const newGame = new Chess();
+    setGame(newGame);
+    setFen(newGame.fen());
+    setMoves([]);
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setGameResult(null);
+    setIsBotGame(true);
+    setSelectedBot(bot);
+    setShowBotSelection(false);
+    
+    const assignedColor = Math.random() < 0.5 ? "white" : "black";
+    setPlayerColor(assignedColor);
+    
+    const seconds = botTimeControl === "blitz" ? 300 : 900;
+    const inc = botTimeControl === "blitz" ? 0 : 10;
+    setWhiteTime(seconds);
+    setBlackTime(seconds);
+    whiteTimeRef.current = seconds;
+    blackTimeRef.current = seconds;
+    setTimeControl(seconds);
+    setIncrement(inc);
+    
+    setOpponentName(bot.name);
+    setOpponentRating(bot.elo);
+    setPlayerName(user.firstName || "Player");
+    
+    const mode = botTimeControl === "blitz" ? "standard_blitz" : "standard_rapid";
+    
+    createGameMutation.mutate({
+      mode,
+      playerColor: assignedColor,
+      timeControl: seconds / 60,
+      increment: inc,
+      fen: newGame.fen(),
+      moves: [],
+      whiteTime: seconds,
+      blackTime: seconds,
+      opponentName: bot.name,
+    });
+    
+    setGameStarted(true);
+    
+    if (assignedColor === "black") {
+      const botMove = await requestBotMove(newGame.fen(), bot.id);
+      if (botMove) {
+        newGame.move(botMove.move);
+        setFen(newGame.fen());
+        setMoves([botMove.move]);
+        movesRef.current = [botMove.move];
+      }
+    }
+  };
+
   useEffect(() => {
     if (ongoingGame && !restoredGame && !gameStarted && !inQueue && ongoingGame.status === 'active') {
       const restoreGame = async () => {
@@ -779,6 +882,26 @@ export default function StandardMode() {
           await handleGameEnd("draw");
         } else {
           saveGameState();
+          
+          if (isBotGame && selectedBot) {
+            const botMove = await requestBotMove(newFen, selectedBot.id);
+            if (botMove && game) {
+              game.move(botMove.move);
+              const botNewFen = game.fen();
+              setFen(botNewFen);
+              const updatedMoves = [...movesRef.current, botMove.move];
+              setMoves(updatedMoves);
+              movesRef.current = updatedMoves;
+              
+              if (game.isCheckmate()) {
+                await handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
+              } else if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
+                await handleGameEnd("draw");
+              } else {
+                saveGameState();
+              }
+            }
+          }
         }
       }
     } catch (e) {
@@ -796,8 +919,8 @@ export default function StandardMode() {
     console.log('[handleSquareClick] Square clicked:', square);
     console.log('[handleSquareClick] game:', !!game, 'gameStarted:', gameStarted);
     
-    if (!game || !gameStarted || pendingPromotion) {
-      console.log('[handleSquareClick] Skipping - no game, not started, or pending promotion');
+    if (!game || !gameStarted || pendingPromotion || botThinking) {
+      console.log('[handleSquareClick] Skipping - no game, not started, pending promotion, or bot thinking');
       return;
     }
 
@@ -955,31 +1078,121 @@ export default function StandardMode() {
                       </p>
                     )}
 
-                    <h2 className="text-lg md:text-xl font-semibold">Find Opponent</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <Button 
-                        variant="outline"
-                        size="lg"
-                        className="min-h-11"
-                        onClick={() => handleJoinQueue('blitz')}
-                        disabled={!isConnected}
-                        data-testid="button-queue-blitz"
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Blitz (5 min)
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        size="lg"
-                        className="min-h-11"
-                        onClick={() => handleJoinQueue('rapid')}
-                        disabled={!isConnected}
-                        data-testid="button-queue-rapid"
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Rapid (15 min)
-                      </Button>
-                    </div>
+                    {!showBotSelection ? (
+                      <>
+                        <h2 className="text-lg md:text-xl font-semibold">Find Opponent</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <Button 
+                            variant="outline"
+                            size="lg"
+                            className="min-h-11"
+                            onClick={() => handleJoinQueue('blitz')}
+                            disabled={!isConnected}
+                            data-testid="button-queue-blitz"
+                          >
+                            <Clock className="mr-2 h-4 w-4" />
+                            Blitz (5 min)
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            size="lg"
+                            className="min-h-11"
+                            onClick={() => handleJoinQueue('rapid')}
+                            disabled={!isConnected}
+                            data-testid="button-queue-rapid"
+                          >
+                            <Clock className="mr-2 h-4 w-4" />
+                            Rapid (15 min)
+                          </Button>
+                        </div>
+                        
+                        <div className="pt-4 border-t">
+                          <h2 className="text-lg md:text-xl font-semibold mb-3">Practice vs Bot</h2>
+                          <Button 
+                            variant="default"
+                            size="lg"
+                            className="w-full min-h-11"
+                            onClick={() => setShowBotSelection(true)}
+                            data-testid="button-play-bot"
+                          >
+                            <Bot className="mr-2 h-4 w-4" />
+                            Choose Bot Opponent
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowBotSelection(false)}
+                            data-testid="button-back-from-bots"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <h2 className="text-lg md:text-xl font-semibold">Choose Your Opponent</h2>
+                        </div>
+                        
+                        <div className="flex gap-2 mb-4">
+                          <Button
+                            variant={botTimeControl === "blitz" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setBotTimeControl("blitz")}
+                            data-testid="button-bot-blitz"
+                          >
+                            <Clock className="mr-1 h-3 w-3" />
+                            Blitz (5 min)
+                          </Button>
+                          <Button
+                            variant={botTimeControl === "rapid" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setBotTimeControl("rapid")}
+                            data-testid="button-bot-rapid"
+                          >
+                            <Clock className="mr-1 h-3 w-3" />
+                            Rapid (15+10)
+                          </Button>
+                        </div>
+                        
+                        <ScrollArea className="h-[300px] pr-4">
+                          <div className="space-y-2">
+                            {bots?.map((bot) => (
+                              <Card 
+                                key={bot.id}
+                                className="cursor-pointer hover-elevate"
+                                onClick={() => handleStartBotGame(bot)}
+                                data-testid={`card-bot-${bot.id}`}
+                              >
+                                <CardContent className="p-3">
+                                  <div className="flex items-center gap-3">
+                                    <Avatar className="h-10 w-10">
+                                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                                        {bot.avatar}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-sm">{bot.name}</span>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {bot.elo}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs capitalize">
+                                          {bot.personality.replace("_", " ")}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground truncate">
+                                        {bot.description}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -1010,8 +1223,14 @@ export default function StandardMode() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-black" : "bg-white border border-gray-400"}`} />
+                        {isBotGame && <Bot className="h-4 w-4 text-primary" />}
                         <span className="font-medium text-sm" data-testid="text-opponent-name">{opponentName}</span>
                         <span className="text-xs text-muted-foreground" data-testid="text-opponent-rating">({opponentRating})</span>
+                        {botThinking && (
+                          <span className="text-xs text-primary animate-pulse" data-testid="text-bot-thinking">
+                            thinking...
+                          </span>
+                        )}
                       </div>
                       <div className={`text-2xl font-mono font-bold ${
                         game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "text-foreground" : "text-muted-foreground"

@@ -7,6 +7,9 @@ import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema }
 import { createQueueManager } from "./queueManager";
 import { generatePosition, calculateScore, getAllDifficulties } from "./positionGenerator";
 import { stockfishService } from "./stockfish";
+import { generateBotMove, calculateBotThinkTime } from "./botEngine";
+import { BOTS, getBotById } from "../shared/botTypes";
+import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
 
 const { queueManager } = createQueueManager();
 
@@ -1042,6 +1045,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching high score:", error);
       res.status(500).json({ message: "Failed to fetch high score" });
+    }
+  });
+
+  app.get('/api/bots', async (_req, res) => {
+    try {
+      res.json(BOTS);
+    } catch (error) {
+      console.error("Error fetching bots:", error);
+      res.status(500).json({ message: "Failed to fetch bots" });
+    }
+  });
+
+  app.get('/api/bots/:id', async (req, res) => {
+    try {
+      const bot = getBotById(req.params.id);
+      if (!bot) {
+        return res.status(404).json({ message: "Bot not found" });
+      }
+      res.json(bot);
+    } catch (error) {
+      console.error("Error fetching bot:", error);
+      res.status(500).json({ message: "Failed to fetch bot" });
+    }
+  });
+
+  app.post('/api/bots/move', async (req, res) => {
+    try {
+      const { fen, botId } = req.body;
+      
+      if (!fen || !botId) {
+        return res.status(400).json({ message: "Missing fen or botId" });
+      }
+
+      const bot = getBotById(botId);
+      if (!bot) {
+        return res.status(404).json({ message: "Bot not found" });
+      }
+
+      const thinkTime = calculateBotThinkTime(bot.difficulty);
+      
+      await new Promise(resolve => setTimeout(resolve, thinkTime));
+      
+      const move = generateBotMove(fen, bot.personality, bot.difficulty);
+      
+      if (!move) {
+        return res.status(400).json({ message: "No legal moves available" });
+      }
+
+      res.json({
+        move: move.move,
+        from: move.from,
+        to: move.to,
+        promotion: move.promotion,
+        thinkTime,
+      });
+    } catch (error) {
+      console.error("Error generating bot move:", error);
+      res.status(500).json({ message: "Failed to generate bot move" });
     }
   });
 
