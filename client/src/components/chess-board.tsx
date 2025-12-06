@@ -8,9 +8,11 @@ interface ChessBoardProps {
   highlightedSquares?: string[];
   touchedSquare?: string | null;
   lastMoveSquares?: string[];
+  lastMove?: { from: string; to: string };
   selectedSquare?: string | null;
   onSquareClick?: (square: string) => void;
   className?: string;
+  noCard?: boolean;
 }
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -28,12 +30,18 @@ export function ChessBoard({
   highlightedSquares = [],
   touchedSquare = null,
   lastMoveSquares = [],
+  lastMove,
   selectedSquare: externalSelectedSquare = null,
   onSquareClick,
   className = "",
+  noCard = false,
 }: ChessBoardProps) {
   const [internalSelectedSquare, setInternalSelectedSquare] = useState<string | null>(null);
   const selectedSquare = externalSelectedSquare !== null ? externalSelectedSquare : internalSelectedSquare;
+  
+  const effectiveLastMoveSquares = lastMove 
+    ? [lastMove.from, lastMove.to] 
+    : lastMoveSquares;
 
   const parseFen = (fen: string) => {
     const rows = fen.split(" ")[0].split("/");
@@ -73,12 +81,11 @@ export function ChessBoard({
     return isLight ? "bg-[#f0d9b5]" : "bg-[#b58863]";
   };
 
-  return (
-    <Card className={`aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${className}`}>
-      <div className="relative w-full h-full">
-        <div className="grid grid-cols-8 grid-rows-8 gap-0 w-full h-full">
-          {displayRanks.map((rank, rankIndex) =>
-            displayFiles.map((file, fileIndex) => {
+  const boardContent = (
+    <div className="relative w-full h-full">
+      <div className="grid grid-cols-8 grid-rows-8 gap-0 w-full h-full">
+        {displayRanks.map((rank, rankIndex) =>
+          displayFiles.map((file, fileIndex) => {
               const square = `${file}${rank}`;
               const boardRank = RANKS.indexOf(rank);
               const boardFile = FILES.indexOf(file);
@@ -86,7 +93,7 @@ export function ChessBoard({
               const isHighlighted = highlightedSquares.includes(square);
               const isSelected = selectedSquare === square;
               const isOpponentTouched = touchedSquare === square;
-              const isLastMove = lastMoveSquares.includes(square);
+              const isLastMove = effectiveLastMoveSquares.includes(square);
 
               return (
                 <div
@@ -123,10 +130,23 @@ export function ChessBoard({
                   )}
                 </div>
               );
-            })
-          )}
-        </div>
+          })
+        )}
       </div>
+    </div>
+  );
+
+  if (noCard) {
+    return (
+      <div className={`aspect-square w-full ${className}`}>
+        {boardContent}
+      </div>
+    );
+  }
+
+  return (
+    <Card className={`aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${className}`}>
+      {boardContent}
     </Card>
   );
 }

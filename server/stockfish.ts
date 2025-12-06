@@ -282,7 +282,7 @@ class StockfishService {
     });
   }
 
-  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', depth: number = 18): Promise<MoveAnalysisResult[]> {
+  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', depth: number = 12): Promise<MoveAnalysisResult[]> {
     if (!this.isReady) {
       await this.init();
     }
@@ -290,12 +290,14 @@ class StockfishService {
     const results: MoveAnalysisResult[] = [];
     let currentFen = startFen;
     
+    let cachedBeforeAnalysis = await this.analyzePosition(currentFen, depth);
+    
     for (let i = 0; i < moves.length; i++) {
       const move = moves[i];
       const moveNumber = Math.floor(i / 2) + 1;
       const color: 'white' | 'black' = i % 2 === 0 ? 'white' : 'black';
 
-      const beforeAnalysis = await this.analyzePosition(currentFen, depth);
+      const beforeAnalysis = cachedBeforeAnalysis;
 
       this.sendCommand(`position fen ${currentFen} moves ${move}`);
       this.sendCommand('d');
@@ -323,6 +325,7 @@ class StockfishService {
       });
 
       currentFen = afterFen;
+      cachedBeforeAnalysis = afterAnalysis;
     }
 
     return results;

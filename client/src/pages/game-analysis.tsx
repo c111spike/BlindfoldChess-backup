@@ -522,12 +522,12 @@ function ChessBoard({ fen, lastMove }: { fen: string; lastMove?: { from: string;
 
   return (
     <div className="aspect-square w-full max-w-md mx-auto" data-testid="chessboard">
-      <div className="grid grid-cols-8 w-full h-full border-2 border-foreground/20 rounded">
+      <div className="grid grid-cols-8 grid-rows-8 w-full h-full border-2 border-foreground/20 rounded overflow-hidden">
         {board.map((row, rowIndex) =>
           row.map((square, colIndex) => (
             <div
               key={`${rowIndex}-${colIndex}`}
-              className={`flex items-center justify-center ${getSquareColor(rowIndex, colIndex)}`}
+              className={`flex items-center justify-center aspect-square ${getSquareColor(rowIndex, colIndex)}`}
             >
               {square && (
                 <span className={`text-2xl md:text-4xl ${square.color === 'w' ? 'text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]' : 'text-gray-900'}`}>
@@ -563,7 +563,7 @@ export default function GameAnalysisPage() {
     },
     onSuccess: (result) => {
       if (result.status === 'started') {
-        toast({ title: 'Analysis started', description: 'This may take a few minutes...' });
+        toast({ title: 'Analysis started', description: 'This usually takes 15-30 seconds...' });
         queryClient.invalidateQueries({ queryKey: ['/api/analysis', gameId] });
       }
     },
