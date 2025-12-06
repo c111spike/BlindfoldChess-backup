@@ -1032,8 +1032,8 @@ export default function OTBMode() {
             setLastMoveSquares([move.from, move.to]);
             
             setTimeout(() => {
-              setClockTurn("white");
-              setActiveColor("white");
+              setClockTurn("black");
+              setActiveColor("black");
               setClockPresses(1);
             }, 500);
           }
