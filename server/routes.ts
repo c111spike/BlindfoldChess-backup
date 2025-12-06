@@ -1732,6 +1732,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             });
           }
+        } else if (data.type === 'handshake_offer') {
+          const matchId = data.matchId;
+          const userId = ws.userId;
+          
+          if (!matchId || !userId) return;
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'handshake_offer',
+                    matchId: matchId,
+                  }));
+                }
+              }
+            });
+          }
         } else if (data.type === 'offer_draw') {
           const matchId = data.matchId;
           const userId = ws.userId;

@@ -93,6 +93,9 @@ export default function OTBMode() {
   const [opponentHandshakeOffered, setOpponentHandshakeOffered] = useState(false);
   const [handshakeComplete, setHandshakeComplete] = useState(false);
   const [showHandshakeUI, setShowHandshakeUI] = useState(false);
+  const [myHandshakeBeforeFirstMove, setMyHandshakeBeforeFirstMove] = useState(false);
+  const [opponentHandshakeBeforeFirstMove, setOpponentHandshakeBeforeFirstMove] = useState(false);
+  const [opponentHandshakeViolation, setOpponentHandshakeViolation] = useState(false);
   
   const [touchedPiece, setTouchedPiece] = useState<string | null>(null);
   const [arbiterResult, setArbiterResult] = useState<{
@@ -215,14 +218,27 @@ export default function OTBMode() {
         return newBoard;
       });
       
-      setMoves(prev => [...prev, {
-        from: data.from!,
-        to: data.to!,
-        piece: data.piece || "?",
-        captured: data.captured,
-        notation: data.move,
-        timestamp: Date.now(),
-      }]);
+      setMoves(prev => {
+        const newMoves = [...prev, {
+          from: data.from!,
+          to: data.to!,
+          piece: data.piece || "?",
+          captured: data.captured,
+          notation: data.move,
+          timestamp: Date.now(),
+        }];
+        
+        // Check if this is opponent's first move and track handshake violation
+        // Opponent is black if we're white: black's first move is when newMoves.length === 2
+        // Opponent is white if we're black: white's first move is when newMoves.length === 1
+        const isOpponentFirstMove = (playerColor === "white" && newMoves.length === 2) ||
+                                    (playerColor === "black" && newMoves.length === 1);
+        if (isOpponentFirstMove && !opponentHandshakeOffered) {
+          setOpponentHandshakeViolation(true);
+        }
+        
+        return newMoves;
+      });
       
       setLastMoveSquares([data.from, data.to]);
       
@@ -362,7 +378,28 @@ export default function OTBMode() {
     queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
   }, [toast]);
 
-  const { sendMove, sendPieceTouch, sendArbiterCall, sendArbiterRuling, sendGameEnd, joinMatch, isConnected, isAuthenticated } = useWebSocket({
+  const handleOpponentHandshake = useCallback((data: { matchId: string }) => {
+    if (data.matchId !== matchId) return;
+    console.log('[OTB] Opponent offered handshake');
+    
+    // Track if opponent offered handshake before their first move
+    // Opponent is black if we're white: black hasn't moved yet if moves.length < 2
+    // Opponent is white if we're black: white hasn't moved yet if moves.length < 1
+    const opponentHasntMovedYet = (playerColor === "white" && moves.length < 2) ||
+                                   (playerColor === "black" && moves.length < 1);
+    if (opponentHasntMovedYet) {
+      setOpponentHandshakeBeforeFirstMove(true);
+    }
+    
+    setOpponentHandshakeOffered(true);
+    
+    if (myHandshakeOffered) {
+      setHandshakeComplete(true);
+      toast({ title: "Handshake complete!", description: "Good luck!" });
+    }
+  }, [matchId, playerColor, moves.length, myHandshakeOffered, toast]);
+
+  const { sendMove, sendPieceTouch, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, joinMatch, isConnected, isAuthenticated } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
@@ -370,6 +407,7 @@ export default function OTBMode() {
     onArbiterCall: handleArbiterCall,
     onArbiterRuling: handleArbiterRuling,
     onGameEnd: handleOpponentGameEnd,
+    onHandshakeOffer: handleOpponentHandshake,
   });
 
   useEffect(() => {
@@ -504,6 +542,9 @@ export default function OTBMode() {
           setOpponentHandshakeOffered(false);
           setHandshakeComplete(false);
           setShowHandshakeUI(true);
+          setMyHandshakeBeforeFirstMove(false);
+          setOpponentHandshakeBeforeFirstMove(false);
+          setOpponentHandshakeViolation(false);
           setTouchedPiece(null);
           setHasMadeMove(false);
           setPendingCheckmate(null);
@@ -742,6 +783,9 @@ export default function OTBMode() {
     setOpponentHandshakeOffered(false);
     setHandshakeComplete(false);
     setShowHandshakeUI(false);
+    setMyHandshakeBeforeFirstMove(false);
+    setOpponentHandshakeBeforeFirstMove(false);
+    setOpponentHandshakeViolation(false);
     setTouchedPiece(null);
     setOpponentName("Practice Partner");
     setOpponentRating(1200);
@@ -819,6 +863,9 @@ export default function OTBMode() {
     setOpponentHandshakeOffered(true);
     setHandshakeComplete(false);
     setShowHandshakeUI(true);
+    setMyHandshakeBeforeFirstMove(false);
+    setOpponentHandshakeBeforeFirstMove(true);
+    setOpponentHandshakeViolation(false);
     setTouchedPiece(null);
     setIsBotGame(true);
     setSelectedBot(bot);
@@ -1084,54 +1131,6 @@ export default function OTBMode() {
     captured: string | null,
     promotedPiece?: string
   ) => {
-    // Check if this is the player's first move (before handshake is expected)
-    // White's first move: moves.length === 0, Black's first move: moves.length === 1
-    const isMyFirstMove = (activeColor === "white" && moves.length === 0) || 
-                          (activeColor === "black" && moves.length === 1);
-    
-    // Arbiter enforcement for unsportsmanlike behavior (moving before handshake)
-    if (isMyFirstMove && !handshakeComplete && showHandshakeUI) {
-      setArbiterPending(true);
-      
-      const opponentColor = activeColor === "white" ? "black" : "white";
-      const newUnsportsmanlikeCount = myViolations.unsportsmanlike + 1;
-      
-      if (newUnsportsmanlikeCount >= 2) {
-        toast({
-          title: "Game Over - Forfeit",
-          description: "You forfeited due to 2 unsportsmanlike violations. Always shake hands before playing!",
-          variant: "destructive",
-        });
-        handleGameEnd(activeColor === "white" ? "black_win" : "white_win");
-        return;
-      }
-      
-      setMyViolations(prev => ({ ...prev, unsportsmanlike: newUnsportsmanlikeCount }));
-      const opponentLabel = isBotGame ? "Bot" : "Opponent";
-      toast({
-        title: "Unsportsmanlike Warning",
-        description: `You must shake hands before making your first move! ${opponentLabel} gains 2 minutes.`,
-        variant: "destructive",
-      });
-      setArbiterResult({ type: "illegal", message: `Arbiter called: Shake hands before playing! ${opponentLabel} gains 2 minutes.` });
-      
-      // Give time to opponent
-      if (opponentColor === "white") {
-        setWhiteTime(prev => prev + 120);
-      } else {
-        setBlackTime(prev => prev + 120);
-      }
-      
-      setSelectedSquare(null);
-      
-      setTimeout(() => {
-        setArbiterResult(null);
-        setArbiterPending(false);
-      }, 3000);
-      
-      return;
-    }
-    
     const newBoard = boardState.map(row => [...row]);
     newBoard[fromRank][fromFile] = null;
     newBoard[toRank][toFile] = promotedPiece || originalPiece;
@@ -1323,7 +1322,11 @@ export default function OTBMode() {
     let isValidClaim = false;
     
     if (claimType === "unsportsmanlike") {
-      isValidClaim = !opponentHandshakeOffered;
+      // Valid claim if opponent committed a handshake violation (moved before offering handshake)
+      // The violation flag is set when opponent makes their first move without having offered handshake
+      // Claim is only valid once (can't claim twice for same offense)
+      const alreadyPenalized = opponentViolations.unsportsmanlike > 0;
+      isValidClaim = opponentHandshakeViolation && !alreadyPenalized;
     } else if (claimType === "illegal") {
       if (moves.length === 0) {
         isValidClaim = false;
@@ -1876,6 +1879,9 @@ export default function OTBMode() {
                             setOpponentHandshakeOffered(false);
                             setHandshakeComplete(false);
                             setShowHandshakeUI(false);
+                            setMyHandshakeBeforeFirstMove(false);
+                            setOpponentHandshakeBeforeFirstMove(false);
+                            setOpponentHandshakeViolation(false);
                             setTouchedPiece(null);
                             setArbiterResult(null);
                             setRestoredGame(false);
@@ -1999,6 +2005,16 @@ export default function OTBMode() {
               <Button
                 onClick={() => {
                   setMyHandshakeOffered(true);
+                  // Track if I offered handshake before my first move
+                  const myFirstMoveNotMade = (playerColor === "white" && moves.length === 0) || 
+                                             (playerColor === "black" && moves.length < 2);
+                  if (myFirstMoveNotMade) {
+                    setMyHandshakeBeforeFirstMove(true);
+                  }
+                  // Send handshake offer to opponent via WebSocket for multiplayer
+                  if (matchId && !isBotGame) {
+                    sendHandshakeOffer(matchId);
+                  }
                   if (opponentHandshakeOffered) {
                     setHandshakeComplete(true);
                     toast({ title: "Handshake accepted!", description: "Good luck!" });

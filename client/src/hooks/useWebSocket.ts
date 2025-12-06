@@ -58,6 +58,7 @@ interface UseWebSocketOptions {
   onPieceTouch?: (data: { matchId: string; square: string }) => void;
   onArbiterCall?: (data: ArbiterCallData) => void;
   onArbiterRuling?: (data: ArbiterRulingData) => void;
+  onHandshakeOffer?: (data: { matchId: string }) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions) {
@@ -75,6 +76,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onPieceTouch,
     onArbiterCall,
     onArbiterRuling,
+    onHandshakeOffer,
   } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -93,6 +95,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const onPieceTouchRef = useRef(onPieceTouch);
   const onArbiterCallRef = useRef(onArbiterCall);
   const onArbiterRulingRef = useRef(onArbiterRuling);
+  const onHandshakeOfferRef = useRef(onHandshakeOffer);
   
   // Keep refs updated with latest callbacks
   useEffect(() => {
@@ -107,6 +110,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onPieceTouchRef.current = onPieceTouch;
     onArbiterCallRef.current = onArbiterCall;
     onArbiterRulingRef.current = onArbiterRuling;
+    onHandshakeOfferRef.current = onHandshakeOffer;
   });
 
   const connect = useCallback(() => {
@@ -253,6 +257,13 @@ export function useWebSocket(options: UseWebSocketOptions) {
               });
             }
             break;
+          case 'handshake_offer':
+            if (onHandshakeOfferRef.current) {
+              onHandshakeOfferRef.current({
+                matchId: message.matchId,
+              });
+            }
+            break;
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
@@ -389,6 +400,15 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
+  const sendHandshakeOffer = useCallback((matchId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'handshake_offer', 
+        matchId,
+      }));
+    }
+  }, []);
+
   useEffect(() => {
     if (userId) {
       connect();
@@ -420,5 +440,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
     sendArbiterCall,
     sendArbiterRuling,
     sendGameEnd,
+    sendHandshakeOffer,
   };
 }
