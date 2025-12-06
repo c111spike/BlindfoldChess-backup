@@ -1597,6 +1597,8 @@ export default function OTBMode() {
                           setSelectedBot(null);
                           setShowBotSelection(false);
                           setSelectedBotDifficulty(null);
+                          setBotThinking(false);
+                          setLegalChessGame(new Chess());
                         }}
                         data-testid="button-main-menu"
                       >
