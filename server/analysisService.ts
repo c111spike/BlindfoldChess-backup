@@ -334,11 +334,15 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
       
       const isSacrifice = detectSacrifice(result, prevResult, preMoveFen);
       const evalSwing = (result.normalizedEvalAfter - result.normalizedEvalBefore) * 100;
-      const deliversMate = result.isMateAfter && result.mateInAfter !== undefined && result.mateInAfter > 0;
+      const isCheckmate = chess.isCheckmate();
+      const deliversMate = isCheckmate || (result.isMateAfter && result.mateInAfter !== undefined && result.mateInAfter >= 0);
+      
+      const adjustedCentipawnLoss = isCheckmate ? 0 : result.centipawnLoss;
+      const adjustedNormalizedCPL = isCheckmate ? 0 : result.normalizedCentipawnLoss;
       
       const classificationContext: ClassificationContext = {
-        centipawnLoss: result.centipawnLoss,
-        normalizedCentipawnLoss: result.normalizedCentipawnLoss,
+        centipawnLoss: adjustedCentipawnLoss,
+        normalizedCentipawnLoss: adjustedNormalizedCPL,
         isBestMove: result.isBestMove,
         isForced,
         isSacrifice,
@@ -354,9 +358,9 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
       phases.push(phase);
       
       if (result.color === 'white') {
-        whiteNormalizedCPL.push(result.normalizedCentipawnLoss);
+        whiteNormalizedCPL.push(adjustedNormalizedCPL);
       } else {
-        blackNormalizedCPL.push(result.normalizedCentipawnLoss);
+        blackNormalizedCPL.push(adjustedNormalizedCPL);
       }
 
       const thinkingTime = game.thinkingTimes?.[i] || null;
@@ -372,7 +376,7 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
         evalAfter: result.normalizedEvalAfter,
         bestMove: result.bestMove,
         bestMoveEval: result.bestMoveEval,
-        centipawnLoss: result.normalizedCentipawnLoss,
+        centipawnLoss: adjustedNormalizedCPL,
         classification,
         phase,
         thinkingTime,
