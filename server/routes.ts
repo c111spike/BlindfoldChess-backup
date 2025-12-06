@@ -1160,7 +1160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/bots/move', async (req, res) => {
     try {
-      const { fen, botId } = req.body;
+      const { fen, botId, isOtbMode } = req.body;
       
       if (!fen || !botId) {
         return res.status(400).json({ message: "Missing fen or botId" });
@@ -1171,9 +1171,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Bot not found" });
       }
 
-      const thinkTime = calculateBotThinkTime(bot.difficulty);
+      const thinkTime = isOtbMode ? 500 : 0;
       
-      await new Promise(resolve => setTimeout(resolve, thinkTime));
+      if (thinkTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, thinkTime));
+      }
       
       const move = generateBotMove(fen, bot.personality, bot.difficulty);
       

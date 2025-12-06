@@ -747,6 +747,7 @@ export default function OTBMode() {
       const response = await apiRequest("POST", "/api/bots/move", {
         fen: currentFen,
         botId,
+        isOtbMode: true,
       });
       
       if (!response.ok) {
