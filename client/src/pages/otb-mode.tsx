@@ -51,6 +51,7 @@ interface MoveRecord {
   to: string;
   piece: string;
   captured?: string;
+  promotion?: string;
   notation: string;
   timestamp: number;
 }
@@ -224,6 +225,7 @@ export default function OTBMode() {
           to: data.to!,
           piece: data.piece || "?",
           captured: data.captured,
+          promotion: data.promotion,
           notation: data.move,
           timestamp: Date.now(),
         }];
@@ -699,12 +701,43 @@ export default function OTBMode() {
 
     const fen = boardToFen(boardState, activeColor);
     
+    // Convert OTB move records to proper SAN notation for analysis
+    // OTB stores moves as {from, to, piece, captured, promotion} which we need to convert to SAN
+    const sanMoves: string[] = [];
+    const replayChess = new Chess();
+    
+    for (const move of moves) {
+      try {
+        // Try to make the move using from/to squares
+        const moveResult = replayChess.move({
+          from: move.from,
+          to: move.to,
+          promotion: move.promotion?.toLowerCase() as 'q' | 'r' | 'b' | 'n' | undefined,
+        });
+        
+        if (moveResult) {
+          // chess.js returns the SAN notation in the result
+          sanMoves.push(moveResult.san);
+        } else {
+          // If move fails in chess.js, fall back to the custom notation
+          // This might happen for illegal moves in OTB mode
+          console.warn('[OTB] Could not convert move to SAN, using custom notation:', move.notation);
+          sanMoves.push(move.notation);
+        }
+      } catch (error) {
+        console.warn('[OTB] Error converting move to SAN:', move.notation, error);
+        sanMoves.push(move.notation);
+      }
+    }
+    
+    console.log('[OTB] Converted moves to SAN:', sanMoves);
+    
     updateGameMutation.mutate({
       status: "completed",
       result,
       completedAt: new Date(),
       fen,
-      moves: moves.map(m => m.notation),
+      moves: sanMoves,
       whiteTime,
       blackTime,
       manualClockPresses: clockPresses,
@@ -1137,6 +1170,7 @@ export default function OTBMode() {
             to: moveResult.to,
             piece: piece || (moveResult.color === 'w' ? pieceChar : pieceChar.toLowerCase()),
             captured: captured || undefined,
+            promotion: moveResult.promotion,
             notation: moveNotation,
             timestamp: Date.now(),
           }]);
@@ -1226,6 +1260,7 @@ export default function OTBMode() {
       to: toSquare,
       piece: originalPiece,
       captured: captured || undefined,
+      promotion: promotedPiece,
       notation: moveNotation,
       timestamp: Date.now(),
     };

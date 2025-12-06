@@ -49,6 +49,8 @@ interface HandshakeStateData {
   blackOfferedHandshake: boolean;
   whiteMoved: boolean;
   blackMoved: boolean;
+  whiteOfferedBeforeFirstMove: boolean;
+  blackOfferedBeforeFirstMove: boolean;
 }
 
 interface JoinedMatchData {
