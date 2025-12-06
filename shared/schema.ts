@@ -110,6 +110,10 @@ export const games = pgTable("games", {
   arbiterWarnings: jsonb("arbiter_warnings").$type<string[]>().default([]),
   statsProcessed: boolean("stats_processed").default(false),
   matchId: varchar("match_id"),
+  moveTimestamps: jsonb("move_timestamps").$type<number[]>().default([]),
+  thinkingTimes: jsonb("thinking_times").$type<number[]>().default([]),
+  fenHistory: jsonb("fen_history").$type<string[]>().default([]),
+  clockTimes: jsonb("clock_times").$type<number[]>().default([]),
   startedAt: timestamp("started_at").defaultNow(),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -327,6 +331,187 @@ export const knightsTourProgress = pgTable("knights_tour_progress", {
   userIdx: index("knights_tour_progress_user_idx").on(table.userId),
 }));
 
+// Move Classification enum
+export const moveClassificationEnum = pgEnum("move_classification", [
+  "genius",
+  "fantastic", 
+  "good",
+  "imprecise",
+  "mistake",
+  "blunder",
+  "book",
+  "forced",
+]);
+
+// Analysis status enum
+export const analysisStatusEnum = pgEnum("analysis_status", [
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+]);
+
+// Game Phase enum
+export const gamePhaseEnum = pgEnum("game_phase", [
+  "opening",
+  "middlegame",
+  "endgame",
+]);
+
+// Tactical pattern enum
+export const tacticalPatternEnum = pgEnum("tactical_pattern", [
+  "fork",
+  "pin",
+  "skewer",
+  "discovery",
+  "double_attack",
+  "back_rank",
+  "smothered_mate",
+  "deflection",
+  "decoy",
+  "overloading",
+  "x_ray",
+  "zwischenzug",
+]);
+
+// Game Analysis table - stores complete analysis for a game
+export const gameAnalysis = pgTable("game_analysis", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gameId: varchar("game_id")
+    .references(() => games.id, { onDelete: "cascade" })
+    .notNull()
+    .unique(),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  status: analysisStatusEnum("status").default("pending").notNull(),
+  whiteAccuracy: real("white_accuracy"),
+  blackAccuracy: real("black_accuracy"),
+  openingName: varchar("opening_name"),
+  openingEco: varchar("opening_eco"),
+  openingDeviationMove: integer("opening_deviation_move"),
+  openingAccuracy: real("opening_accuracy"),
+  middlegameAccuracy: real("middlegame_accuracy"),
+  endgameAccuracy: real("endgame_accuracy"),
+  totalCentipawnLoss: integer("total_centipawn_loss"),
+  averageCentipawnLoss: real("average_centipawn_loss"),
+  criticalMoments: jsonb("critical_moments").$type<number[]>().default([]),
+  biggestSwings: jsonb("biggest_swings").$type<{moveNumber: number, swing: number}[]>().default([]),
+  timeTroubleStartMove: integer("time_trouble_start_move"),
+  burnoutDetected: boolean("burnout_detected").default(false),
+  focusCheckScore: real("focus_check_score"),
+  efficiencyFactor: real("efficiency_factor"),
+  vssMismatchAlerts: jsonb("vss_mismatch_alerts").$type<number[]>().default([]),
+  improvementSuggestions: jsonb("improvement_suggestions").$type<string[]>().default([]),
+  analyzedAt: timestamp("analyzed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  gameIdx: index("game_analysis_game_idx").on(table.gameId),
+  userIdx: index("game_analysis_user_idx").on(table.userId),
+}));
+
+// Move Analysis table - stores per-move analysis data
+export const moveAnalysis = pgTable("move_analysis", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gameAnalysisId: varchar("game_analysis_id")
+    .references(() => gameAnalysis.id, { onDelete: "cascade" })
+    .notNull(),
+  moveNumber: integer("move_number").notNull(),
+  color: varchar("color").notNull(),
+  move: varchar("move").notNull(),
+  fen: text("fen").notNull(),
+  evalBefore: real("eval_before"),
+  evalAfter: real("eval_after"),
+  bestMove: varchar("best_move"),
+  bestMoveEval: real("best_move_eval"),
+  centipawnLoss: integer("centipawn_loss"),
+  classification: moveClassificationEnum("classification"),
+  phase: gamePhaseEnum("phase"),
+  thinkingTime: integer("thinking_time"),
+  clockTime: integer("clock_time"),
+  isCheck: boolean("is_check").default(false),
+  isCapture: boolean("is_capture").default(false),
+  isCastle: boolean("is_castle").default(false),
+  missedTactics: jsonb("missed_tactics").$type<{pattern: string, line: string[]}[]>().default([]),
+  isCriticalMoment: boolean("is_critical_moment").default(false),
+  followedByBlunder: boolean("followed_by_blunder").default(false),
+  principalVariation: jsonb("principal_variation").$type<string[]>().default([]),
+}, (table) => ({
+  analysisIdx: index("move_analysis_game_idx").on(table.gameAnalysisId),
+  moveIdx: index("move_analysis_move_idx").on(table.moveNumber),
+}));
+
+// Shared Analysis Links table
+export const sharedAnalysis = pgTable("shared_analysis", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shareCode: varchar("share_code").notNull().unique(),
+  gameAnalysisId: varchar("game_analysis_id")
+    .references(() => gameAnalysis.id, { onDelete: "cascade" })
+    .notNull(),
+  createdById: varchar("created_by_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  viewCount: integer("view_count").default(0),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  codeIdx: index("shared_analysis_code_idx").on(table.shareCode),
+}));
+
+// Player Weakness Patterns table - tracks recurring mistake types
+export const playerWeaknesses = pgTable("player_weaknesses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  weaknessType: varchar("weakness_type").notNull(),
+  occurrences: integer("occurrences").default(1),
+  lastOccurrence: timestamp("last_occurrence").defaultNow(),
+  gamesAnalyzed: integer("games_analyzed").default(1),
+  averageRatingWhenOccurred: integer("average_rating_when_occurred"),
+  description: text("description"),
+  suggestedFix: text("suggested_fix"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userWeaknessUnique: unique().on(table.userId, table.weaknessType),
+  userIdx: index("player_weaknesses_user_idx").on(table.userId),
+}));
+
+// Accuracy History table - for comparing to past games
+export const accuracyHistory = pgTable("accuracy_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  gameId: varchar("game_id")
+    .references(() => games.id, { onDelete: "cascade" })
+    .notNull(),
+  accuracy: real("accuracy").notNull(),
+  rating: integer("rating"),
+  gameMode: varchar("game_mode"),
+  phase: gamePhaseEnum("phase"),
+  recordedAt: timestamp("recorded_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("accuracy_history_user_idx").on(table.userId),
+  dateIdx: index("accuracy_history_date_idx").on(table.recordedAt),
+}));
+
+// Rating Benchmarks table - average accuracy at different rating levels
+export const ratingBenchmarks = pgTable("rating_benchmarks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ratingMin: integer("rating_min").notNull(),
+  ratingMax: integer("rating_max").notNull(),
+  gameMode: varchar("game_mode"),
+  averageAccuracy: real("average_accuracy").notNull(),
+  openingAccuracy: real("opening_accuracy"),
+  middlegameAccuracy: real("middlegame_accuracy"),
+  endgameAccuracy: real("endgame_accuracy"),
+  sampleSize: integer("sample_size").default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  ratingRangeUnique: unique().on(table.ratingMin, table.ratingMax, table.gameMode),
+}));
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertGame = typeof games.$inferInsert;
@@ -356,6 +541,22 @@ export type NPieceChallengeSolution = typeof nPieceChallengeSolutions.$inferSele
 export type NPieceType = typeof nPieceTypeEnum.enumValues[number];
 export type InsertKnightsTourProgress = typeof knightsTourProgress.$inferInsert;
 export type KnightsTourProgress = typeof knightsTourProgress.$inferSelect;
+export type MoveClassification = typeof moveClassificationEnum.enumValues[number];
+export type AnalysisStatus = typeof analysisStatusEnum.enumValues[number];
+export type GamePhase = typeof gamePhaseEnum.enumValues[number];
+export type TacticalPattern = typeof tacticalPatternEnum.enumValues[number];
+export type InsertGameAnalysis = typeof gameAnalysis.$inferInsert;
+export type GameAnalysis = typeof gameAnalysis.$inferSelect;
+export type InsertMoveAnalysis = typeof moveAnalysis.$inferInsert;
+export type MoveAnalysis = typeof moveAnalysis.$inferSelect;
+export type InsertSharedAnalysis = typeof sharedAnalysis.$inferInsert;
+export type SharedAnalysis = typeof sharedAnalysis.$inferSelect;
+export type InsertPlayerWeakness = typeof playerWeaknesses.$inferInsert;
+export type PlayerWeakness = typeof playerWeaknesses.$inferSelect;
+export type InsertAccuracyHistory = typeof accuracyHistory.$inferInsert;
+export type AccuracyHistory = typeof accuracyHistory.$inferSelect;
+export type InsertRatingBenchmark = typeof ratingBenchmarks.$inferInsert;
+export type RatingBenchmark = typeof ratingBenchmarks.$inferSelect;
 
 export const insertGameSchema = createInsertSchema(games).omit({
   id: true,
