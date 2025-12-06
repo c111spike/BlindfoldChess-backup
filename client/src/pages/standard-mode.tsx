@@ -24,7 +24,17 @@ import {
 import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft } from "lucide-react";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import type { Game, Rating } from "@shared/schema";
-import type { BotProfile } from "@shared/botTypes";
+import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
+import { 
+  ALL_DIFFICULTIES, 
+  ALL_PERSONALITIES, 
+  BOT_DIFFICULTY_ELO, 
+  BOT_DIFFICULTY_NAMES,
+  BOT_PERSONALITY_NAMES,
+  BOT_PERSONALITY_DESCRIPTIONS,
+  BOT_PERSONALITY_ICONS,
+  getBotByConfig 
+} from "@shared/botTypes";
 
 const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classical' => {
   if (tc <= 180) return 'bullet';
@@ -97,6 +107,7 @@ export default function StandardMode() {
   const [isBotGame, setIsBotGame] = useState(false);
   const [botThinking, setBotThinking] = useState(false);
   const [botTimeControl, setBotTimeControl] = useState<"blitz" | "rapid">("blitz");
+  const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
   
   const [pendingPromotion, setPendingPromotion] = useState<{
     from: string;
@@ -631,6 +642,7 @@ export default function StandardMode() {
     setIsBotGame(true);
     setSelectedBot(bot);
     setShowBotSelection(false);
+    setSelectedBotDifficulty(null);
     
     const assignedColor = Math.random() < 0.5 ? "white" : "black";
     setPlayerColor(assignedColor);
@@ -1120,18 +1132,21 @@ export default function StandardMode() {
                           </Button>
                         </div>
                       </>
-                    ) : (
+                    ) : !selectedBotDifficulty ? (
                       <>
                         <div className="flex items-center gap-2 mb-2">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setShowBotSelection(false)}
+                            onClick={() => {
+                              setShowBotSelection(false);
+                              setSelectedBotDifficulty(null);
+                            }}
                             data-testid="button-back-from-bots"
                           >
                             <ChevronLeft className="h-4 w-4" />
                           </Button>
-                          <h2 className="text-lg md:text-xl font-semibold">Choose Your Opponent</h2>
+                          <h2 className="text-lg md:text-xl font-semibold">Select Difficulty</h2>
                         </div>
                         
                         <div className="flex gap-2 mb-4">
@@ -1155,42 +1170,79 @@ export default function StandardMode() {
                           </Button>
                         </div>
                         
-                        <ScrollArea className="h-[300px] pr-4">
-                          <div className="space-y-2">
-                            {bots?.map((bot) => (
+                        <div className="grid grid-cols-1 gap-2">
+                          {ALL_DIFFICULTIES.map((difficulty) => (
+                            <Card 
+                              key={difficulty}
+                              className="cursor-pointer hover-elevate"
+                              onClick={() => setSelectedBotDifficulty(difficulty)}
+                              data-testid={`card-difficulty-${difficulty}`}
+                            >
+                              <CardContent className="p-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold">{BOT_DIFFICULTY_NAMES[difficulty]}</span>
+                                  <Badge variant="secondary">
+                                    {BOT_DIFFICULTY_ELO[difficulty]} Elo
+                                  </Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedBotDifficulty(null)}
+                            data-testid="button-back-from-personality"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <h2 className="text-lg md:text-xl font-semibold">Select Playstyle</h2>
+                          <Badge variant="secondary" className="ml-auto">
+                            {BOT_DIFFICULTY_ELO[selectedBotDifficulty]} Elo
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Choose your {BOT_DIFFICULTY_NAMES[selectedBotDifficulty]} opponent's playstyle
+                        </p>
+                        
+                        <div className="grid grid-cols-1 gap-2">
+                          {ALL_PERSONALITIES.map((personality) => {
+                            const bot = getBotByConfig(selectedBotDifficulty, personality);
+                            if (!bot) return null;
+                            return (
                               <Card 
-                                key={bot.id}
+                                key={personality}
                                 className="cursor-pointer hover-elevate"
                                 onClick={() => handleStartBotGame(bot)}
-                                data-testid={`card-bot-${bot.id}`}
+                                data-testid={`card-personality-${personality}`}
                               >
                                 <CardContent className="p-3">
                                   <div className="flex items-center gap-3">
                                     <Avatar className="h-10 w-10">
-                                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                                        {bot.avatar}
+                                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+                                        {BOT_PERSONALITY_ICONS[personality]}
                                       </AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2">
-                                        <span className="font-semibold text-sm">{bot.name}</span>
-                                        <Badge variant="secondary" className="text-xs">
-                                          {bot.elo}
-                                        </Badge>
-                                        <Badge variant="outline" className="text-xs capitalize">
-                                          {bot.personality.replace("_", " ")}
-                                        </Badge>
+                                        <span className="font-semibold">{BOT_PERSONALITY_NAMES[personality]}</span>
                                       </div>
-                                      <p className="text-xs text-muted-foreground truncate">
-                                        {bot.description}
+                                      <p className="text-xs text-muted-foreground">
+                                        {BOT_PERSONALITY_DESCRIPTIONS[personality]}
                                       </p>
                                     </div>
                                   </div>
                                 </CardContent>
                               </Card>
-                            ))}
-                          </div>
-                        </ScrollArea>
+                            );
+                          })}
+                        </div>
                       </>
                     )}
                   </CardContent>

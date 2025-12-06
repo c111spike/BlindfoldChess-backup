@@ -36,6 +36,26 @@ export const BOT_DIFFICULTY_ELO: Record<BotDifficulty, number> = {
   master: 2000,
 };
 
+export const BOT_DIFFICULTY_NAMES: Record<BotDifficulty, string> = {
+  beginner: "Beginner",
+  novice: "Novice",
+  intermediate: "Intermediate",
+  club: "Club Player",
+  advanced: "Advanced",
+  expert: "Expert",
+  master: "Master",
+};
+
+export const BOT_PERSONALITY_NAMES: Record<BotPersonality, string> = {
+  balanced: "Balanced",
+  tactician: "Tactician",
+  positional: "Positional",
+  aggressive: "Aggressor",
+  defensive: "Defender",
+  bishop_lover: "Bishop Specialist",
+  knight_lover: "Knight Specialist",
+};
+
 export const BOT_PERSONALITY_DESCRIPTIONS: Record<BotPersonality, string> = {
   balanced: "Plays solid, well-rounded chess without extreme tendencies",
   tactician: "Loves combinations and sacrifices, always looking for tricks",
@@ -46,74 +66,72 @@ export const BOT_PERSONALITY_DESCRIPTIONS: Record<BotPersonality, string> = {
   knight_lover: "Prefers knights, especially in closed positions with outposts",
 };
 
-export const BOTS: BotProfile[] = [
-  {
-    id: "bot_beginner_balanced",
-    name: "Rookie Rex",
-    personality: "balanced",
-    difficulty: "beginner",
-    elo: 400,
-    description: "A friendly beginner who's just learning the rules. Makes many mistakes but tries their best!",
-    avatar: "R",
-  },
-  {
-    id: "bot_novice_tactician",
-    name: "Tricky Tina",
-    personality: "tactician",
-    difficulty: "novice",
-    elo: 600,
-    description: "Loves setting up simple tactics. Sometimes they work, sometimes they backfire!",
-    avatar: "T",
-  },
-  {
-    id: "bot_intermediate_positional",
-    name: "Patient Pete",
-    personality: "positional",
-    difficulty: "intermediate",
-    elo: 900,
-    description: "Plays slowly and methodically, building up advantages piece by piece.",
-    avatar: "P",
-  },
-  {
-    id: "bot_club_aggressive",
-    name: "Aggressive Alex",
-    personality: "aggressive",
-    difficulty: "club",
-    elo: 1200,
-    description: "Always looking to attack your king. Defense is for losers!",
-    avatar: "A",
-  },
-  {
-    id: "bot_advanced_defensive",
-    name: "Fortress Frank",
-    personality: "defensive",
-    difficulty: "advanced",
-    elo: 1500,
-    description: "Builds an impenetrable fortress and waits for you to overextend.",
-    avatar: "F",
-  },
-  {
-    id: "bot_expert_bishop",
-    name: "Bishop Boris",
-    personality: "bishop_lover",
-    difficulty: "expert",
-    elo: 1800,
-    description: "Worships the bishop pair and creates open diagonals for destruction.",
-    avatar: "B",
-  },
-  {
-    id: "bot_master_knight",
-    name: "Knight Master Nadia",
-    personality: "knight_lover",
-    difficulty: "master",
-    elo: 2000,
-    description: "A master of knight maneuvers who creates outposts and closed positions.",
-    avatar: "N",
-  },
+export const BOT_PERSONALITY_ICONS: Record<BotPersonality, string> = {
+  balanced: "⚖",
+  tactician: "⚔",
+  positional: "♟",
+  aggressive: "🔥",
+  defensive: "🛡",
+  bishop_lover: "♗",
+  knight_lover: "♘",
+};
+
+export const ALL_DIFFICULTIES: BotDifficulty[] = [
+  "beginner",
+  "novice", 
+  "intermediate",
+  "club",
+  "advanced",
+  "expert",
+  "master",
 ];
+
+export const ALL_PERSONALITIES: BotPersonality[] = [
+  "balanced",
+  "tactician",
+  "positional",
+  "aggressive",
+  "defensive",
+  "bishop_lover",
+  "knight_lover",
+];
+
+// Generate all bot combinations dynamically
+function generateBotId(difficulty: BotDifficulty, personality: BotPersonality): string {
+  return `bot_${difficulty}_${personality}`;
+}
+
+function generateBotName(difficulty: BotDifficulty, personality: BotPersonality): string {
+  const difficultyName = BOT_DIFFICULTY_NAMES[difficulty];
+  const personalityName = BOT_PERSONALITY_NAMES[personality];
+  return `${difficultyName} ${personalityName}`;
+}
+
+function generateBotDescription(difficulty: BotDifficulty, personality: BotPersonality): string {
+  const elo = BOT_DIFFICULTY_ELO[difficulty];
+  const personalityDesc = BOT_PERSONALITY_DESCRIPTIONS[personality];
+  return `${elo} rated bot. ${personalityDesc}.`;
+}
+
+// Generate all 49 bot combinations
+export const BOTS: BotProfile[] = ALL_DIFFICULTIES.flatMap(difficulty =>
+  ALL_PERSONALITIES.map(personality => ({
+    id: generateBotId(difficulty, personality),
+    name: generateBotName(difficulty, personality),
+    personality,
+    difficulty,
+    elo: BOT_DIFFICULTY_ELO[difficulty],
+    description: generateBotDescription(difficulty, personality),
+    avatar: BOT_PERSONALITY_ICONS[personality],
+  }))
+);
 
 export function getBotById(id: string): BotProfile | undefined {
   return BOTS.find(bot => bot.id === id);
+}
+
+export function getBotByConfig(difficulty: BotDifficulty, personality: BotPersonality): BotProfile | undefined {
+  return BOTS.find(bot => bot.difficulty === difficulty && bot.personality === personality);
 }
 
 export function getBotsByDifficulty(difficulty: BotDifficulty): BotProfile[] {
