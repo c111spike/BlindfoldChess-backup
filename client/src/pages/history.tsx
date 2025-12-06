@@ -12,8 +12,18 @@ import type { Game } from "@shared/schema";
 export default function History() {
   const [, setLocation] = useLocation();
   const [modeFilter, setModeFilter] = useState("all");
+  
+  const queryUrl = modeFilter === "all" 
+    ? "/api/games/history" 
+    : `/api/games/history?mode=${modeFilter}`;
+  
   const { data: games, isLoading } = useQuery<Game[]>({
     queryKey: ["/api/games/history", modeFilter],
+    queryFn: async () => {
+      const response = await fetch(queryUrl);
+      if (!response.ok) throw new Error("Failed to fetch games");
+      return response.json();
+    },
   });
 
   const getResultBadge = (game: Game) => {
