@@ -140,7 +140,8 @@ export default function KnightsTour() {
         boardSize,
         completionTime: finalTime,
       });
-    } else if (validMoves.length === 0 && moveCount > 0 && !isStuck) {
+    } else if (validMoves.length === 0 && moveCount > 0 && moveCount < totalSquares && !isStuck) {
+      // Only show stuck message if we haven't completed all squares
       setIsStuck(true);
       toast({
         title: "No Valid Moves!",
