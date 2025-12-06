@@ -312,8 +312,12 @@ class StockfishService {
 
       const afterAnalysis = await this.analyzePosition(afterFen, depth);
 
-      const evalBefore = color === 'white' ? beforeAnalysis.evaluation : -beforeAnalysis.evaluation;
-      const evalAfter = color === 'white' ? -afterAnalysis.evaluation : afterAnalysis.evaluation;
+      // Stockfish always evaluates from the side-to-move's perspective
+      // Before the move: evaluation is from current player's perspective
+      // After the move: evaluation is from opponent's perspective (so we negate it)
+      // This logic is the same for both white and black
+      const evalBefore = beforeAnalysis.evaluation;
+      const evalAfter = -afterAnalysis.evaluation;
       
       const centipawnLoss = Math.max(0, Math.round((evalBefore - evalAfter) * 100));
 
