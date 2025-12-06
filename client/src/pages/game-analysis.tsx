@@ -550,10 +550,18 @@ export default function GameAnalysisPage() {
   const [copied, setCopied] = useState(false);
 
   const isSharedView = !!shareCode;
+  const [autoStarted, setAutoStarted] = useState(false);
 
-  const { data, isLoading, error } = useQuery<AnalysisData>({
+  const { data, isLoading, error, refetch } = useQuery<AnalysisData>({
     queryKey: isSharedView ? ['/api/analysis/shared', shareCode] : ['/api/analysis', gameId],
     enabled: !!(gameId || shareCode),
+    refetchInterval: (query) => {
+      const analysisData = query.state.data as AnalysisData | undefined;
+      if (analysisData?.analysis?.status === 'processing') {
+        return 3000;
+      }
+      return false;
+    },
   });
 
   const startAnalysisMutation = useMutation({
@@ -564,13 +572,32 @@ export default function GameAnalysisPage() {
     onSuccess: (result) => {
       if (result.status === 'started') {
         toast({ title: 'Analysis started', description: 'This usually takes 15-30 seconds...' });
-        queryClient.invalidateQueries({ queryKey: ['/api/analysis', gameId] });
+        setTimeout(() => refetch(), 1000);
+      } else if (result.status === 'already_completed') {
+        refetch();
       }
     },
     onError: () => {
       toast({ title: 'Failed to start analysis', variant: 'destructive' });
     },
   });
+
+  useEffect(() => {
+    if (!isSharedView && gameId && error && !autoStarted && !startAnalysisMutation.isPending) {
+      setAutoStarted(true);
+      toast({ title: 'Starting analysis...', description: 'This usually takes 15-30 seconds' });
+      startAnalysisMutation.mutate();
+    }
+  }, [error, gameId, isSharedView, autoStarted, startAnalysisMutation.isPending]);
+
+  useEffect(() => {
+    if (autoStarted && error) {
+      const pollInterval = setInterval(() => {
+        refetch();
+      }, 3000);
+      return () => clearInterval(pollInterval);
+    }
+  }, [autoStarted, error, refetch]);
 
   const shareAnalysisMutation = useMutation({
     mutationFn: async () => {
@@ -635,18 +662,27 @@ export default function GameAnalysisPage() {
       <div className="container max-w-6xl mx-auto p-4">
         <Card>
           <CardContent className="p-8 text-center">
-            <h2 className="text-xl font-bold mb-4">Analysis Not Found</h2>
-            {!isSharedView && gameId && (
-              <Button 
-                onClick={() => startAnalysisMutation.mutate()}
-                disabled={startAnalysisMutation.isPending}
-                data-testid="button-start-analysis"
-              >
-                {startAnalysisMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : null}
-                Start Analysis
-              </Button>
+            {autoStarted || startAnalysisMutation.isPending ? (
+              <>
+                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+                <h2 className="text-xl font-bold mb-2">Analyzing Your Game</h2>
+                <p className="text-muted-foreground mb-4">
+                  Stockfish is evaluating each move. This usually takes 15-30 seconds...
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold mb-4">Analysis Not Found</h2>
+                {!isSharedView && gameId && (
+                  <Button 
+                    onClick={() => startAnalysisMutation.mutate()}
+                    disabled={startAnalysisMutation.isPending}
+                    data-testid="button-start-analysis"
+                  >
+                    Start Analysis
+                  </Button>
+                )}
+              </>
             )}
             <Button 
               variant="outline" 
