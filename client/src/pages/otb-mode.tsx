@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PromotionDialog } from "@/components/promotion-dialog";
@@ -94,6 +94,7 @@ export default function OTBMode() {
     piece: string;
     captured: string | null;
   } | null>(null);
+  const [gameResult, setGameResult] = useState<"white_win" | "black_win" | "draw" | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -317,7 +318,9 @@ export default function OTBMode() {
       description: data.reason,
     });
     
-    setGameStarted(false);
+    // Keep board visible by setting gameResult
+    const resultValue = data.result as "white_win" | "black_win" | "draw";
+    setGameResult(resultValue);
     setPendingCheckmate(null);
     
     // Invalidate queries to refresh data
@@ -448,6 +451,7 @@ export default function OTBMode() {
           setMoves([]);
           setLastMoveSquares([]);
           setSelectedSquare(null);
+          setGameResult(null);
           setGameStarted(true);
           setInQueue(false);
           const assignedColor = response.game.playerColor === "white" ? "white" : "black";
@@ -507,6 +511,7 @@ export default function OTBMode() {
 
   useEffect(() => {
     if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
+      setGameResult(null);
       setRestoredGame(true);
     }
   }, [ongoingGame, restoredGame, gameStarted]);
@@ -560,7 +565,8 @@ export default function OTBMode() {
       description: result === "draw" ? "Game drawn" : result === "white_win" ? "White wins!" : "Black wins!",
     });
 
-    setGameStarted(false);
+    // Keep board visible by setting gameResult instead of immediately hiding
+    setGameResult(result);
     setPendingCheckmate(null);
   }, [gameId, boardState, activeColor, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast]);
 
@@ -589,7 +595,7 @@ export default function OTBMode() {
   }, [pendingCheckmate, handleGameEnd]);
 
   useEffect(() => {
-    if (gameStarted && !pendingCheckmate && !arbiterPending) {
+    if (gameStarted && !pendingCheckmate && !arbiterPending && !gameResult) {
       const timer = setInterval(() => {
         if (clockTurn === "white") {
           setWhiteTime((t) => {
@@ -612,7 +618,7 @@ export default function OTBMode() {
 
       return () => clearInterval(timer);
     }
-  }, [gameStarted, clockTurn, handleGameEnd, pendingCheckmate, arbiterPending]);
+  }, [gameStarted, clockTurn, handleGameEnd, pendingCheckmate, arbiterPending, gameResult]);
 
   useEffect(() => {
     if (gameStarted && gameId) {
@@ -678,6 +684,7 @@ export default function OTBMode() {
     setWhiteTime(seconds);
     setBlackTime(seconds);
     setIncrement(0);
+    setGameResult(null);
     setGameStarted(true);
     
     const newGame = new Chess();
@@ -993,7 +1000,7 @@ export default function OTBMode() {
             <p className="text-sm text-muted-foreground">Free movement · FIDE-style arbiter disputes</p>
           </div>
 
-          {!gameStarted ? (
+          {!gameStarted && !gameResult ? (
             <>
               {!inQueue ? (
                 <Card>
@@ -1119,6 +1126,50 @@ export default function OTBMode() {
                         <p className="font-semibold">Arbiter Ruling</p>
                         <p className="text-sm">{arbiterResult.message}</p>
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Game Result Overlay */}
+              {gameResult && (
+                <Card className="border-primary bg-primary/10">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Trophy className="h-6 w-6 text-primary" />
+                        <div>
+                          <p className="font-semibold text-lg">Game Over</p>
+                          <p className="text-sm text-muted-foreground">
+                            {gameResult === "draw" 
+                              ? "Game drawn" 
+                              : gameResult === "white_win" 
+                                ? (playerColor === "white" ? "You win!" : "Opponent wins") 
+                                : (playerColor === "black" ? "You win!" : "Opponent wins")}
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          setGameResult(null);
+                          setGameStarted(false);
+                          setGameId(null);
+                          setMatchId(null);
+                          setMoves([]);
+                          setBoardState(INITIAL_BOARD.map(row => [...row]));
+                          setSelectedSquare(null);
+                          setClockPresses(0);
+                          setMyViolations(0);
+                          setOpponentViolations(0);
+                          setMyFalseClaims(0);
+                          setOpponentFalseClaims(0);
+                          setArbiterResult(null);
+                          setRestoredGame(false);
+                        }}
+                        data-testid="button-main-menu"
+                      >
+                        Main Menu
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

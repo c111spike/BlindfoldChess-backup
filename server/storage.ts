@@ -131,6 +131,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActiveGame(userId: string): Promise<Game | undefined> {
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
     const [game] = await db
       .select()
       .from(games)
@@ -140,7 +141,8 @@ export class DatabaseStorage implements IStorage {
           eq(games.whitePlayerId, userId),
           eq(games.blackPlayerId, userId)
         ),
-        eq(games.status, 'active')
+        eq(games.status, 'active'),
+        sql`${games.createdAt} > ${sixHoursAgo}`
       ))
       .orderBy(desc(games.createdAt))
       .limit(1);

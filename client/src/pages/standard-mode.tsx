@@ -143,9 +143,8 @@ export default function StandardMode() {
         clockIntervalRef.current = null;
       }
 
-      // Update UI state first
+      // Update UI state first - keep board visible until user clicks Main Menu
       setGameResult(result);
-      setGameStarted(false);
 
       // Save final game state - MUST succeed before completion
       try {
@@ -215,6 +214,7 @@ export default function StandardMode() {
     setGameId(null);
     setMatchId(null);
     setGameStarted(false);
+    setGameResult(null);
     setWhiteTime(180);
     setBlackTime(180);
     setMoves([]);
@@ -347,6 +347,7 @@ export default function StandardMode() {
         setActiveBlindfoldDifficulty(userSettings.blindfoldDifficulty);
       }
       
+      setGameResult(null);
       setGameStarted(true);
       setInQueue(false);
       
@@ -472,7 +473,7 @@ export default function StandardMode() {
       clockIntervalRef.current = null;
     }
     
-    setGameStarted(false);
+    // Don't set gameStarted to false - keep board visible until user clicks Main Menu
   }, []);
 
   const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus, joinMatch, sendDrawOffer, sendDrawResponse, sendRematchRequest, sendRematchResponse } = useWebSocket({
@@ -619,6 +620,7 @@ export default function StandardMode() {
             setIsBlindfold(true);
           }
           
+          setGameResult(null);
           setGameStarted(true);
           setRestoredGame(true);
           
@@ -931,7 +933,7 @@ export default function StandardMode() {
             <p className="text-sm md:text-base text-muted-foreground">Online chess with automatic clocks</p>
           </div>
 
-          {!gameStarted ? (
+          {!gameStarted && !gameResult ? (
             <>
               {!inQueue ? (
                 <Card>
