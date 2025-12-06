@@ -323,7 +323,7 @@ function PhaseBreakdown({ analysis }: { analysis: GameAnalysis }) {
   );
 }
 
-function ReviewTab({ analysis }: { analysis: GameAnalysis }) {
+function ReviewTab({ analysis, onNavigateToMove }: { analysis: GameAnalysis; onNavigateToMove?: (moveIndex: number) => void }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -431,8 +431,16 @@ function ReviewTab({ analysis }: { analysis: GameAnalysis }) {
               Positions where you may have misjudged the evaluation
             </p>
             <div className="flex flex-wrap gap-2">
-              {(analysis.vssMismatchAlerts as number[]).map((move, i) => (
-                <Badge key={i} variant="outline">Move {move}</Badge>
+              {(analysis.vssMismatchAlerts as number[]).map((plyIndex, i) => (
+                <Badge 
+                  key={i} 
+                  variant="outline" 
+                  className={onNavigateToMove ? "cursor-pointer hover-elevate" : ""}
+                  onClick={() => onNavigateToMove?.(plyIndex)}
+                  data-testid={`vss-move-${plyIndex}`}
+                >
+                  Move {Math.floor(plyIndex / 2) + 1}{plyIndex % 2 === 0 ? '' : '...'}
+                </Badge>
               ))}
             </div>
           </CardContent>
@@ -524,6 +532,12 @@ export default function GameAnalysisPage() {
   const { toast } = useToast();
   const [currentMoveIndex, setCurrentMoveIndex] = useState(-1);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState("analyze");
+
+  const handleNavigateToMove = (moveIndex: number) => {
+    setCurrentMoveIndex(moveIndex);
+    setActiveTab("analyze");
+  };
 
   const isSharedView = !!shareCode;
   const [autoStarted, setAutoStarted] = useState(false);
@@ -703,7 +717,7 @@ export default function GameAnalysisPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Tabs defaultValue="analyze" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start">
               <TabsTrigger value="analyze" data-testid="tab-analyze">
                 <BarChart3 className="w-4 h-4 mr-2" />
@@ -826,7 +840,7 @@ export default function GameAnalysisPage() {
             </TabsContent>
             
             <TabsContent value="review">
-              <ReviewTab analysis={analysis} />
+              <ReviewTab analysis={analysis} onNavigateToMove={handleNavigateToMove} />
             </TabsContent>
           </Tabs>
         </div>
