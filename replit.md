@@ -51,9 +51,17 @@ After each game, players access the analysis page from Game History with two tab
 
 - **Analyze Tab**: Stockfish-powered engine analysis featuring:
   - Interactive chessboard with position navigation
+  - Vertical evaluation bar next to chessboard (±10 pawn scale, mate scores shown as "M")
   - Evaluation graph showing engine assessment over time (clickable for move navigation)
-  - Move list with classification badges (Genius, Fantastic, Good, Imprecise, Mistake, Blunder)
-  - Quick Summary card with accuracy percentages and move breakdown
+  - Move list with 7-tier classification badges:
+    - Genius: Sacrifice (≥2 pawns not recaptured) with compensation (≥1.5 pawn improvement or forced mate)
+    - Fantastic: Big advantage swing (≥2 pawns) or checkmate without sacrifice
+    - Best: Matches engine's top move (within 10cp tolerance)
+    - Good: ≤50cp normalized loss
+    - Imprecise: ≤120cp normalized loss
+    - Mistake: ≤250cp normalized loss
+    - Blunder: >250cp normalized loss
+  - Quick Summary card with accuracy percentages (formula: 100 - avgCPL/5, max CPL=500)
   - Phase Breakdown showing opening/middlegame/endgame accuracy
   - Best move suggestions and centipawn loss display
   - Keyboard navigation (arrow keys, Home, End)
