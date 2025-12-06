@@ -1456,7 +1456,7 @@ export default function OTBMode() {
   useEffect(() => {
     if (myHandshakeOffered && opponentHandshakeOffered && !handshakeComplete) {
       setHandshakeComplete(true);
-      toast({ title: "Handshake complete!", description: "Good sportsmanship!" });
+      toast({ title: "Handshake complete!", description: "Good luck!" });
     }
   }, [myHandshakeOffered, opponentHandshakeOffered, handshakeComplete, toast]);
 
@@ -1995,7 +1995,7 @@ export default function OTBMode() {
                   setMyHandshakeOffered(true);
                   if (opponentHandshakeOffered) {
                     setHandshakeComplete(true);
-                    toast({ title: "Handshake accepted!", description: "Good game!" });
+                    toast({ title: "Handshake accepted!", description: "Good luck!" });
                   }
                 }}
                 size="default"
