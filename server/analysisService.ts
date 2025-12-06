@@ -51,7 +51,8 @@ interface ClassificationContext {
 
 function detectSacrifice(
   result: MoveAnalysisResult,
-  prevResult: MoveAnalysisResult | null
+  prevResult: MoveAnalysisResult | null,
+  preMovefen: string
 ): boolean {
   const movedPieceValue = PIECE_VALUES[result.movedPiece] || 0;
   const capturedPieceValue = result.capturedPiece ? (PIECE_VALUES[result.capturedPiece] || 0) : 0;
@@ -59,6 +60,27 @@ function detectSacrifice(
   const materialLoss = movedPieceValue - capturedPieceValue;
   
   if (materialLoss < 2) return false;
+  
+  try {
+    const chess = new Chess(preMovefen);
+    
+    chess.move(result.move);
+    
+    const pv = result.principalVariation;
+    if (pv && pv.length > 0) {
+      try {
+        const opponentReply = chess.move(pv[0]);
+        if (opponentReply && opponentReply.captured) {
+          const recapturedValue = PIECE_VALUES[opponentReply.captured] || 0;
+          if (recapturedValue >= movedPieceValue - 1) {
+            return false;
+          }
+        }
+      } catch {
+      }
+    }
+  } catch {
+  }
   
   const evalImprovement = result.normalizedEvalAfter - result.normalizedEvalBefore;
   const deliversMate = result.isMateAfter && result.mateInAfter !== undefined && result.mateInAfter > 0;
@@ -117,7 +139,7 @@ function detectCriticalMoments(moveAnalyses: MoveAnalysisResult[]): number[] {
   const SWING_THRESHOLD = 1.5;
   
   for (let i = 1; i < moveAnalyses.length; i++) {
-    const evalDiff = Math.abs(moveAnalyses[i].evalAfter - moveAnalyses[i - 1].evalAfter);
+    const evalDiff = Math.abs(moveAnalyses[i].normalizedEvalAfter - moveAnalyses[i - 1].normalizedEvalAfter);
     if (evalDiff >= SWING_THRESHOLD) {
       criticalMoves.push(i);
     }
@@ -130,7 +152,7 @@ function findBiggestSwings(moveAnalyses: MoveAnalysisResult[]): { moveNumber: nu
   const swings: { moveNumber: number; swing: number; index: number }[] = [];
   
   for (let i = 1; i < moveAnalyses.length; i++) {
-    const swing = Math.abs(moveAnalyses[i].evalAfter - moveAnalyses[i - 1].evalAfter);
+    const swing = Math.abs(moveAnalyses[i].normalizedEvalAfter - moveAnalyses[i - 1].normalizedEvalAfter);
     swings.push({ moveNumber: moveAnalyses[i].moveNumber, swing, index: i });
   }
   
@@ -209,8 +231,8 @@ function detectVSSMismatch(moveAnalyses: MoveAnalysisResult[]): number[] {
   const alerts: number[] = [];
   
   for (let i = 1; i < moveAnalyses.length; i++) {
-    const prevEval = moveAnalyses[i - 1].evalAfter;
-    const currLoss = moveAnalyses[i].centipawnLoss;
+    const prevEval = moveAnalyses[i - 1].normalizedEvalAfter;
+    const currLoss = moveAnalyses[i].normalizedCentipawnLoss;
     
     if (Math.abs(prevEval) > 2 && currLoss > 100) {
       alerts.push(i);
@@ -307,9 +329,10 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
       const prevResult = i > 0 ? moveResults[i - 1] : null;
       
       const isForced = isMoveForcedPosition(chess);
+      const preMoveFen = chess.fen();
       chess.move(result.move);
       
-      const isSacrifice = detectSacrifice(result, prevResult);
+      const isSacrifice = detectSacrifice(result, prevResult, preMoveFen);
       const evalSwing = (result.normalizedEvalAfter - result.normalizedEvalBefore) * 100;
       const deliversMate = result.isMateAfter && result.mateInAfter !== undefined && result.mateInAfter > 0;
       
