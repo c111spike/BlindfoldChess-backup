@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3, Pencil } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3, Pencil, Crown, Shuffle } from "lucide-react";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import type { Game, Rating } from "@shared/schema";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
@@ -110,6 +110,7 @@ export default function StandardMode() {
   const [botThinking, setBotThinking] = useState(false);
   const [botTimeControl, setBotTimeControl] = useState<"blitz" | "rapid">("blitz");
   const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
+  const [selectedBotPersonality, setSelectedBotPersonality] = useState<BotProfile | null>(null);
   
   const [pendingPromotion, setPendingPromotion] = useState<{
     from: string;
@@ -705,7 +706,7 @@ export default function StandardMode() {
     }
   }, [toast]);
 
-  const handleStartBotGame = async (bot: BotProfile) => {
+  const handleStartBotGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     if (!user) return;
     
     const newGame = new Chess();
@@ -719,8 +720,11 @@ export default function StandardMode() {
     setSelectedBot(bot);
     setShowBotSelection(false);
     setSelectedBotDifficulty(null);
+    setSelectedBotPersonality(null);
     
-    const assignedColor = Math.random() < 0.5 ? "white" : "black";
+    const assignedColor = colorChoice === "random" 
+      ? (Math.random() < 0.5 ? "white" : "black")
+      : colorChoice;
     setPlayerColor(assignedColor);
     
     const seconds = botTimeControl === "blitz" ? 300 : 900;
@@ -1296,7 +1300,7 @@ export default function StandardMode() {
                           ))}
                         </div>
                       </>
-                    ) : (
+                    ) : !selectedBotPersonality ? (
                       <>
                         <div className="flex items-center gap-2 mb-2">
                           <Button
@@ -1325,7 +1329,7 @@ export default function StandardMode() {
                               <Card 
                                 key={personality}
                                 className="cursor-pointer hover-elevate"
-                                onClick={() => handleStartBotGame(bot)}
+                                onClick={() => setSelectedBotPersonality(bot)}
                                 data-testid={`card-personality-${personality}`}
                               >
                                 <CardContent className="p-3">
@@ -1348,6 +1352,83 @@ export default function StandardMode() {
                               </Card>
                             );
                           })}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedBotPersonality(null)}
+                            data-testid="button-back-from-color"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <h2 className="text-lg md:text-xl font-semibold">Choose Your Color</h2>
+                          <Badge variant="secondary" className="ml-auto">
+                            {BOT_DIFFICULTY_ELO[selectedBotDifficulty]} Elo
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Playing against {selectedBotPersonality.name}
+                        </p>
+                        
+                        <div className="grid grid-cols-1 gap-3">
+                          <Card 
+                            className="cursor-pointer hover-elevate"
+                            onClick={() => handleStartBotGame(selectedBotPersonality, "white")}
+                            data-testid="card-color-white"
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center">
+                                  <Crown className="h-6 w-6 text-gray-700" />
+                                </div>
+                                <div>
+                                  <span className="font-semibold text-lg">Play as White</span>
+                                  <p className="text-sm text-muted-foreground">You move first</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card 
+                            className="cursor-pointer hover-elevate"
+                            onClick={() => handleStartBotGame(selectedBotPersonality, "black")}
+                            data-testid="card-color-black"
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-gray-900 border-2 border-gray-700 flex items-center justify-center">
+                                  <Crown className="h-6 w-6 text-white" />
+                                </div>
+                                <div>
+                                  <span className="font-semibold text-lg">Play as Black</span>
+                                  <p className="text-sm text-muted-foreground">Bot moves first</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card 
+                            className="cursor-pointer hover-elevate"
+                            onClick={() => handleStartBotGame(selectedBotPersonality, "random")}
+                            data-testid="card-color-random"
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-white to-gray-900 border-2 border-gray-500 flex items-center justify-center">
+                                  <Shuffle className="h-6 w-6 text-gray-500" />
+                                </div>
+                                <div>
+                                  <span className="font-semibold text-lg">Random</span>
+                                  <p className="text-sm text-muted-foreground">Let fate decide</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
                       </>
                     )}
