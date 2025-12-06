@@ -1084,11 +1084,16 @@ export default function OTBMode() {
     captured: string | null,
     promotedPiece?: string
   ) => {
-    // Bot calls arbiter for unsportsmanlike if player moves before handshake on first move
-    if (isBotGame && moves.length === 0 && !handshakeComplete && showHandshakeUI) {
+    // Check if this is the player's first move (before handshake is expected)
+    // White's first move: moves.length === 0, Black's first move: moves.length === 1
+    const isMyFirstMove = (activeColor === "white" && moves.length === 0) || 
+                          (activeColor === "black" && moves.length === 1);
+    
+    // Arbiter enforcement for unsportsmanlike behavior (moving before handshake)
+    if (isMyFirstMove && !handshakeComplete && showHandshakeUI) {
       setArbiterPending(true);
       
-      const botColor = playerColor === "white" ? "black" : "white";
+      const opponentColor = activeColor === "white" ? "black" : "white";
       const newUnsportsmanlikeCount = myViolations.unsportsmanlike + 1;
       
       if (newUnsportsmanlikeCount >= 2) {
@@ -1097,20 +1102,21 @@ export default function OTBMode() {
           description: "You forfeited due to 2 unsportsmanlike violations. Always shake hands before playing!",
           variant: "destructive",
         });
-        handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
+        handleGameEnd(activeColor === "white" ? "black_win" : "white_win");
         return;
       }
       
       setMyViolations(prev => ({ ...prev, unsportsmanlike: newUnsportsmanlikeCount }));
+      const opponentLabel = isBotGame ? "Bot" : "Opponent";
       toast({
         title: "Unsportsmanlike Warning",
-        description: "You must shake hands before making your first move! Bot gains 2 minutes.",
+        description: `You must shake hands before making your first move! ${opponentLabel} gains 2 minutes.`,
         variant: "destructive",
       });
-      setArbiterResult({ type: "illegal", message: "Bot called arbiter: Shake hands before playing! Bot gains 2 minutes." });
+      setArbiterResult({ type: "illegal", message: `Arbiter called: Shake hands before playing! ${opponentLabel} gains 2 minutes.` });
       
-      // Give time to bot
-      if (botColor === "white") {
+      // Give time to opponent
+      if (opponentColor === "white") {
         setWhiteTime(prev => prev + 120);
       } else {
         setBlackTime(prev => prev + 120);
@@ -1988,8 +1994,8 @@ export default function OTBMode() {
               <span className="ml-2 text-xs font-normal opacity-70">(Space)</span>
             </Button>
             
-            {/* Handshake button */}
-            {showHandshakeUI && !handshakeComplete && (
+            {/* Handshake button - only available before both players' first moves */}
+            {showHandshakeUI && !handshakeComplete && moves.length < 2 && (
               <Button
                 onClick={() => {
                   setMyHandshakeOffered(true);
