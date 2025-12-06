@@ -1273,6 +1273,29 @@ export default function OTBMode() {
       setHasMadeMove(true);
     }
     
+    // Update legalChessGame for bot games so the FEN reflects the correct turn
+    // Derive next turn from the piece that just moved (uppercase = white moved, so black's turn next)
+    if (isBotGame && legalChessGame) {
+      const pieceIsWhite = originalPiece === originalPiece.toUpperCase();
+      const nextTurn: "white" | "black" = pieceIsWhite ? "black" : "white";
+      
+      const newLegalGame = new Chess(legalChessGame.fen());
+      try {
+        newLegalGame.move({
+          from: fromSquare,
+          to: toSquare,
+          promotion: promotedPiece ? promotedPiece.toLowerCase() as 'q' | 'r' | 'b' | 'n' : undefined,
+        });
+        setLegalChessGame(newLegalGame);
+      } catch (e) {
+        // Move might be illegal in chess.js but allowed in OTB mode (touch-move etc.)
+        // In this case, manually construct a new game from the board position using correct next turn
+        const newFenForLegal = boardToFen(newBoard, nextTurn);
+        const freshGame = new Chess(newFenForLegal);
+        setLegalChessGame(freshGame);
+      }
+    }
+    
     const newFen = boardToFen(newBoard, activeColor === "white" ? "black" : "white");
     
     if (matchId) {
