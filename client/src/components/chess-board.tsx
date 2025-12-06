@@ -119,8 +119,13 @@ export function ChessBoard({
     return `${file}${rank}`;
   }, [displayFiles, displayRanks]);
 
-  const handleSquareClick = (file: string, rank: string) => {
+  const handleSquareClick = (file: string, rank: string, piece: string | null) => {
     const square = `${file}${rank}`;
+    
+    if (piece) {
+      setArrows([]);
+    }
+    
     if (externalSelectedSquare === null) {
       setInternalSelectedSquare(square);
     }
@@ -129,10 +134,7 @@ export function ChessBoard({
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    if (!enableArrows) return;
-    
-    setArrows([]);
-  }, [enableArrows]);
+  }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!enableArrows) return;
@@ -321,7 +323,7 @@ export function ChessBoard({
                   key={square}
                   data-testid={`square-${square}`}
                   data-square={square}
-                  onClick={() => handleSquareClick(file, rank)}
+                  onClick={() => handleSquareClick(file, rank, piece)}
                   className={`
                     relative flex items-center justify-center cursor-pointer
                     ${getSquareColor(fileIndex, rankIndex)}
