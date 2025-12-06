@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Clock, RotateCcw, Undo2, Trophy, Target, ArrowLeft } from "lucide-react";
+import { Clock, RotateCcw, Undo2, Trophy, Target, ArrowLeft, Play, Settings, Home } from "lucide-react";
+import { useLocation } from "wouter";
 
 type BoardSize = 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -67,6 +68,7 @@ interface KnightsTourProgress {
 
 export default function KnightsTour() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   
   // Game configuration
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
@@ -174,6 +176,36 @@ export default function KnightsTour() {
     setElapsedTime(0);
     setIsComplete(false);
     setIsStuck(false);
+  };
+  
+  // Play again with same settings
+  const handlePlayAgain = () => {
+    setVisited(createEmptyVisited(boardSize));
+    setKnightPosition(null);
+    setMoveHistory([]);
+    setMoveCount(0);
+    setStartTime(null);
+    setElapsedTime(0);
+    setIsComplete(false);
+    setIsStuck(false);
+  };
+  
+  // Go back to configuration to change difficulty
+  const handleChangeDifficulty = () => {
+    setGameStarted(false);
+    setVisited(createEmptyVisited(boardSize));
+    setKnightPosition(null);
+    setMoveHistory([]);
+    setMoveCount(0);
+    setStartTime(null);
+    setElapsedTime(0);
+    setIsComplete(false);
+    setIsStuck(false);
+  };
+  
+  // Go to main training menu
+  const handleMainMenu = () => {
+    setLocation("/training");
   };
   
   // Handle square click
@@ -452,9 +484,40 @@ export default function KnightsTour() {
                 <div className="p-4 bg-red-100 dark:bg-red-900/30 rounded-lg border border-red-300 dark:border-red-700">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-red-800 dark:text-red-200">
-                      No valid moves! Use Undo or Reset to continue.
+                      No valid moves! You got stuck after {moveCount} moves.
                     </span>
                   </div>
+                </div>
+              )}
+              
+              {(isComplete || isStuck) && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button
+                    onClick={handlePlayAgain}
+                    className="gap-2"
+                    data-testid="button-play-again"
+                  >
+                    <Play className="w-4 h-4" />
+                    Play Again
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleChangeDifficulty}
+                    className="gap-2"
+                    data-testid="button-change-difficulty"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Change Difficulty
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleMainMenu}
+                    className="gap-2"
+                    data-testid="button-main-menu"
+                  >
+                    <Home className="w-4 h-4" />
+                    Main Menu
+                  </Button>
                 </div>
               )}
               
