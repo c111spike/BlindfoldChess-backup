@@ -334,7 +334,8 @@ export const knightsTourProgress = pgTable("knights_tour_progress", {
 // Move Classification enum
 export const moveClassificationEnum = pgEnum("move_classification", [
   "genius",
-  "fantastic", 
+  "fantastic",
+  "best",
   "good",
   "imprecise",
   "mistake",

@@ -24,10 +24,31 @@ interface MoveAnalysisResult {
   fen: string;
   evalBefore: number;
   evalAfter: number;
+  normalizedEvalBefore: number;
+  normalizedEvalAfter: number;
   bestMove: string;
   bestMoveEval: number;
   centipawnLoss: number;
+  normalizedCentipawnLoss: number;
   principalVariation: string[];
+  isBestMove: boolean;
+  isMateBefore: boolean;
+  isMateAfter: boolean;
+  mateInBefore?: number;
+  mateInAfter?: number;
+  capturedPiece?: string;
+  movedPiece: string;
+}
+
+const MAX_EVAL = 10;
+const MAX_CENTIPAWN_LOSS = 500;
+
+function normalizeEvaluation(rawEval: number): number {
+  return Math.max(-MAX_EVAL, Math.min(MAX_EVAL, rawEval));
+}
+
+function normalizeCentipawnLoss(rawLoss: number): number {
+  return Math.min(MAX_CENTIPAWN_LOSS, Math.max(0, rawLoss));
 }
 
 class StockfishService {
@@ -312,26 +333,40 @@ class StockfishService {
 
       const afterAnalysis = await this.analyzePosition(afterFen, depth);
 
-      // Stockfish always evaluates from the side-to-move's perspective
-      // Before the move: evaluation is from current player's perspective
-      // After the move: evaluation is from opponent's perspective (so we negate it)
-      // This logic is the same for both white and black
       const evalBefore = beforeAnalysis.evaluation;
       const evalAfter = -afterAnalysis.evaluation;
       
-      const centipawnLoss = Math.max(0, Math.round((evalBefore - evalAfter) * 100));
+      const normalizedEvalBefore = normalizeEvaluation(evalBefore);
+      const normalizedEvalAfter = normalizeEvaluation(evalAfter);
+      
+      const rawCentipawnLoss = Math.max(0, Math.round((normalizedEvalBefore - normalizedEvalAfter) * 100));
+      const centipawnLoss = rawCentipawnLoss;
+      const normalizedCentipawnLoss = normalizeCentipawnLoss(rawCentipawnLoss);
+
+      const isBestMove = uciMove === beforeAnalysis.bestMove || 
+        (beforeAnalysis.principalVariation.length > 0 && uciMove === beforeAnalysis.principalVariation[0]);
 
       results.push({
         moveNumber,
         color,
         move: sanMove,
         fen: afterFen,
-        evalBefore: beforeAnalysis.evaluation,
-        evalAfter: -afterAnalysis.evaluation,
+        evalBefore,
+        evalAfter,
+        normalizedEvalBefore,
+        normalizedEvalAfter,
         bestMove: beforeAnalysis.bestMove,
         bestMoveEval: beforeAnalysis.bestMoveEval,
         centipawnLoss,
-        principalVariation: beforeAnalysis.principalVariation
+        normalizedCentipawnLoss,
+        principalVariation: beforeAnalysis.principalVariation,
+        isBestMove,
+        isMateBefore: beforeAnalysis.isMate,
+        isMateAfter: afterAnalysis.isMate,
+        mateInBefore: beforeAnalysis.mateIn,
+        mateInAfter: afterAnalysis.mateIn,
+        capturedPiece: moveResult.captured,
+        movedPiece: moveResult.piece,
       });
 
       currentFen = afterFen;

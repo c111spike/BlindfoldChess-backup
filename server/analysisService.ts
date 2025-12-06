@@ -20,24 +20,70 @@ interface AnalysisProgress {
 const analysisQueue: Map<string, AnalysisProgress> = new Map();
 
 const CLASSIFICATION_THRESHOLDS = {
-  genius: -50,
-  fantastic: 0,
-  good: 20,
-  imprecise: 50,
-  mistake: 100,
-  blunder: 200,
+  good: 50,
+  imprecise: 120,
+  mistake: 250,
+  blunder: 250,
+};
+
+const PIECE_VALUES: Record<string, number> = {
+  'p': 1,
+  'n': 3,
+  'b': 3,
+  'r': 5,
+  'q': 9,
+  'k': 0,
 };
 
 const OPENING_MOVE_LIMIT = 10;
 const MIDDLEGAME_MATERIAL_THRESHOLD = 26;
 
-function classifyMove(centipawnLoss: number, isBestMove: boolean, isForced: boolean): MoveClassification {
-  if (isForced) return 'forced';
-  if (isBestMove || centipawnLoss <= CLASSIFICATION_THRESHOLDS.genius) return 'genius';
-  if (centipawnLoss <= CLASSIFICATION_THRESHOLDS.fantastic) return 'fantastic';
-  if (centipawnLoss <= CLASSIFICATION_THRESHOLDS.good) return 'good';
-  if (centipawnLoss <= CLASSIFICATION_THRESHOLDS.imprecise) return 'imprecise';
-  if (centipawnLoss <= CLASSIFICATION_THRESHOLDS.mistake) return 'mistake';
+interface ClassificationContext {
+  centipawnLoss: number;
+  normalizedCentipawnLoss: number;
+  isBestMove: boolean;
+  isForced: boolean;
+  isSacrifice: boolean;
+  evalSwing: number;
+  deliversMate: boolean;
+  evalAfter: number;
+}
+
+function detectSacrifice(
+  result: MoveAnalysisResult,
+  prevResult: MoveAnalysisResult | null
+): boolean {
+  const movedPieceValue = PIECE_VALUES[result.movedPiece] || 0;
+  const capturedPieceValue = result.capturedPiece ? (PIECE_VALUES[result.capturedPiece] || 0) : 0;
+  
+  const materialLoss = movedPieceValue - capturedPieceValue;
+  
+  if (materialLoss < 2) return false;
+  
+  const evalImprovement = result.normalizedEvalAfter - result.normalizedEvalBefore;
+  const deliversMate = result.isMateAfter && result.mateInAfter !== undefined && result.mateInAfter > 0;
+  
+  return evalImprovement >= 1.5 || deliversMate;
+}
+
+function classifyMove(ctx: ClassificationContext): MoveClassification {
+  if (ctx.isForced) return 'forced';
+  
+  if (ctx.isSacrifice && (ctx.evalSwing >= 150 || ctx.deliversMate)) {
+    return 'genius';
+  }
+  
+  if (!ctx.isSacrifice && (ctx.deliversMate || ctx.evalSwing >= 200 || ctx.evalAfter >= 3)) {
+    return 'fantastic';
+  }
+  
+  if (ctx.isBestMove && ctx.normalizedCentipawnLoss <= 10) {
+    return 'best';
+  }
+  
+  if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.good) return 'good';
+  if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.imprecise) return 'imprecise';
+  if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.mistake) return 'mistake';
   return 'blunder';
 }
 
@@ -94,11 +140,11 @@ function findBiggestSwings(moveAnalyses: MoveAnalysisResult[]): { moveNumber: nu
     .map(({ moveNumber, swing }) => ({ moveNumber, swing }));
 }
 
-function calculateAccuracy(centipawnLosses: number[]): number {
-  if (centipawnLosses.length === 0) return 100;
+function calculateAccuracy(normalizedCentipawnLosses: number[]): number {
+  if (normalizedCentipawnLosses.length === 0) return 100;
   
-  const avgLoss = centipawnLosses.reduce((a, b) => a + b, 0) / centipawnLosses.length;
-  const accuracy = Math.max(0, Math.min(100, 100 - (avgLoss / 2)));
+  const avgLoss = normalizedCentipawnLosses.reduce((a, b) => a + b, 0) / normalizedCentipawnLosses.length;
+  const accuracy = Math.max(0, Math.min(100, 100 - (avgLoss / 5)));
   return Math.round(accuracy * 10) / 10;
 }
 
@@ -253,25 +299,41 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
     const chess = new Chess();
     const classifications: MoveClassification[] = [];
     const phases: GamePhase[] = [];
-    const whiteCPL: number[] = [];
-    const blackCPL: number[] = [];
+    const whiteNormalizedCPL: number[] = [];
+    const blackNormalizedCPL: number[] = [];
     
     for (let i = 0; i < moveResults.length; i++) {
       const result = moveResults[i];
+      const prevResult = i > 0 ? moveResults[i - 1] : null;
       
       const isForced = isMoveForcedPosition(chess);
       chess.move(result.move);
       
-      const classification = classifyMove(result.centipawnLoss, result.move === result.bestMove, isForced);
+      const isSacrifice = detectSacrifice(result, prevResult);
+      const evalSwing = (result.normalizedEvalAfter - result.normalizedEvalBefore) * 100;
+      const deliversMate = result.isMateAfter && result.mateInAfter !== undefined && result.mateInAfter > 0;
+      
+      const classificationContext: ClassificationContext = {
+        centipawnLoss: result.centipawnLoss,
+        normalizedCentipawnLoss: result.normalizedCentipawnLoss,
+        isBestMove: result.isBestMove,
+        isForced,
+        isSacrifice,
+        evalSwing,
+        deliversMate,
+        evalAfter: result.normalizedEvalAfter,
+      };
+      
+      const classification = classifyMove(classificationContext);
       const phase = determineGamePhase(chess, result.moveNumber);
       
       classifications.push(classification);
       phases.push(phase);
       
       if (result.color === 'white') {
-        whiteCPL.push(result.centipawnLoss);
+        whiteNormalizedCPL.push(result.normalizedCentipawnLoss);
       } else {
-        blackCPL.push(result.centipawnLoss);
+        blackNormalizedCPL.push(result.normalizedCentipawnLoss);
       }
 
       const thinkingTime = game.thinkingTimes?.[i] || null;
@@ -283,11 +345,11 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
         color: result.color,
         move: result.move,
         fen: result.fen,
-        evalBefore: result.evalBefore,
-        evalAfter: result.evalAfter,
+        evalBefore: result.normalizedEvalBefore,
+        evalAfter: result.normalizedEvalAfter,
         bestMove: result.bestMove,
         bestMoveEval: result.bestMoveEval,
-        centipawnLoss: result.centipawnLoss,
+        centipawnLoss: result.normalizedCentipawnLoss,
         classification,
         phase,
         thinkingTime,
@@ -304,18 +366,18 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
 
     const criticalMoments = detectCriticalMoments(moveResults);
     const biggestSwings = findBiggestSwings(moveResults);
-    const whiteAccuracy = calculateAccuracy(whiteCPL);
-    const blackAccuracy = calculateAccuracy(blackCPL);
+    const whiteAccuracy = calculateAccuracy(whiteNormalizedCPL);
+    const blackAccuracy = calculateAccuracy(blackNormalizedCPL);
     
     const openingCPL = moveResults
       .filter((_, i) => phases[i] === 'opening')
-      .map(r => r.centipawnLoss);
+      .map(r => r.normalizedCentipawnLoss);
     const middlegameCPL = moveResults
       .filter((_, i) => phases[i] === 'middlegame')
-      .map(r => r.centipawnLoss);
+      .map(r => r.normalizedCentipawnLoss);
     const endgameCPL = moveResults
       .filter((_, i) => phases[i] === 'endgame')
-      .map(r => r.centipawnLoss);
+      .map(r => r.normalizedCentipawnLoss);
 
     const timeTroubleStart = detectTimeTroubleStart(
       game.thinkingTimes as number[] || [],
@@ -324,17 +386,17 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
     );
     
     const burnoutDetected = detectBurnout(
-      moveResults.map(r => r.centipawnLoss),
+      moveResults.map(r => r.normalizedCentipawnLoss),
       moveResults.length
     );
 
     const efficiencyFactor = calculateEfficiencyFactor(
       game.thinkingTimes as number[] || [],
-      moveResults.map(r => r.centipawnLoss)
+      moveResults.map(r => r.normalizedCentipawnLoss)
     );
 
     const focusCheckScore = calculateFocusCheckScore(
-      moveResults.map(r => r.centipawnLoss),
+      moveResults.map(r => r.normalizedCentipawnLoss),
       moveResults
     );
 
@@ -354,8 +416,8 @@ export async function analyzeGame(gameId: string, userId: string): Promise<GameA
       openingAccuracy: calculateAccuracy(openingCPL),
       middlegameAccuracy: calculateAccuracy(middlegameCPL),
       endgameAccuracy: calculateAccuracy(endgameCPL),
-      totalCentipawnLoss: moveResults.reduce((a, b) => a + b.centipawnLoss, 0),
-      averageCentipawnLoss: moveResults.reduce((a, b) => a + b.centipawnLoss, 0) / moveResults.length,
+      totalCentipawnLoss: moveResults.reduce((a, b) => a + b.normalizedCentipawnLoss, 0),
+      averageCentipawnLoss: moveResults.reduce((a, b) => a + b.normalizedCentipawnLoss, 0) / moveResults.length,
       criticalMoments,
       biggestSwings,
       timeTroubleStartMove: timeTroubleStart,

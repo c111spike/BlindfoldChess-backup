@@ -43,6 +43,7 @@ interface AnalysisData {
 const CLASSIFICATION_COLORS: Record<MoveClassification, string> = {
   genius: 'bg-purple-500 text-white',
   fantastic: 'bg-blue-500 text-white',
+  best: 'bg-teal-500 text-white',
   good: 'bg-green-500 text-white',
   imprecise: 'bg-yellow-500 text-black',
   mistake: 'bg-orange-500 text-white',
@@ -54,6 +55,7 @@ const CLASSIFICATION_COLORS: Record<MoveClassification, string> = {
 const CLASSIFICATION_LABELS: Record<MoveClassification, string> = {
   genius: 'Genius',
   fantastic: 'Fantastic',
+  best: 'Best',
   good: 'Good',
   imprecise: 'Imprecise',
   mistake: 'Mistake',
