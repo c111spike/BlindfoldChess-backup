@@ -12,6 +12,7 @@ import {
   boardSpinScores,
   nPieceChallengeProgress,
   nPieceChallengeSolutions,
+  knightsTourProgress,
   type User,
   type UpsertUser,
   type Game,
@@ -38,6 +39,7 @@ import {
   type NPieceChallengeSolution,
   type InsertNPieceChallengeSolution,
   type NPieceType,
+  type KnightsTourProgress,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
@@ -99,6 +101,11 @@ export interface IStorage {
   saveNPieceSolution(solution: InsertNPieceChallengeSolution): Promise<{ solution: NPieceChallengeSolution; isNew: boolean }>;
   getNPieceOverallProgress(userId: string): Promise<{ total: number; found: number }>;
   getUserNPieceSolutionByPositions(userId: string, pieceType: NPieceType, boardSize: number, positions: string): Promise<NPieceChallengeSolution | undefined>;
+  
+  // Knight's Tour
+  getKnightsTourProgress(userId: string, boardSize: number): Promise<KnightsTourProgress | undefined>;
+  saveKnightsTourCompletion(userId: string, boardSize: number, completionTime: number): Promise<KnightsTourProgress>;
+  getKnightsTourOverallProgress(userId: string): Promise<{ totalCompleted: number; boardsCompleted: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1098,6 +1105,64 @@ export class DatabaseStorage implements IStorage {
     const total = allProgress.length > 0 ? found : 0; // Will be updated as user plays
 
     return { total: Math.max(total, 100), found };
+  }
+
+  // Knight's Tour methods
+  async getKnightsTourProgress(userId: string, boardSize: number): Promise<KnightsTourProgress | undefined> {
+    const [progress] = await db
+      .select()
+      .from(knightsTourProgress)
+      .where(and(
+        eq(knightsTourProgress.userId, userId),
+        eq(knightsTourProgress.boardSize, boardSize)
+      ));
+    return progress;
+  }
+
+  async saveKnightsTourCompletion(userId: string, boardSize: number, completionTime: number): Promise<KnightsTourProgress> {
+    const existing = await this.getKnightsTourProgress(userId, boardSize);
+
+    if (existing) {
+      const newCount = (existing.completedCount || 0) + 1;
+      const newBestTime = !existing.bestTime || completionTime < existing.bestTime
+        ? completionTime
+        : existing.bestTime;
+
+      const [updated] = await db
+        .update(knightsTourProgress)
+        .set({
+          completedCount: newCount,
+          bestTime: newBestTime,
+          lastPlayedAt: new Date(),
+        })
+        .where(eq(knightsTourProgress.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    const [progress] = await db
+      .insert(knightsTourProgress)
+      .values({
+        userId,
+        boardSize,
+        completedCount: 1,
+        bestTime: completionTime,
+        lastPlayedAt: new Date(),
+      })
+      .returning();
+    return progress;
+  }
+
+  async getKnightsTourOverallProgress(userId: string): Promise<{ totalCompleted: number; boardsCompleted: number }> {
+    const allProgress = await db
+      .select()
+      .from(knightsTourProgress)
+      .where(eq(knightsTourProgress.userId, userId));
+
+    const totalCompleted = allProgress.reduce((sum, p) => sum + (p.completedCount || 0), 0);
+    const boardsCompleted = allProgress.filter(p => (p.completedCount || 0) > 0).length;
+
+    return { totalCompleted, boardsCompleted };
   }
 }
 

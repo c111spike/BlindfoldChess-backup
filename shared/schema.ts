@@ -311,6 +311,22 @@ export const nPieceChallengeSolutions = pgTable("n_piece_challenge_solutions", {
   progressIdx: index("n_piece_solutions_progress_idx").on(table.progressId),
 }));
 
+// Knight's Tour table
+export const knightsTourProgress = pgTable("knights_tour_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  boardSize: integer("board_size").notNull(), // 5-12
+  completedCount: integer("completed_count").default(0),
+  bestTime: integer("best_time"), // fastest completion time in milliseconds
+  lastPlayedAt: timestamp("last_played_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userBoardUnique: unique().on(table.userId, table.boardSize),
+  userIdx: index("knights_tour_progress_user_idx").on(table.userId),
+}));
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertGame = typeof games.$inferInsert;
@@ -338,6 +354,8 @@ export type NPieceChallengeProgress = typeof nPieceChallengeProgress.$inferSelec
 export type InsertNPieceChallengeSolution = typeof nPieceChallengeSolutions.$inferInsert;
 export type NPieceChallengeSolution = typeof nPieceChallengeSolutions.$inferSelect;
 export type NPieceType = typeof nPieceTypeEnum.enumValues[number];
+export type InsertKnightsTourProgress = typeof knightsTourProgress.$inferInsert;
+export type KnightsTourProgress = typeof knightsTourProgress.$inferSelect;
 
 export const insertGameSchema = createInsertSchema(games).omit({
   id: true,

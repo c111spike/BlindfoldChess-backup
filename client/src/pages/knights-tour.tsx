@@ -55,6 +55,16 @@ function createEmptyVisited(size: number): boolean[][] {
   return Array(size).fill(null).map(() => Array(size).fill(false));
 }
 
+interface KnightsTourProgress {
+  id: string;
+  userId: string;
+  boardSize: number;
+  completedCount: number | null;
+  bestTime: number | null;
+  lastPlayedAt: string | null;
+  createdAt: string | null;
+}
+
 export default function KnightsTour() {
   const { toast } = useToast();
   
@@ -73,6 +83,28 @@ export default function KnightsTour() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [isStuck, setIsStuck] = useState(false);
+  
+  // Fetch user progress
+  const { data: progressData } = useQuery<{
+    progress: KnightsTourProgress | null;
+    overallProgress: { totalCompleted: number; boardsCompleted: number };
+  }>({
+    queryKey: [`/api/knights-tour/progress/${boardSize}`],
+  });
+  
+  const progress = progressData?.progress;
+  const overallProgress = progressData?.overallProgress || { totalCompleted: 0, boardsCompleted: 0 };
+  
+  // Save completion mutation
+  const saveCompletionMutation = useMutation({
+    mutationFn: async (data: { boardSize: number; completionTime: number }) => {
+      const response = await apiRequest("POST", "/api/knights-tour/complete", data);
+      return await response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/knights-tour/progress/${variables.boardSize}`] });
+    },
+  });
   
   // Derived values
   const totalSquares = boardSize * boardSize;
@@ -95,13 +127,20 @@ export default function KnightsTour() {
   useEffect(() => {
     if (!gameStarted || !knightPosition) return;
     
-    if (moveCount === totalSquares) {
+    if (moveCount === totalSquares && !isComplete) {
       setIsComplete(true);
+      const finalTime = elapsedTime;
       toast({
         title: "Congratulations!",
-        description: `You completed the Knight's Tour in ${formatTime(elapsedTime)}!`,
+        description: `You completed the Knight's Tour in ${formatTime(finalTime)}!`,
       });
-    } else if (validMoves.length === 0 && moveCount > 0) {
+      
+      // Save completion to database
+      saveCompletionMutation.mutate({
+        boardSize,
+        completionTime: finalTime,
+      });
+    } else if (validMoves.length === 0 && moveCount > 0 && !isStuck) {
       setIsStuck(true);
       toast({
         title: "No Valid Moves!",
@@ -109,7 +148,7 @@ export default function KnightsTour() {
         variant: "destructive",
       });
     }
-  }, [moveCount, totalSquares, validMoves.length, gameStarted, knightPosition]);
+  }, [moveCount, totalSquares, validMoves.length, gameStarted, knightPosition, isComplete, isStuck]);
   
   // Start game
   const handleStartGame = () => {
@@ -325,7 +364,29 @@ export default function KnightsTour() {
                     <Target className="w-4 h-4 text-muted-foreground" />
                     <span>Target: Visit all {boardSize * boardSize} squares</span>
                   </div>
+                  {progress && (progress.completedCount || 0) > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Trophy className="w-4 h-4 text-yellow-500" />
+                        <span>Completed: {progress.completedCount} times</span>
+                      </div>
+                      {progress.bestTime && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Clock className="w-4 h-4 text-green-500" />
+                          <span>Best Time: {formatTime(progress.bestTime)}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
+                
+                {overallProgress.totalCompleted > 0 && (
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Overall: {overallProgress.totalCompleted} tours completed across {overallProgress.boardsCompleted} board sizes
+                    </p>
+                  </div>
+                )}
                 
                 <Button 
                   onClick={handleStartGame}

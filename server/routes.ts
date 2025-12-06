@@ -1098,6 +1098,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Knight's Tour Routes
+  app.get('/api/knights-tour/progress/:boardSize', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { boardSize } = req.params;
+      
+      const progress = await storage.getKnightsTourProgress(userId, parseInt(boardSize));
+      const overallProgress = await storage.getKnightsTourOverallProgress(userId);
+      
+      res.json({ progress, overallProgress });
+    } catch (error) {
+      console.error("Error fetching Knight's Tour progress:", error);
+      res.status(500).json({ message: "Failed to fetch progress" });
+    }
+  });
+
+  app.post('/api/knights-tour/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { boardSize, completionTime } = req.body;
+      
+      if (!boardSize || completionTime === undefined) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      const progress = await storage.saveKnightsTourCompletion(
+        userId,
+        parseInt(boardSize),
+        completionTime
+      );
+      
+      res.json({ progress });
+    } catch (error) {
+      console.error("Error saving Knight's Tour completion:", error);
+      res.status(500).json({ message: "Failed to save completion" });
+    }
+  });
+
   app.get('/api/bots', async (_req, res) => {
     try {
       res.json(BOTS);
