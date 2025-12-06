@@ -807,12 +807,13 @@ export default function OTBMode() {
     });
   };
 
-  const requestBotMove = useCallback(async (currentFen: string, botId: string) => {
+  const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[]) => {
     try {
       const response = await apiRequest("POST", "/api/bots/move", {
         fen: currentFen,
         botId,
         isOtbMode: true,
+        moveHistory: moveHistorySAN || [],
       });
       
       if (!response.ok) {
@@ -1036,7 +1037,8 @@ export default function OTBMode() {
     }
     
     const currentFen = legalChessGame.fen();
-    const botMove = await requestBotMove(currentFen, selectedBot.id);
+    const moveHistorySAN = legalChessGame.history();
+    const botMove = await requestBotMove(currentFen, selectedBot.id, moveHistorySAN);
     
     if (botMove && botMove.move) {
       const newLegalGame = new Chess(legalChessGame.fen());

@@ -676,7 +676,7 @@ export default function StandardMode() {
     });
   };
 
-  const requestBotMove = useCallback(async (currentFen: string, botId: string) => {
+  const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[]) => {
     if (!botId) return;
     
     setBotThinking(true);
@@ -685,6 +685,7 @@ export default function StandardMode() {
       const response = await apiRequest("POST", "/api/bots/move", {
         fen: currentFen,
         botId,
+        moveHistory: moveHistorySAN || [],
       });
       
       if (!response.ok) {
@@ -980,7 +981,8 @@ export default function StandardMode() {
           saveGameState();
           
           if (isBotGame && selectedBot) {
-            const botMove = await requestBotMove(newFen, selectedBot.id);
+            const moveHistorySAN = game.history();
+            const botMove = await requestBotMove(newFen, selectedBot.id, moveHistorySAN);
             if (botMove && game) {
               const botMoveResult = game.move(botMove.move);
               if (botMoveResult) {

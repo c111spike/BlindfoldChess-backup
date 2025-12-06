@@ -1,6 +1,7 @@
 import { Chess, Move } from "chess.js";
 import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
 import { BOT_DIFFICULTY_ELO } from "../shared/botTypes";
+import { lookupOpeningMove, isInOpeningPhase } from "./openingBook";
 
 const PIECE_VALUES: Record<string, number> = {
   p: 100,
@@ -294,7 +295,8 @@ function scoreMove(
 export function generateBotMove(
   fen: string,
   personality: BotPersonality,
-  difficulty: BotDifficulty
+  difficulty: BotDifficulty,
+  moveHistory?: string[]
 ): { move: string; from: string; to: string; promotion?: string } | null {
   const game = new Chess(fen);
   const moves = game.moves({ verbose: true });
@@ -311,6 +313,23 @@ export function generateBotMove(
       to: move.to,
       promotion: move.promotion,
     };
+  }
+
+  const historyMoves = moveHistory || [];
+  if (isInOpeningPhase(historyMoves.length)) {
+    const bookMove = lookupOpeningMove(historyMoves, personality);
+    if (bookMove) {
+      const matchingMove = moves.find(m => m.san === bookMove);
+      if (matchingMove) {
+        console.log(`[Bot] Playing opening book move: ${bookMove}`);
+        return {
+          move: matchingMove.san,
+          from: matchingMove.from,
+          to: matchingMove.to,
+          promotion: matchingMove.promotion,
+        };
+      }
+    }
   }
 
   const depth = getSearchDepth(difficulty);
