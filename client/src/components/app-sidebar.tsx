@@ -24,6 +24,7 @@ import {
   HelpCircle,
   RotateCw,
   Crown,
+  Navigation,
 } from "lucide-react";
 import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
 
@@ -57,6 +58,11 @@ const menuItems = [
     title: "N-Piece Challenge",
     url: "/n-piece",
     icon: Crown,
+  },
+  {
+    title: "Knight's Tour",
+    url: "/knights-tour",
+    icon: Navigation,
   },
   {
     title: "Game History",
