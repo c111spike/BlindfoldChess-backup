@@ -1084,6 +1084,48 @@ export default function OTBMode() {
     captured: string | null,
     promotedPiece?: string
   ) => {
+    // Bot calls arbiter for unsportsmanlike if player moves before handshake on first move
+    if (isBotGame && moves.length === 0 && !handshakeComplete && showHandshakeUI) {
+      setArbiterPending(true);
+      
+      const botColor = playerColor === "white" ? "black" : "white";
+      const newUnsportsmanlikeCount = myViolations.unsportsmanlike + 1;
+      
+      if (newUnsportsmanlikeCount >= 2) {
+        toast({
+          title: "Game Over - Forfeit",
+          description: "You forfeited due to 2 unsportsmanlike violations. Always shake hands before playing!",
+          variant: "destructive",
+        });
+        handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
+        return;
+      }
+      
+      setMyViolations(prev => ({ ...prev, unsportsmanlike: newUnsportsmanlikeCount }));
+      toast({
+        title: "Unsportsmanlike Warning",
+        description: "You must shake hands before making your first move! Bot gains 2 minutes.",
+        variant: "destructive",
+      });
+      setArbiterResult({ type: "illegal", message: "Bot called arbiter: Shake hands before playing! Bot gains 2 minutes." });
+      
+      // Give time to bot
+      if (botColor === "white") {
+        setWhiteTime(prev => prev + 120);
+      } else {
+        setBlackTime(prev => prev + 120);
+      }
+      
+      setSelectedSquare(null);
+      
+      setTimeout(() => {
+        setArbiterResult(null);
+        setArbiterPending(false);
+      }, 3000);
+      
+      return;
+    }
+    
     const newBoard = boardState.map(row => [...row]);
     newBoard[fromRank][fromFile] = null;
     newBoard[toRank][toFile] = promotedPiece || originalPiece;
