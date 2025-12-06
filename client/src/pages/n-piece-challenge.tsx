@@ -84,14 +84,13 @@ export default function NPieceChallenge() {
   const totalSolutions = SOLUTION_COUNTS[pieceType][boardSize];
   const trackableSolutions = getTrackableSolutionCount(pieceType, boardSize);
   
-  // Fetch user progress
+  // Fetch user progress (always fetch when piece type or board size changes)
   const { data: progressData } = useQuery<{
     progress: NPieceChallengeProgress | null;
     solutions: NPieceChallengeSolution[];
     overallProgress: { total: number; found: number };
   }>({
     queryKey: ["/api/n-piece-challenge/progress", pieceType, boardSize],
-    enabled: gameStarted,
   });
   
   const progress = progressData?.progress;

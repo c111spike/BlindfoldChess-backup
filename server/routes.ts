@@ -1049,10 +1049,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // N-Piece Challenge Routes
-  app.get('/api/n-piece-challenge/progress', isAuthenticated, async (req: any, res) => {
+  app.get('/api/n-piece-challenge/progress/:pieceType/:boardSize', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { pieceType, boardSize } = req.query;
+      const { pieceType, boardSize } = req.params;
       
       if (!pieceType || !boardSize) {
         return res.status(400).json({ message: "Missing pieceType or boardSize" });
