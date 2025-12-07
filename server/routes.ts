@@ -2035,6 +2035,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
   
+  // Helper: Calculate Simul ELO changes for a player after match completion
+  // Only games against human opponents count - bots don't give ELO
+  // K-factor = 32 / number_of_boards (for 5 boards, K = 6.4)
+  async function calculateSimulEloChanges(
+    matchId: string,
+    allPairings: Array<{
+      id: string;
+      whitePlayerId: string | null;
+      blackPlayerId: string | null;
+      whiteIsBot: boolean;
+      blackIsBot: boolean;
+      result: string;
+    }>,
+    matchPlayers: Array<{ odId: string | null; isBot: boolean }>
+  ): Promise<Map<string, { ratingChange: number; humanGamesPlayed: number; wins: number; losses: number; draws: number }>> {
+    const playerRatingChanges = new Map<string, { ratingChange: number; humanGamesPlayed: number; wins: number; losses: number; draws: number }>();
+    
+    // Get human players only
+    const humanPlayers = matchPlayers.filter(p => !p.isBot && p.odId);
+    const boardCount = 5; // Simul vs Simul uses 5 boards
+    const kFactor = 32 / boardCount; // K = 6.4 for 5 boards
+    
+    console.log(`[SimulElo] Calculating ELO for ${humanPlayers.length} human players with K=${kFactor}`);
+    
+    for (const player of humanPlayers) {
+      const playerId = player.odId!;
+      let totalRatingChange = 0;
+      let humanGamesPlayed = 0;
+      let wins = 0;
+      let losses = 0;
+      let draws = 0;
+      
+      // Get player's current simul rating
+      const playerRating = await storage.getOrCreateRating(playerId);
+      const playerSimulRating = playerRating.simul || 1000;
+      
+      // Find all games this player participated in
+      const playerGames = allPairings.filter(p => 
+        p.whitePlayerId === playerId || p.blackPlayerId === playerId
+      );
+      
+      for (const game of playerGames) {
+        const isWhite = game.whitePlayerId === playerId;
+        const opponentIsBot = isWhite ? game.blackIsBot : game.whiteIsBot;
+        const opponentId = isWhite ? game.blackPlayerId : game.whitePlayerId;
+        
+        // Skip bot games - bots don't give ELO
+        if (opponentIsBot) {
+          console.log(`[SimulElo] Player ${playerId} game vs bot - skipping ELO`);
+          continue;
+        }
+        
+        if (!opponentId) continue;
+        
+        // Get opponent's rating
+        const opponentRating = await storage.getOrCreateRating(opponentId);
+        const opponentSimulRating = opponentRating.simul || 1000;
+        
+        // Determine score (1 = win, 0.5 = draw, 0 = loss)
+        let score: number;
+        if (game.result === 'draw' || game.result === 'stalemate') {
+          score = 0.5;
+          draws++;
+        } else if (
+          (game.result === 'white_win' && isWhite) ||
+          (game.result === 'black_win' && !isWhite)
+        ) {
+          score = 1;
+          wins++;
+        } else if (
+          (game.result === 'white_win' && !isWhite) ||
+          (game.result === 'black_win' && isWhite)
+        ) {
+          score = 0;
+          losses++;
+        } else {
+          // Game not finished or unknown result
+          continue;
+        }
+        
+        humanGamesPlayed++;
+        
+        // Calculate expected score using ELO formula
+        const expectedScore = 1 / (1 + Math.pow(10, (opponentSimulRating - playerSimulRating) / 400));
+        
+        // Calculate rating change for this game
+        const gameRatingChange = kFactor * (score - expectedScore);
+        totalRatingChange += gameRatingChange;
+        
+        console.log(`[SimulElo] Player ${playerId} vs ${opponentId}: score=${score}, expected=${expectedScore.toFixed(3)}, change=${gameRatingChange.toFixed(1)}`);
+      }
+      
+      const roundedChange = Math.round(totalRatingChange);
+      playerRatingChanges.set(playerId, {
+        ratingChange: roundedChange,
+        humanGamesPlayed,
+        wins,
+        losses,
+        draws,
+      });
+      
+      console.log(`[SimulElo] Player ${playerId}: total change=${roundedChange} (${humanGamesPlayed} human games: ${wins}W/${draws}D/${losses}L)`);
+    }
+    
+    return playerRatingChanges;
+  }
+  
+  // Helper: Apply Simul ELO changes to player ratings
+  async function applySimulEloChanges(
+    ratingChanges: Map<string, { ratingChange: number; humanGamesPlayed: number; wins: number; losses: number; draws: number }>
+  ): Promise<void> {
+    for (const [playerId, changes] of ratingChanges.entries()) {
+      if (changes.ratingChange === 0 && changes.humanGamesPlayed === 0) {
+        console.log(`[SimulElo] Player ${playerId}: no human games, skipping rating update`);
+        continue;
+      }
+      
+      const playerRating = await storage.getOrCreateRating(playerId);
+      const currentSimulRating = playerRating.simul || 1000;
+      const newSimulRating = Math.max(100, currentSimulRating + changes.ratingChange); // Min rating 100
+      
+      await storage.updateRating(playerId, { simul: newSimulRating });
+      console.log(`[SimulElo] Player ${playerId}: ${currentSimulRating} -> ${newSimulRating} (${changes.ratingChange >= 0 ? '+' : ''}${changes.ratingChange})`);
+    }
+  }
+
   // Helper: Clean up match resources (timers, rooms, focus) when match ends
   function cleanupSimulMatch(matchId: string, pairingIds: string[]) {
     console.log(`[SimulCleanup] Cleaning up match ${matchId} with ${pairingIds.length} pairings`);
@@ -2236,15 +2362,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             completedAt: new Date(),
           });
           
-          // Notify all players in match
+          // Calculate and apply Simul ELO changes
+          const matchPlayers = await storage.getSimulVsSimulMatchPlayers(matchId);
+          const ratingChanges = await calculateSimulEloChanges(matchId, allPairings, matchPlayers);
+          await applySimulEloChanges(ratingChanges);
+          
+          // Notify all players in match (include their rating change)
           const matchRoom = simulMatchRooms.get(matchId);
           if (matchRoom) {
             matchRoom.forEach((roomUserId) => {
               const playerWs = userConnections.get(roomUserId);
               if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                const playerStats = ratingChanges.get(roomUserId);
                 playerWs.send(JSON.stringify({
                   type: 'simul_match_complete',
                   matchId,
+                  ratingChange: playerStats?.ratingChange || 0,
+                  humanGamesPlayed: playerStats?.humanGamesPlayed || 0,
+                  wins: playerStats?.wins || 0,
+                  losses: playerStats?.losses || 0,
+                  draws: playerStats?.draws || 0,
                 }));
               }
             });
@@ -2333,15 +2470,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 completedAt: new Date(),
               });
               
-              // Notify all players in match before cleanup
+              // Calculate and apply Simul ELO changes
+              const matchPlayers = await storage.getSimulVsSimulMatchPlayers(matchId);
+              const ratingChanges = await calculateSimulEloChanges(matchId, allPairings, matchPlayers);
+              await applySimulEloChanges(ratingChanges);
+              
+              // Notify all players in match before cleanup (include their rating change)
               const matchRoom = simulMatchRooms.get(matchId);
               if (matchRoom) {
                 matchRoom.forEach((roomUserId) => {
                   const playerWs = userConnections.get(roomUserId);
                   if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                    const playerStats = ratingChanges.get(roomUserId);
                     playerWs.send(JSON.stringify({
                       type: 'simul_match_complete',
                       matchId,
+                      ratingChange: playerStats?.ratingChange || 0,
+                      humanGamesPlayed: playerStats?.humanGamesPlayed || 0,
+                      wins: playerStats?.wins || 0,
+                      losses: playerStats?.losses || 0,
+                      draws: playerStats?.draws || 0,
                     }));
                   }
                 });
@@ -3481,15 +3629,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 completedAt: new Date(),
               });
               
-              // Notify all players in match before cleanup
+              // Calculate and apply Simul ELO changes
+              const matchPlayers = await storage.getSimulVsSimulMatchPlayers(matchId);
+              const ratingChanges = await calculateSimulEloChanges(matchId, allPairings, matchPlayers);
+              await applySimulEloChanges(ratingChanges);
+              
+              // Notify all players in match before cleanup (include their rating change)
               const matchRoom = simulMatchRooms.get(matchId);
               if (matchRoom) {
                 matchRoom.forEach((roomUserId) => {
                   const playerWs = userConnections.get(roomUserId);
                   if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                    const playerStats = ratingChanges.get(roomUserId);
                     playerWs.send(JSON.stringify({
                       type: 'simul_match_complete',
                       matchId,
+                      ratingChange: playerStats?.ratingChange || 0,
+                      humanGamesPlayed: playerStats?.humanGamesPlayed || 0,
+                      wins: playerStats?.wins || 0,
+                      losses: playerStats?.losses || 0,
+                      draws: playerStats?.draws || 0,
                     }));
                   }
                 });

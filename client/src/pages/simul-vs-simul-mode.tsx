@@ -62,6 +62,13 @@ export default function SimulVsSimulMode() {
   const [matchComplete, setMatchComplete] = useState(false);
   const [focusedPairingId, setFocusedPairingId] = useState<string | null>(null);
   const [showMatchEndDialog, setShowMatchEndDialog] = useState(false);
+  const [matchStats, setMatchStats] = useState<{
+    ratingChange: number;
+    humanGamesPlayed: number;
+    wins: number;
+    losses: number;
+    draws: number;
+  } | null>(null);
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -302,6 +309,13 @@ export default function SimulVsSimulMode() {
       case 'simul_match_complete':
         setMatchComplete(true);
         setShowMatchEndDialog(true);
+        setMatchStats({
+          ratingChange: data.ratingChange || 0,
+          humanGamesPlayed: data.humanGamesPlayed || 0,
+          wins: data.wins || 0,
+          losses: data.losses || 0,
+          draws: data.draws || 0,
+        });
         break;
         
       case 'simul_move_confirmed':
@@ -905,6 +919,37 @@ export default function SimulVsSimulMode() {
           </DialogHeader>
           
           <div className="space-y-4">
+            {matchStats && matchStats.humanGamesPlayed > 0 && (
+              <div className="flex items-center justify-center p-4 rounded-lg bg-muted/50">
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Simul Rating Change</div>
+                  <div className={cn(
+                    "text-3xl font-bold",
+                    matchStats.ratingChange > 0 && "text-green-500",
+                    matchStats.ratingChange < 0 && "text-red-500",
+                    matchStats.ratingChange === 0 && "text-muted-foreground"
+                  )} data-testid="text-rating-change">
+                    {matchStats.ratingChange > 0 ? '+' : ''}{matchStats.ratingChange}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1" data-testid="text-human-stats">
+                    {matchStats.wins}W / {matchStats.draws}D / {matchStats.losses}L
+                    {matchStats.humanGamesPlayed < boards.length && (
+                      <span> ({matchStats.humanGamesPlayed} rated games)</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {matchStats && matchStats.humanGamesPlayed === 0 && (
+              <div className="flex items-center justify-center p-4 rounded-lg bg-muted/50">
+                <div className="text-center text-muted-foreground">
+                  <div className="text-sm mb-1">No Rating Change</div>
+                  <div className="text-xs">Bot games are unrated</div>
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-2">
               {boards.map((board, index) => {
                 const resultInfo = getResultDisplay(board.result, board.color);
@@ -916,6 +961,9 @@ export default function SimulVsSimulMode() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Board #{board.boardNumber}</span>
                       <span className="text-sm text-muted-foreground">vs {board.opponentName}</span>
+                      {board.isOpponentBot && (
+                        <Badge variant="outline" className="text-xs">Bot</Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={resultInfo?.variant || 'secondary'}>
