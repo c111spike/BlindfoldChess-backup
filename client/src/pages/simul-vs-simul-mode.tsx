@@ -35,6 +35,13 @@ interface SimulVsSimulBoard {
   chess: Chess;
   timeRemaining: number;
   gameId?: string;
+  lastMove?: { from: string; to: string };
+}
+
+interface PendingPromotion {
+  from: string;
+  to: string;
+  boardIndex: number;
 }
 
 interface MatchPlayer {
@@ -69,8 +76,11 @@ export default function SimulVsSimulMode() {
     losses: number;
     draws: number;
   } | null>(null);
+  const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
+  const [showPromotionDialog, setShowPromotionDialog] = useState(false);
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
+  const promotionPendingRef = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const queuePollRef = useRef<NodeJS.Timeout | null>(null);
@@ -224,6 +234,7 @@ export default function SimulVsSimulMode() {
             moveCount: data.moveCount,
             activeColor: data.activeColor,
             chess,
+            lastMove: data.from && data.to ? { from: data.from, to: data.to } : newBoards[boardIndex].lastMove,
           };
           
           return newBoards;
@@ -236,6 +247,12 @@ export default function SimulVsSimulMode() {
         break;
         
       case 'simul_focus_update':
+        // Block auto-switch if promotion is pending
+        if (data.reason === 'auto_switch' && promotionPendingRef.current) {
+          console.log('[SimulWS] Blocking auto-switch - promotion pending');
+          break;
+        }
+        
         setFocusedPairingId(data.pairingId);
         const newFocusIndex = boardsRef.current.findIndex(b => b.pairingId === data.pairingId);
         if (newFocusIndex >= 0) {
@@ -484,6 +501,114 @@ export default function SimulVsSimulMode() {
     setLegalMoves([]);
   };
   
+  // Check if a move is a pawn promotion
+  const isPromotionMove = (chess: Chess, from: string, to: string): boolean => {
+    const piece = chess.get(from as any);
+    if (!piece || piece.type !== 'p') return false;
+    
+    const toRank = to[1];
+    const isWhitePromotion = piece.color === 'w' && toRank === '8';
+    const isBlackPromotion = piece.color === 'b' && toRank === '1';
+    
+    return isWhitePromotion || isBlackPromotion;
+  };
+  
+  // Execute a move with optional promotion piece
+  const executeMove = (boardIndex: number, from: string, to: string, promotion?: string) => {
+    const currentBoard = boards[boardIndex];
+    if (!currentBoard) return;
+    
+    const chess = currentBoard.chess;
+    
+    try {
+      const move = chess.move({
+        from,
+        to,
+        promotion: promotion || undefined,
+      });
+      
+      if (move) {
+        const newFen = chess.fen();
+        const newActiveColor = chess.turn() === 'w' ? 'white' : 'black';
+        
+        const updatedBoards = [...boards];
+        updatedBoards[boardIndex] = {
+          ...currentBoard,
+          fen: newFen,
+          moves: chess.history(),
+          moveCount: chess.history().length,
+          activeColor: newActiveColor as 'white' | 'black',
+          chess,
+          lastMove: { from: move.from, to: move.to },
+        };
+        
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            type: 'simul_move',
+            pairingId: currentBoard.pairingId,
+            move: move.san,
+            fen: newFen,
+            from: move.from,
+            to: move.to,
+            piece: move.piece,
+            captured: move.captured,
+            promotion: move.promotion,
+          }));
+        }
+        
+        if (chess.isCheckmate()) {
+          const result = chess.turn() === 'w' ? 'black_win' : 'white_win';
+          updatedBoards[boardIndex].result = result;
+          
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+              type: 'simul_game_result',
+              pairingId: currentBoard.pairingId,
+              result,
+              reason: 'checkmate',
+            }));
+          }
+        } else if (chess.isDraw() || chess.isStalemate()) {
+          updatedBoards[boardIndex].result = 'draw';
+          
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+              type: 'simul_game_result',
+              pairingId: currentBoard.pairingId,
+              result: 'draw',
+              reason: chess.isStalemate() ? 'stalemate' : 'draw',
+            }));
+          }
+        }
+        
+        setBoards(updatedBoards);
+        setSelectedSquare(null);
+        setLegalMoves([]);
+        
+        // Clear promotion pending state
+        promotionPendingRef.current = false;
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            type: 'simul_promotion_status',
+            matchId,
+            pending: false,
+          }));
+        }
+      }
+    } catch (e) {
+      console.error('Move execution error:', e);
+    }
+  };
+  
+  // Handle promotion piece selection
+  const handlePromotionSelect = (piece: 'q' | 'r' | 'b' | 'n') => {
+    if (!pendingPromotion) return;
+    
+    executeMove(pendingPromotion.boardIndex, pendingPromotion.from, pendingPromotion.to, piece);
+    setPendingPromotion(null);
+    setShowPromotionDialog(false);
+  };
+  
   const handleSquareClick = (square: string) => {
     const currentBoard = boards[activeBoard];
     if (!currentBoard || currentBoard.result !== 'ongoing') return;
@@ -501,80 +626,44 @@ export default function SimulVsSimulMode() {
     const chess = currentBoard.chess;
     
     if (selectedSquare) {
-      try {
-        const move = chess.move({
-          from: selectedSquare,
-          to: square,
-          promotion: "q",
-        });
-        
-        if (move) {
-          const newFen = chess.fen();
-          const newActiveColor = chess.turn() === 'w' ? 'white' : 'black';
+      // Check if this is a valid move
+      const validMoves = chess.moves({ square: selectedSquare as any, verbose: true });
+      const isValidMove = validMoves.some((m: any) => m.to === square);
+      
+      if (isValidMove) {
+        // Check if this is a promotion move
+        if (isPromotionMove(chess, selectedSquare, square)) {
+          // Show promotion dialog instead of auto-promoting
+          setPendingPromotion({
+            from: selectedSquare,
+            to: square,
+            boardIndex: activeBoard,
+          });
+          setShowPromotionDialog(true);
+          promotionPendingRef.current = true;
           
-          const updatedBoards = [...boards];
-          updatedBoards[activeBoard] = {
-            ...currentBoard,
-            fen: newFen,
-            moves: chess.history(),
-            moveCount: chess.history().length,
-            activeColor: newActiveColor as 'white' | 'black',
-            chess,
-          };
-          
+          // Notify server that promotion is pending (block auto-switch)
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
-              type: 'simul_move',
-              pairingId: currentBoard.pairingId,
-              move: move.san,
-              fen: newFen,
-              from: move.from,
-              to: move.to,
-              piece: move.piece,
-              captured: move.captured,
+              type: 'simul_promotion_status',
+              matchId,
+              pending: true,
             }));
           }
-          
-          if (chess.isCheckmate()) {
-            const result = chess.turn() === 'w' ? 'black_win' : 'white_win';
-            updatedBoards[activeBoard].result = result;
-            
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({
-                type: 'simul_game_result',
-                pairingId: currentBoard.pairingId,
-                result,
-                reason: 'checkmate',
-              }));
-            }
-          } else if (chess.isDraw() || chess.isStalemate()) {
-            updatedBoards[activeBoard].result = 'draw';
-            
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({
-                type: 'simul_game_result',
-                pairingId: currentBoard.pairingId,
-                result: 'draw',
-                reason: chess.isStalemate() ? 'stalemate' : 'draw',
-              }));
-            }
-          }
-          
-          setBoards(updatedBoards);
-          setSelectedSquare(null);
-          setLegalMoves([]);
-        } else {
-          const moves = chess.moves({ square: square as any, verbose: true });
-          if (moves.length > 0) {
-            setSelectedSquare(square);
-            setLegalMoves(moves.map((m: any) => m.to));
-          }
+          return;
         }
-      } catch (e) {
+        
+        // Regular move
+        executeMove(activeBoard, selectedSquare, square);
+      } else {
+        // Clicked on different piece, select it if it has moves
         const moves = chess.moves({ square: square as any, verbose: true });
         if (moves.length > 0) {
           setSelectedSquare(square);
           setLegalMoves(moves.map((m: any) => m.to));
+        } else {
+          setSelectedSquare(null);
+          setLegalMoves([]);
         }
       }
     } else {
@@ -609,8 +698,174 @@ export default function SimulVsSimulMode() {
   
   return (
     <div className="h-full flex" data-testid="page-simul-vs-simul">
+      {/* Main Content Area - LEFT */}
+      <div className="flex-1 flex flex-col p-4 md:p-8 bg-muted/30 overflow-auto">
+        {!gameStarted ? (
+          <div className="flex-1 flex items-center justify-center">
+            {!inQueue ? (
+              <Card className="w-full max-w-md">
+                <CardContent className="pt-6 space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Simul vs Simul</h2>
+                    <p className="text-muted-foreground">
+                      Round-robin where everyone plays everyone simultaneously
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Number of Boards (per player)</label>
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                      <span className="font-medium" data-testid="text-board-count">5 boards</span>
+                      <span className="text-muted-foreground">(6 players)</span>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-muted rounded-lg space-y-2">
+                    <h4 className="font-semibold text-sm">How It Works</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Each player plays N games against N opponents</li>
+                      <li>• 30-second timer per move (only when viewing that board)</li>
+                      <li>• Auto-switch to next board needing attention</li>
+                      <li>• Random color assignment per game</li>
+                      <li>• Timer pauses when you switch boards</li>
+                    </ul>
+                  </div>
+                  <Button
+                    onClick={handleFindMatch}
+                    className="w-full"
+                    size="lg"
+                    disabled={joinQueueMutation.isPending}
+                    data-testid="button-find-match"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Find Match
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="w-full max-w-md">
+                <CardContent className="pt-6 space-y-4 text-center">
+                  <h2 className="text-xl font-semibold">Waiting for Players</h2>
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  </div>
+                  {queueInfo && (
+                    <div className="space-y-2">
+                      <p className="text-muted-foreground">
+                        {queueInfo.playersInQueue} / {queueInfo.playersNeeded} players
+                      </p>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className="bg-primary rounded-full h-2 transition-all"
+                          style={{ width: `${(queueInfo.playersInQueue / queueInfo.playersNeeded) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    Need {(queueInfo?.playersNeeded || parseInt(boardCount) + 1) - (queueInfo?.playersInQueue || 0)} more player(s) to start
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={handleLeaveQueue}
+                    disabled={leaveQueueMutation.isPending}
+                    data-testid="button-leave-queue"
+                  >
+                    Cancel
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        ) : activeGame ? (
+          <div className="w-full max-w-3xl mx-auto space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Badge variant={activeGame.color === 'white' ? 'outline' : 'secondary'}>
+                  {activeGame.color}
+                </Badge>
+                {activeGame.result === 'ongoing' && (
+                  <Badge variant={isMyTurn ? 'default' : 'secondary'}>
+                    {isMyTurn ? 'Your turn' : "Opponent's turn"}
+                  </Badge>
+                )}
+                {activeGame.result === 'ongoing' && isMyTurn && (
+                  <div className="flex items-center gap-1 text-lg font-mono" data-testid="text-timer">
+                    <Clock className="h-4 w-4" />
+                    <span className={activeGame.timeRemaining <= 10 ? 'text-red-500 font-bold' : ''}>
+                      {activeGame.timeRemaining}s
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleBoardSwitch(activeBoard - 1)}
+                  disabled={!matchComplete || activeBoard === 0}
+                  data-testid="button-prev-board"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div className="text-center">
+                  <h3 className="font-semibold" data-testid="text-active-board">
+                    Board #{activeGame.boardNumber}
+                  </h3>
+                  <span className="text-sm text-muted-foreground" data-testid="text-active-opponent">
+                    vs {activeGame.opponentName}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleBoardSwitch(activeBoard + 1)}
+                  disabled={!matchComplete || activeBoard === boards.length - 1}
+                  data-testid="button-next-board"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="w-full aspect-square">
+              <ChessBoard
+                fen={activeGame.fen}
+                orientation={activeGame.color}
+                onSquareClick={activeGame.result === 'ongoing' && isMyTurn ? handleSquareClick : undefined}
+                selectedSquare={selectedSquare}
+                legalMoveSquares={legalMoves}
+                lastMoveSquares={activeGame.lastMove ? [activeGame.lastMove.from, activeGame.lastMove.to] : []}
+              />
+            </div>
+            {activeGame.result !== 'ongoing' && (
+              <div className="flex items-center justify-center gap-4">
+                <Badge
+                  variant={getResultDisplay(activeGame.result, activeGame.color)?.variant || 'secondary'}
+                  className="text-lg px-4 py-1"
+                >
+                  {getResultDisplay(activeGame.result, activeGame.color)?.text || activeGame.result}
+                </Badge>
+                {activeGame.gameId && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setLocation(`/analysis/${activeGame.gameId}`)}
+                    data-testid="button-analyze-main"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Analyze Game
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            Loading boards...
+          </div>
+        )}
+      </div>
+      
+      {/* Sidebar - RIGHT, only when game started */}
       {gameStarted && (
-        <div className="w-80 border-r bg-card flex flex-col">
+        <div className="w-80 border-l bg-card flex flex-col" data-testid="sidebar-other-games">
           <div className="p-4 border-b space-y-3">
             <div className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-primary" />
@@ -628,24 +883,21 @@ export default function SimulVsSimulMode() {
               </div>
             </div>
           </div>
-          
           <ScrollArea className="flex-1">
             <div className="p-2 space-y-2">
               {boards.map((board, index) => {
                 const resultDisplay = getResultDisplay(board.result, board.color);
                 const isActive = index === activeBoard;
                 const isPlayerTurn = board.activeColor === board.color && board.result === 'ongoing';
-                
                 return (
                   <Card
                     key={board.pairingId}
                     className={cn(
-                      "transition-all",
-                      matchComplete && "cursor-pointer hover-elevate",
+                      "transition-all cursor-pointer hover-elevate",
                       isActive && "border-primary ring-2 ring-primary/20",
                       isPlayerTurn && !isActive && "border-yellow-500/50"
                     )}
-                    onClick={matchComplete ? () => handleBoardSwitch(index) : undefined}
+                    onClick={() => handleBoardSwitch(index)}
                     data-testid={`card-board-${index}`}
                   >
                     <CardContent className="p-3 space-y-2">
@@ -662,14 +914,10 @@ export default function SimulVsSimulMode() {
                           {board.color}
                         </Badge>
                       </div>
-                      
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {board.moveCount} moves
-                        </span>
-                        
+                        <span className="text-muted-foreground">{board.moveCount} moves</span>
                         {resultDisplay ? (
-                          <Badge 
+                          <Badge
                             variant={resultDisplay.variant}
                             className="text-xs"
                             data-testid={`badge-result-${index}`}
@@ -688,14 +936,12 @@ export default function SimulVsSimulMode() {
                           </div>
                         )}
                       </div>
-                      
                       {board.result === 'ongoing' && isPlayerTurn && isActive && (
                         <div className="flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
                           <Clock className="h-3 w-3" />
                           <span>{board.timeRemaining}s</span>
                         </div>
                       )}
-                      
                       {board.result !== 'ongoing' && board.gameId && (
                         <Button
                           size="sm"
@@ -717,7 +963,6 @@ export default function SimulVsSimulMode() {
               })}
             </div>
           </ScrollArea>
-          
           {matchComplete && (
             <div className="p-4 border-t">
               <Button
@@ -732,181 +977,6 @@ export default function SimulVsSimulMode() {
           )}
         </div>
       )}
-      
-      <div className="flex-1 flex flex-col p-4 md:p-8 bg-muted/30 overflow-auto">
-        {!gameStarted ? (
-          <div className="flex-1 flex items-center justify-center">
-            {!inQueue ? (
-              <Card className="w-full max-w-md">
-                <CardContent className="pt-6 space-y-6">
-                  <div>
-                    <h2 className="text-2xl font-bold mb-2">Simul vs Simul</h2>
-                    <p className="text-muted-foreground">
-                      Round-robin where everyone plays everyone simultaneously
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Number of Boards (per player)</label>
-                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
-                      <span className="font-medium" data-testid="text-board-count">5 boards</span>
-                      <span className="text-muted-foreground">(6 players)</span>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 bg-muted rounded-lg space-y-2">
-                    <h4 className="font-semibold text-sm">How It Works</h4>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Each player plays N games against N opponents</li>
-                      <li>• 30-second timer per move (only when viewing that board)</li>
-                      <li>• Auto-switch to next board needing attention</li>
-                      <li>• Random color assignment per game</li>
-                      <li>• Timer pauses when you switch boards</li>
-                    </ul>
-                  </div>
-                  
-                  <Button
-                    onClick={handleFindMatch}
-                    className="w-full"
-                    size="lg"
-                    disabled={joinQueueMutation.isPending}
-                    data-testid="button-find-match"
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Find Match
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="w-full max-w-md">
-                <CardContent className="pt-6 space-y-4 text-center">
-                  <h2 className="text-xl font-semibold">Waiting for Players</h2>
-                  
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                  </div>
-                  
-                  {queueInfo && (
-                    <div className="space-y-2">
-                      <p className="text-muted-foreground">
-                        {queueInfo.playersInQueue} / {queueInfo.playersNeeded} players
-                      </p>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-primary rounded-full h-2 transition-all"
-                          style={{ width: `${(queueInfo.playersInQueue / queueInfo.playersNeeded) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  <p className="text-sm text-muted-foreground">
-                    Need {(queueInfo?.playersNeeded || parseInt(boardCount) + 1) - (queueInfo?.playersInQueue || 0)} more player(s) to start
-                  </p>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={handleLeaveQueue}
-                    disabled={leaveQueueMutation.isPending}
-                    data-testid="button-leave-queue"
-                  >
-                    Cancel
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        ) : activeGame ? (
-          <div className="w-full max-w-3xl mx-auto space-y-2">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Badge variant={activeGame.color === 'white' ? 'outline' : 'secondary'}>
-                  {activeGame.color}
-                </Badge>
-                {activeGame.result === 'ongoing' && (
-                  <Badge variant={isMyTurn ? 'default' : 'secondary'}>
-                    {isMyTurn ? 'Your turn' : "Opponent's turn"}
-                  </Badge>
-                )}
-                {activeGame.result === 'ongoing' && isMyTurn && (
-                  <div className="flex items-center gap-1 text-lg font-mono" data-testid="text-timer">
-                    <Clock className="h-4 w-4" />
-                    <span className={activeGame.timeRemaining <= 10 ? 'text-red-500 font-bold' : ''}>
-                      {activeGame.timeRemaining}s
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleBoardSwitch(activeBoard - 1)}
-                  disabled={!matchComplete || activeBoard === 0}
-                  data-testid="button-prev-board"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                
-                <div className="text-center">
-                  <h3 className="font-semibold" data-testid="text-active-board">
-                    Board #{activeGame.boardNumber}
-                  </h3>
-                  <span className="text-sm text-muted-foreground" data-testid="text-active-opponent">
-                    vs {activeGame.opponentName}
-                  </span>
-                </div>
-                
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleBoardSwitch(activeBoard + 1)}
-                  disabled={!matchComplete || activeBoard === boards.length - 1}
-                  data-testid="button-next-board"
-                >
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            
-            <div className="w-full aspect-square">
-              <ChessBoard
-                fen={activeGame.fen}
-                orientation={activeGame.color}
-                onSquareClick={activeGame.result === 'ongoing' && isMyTurn ? handleSquareClick : undefined}
-                selectedSquare={selectedSquare}
-                legalMoveSquares={legalMoves}
-              />
-            </div>
-            
-            {activeGame.result !== 'ongoing' && (
-              <div className="flex items-center justify-center gap-4">
-                <Badge 
-                  variant={getResultDisplay(activeGame.result, activeGame.color)?.variant || 'secondary'}
-                  className="text-lg px-4 py-1"
-                >
-                  {getResultDisplay(activeGame.result, activeGame.color)?.text || activeGame.result}
-                </Badge>
-                {activeGame.gameId && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setLocation(`/analysis/${activeGame.gameId}`)}
-                    data-testid="button-analyze-main"
-                  >
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Analyze Game
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center text-muted-foreground">
-            Loading boards...
-          </div>
-        )}
-      </div>
       
       {/* Match Complete Dialog */}
       <Dialog open={showMatchEndDialog} onOpenChange={setShowMatchEndDialog}>
@@ -1010,6 +1080,61 @@ export default function SimulVsSimulMode() {
                 Game History
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Pawn Promotion Dialog */}
+      <Dialog open={showPromotionDialog} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" data-testid="dialog-promotion" aria-labelledby="promotion-title" aria-describedby="promotion-description">
+          <DialogHeader>
+            <DialogTitle id="promotion-title">Choose Promotion Piece</DialogTitle>
+            <DialogDescription id="promotion-description">
+              Your pawn reached the last rank. Select a piece to promote to.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-4 gap-4 py-4" role="group" aria-label="Promotion piece options">
+            <Button
+              variant="outline"
+              className="flex flex-col items-center justify-center h-20"
+              onClick={() => handlePromotionSelect('q')}
+              data-testid="button-promote-queen"
+              aria-label="Promote to Queen"
+              autoFocus
+            >
+              <span className="text-4xl" aria-hidden="true">{pendingPromotion && boards[pendingPromotion.boardIndex]?.color === 'white' ? '♕' : '♛'}</span>
+              <span className="text-xs mt-1">Queen</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="flex flex-col items-center justify-center h-20"
+              onClick={() => handlePromotionSelect('r')}
+              data-testid="button-promote-rook"
+              aria-label="Promote to Rook"
+            >
+              <span className="text-4xl" aria-hidden="true">{pendingPromotion && boards[pendingPromotion.boardIndex]?.color === 'white' ? '♖' : '♜'}</span>
+              <span className="text-xs mt-1">Rook</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="flex flex-col items-center justify-center h-20"
+              onClick={() => handlePromotionSelect('b')}
+              data-testid="button-promote-bishop"
+              aria-label="Promote to Bishop"
+            >
+              <span className="text-4xl" aria-hidden="true">{pendingPromotion && boards[pendingPromotion.boardIndex]?.color === 'white' ? '♗' : '♝'}</span>
+              <span className="text-xs mt-1">Bishop</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="flex flex-col items-center justify-center h-20"
+              onClick={() => handlePromotionSelect('n')}
+              data-testid="button-promote-knight"
+              aria-label="Promote to Knight"
+            >
+              <span className="text-4xl" aria-hidden="true">{pendingPromotion && boards[pendingPromotion.boardIndex]?.color === 'white' ? '♘' : '♞'}</span>
+              <span className="text-xs mt-1">Knight</span>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
