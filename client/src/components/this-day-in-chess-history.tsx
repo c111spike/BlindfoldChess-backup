@@ -1,19 +1,19 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, Skull } from "lucide-react";
+import { User, Skull, Crown, Lightbulb } from "lucide-react";
 import chessFactsData from "@/data/chess-facts.json";
 
 interface ChessFact {
   type: string;
   text: string;
-  year: number;
-  name: string;
+  year: number | null;
+  name: string | null;
   source: string;
 }
 
 type ChessFactsData = Record<string, ChessFact[]>;
 
-const data = chessFactsData as ChessFactsData;
+const data = chessFactsData as unknown as ChessFactsData;
 
 function getDateKey(): string {
   const now = new Date();
@@ -67,6 +67,10 @@ function getIconForType(type: string) {
       return <User className="h-4 w-4 text-blue-500 flex-shrink-0" />;
     case "death":
       return <Skull className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
+    case "championship":
+      return <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />;
+    case "fun_fact":
+      return <Lightbulb className="h-4 w-4 text-orange-500 flex-shrink-0" />;
     default:
       return <User className="h-4 w-4 text-primary flex-shrink-0" />;
   }

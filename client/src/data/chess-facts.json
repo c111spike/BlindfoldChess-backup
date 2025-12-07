@@ -365,6 +365,13 @@
       "year": 1988,
       "name": "Viktor Laznicka",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Nimzo-Indian Defense was pioneered by Aron Nimzowitsch in the 1920s as a hypermodern opening.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-10": [
@@ -731,6 +738,13 @@
       "year": 1934,
       "name": "Theodor Ghitescu",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Grünfeld Defense was introduced by Austrian GM Ernst Grünfeld in 1922.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-25": [
@@ -1378,6 +1392,13 @@
       "year": 1959,
       "name": "Glenn Flear",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Bogo-Indian Defense was a cornerstone of Efim Bogoljubov's repertoire in the 1920s-30s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "02-13": [
@@ -1958,7 +1979,15 @@
       "source": "Chess Fandom Wiki - List of Grandmasters"
     }
   ],
-  "02-29": [],
+  "02-29": [
+    {
+      "type": "fun_fact",
+      "text": "The Ruy Lopez (Spanish Game) was first systematically analyzed by Spanish priest Ruy López de Segura in 1561.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
   "03-01": [
     {
       "type": "birthday",
@@ -1996,6 +2025,13 @@
       "year": 1925,
       "name": "Efim Geller",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Catalan Opening was introduced by Savielly Tartakower at a 1929 tournament in Catalonia, Spain.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "03-03": [
@@ -2153,6 +2189,13 @@
       "year": 1937,
       "name": "Georgi Tringov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The English Opening (1.c4) was popularized by Howard Staunton in the mid-19th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "03-08": [
@@ -2806,6 +2849,13 @@
       "year": 1935,
       "name": "Wolfgang Uhlmann",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Wilhelm Steinitz became the 1st World Chess Champion on this day in 1886.",
+      "year": 1886,
+      "name": "Wilhelm Steinitz",
+      "source": "World Chess Championship History"
     }
   ],
   "03-30": [
@@ -2984,6 +3034,13 @@
       "year": 1962,
       "name": "Ernst Grünfeld",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Anatoly Karpov became the 12th World Chess Champion on this day in 1975 (awarded by default).",
+      "year": 1975,
+      "name": "Anatoly Karpov",
+      "source": "World Chess Championship History"
     }
   ],
   "04-04": [
@@ -3118,6 +3175,13 @@
       "year": 1961,
       "name": "Igor Rausis",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Réti Opening was championed by Richard Réti as part of the hypermodern revolution in the 1920s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-08": [
@@ -3643,6 +3707,13 @@
       "year": 1965,
       "name": "Mihail Marin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "José Raúl Capablanca became the 3rd World Chess Champion on this day in 1921.",
+      "year": 1921,
+      "name": "José Raúl Capablanca",
+      "source": "World Chess Championship History"
     }
   ],
   "04-22": [
@@ -3823,6 +3894,13 @@
       "year": 1944,
       "name": "Heikki Westerinen",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Vasily Smyslov became the 7th World Chess Champion on this day in 1957.",
+      "year": 1957,
+      "name": "Vasily Smyslov",
+      "source": "World Chess Championship History"
     }
   ],
   "04-28": [
@@ -3832,6 +3910,13 @@
       "year": 1979,
       "name": "Darmen Sadvakasov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Bird's Opening (1.f4) was frequently played by English master Henry Edward Bird in the mid-19th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-29": [
@@ -3885,6 +3970,13 @@
       "year": 1975,
       "name": "Spartak Vysochin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Ding Liren became the 17th World Chess Champion on this day in 2023.",
+      "year": 2023,
+      "name": "Ding Liren",
+      "source": "World Chess Championship History"
     }
   ],
   "05-01": [
@@ -4137,6 +4229,13 @@
       "year": 1963,
       "name": "Marat Makarov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Mikhail Tal became the 8th World Chess Champion on this day in 1960.",
+      "year": 1960,
+      "name": "Mikhail Tal",
+      "source": "World Chess Championship History"
     }
   ],
   "05-08": [
@@ -4167,6 +4266,13 @@
       "year": 1968,
       "name": "Peng Zhaoqin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Mikhail Botvinnik became the 6th World Chess Champion on this day in 1958 (regained title).",
+      "year": 1958,
+      "name": "Mikhail Botvinnik",
+      "source": "World Chess Championship History"
     }
   ],
   "05-09": [
@@ -4176,6 +4282,13 @@
       "year": 1904,
       "name": "Gösta Stoltz",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Larsen's Opening (1.b3) was pioneered by Danish GM Bent Larsen in the 1960s-70s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-10": [
@@ -4294,6 +4407,13 @@
       "year": 1942,
       "name": "Dragoljub Velimirović",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Mikhail Botvinnik became the 6th World Chess Champion on this day in 1961 (regained title).",
+      "year": 1961,
+      "name": "Mikhail Botvinnik",
+      "source": "World Chess Championship History"
     }
   ],
   "05-13": [
@@ -4444,6 +4564,13 @@
       "year": 1999,
       "name": "Lembit Oll",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Mikhail Botvinnik became the 6th World Chess Champion on this day in 1948.",
+      "year": 1948,
+      "name": "Mikhail Botvinnik",
+      "source": "World Chess Championship History"
     }
   ],
   "05-18": [
@@ -4520,6 +4647,13 @@
       "year": 1974,
       "name": "Marko Tratar",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Tigran Petrosian became the 9th World Chess Champion on this day in 1963.",
+      "year": 1963,
+      "name": "Tigran Petrosian",
+      "source": "World Chess Championship History"
     }
   ],
   "05-21": [
@@ -4742,6 +4876,13 @@
       "year": 1967,
       "name": "Gideon Ståhlberg",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Emanuel Lasker became the 2nd World Chess Champion on this day in 1894.",
+      "year": 1894,
+      "name": "Emanuel Lasker",
+      "source": "World Chess Championship History"
     }
   ],
   "05-27": [
@@ -5104,6 +5245,13 @@
       "year": 1959,
       "name": "Zurab Sturua",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess originated in India around the 6th century AD as 'Chaturanga' meaning 'four divisions' of the military.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-09": [
@@ -5157,6 +5305,13 @@
       "year": 1935,
       "name": "Milan Matulović",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The word 'Chess' comes from the Persian word 'shāh' meaning 'king'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-11": [
@@ -5196,6 +5351,13 @@
       "year": 1983,
       "name": "Dimitrios Mastrovasilis",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The word 'checkmate' comes from the Persian phrase 'shāh māt' meaning 'the king is helpless'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-13": [
@@ -5242,6 +5404,13 @@
       "year": 1979,
       "name": "Igor Bondarevsky",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Boris Spassky became the 10th World Chess Champion on this day in 1969.",
+      "year": 1969,
+      "name": "Boris Spassky",
+      "source": "World Chess Championship History"
     }
   ],
   "06-15": [
@@ -5387,7 +5556,15 @@
       "source": "Chess Fandom Wiki - List of Grandmasters"
     }
   ],
-  "06-20": [],
+  "06-20": [
+    {
+      "type": "fun_fact",
+      "text": "The King's Gambit was refined by Italian master Gioachino Greco in the 17th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
   "06-21": [
     {
       "type": "birthday",
@@ -5979,6 +6156,13 @@
       "year": 1986,
       "name": "Boris Savchenko",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first mention of chess in Western writing was in a Spanish manuscript in the 13th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-11": [
@@ -6110,6 +6294,13 @@
       "year": 1964,
       "name": "Ashot Anastasian",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The modern two-square pawn move on the first turn was introduced in Spain in 1280 to speed up the game.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-17": [
@@ -6165,9 +6356,24 @@
       "year": 1985,
       "name": "Grzegorz Gajewski",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The alternating light and dark squares on the chessboard first appeared in Europe around 1090.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
-  "07-20": [],
+  "07-20": [
+    {
+      "type": "fun_fact",
+      "text": "The Scotch Game was named after an 1824 correspondence match between London and Edinburgh.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
   "07-21": [
     {
       "type": "birthday",
@@ -6576,7 +6782,15 @@
       "source": "Chess Fandom Wiki - List of Grandmasters"
     }
   ],
-  "08-05": [],
+  "08-05": [
+    {
+      "type": "fun_fact",
+      "text": "The Evans Gambit was invented by Welsh sea captain William Davies Evans in 1827.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
   "08-06": [
     {
       "type": "birthday",
@@ -6607,7 +6821,15 @@
       "source": "Chess Fandom Wiki - List of Grandmasters"
     }
   ],
-  "08-07": [],
+  "08-07": [
+    {
+      "type": "fun_fact",
+      "text": "Petrov's Defense was analyzed and popularized by Russian master Alexander Petrov in the 1840s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
   "08-08": [
     {
       "type": "birthday",
@@ -6830,7 +7052,15 @@
       "source": "Chess Fandom Wiki - List of Grandmasters"
     }
   ],
-  "08-14": [],
+  "08-14": [
+    {
+      "type": "fun_fact",
+      "text": "The Philidor Defense was championed by François-André Danican Philidor in his famous 1749 chess book.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
   "08-15": [
     {
       "type": "birthday",
@@ -7188,6 +7418,13 @@
       "year": 1976,
       "name": "Zoltán Almási",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Before the modern Queen (c. 15th century), the piece was called the Vizier and could only move one square diagonally.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-30": [
@@ -7197,6 +7434,13 @@
       "year": 1995,
       "name": "Lev Polugaevsky",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first unofficial World Chess Champion is often considered to be Pedro Damiano in the 16th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-31": [
@@ -7229,6 +7473,13 @@
       "year": 1931,
       "name": "Arturo Pomar",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Bobby Fischer became the 11th World Chess Champion on this day in 1972.",
+      "year": 1972,
+      "name": "Bobby Fischer",
+      "source": "World Chess Championship History"
     }
   ],
   "09-02": [
@@ -7238,6 +7489,13 @@
       "year": 1987,
       "name": "Viktor Erdos",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 1886 match that crowned Steinitz was played across three American cities: New York, St. Louis, and New Orleans.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-03": [
@@ -7346,6 +7604,13 @@
       "year": 1959,
       "name": "Sergey Kudrin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "José Raúl Capablanca was undefeated for eight years (1916-1924) in serious classical play.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-08": [
@@ -7526,6 +7791,13 @@
       "year": 1960,
       "name": "Marc Santo-Roman",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Mikhail Botvinnik pioneered scientific, systematic training methods in the 1930s that became the modern standard.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-14": [
@@ -7558,7 +7830,15 @@
       "source": "Chess Fandom Wiki - List of Grandmasters"
     }
   ],
-  "09-15": [],
+  "09-15": [
+    {
+      "type": "fun_fact",
+      "text": "The French Defense was named after an 1834 correspondence match between Paris and London.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
   "09-16": [
     {
       "type": "birthday",
@@ -7658,6 +7938,13 @@
       "year": 1896,
       "name": "Friedrich Sämisch",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 1948 World Championship was held as a tournament after Alekhine's death, won by Botvinnik.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-21": [
@@ -7909,9 +8196,24 @@
       "year": 1986,
       "name": "Mikhailo Oleksienko",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Viswanathan Anand became the 15th World Chess Champion on this day in 2007.",
+      "year": 2007,
+      "name": "Viswanathan Anand",
+      "source": "World Chess Championship History"
     }
   ],
-  "10-01": [],
+  "10-01": [
+    {
+      "type": "fun_fact",
+      "text": "The Caro-Kann Defense was independently analyzed by Horatio Caro and Marcus Kann in the 1880s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
   "10-02": [
     {
       "type": "birthday",
@@ -7993,6 +8295,13 @@
       "year": 1977,
       "name": "Bartłomiej Macieja",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Bobby Fischer learned chess at age 6 and became a Grandmaster at age 15.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-05": [
@@ -8025,6 +8334,13 @@
       "year": 1982,
       "name": "Levon Aronian",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Garry Kasparov became the youngest World Champion in history at age 22 in 1985.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-07": [
@@ -8297,6 +8613,13 @@
       "year": 1968,
       "name": "John Shaw",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Magnus Carlsen achieved the highest rating ever recorded (2882) in 2014.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-17": [
@@ -8329,6 +8652,13 @@
       "year": 1962,
       "name": "Antonio Fernandes",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The longest chess game theoretically possible would require 5,949 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-19": [
@@ -8338,6 +8668,13 @@
       "year": 1959,
       "name": "Ralf Lau",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "There are more possible chess games than atoms in the observable universe.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-20": [
@@ -8533,6 +8870,13 @@
       "year": 1976,
       "name": "Xu Yuhua",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The number of possible unique chess games is estimated at 10^120 (the Shannon number).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-30": [
@@ -8720,6 +9064,13 @@
       "year": 1970,
       "name": "Andrey Zontakh",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Vladimir Kramnik became the 14th World Chess Champion on this day in 2000.",
+      "year": 2000,
+      "name": "Vladimir Kramnik",
+      "source": "World Chess Championship History"
     }
   ],
   "11-05": [
@@ -8729,6 +9080,13 @@
       "year": 1958,
       "name": "Felix Levin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The shortest possible checkmate (Fool's Mate) takes only 2 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-06": [
@@ -8842,6 +9200,13 @@
       "year": 1973,
       "name": "Vladislav Tkachiev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Garry Kasparov became the 13th World Chess Champion on this day in 1985.",
+      "year": 1985,
+      "name": "Garry Kasparov",
+      "source": "World Chess Championship History"
     }
   ],
   "11-10": [
@@ -9038,6 +9403,13 @@
       "year": 1926,
       "name": "Alexey Suetin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The longest tournament game ever played lasted 269 moves (Nikolić vs. Arsović, 1989).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-17": [
@@ -9211,6 +9583,13 @@
       "year": 1975,
       "name": "Hugo Spangenberg",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Magnus Carlsen became the 16th World Chess Champion on this day in 2013.",
+      "year": 2013,
+      "name": "Magnus Carlsen",
+      "source": "World Chess Championship History"
     }
   ],
   "11-23": [
@@ -9449,6 +9828,13 @@
       "year": 1974,
       "name": "Jan Votava",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Alexander Alekhine became the 4th World Chess Champion on this day in 1927.",
+      "year": 1927,
+      "name": "Alexander Alekhine",
+      "source": "World Chess Championship History"
     }
   ],
   "11-30": [
@@ -9818,6 +10204,13 @@
       "year": 1986,
       "name": "Zhao Jun",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Gukesh D became the 18th World Chess Champion on this day in 2024.",
+      "year": 2024,
+      "name": "Gukesh D",
+      "source": "World Chess Championship History"
     }
   ],
   "12-13": [
@@ -9880,6 +10273,20 @@
       "year": 2005,
       "name": "Enrico Paoli",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "championship",
+      "text": "Max Euwe became the 5th World Chess Champion on this day in 1935.",
+      "year": 1935,
+      "name": "Max Euwe",
+      "source": "World Chess Championship History"
+    },
+    {
+      "type": "championship",
+      "text": "Alexander Alekhine became the 4th World Chess Champion on this day in 1937 (regained title).",
+      "year": 1937,
+      "name": "Alexander Alekhine",
+      "source": "World Chess Championship History"
     }
   ],
   "12-16": [
@@ -10006,8 +10413,24 @@
       "source": "Chess Fandom Wiki - List of Grandmasters"
     }
   ],
-  "12-22": [],
-  "12-23": [],
+  "12-22": [
+    {
+      "type": "fun_fact",
+      "text": "Alekhine's Defense was introduced by the 4th World Champion Alexander Alekhine in 1921.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
+  "12-23": [
+    {
+      "type": "fun_fact",
+      "text": "The Pirc Defense was developed by Slovenian GM Vasja Pirc in the mid-20th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    }
+  ],
   "12-24": [
     {
       "type": "birthday",
