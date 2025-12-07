@@ -10,6 +10,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +61,7 @@ export default function SimulVsSimulMode() {
   const [players, setPlayers] = useState<MatchPlayer[]>([]);
   const [matchComplete, setMatchComplete] = useState(false);
   const [focusedPairingId, setFocusedPairingId] = useState<string | null>(null);
+  const [showMatchEndDialog, setShowMatchEndDialog] = useState(false);
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -264,33 +272,36 @@ export default function SimulVsSimulMode() {
         break;
         
       case 'simul_game_end':
-        setBoards(prevBoards => {
-          const boardIndex = prevBoards.findIndex(b => b.pairingId === data.pairingId);
-          if (boardIndex === -1) return prevBoards;
+        {
+          const board = boardsRef.current.find(b => b.pairingId === data.pairingId);
           
-          const newBoards = [...prevBoards];
-          newBoards[boardIndex] = {
-            ...newBoards[boardIndex],
-            result: data.result,
-            gameId: data.gameId,
-          };
+          setBoards(prevBoards => {
+            const idx = prevBoards.findIndex(b => b.pairingId === data.pairingId);
+            if (idx === -1) return prevBoards;
+            
+            const newBoards = [...prevBoards];
+            newBoards[idx] = {
+              ...newBoards[idx],
+              result: data.result,
+              gameId: data.gameId,
+            };
+            
+            return newBoards;
+          });
           
-          return newBoards;
-        });
-        
-        toast({
-          title: "Game ended",
-          description: `Board ${boards.find(b => b.pairingId === data.pairingId)?.boardNumber}: ${data.result} (${data.reason})`,
-          variant: data.result.includes('wins') ? 'default' : 'destructive',
-        });
+          // Show toast for individual board completion (non-blocking)
+          if (board) {
+            toast({
+              title: `Board #${board.boardNumber} - Game Over`,
+              description: `vs ${board.opponentName}: ${data.result}`,
+            });
+          }
+        }
         break;
         
       case 'simul_match_complete':
         setMatchComplete(true);
-        toast({
-          title: "Match complete!",
-          description: "All games have finished. View your results.",
-        });
+        setShowMatchEndDialog(true);
         break;
         
       case 'simul_move_confirmed':
@@ -856,13 +867,23 @@ export default function SimulVsSimulMode() {
             </div>
             
             {activeGame.result !== 'ongoing' && (
-              <div className="text-center">
+              <div className="flex items-center justify-center gap-4">
                 <Badge 
                   variant={getResultDisplay(activeGame.result, activeGame.color)?.variant || 'secondary'}
                   className="text-lg px-4 py-1"
                 >
                   {getResultDisplay(activeGame.result, activeGame.color)?.text || activeGame.result}
                 </Badge>
+                {activeGame.gameId && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setLocation(`/analysis/${activeGame.gameId}`)}
+                    data-testid="button-analyze-main"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Analyze Game
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -872,6 +893,78 @@ export default function SimulVsSimulMode() {
           </div>
         )}
       </div>
+      
+      {/* Match Complete Dialog */}
+      <Dialog open={showMatchEndDialog} onOpenChange={setShowMatchEndDialog}>
+        <DialogContent data-testid="dialog-match-end">
+          <DialogHeader>
+            <DialogTitle>Match Complete!</DialogTitle>
+            <DialogDescription>
+              All games have finished. Review your results below.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              {boards.map((board, index) => {
+                const resultInfo = getResultDisplay(board.result, board.color);
+                return (
+                  <div 
+                    key={board.pairingId}
+                    className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Board #{board.boardNumber}</span>
+                      <span className="text-sm text-muted-foreground">vs {board.opponentName}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={resultInfo?.variant || 'secondary'}>
+                        {resultInfo?.text || board.result}
+                      </Badge>
+                      {board.gameId && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowMatchEndDialog(false);
+                            setLocation(`/analysis/${board.gameId}`);
+                          }}
+                          data-testid={`button-analyze-result-${index}`}
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowMatchEndDialog(false);
+                }}
+                data-testid="button-review-boards"
+              >
+                Review Boards
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setShowMatchEndDialog(false);
+                  setLocation('/history');
+                }}
+                data-testid="button-view-history"
+              >
+                Game History
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
