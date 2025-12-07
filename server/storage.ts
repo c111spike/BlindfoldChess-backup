@@ -159,6 +159,8 @@ export interface IStorage {
   leaveSimulVsSimulQueue(userId: string): Promise<void>;
   getSimulVsSimulQueueStatus(userId: string): Promise<SimulVsSimulQueue | undefined>;
   getSimulVsSimulQueuePlayers(boardCount: number): Promise<SimulVsSimulQueue[]>;
+  getOldestSimulVsSimulQueueEntry(boardCount: number): Promise<SimulVsSimulQueue | undefined>;
+  getSimulVsSimulQueueAverageRating(boardCount: number): Promise<number>;
   createSimulVsSimulMatch(boardCount: number): Promise<SimulVsSimulMatch>;
   addPlayerToSimulVsSimulMatch(matchId: string, userId: string | null, seat: number, isBot?: boolean, botId?: string, botPersonality?: string): Promise<SimulVsSimulPlayer>;
   createSimulVsSimulPairing(pairing: InsertSimulVsSimulPairing): Promise<SimulVsSimulPairing>;
@@ -1404,6 +1406,23 @@ export class DatabaseStorage implements IStorage {
       .from(simulVsSimulQueue)
       .where(eq(simulVsSimulQueue.boardCount, boardCount))
       .orderBy(simulVsSimulQueue.joinedAt);
+  }
+
+  async getOldestSimulVsSimulQueueEntry(boardCount: number): Promise<SimulVsSimulQueue | undefined> {
+    const [oldest] = await db
+      .select()
+      .from(simulVsSimulQueue)
+      .where(eq(simulVsSimulQueue.boardCount, boardCount))
+      .orderBy(simulVsSimulQueue.joinedAt)
+      .limit(1);
+    return oldest;
+  }
+
+  async getSimulVsSimulQueueAverageRating(boardCount: number): Promise<number> {
+    const players = await this.getSimulVsSimulQueuePlayers(boardCount);
+    if (players.length === 0) return 1000;
+    const total = players.reduce((sum, p) => sum + (p.rating || 1000), 0);
+    return Math.round(total / players.length);
   }
 
   async createSimulVsSimulMatch(boardCount: number): Promise<SimulVsSimulMatch> {

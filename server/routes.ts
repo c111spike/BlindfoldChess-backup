@@ -362,6 +362,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
       mutex.release();
     }
   }
+  
+  // Queue timeout manager - auto-fills with bots after 60 seconds
+  const QUEUE_TIMEOUT_MS = 60000; // 60 seconds
+  const queueTimeoutTimers = new Map<number, NodeJS.Timeout>();
+  
+  async function checkQueueTimeout(boardCount: number) {
+    try {
+      await withMatchmakingLock(boardCount, async () => {
+        const oldest = await storage.getOldestSimulVsSimulQueueEntry(boardCount);
+        if (!oldest || !oldest.joinedAt) {
+          // No players in queue, clear timer
+          const existingTimer = queueTimeoutTimers.get(boardCount);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
+            queueTimeoutTimers.delete(boardCount);
+          }
+          return;
+        }
+        
+        const waitTime = Date.now() - new Date(oldest.joinedAt).getTime();
+        if (waitTime < QUEUE_TIMEOUT_MS) {
+          // Not timed out yet, reschedule
+          const remainingTime = QUEUE_TIMEOUT_MS - waitTime;
+          scheduleQueueTimeout(boardCount, remainingTime);
+          return;
+        }
+        
+        // Timeout reached - auto-fill with bots
+        console.log(`[SimulVsSimul] Queue timeout for ${boardCount} boards - auto-filling with bots`);
+        
+        // Clear timer first to prevent re-firing
+        queueTimeoutTimers.delete(boardCount);
+        
+        const queuePlayers = await storage.getSimulVsSimulQueuePlayers(boardCount);
+        if (queuePlayers.length === 0) {
+          console.log(`[SimulVsSimul] Queue empty, skipping bot fill`);
+          return;
+        }
+        
+        const requiredPlayers = boardCount + 1;
+        const botsNeeded = requiredPlayers - queuePlayers.length;
+        
+        if (botsNeeded > 0) {
+          // Get average rating for bot selection
+          const avgRating = await storage.getSimulVsSimulQueueAverageRating(boardCount);
+          
+          // Create synthetic bot entries
+          const botPersonalities = ['balanced', 'tactical', 'positional', 'aggressive', 'defensive'];
+          const playersForMatch: Array<{ odId: string; isBot: boolean; rating: number; botId?: string; botPersonality?: string }> = [];
+          
+          // Add human players
+          for (const player of queuePlayers) {
+            playersForMatch.push({
+              odId: player.odId,
+              isBot: false,
+              rating: player.rating || 1000,
+            });
+          }
+          
+          // Add bots to fill remaining slots
+          // Map rating to difficulty level
+          const getDifficultyFromRating = (rating: number): string => {
+            if (rating < 600) return 'beginner';
+            if (rating < 900) return 'novice';
+            if (rating < 1200) return 'intermediate';
+            if (rating < 1500) return 'club';
+            if (rating < 1800) return 'advanced';
+            if (rating < 2100) return 'expert';
+            return 'master';
+          };
+          
+          const difficulty = getDifficultyFromRating(avgRating);
+          
+          for (let i = 0; i < botsNeeded; i++) {
+            const personality = botPersonalities[i % botPersonalities.length];
+            const botId = `bot_${personality}_${difficulty}`;
+            playersForMatch.push({
+              odId: `${botId}_${i}`, // Unique odId for each bot
+              isBot: true,
+              rating: avgRating,
+              botId,
+              botPersonality: personality,
+            });
+          }
+          
+          // Create the match
+          await createSimulVsSimulMatch(playersForMatch, boardCount);
+        }
+      });
+    } catch (error) {
+      console.error('[SimulVsSimul] Queue timeout check error:', error);
+    }
+  }
+  
+  function scheduleQueueTimeout(boardCount: number, delayMs: number = QUEUE_TIMEOUT_MS) {
+    const existingTimer = queueTimeoutTimers.get(boardCount);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    
+    const timer = setTimeout(() => {
+      checkQueueTimeout(boardCount);
+    }, delayMs);
+    
+    queueTimeoutTimers.set(boardCount, timer);
+    console.log(`[SimulVsSimul] Queue timeout scheduled for ${boardCount} boards in ${delayMs}ms`);
+  }
 
   // Join Simul vs Simul queue
   app.post('/api/simul-vs-simul/queue/join', isAuthenticated, async (req: any, res) => {
@@ -410,7 +517,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
 
-        // Not enough players yet, return queue status
+        // Not enough players yet - schedule timeout for bot auto-fill
+        if (!queueTimeoutTimers.has(boardCount)) {
+          scheduleQueueTimeout(boardCount);
+        }
+        
+        // Return queue status
         return {
           success: true,
           inQueue: true,
@@ -624,16 +736,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Create the match
     const match = await storage.createSimulVsSimulMatch(boardCount);
     
-    // Add players to the match
+    // Add players to the match (humans and bots)
     const players = [];
     for (let i = 0; i < queuePlayers.length; i++) {
+      const qp = queuePlayers[i];
+      const isBot = qp.isBot === true;
       const player = await storage.addPlayerToSimulVsSimulMatch(
         match.id,
-        queuePlayers[i].odId,
-        i + 1, // seat 1-6
-        false
+        isBot ? null : qp.odId,
+        i + 1, // seat 1-6+
+        isBot,
+        qp.botId,
+        qp.botPersonality
       );
-      players.push({ ...player, odId: queuePlayers[i].odId });
+      players.push({ 
+        ...player, 
+        odId: qp.odId,
+        isBot: isBot,
+        botId: qp.botId,
+        botPersonality: qp.botPersonality,
+      });
     }
 
     // Create all pairings (each player plays every other player)
@@ -655,10 +777,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const pairing = await storage.createSimulVsSimulPairing({
           matchId: match.id,
-          whitePlayerId: whitePlayer.odId,
-          blackPlayerId: blackPlayer.odId,
-          whiteIsBot: false,
-          blackIsBot: false,
+          whitePlayerId: whitePlayer.isBot ? null : whitePlayer.odId,
+          blackPlayerId: blackPlayer.isBot ? null : blackPlayer.odId,
+          whiteIsBot: whitePlayer.isBot || false,
+          blackIsBot: blackPlayer.isBot || false,
+          whiteBotId: whitePlayer.botId,
+          blackBotId: blackPlayer.botId,
           boardNumberWhite: boardNumberCounters[whitePlayer.odId]++,
           boardNumberBlack: boardNumberCounters[blackPlayer.odId]++,
         });
@@ -666,9 +790,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
-    // Clear matched players from queue
-    const userIds = queuePlayers.map(p => p.odId);
-    await storage.clearSimulVsSimulQueue(boardCount, userIds);
+    // Clear matched human players from queue (not bots)
+    const humanUserIds = queuePlayers.filter(p => !p.isBot).map(p => p.odId);
+    if (humanUserIds.length > 0) {
+      await storage.clearSimulVsSimulQueue(boardCount, humanUserIds);
+    }
 
     // Update match status to in_progress
     await storage.updateSimulVsSimulMatch(match.id, {
@@ -1893,6 +2019,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
   
+  // Helper: Make a bot move in a Simul vs Simul pairing
+  async function makeSimulBotMove(pairingId: string) {
+    try {
+      const pairing = await storage.getSimulVsSimulPairing(pairingId);
+      if (!pairing || pairing.result !== 'ongoing') {
+        return; // Game is over
+      }
+      
+      // Determine which side is the bot
+      const isWhiteTurn = pairing.activeColor === 'white';
+      const isBotTurn = isWhiteTurn ? pairing.whiteIsBot : pairing.blackIsBot;
+      
+      if (!isBotTurn) {
+        return; // Not a bot's turn
+      }
+      
+      const botId = isWhiteTurn ? pairing.whiteBotId : pairing.blackBotId;
+      if (!botId) {
+        console.error(`[SimulBot] Bot ID missing for ${isWhiteTurn ? 'white' : 'black'} in pairing ${pairingId}`);
+        return;
+      }
+      
+      // Determine bot personality from botId (format: "bot_personality_difficulty")
+      const botParts = botId.split('_');
+      const personality = (botParts[1] || 'balanced') as any;
+      const difficulty = (botParts[2] || 'intermediate') as any;
+      
+      console.log(`[SimulBot] Making move for bot ${botId} in pairing ${pairingId}`);
+      
+      // Generate bot move
+      const botMove = generateBotMove(pairing.fen, personality, difficulty, pairing.moves || []);
+      if (!botMove) {
+        console.log(`[SimulBot] No valid move for bot in pairing ${pairingId}`);
+        return;
+      }
+      
+      // Apply the move to get new FEN
+      const { Chess } = await import('chess.js');
+      const game = new Chess(pairing.fen);
+      const result = game.move({ from: botMove.from, to: botMove.to, promotion: botMove.promotion });
+      if (!result) {
+        console.error(`[SimulBot] Invalid move ${botMove.move} in pairing ${pairingId}`);
+        return;
+      }
+      
+      const newFen = game.fen();
+      const newMoves = [...(pairing.moves || []), botMove.move];
+      const newActiveColor = isWhiteTurn ? 'black' : 'white';
+      
+      // Check for game end conditions
+      let gameResult = 'ongoing';
+      let winner = null;
+      
+      if (game.isCheckmate()) {
+        gameResult = 'checkmate';
+        winner = isWhiteTurn ? 'white' : 'black';
+      } else if (game.isStalemate()) {
+        gameResult = 'stalemate';
+      } else if (game.isDraw()) {
+        gameResult = 'draw';
+      }
+      
+      // Update the pairing in database
+      await storage.updateSimulVsSimulPairing(pairingId, {
+        fen: newFen,
+        moves: newMoves,
+        moveCount: newMoves.length,
+        activeColor: newActiveColor as 'white' | 'black',
+        lastMoveAt: new Date(),
+        result: gameResult,
+        winner,
+      });
+      
+      // Update timer
+      const timer = simulTimers.get(pairingId);
+      if (timer && gameResult === 'ongoing') {
+        timer.turn = newActiveColor as 'white' | 'black';
+        // Reset timer for human player's turn
+        if (newActiveColor === 'white') {
+          timer.whiteTimeRemaining = SIMUL_TURN_TIMER_SECONDS;
+        } else {
+          timer.blackTimeRemaining = SIMUL_TURN_TIMER_SECONDS;
+        }
+        
+        // Check if human opponent is focused on this board
+        const humanPlayerId = isWhiteTurn ? pairing.blackPlayerId : pairing.whitePlayerId;
+        if (humanPlayerId) {
+          const matchFocus = simulPlayerFocus.get(pairing.matchId);
+          const humanFocus = matchFocus?.get(humanPlayerId);
+          
+          if (humanFocus?.activePairingId === pairingId) {
+            timer.isPaused = false;
+            timer.deadline = Date.now() + (SIMUL_TURN_TIMER_SECONDS * 1000);
+          } else {
+            timer.isPaused = true;
+            timer.deadline = null;
+          }
+        }
+        
+        sendSimulTimerState(pairingId, timer);
+      }
+      
+      // Broadcast bot move to human players
+      const room = simulPairingRooms.get(pairingId);
+      if (room) {
+        room.forEach((userId) => {
+          const ws = userConnections.get(userId);
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'simul_opponent_move',
+              pairingId,
+              move: botMove.move,
+              fen: newFen,
+              from: botMove.from,
+              to: botMove.to,
+              piece: result.piece,
+              captured: result.captured || null,
+              moveCount: newMoves.length,
+              activeColor: newActiveColor,
+              isBot: true,
+            }));
+          }
+        });
+      }
+      
+      // If game ended, notify players and check match completion
+      if (gameResult !== 'ongoing') {
+        console.log(`[SimulBot] Game ended: ${gameResult}, winner: ${winner || 'none'}`);
+        const room = simulPairingRooms.get(pairingId);
+        if (room) {
+          room.forEach((userId) => {
+            const ws = userConnections.get(userId);
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'simul_game_end',
+                pairingId,
+                result: gameResult,
+                winner,
+              }));
+            }
+          });
+        }
+        
+        // Check if the entire match is complete
+        const matchId = pairing.matchId;
+        const allPairings = await storage.getAllSimulVsSimulPairings(matchId);
+        const allComplete = allPairings.every(p => p.result !== 'ongoing');
+        
+        if (allComplete) {
+          console.log(`[SimulBot] Match ${matchId} complete - all games finished`);
+          await storage.updateSimulVsSimulMatch(matchId, {
+            status: 'completed',
+            completedAt: new Date(),
+          });
+          
+          // Notify all players in match
+          const matchRoom = simulMatchRooms.get(matchId);
+          if (matchRoom) {
+            matchRoom.forEach((roomUserId) => {
+              const playerWs = userConnections.get(roomUserId);
+              if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                playerWs.send(JSON.stringify({
+                  type: 'simul_match_complete',
+                  matchId,
+                }));
+              }
+            });
+          }
+          
+          // Clean up match resources
+          cleanupSimulMatch(matchId, allPairings.map(p => p.id));
+        }
+      }
+      
+      // If it's still a bot's turn (opponent is also a bot), schedule next bot move
+      if (gameResult === 'ongoing') {
+        const nextIsBotTurn = newActiveColor === 'white' ? pairing.whiteIsBot : pairing.blackIsBot;
+        if (nextIsBotTurn) {
+          const thinkTime = calculateBotThinkTime(difficulty);
+          setTimeout(() => makeSimulBotMove(pairingId), thinkTime);
+        }
+      }
+      
+    } catch (error) {
+      console.error(`[SimulBot] Error making bot move in pairing ${pairingId}:`, error);
+    }
+  }
+  
   // Timer scheduler: runs every second to update timers
   setInterval(async () => {
     const now = Date.now();
@@ -2654,11 +2968,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 odId: p.odId,
                 isBot: p.isBot,
                 botPersonality: p.botPersonality,
-                seat: p.seat,
+                seat: p.odnt,
               })),
             }));
             
             console.log(`[SimulWS] User ${userId} joined simul match ${matchId} with ${playerGames.length} boards`);
+            
+            // Trigger initial bot moves for games where white is a bot
+            // Only do this once per pairing - use a Set to track which we've started
+            for (const pairing of playerGames) {
+              if (pairing.whiteIsBot && pairing.moveCount === 0 && pairing.result === 'ongoing') {
+                // Check if we haven't already scheduled this bot move
+                // Use the timer's deadline as a proxy - if it's already set, bot move was scheduled
+                const timer = simulTimers.get(pairing.id);
+                if (timer && timer.whiteTimeRemaining === SIMUL_TURN_TIMER_SECONDS && !timer.deadline) {
+                  const botId = pairing.whiteBotId;
+                  const botParts = (botId || '').split('_');
+                  const difficulty = (botParts[2] || 'intermediate') as any;
+                  const thinkTime = calculateBotThinkTime(difficulty);
+                  console.log(`[SimulBot] Scheduling initial white bot move in ${thinkTime}ms for pairing ${pairing.id}`);
+                  setTimeout(() => makeSimulBotMove(pairing.id), thinkTime);
+                }
+              }
+            }
           } catch (error) {
             console.error('[SimulWS] Error joining simul match:', error);
             ws.send(JSON.stringify({ type: 'error', message: 'Failed to join match' }));
@@ -2794,6 +3126,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               pairingId,
               moveCount: newMoves.length,
             }));
+            
+            // Check if it's now a bot's turn - schedule bot move
+            const nextPlayerIsBot = newActiveColor === 'white' ? pairing.whiteIsBot : pairing.blackIsBot;
+            if (nextPlayerIsBot) {
+              const botId = newActiveColor === 'white' ? pairing.whiteBotId : pairing.blackBotId;
+              const botParts = (botId || '').split('_');
+              const difficulty = (botParts[2] || 'intermediate') as any;
+              const thinkTime = calculateBotThinkTime(difficulty);
+              console.log(`[SimulBot] Scheduling bot move in ${thinkTime}ms for pairing ${pairingId}`);
+              setTimeout(() => makeSimulBotMove(pairingId), thinkTime);
+            }
             
           } catch (error) {
             console.error('[SimulWS] Error processing simul move:', error);
