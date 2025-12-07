@@ -10320,6 +10320,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Fabiano Caruana holds the highest performance rating ever in a closed tournament (3098 at 2014 Sinquefield Cup).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-20": [
@@ -10343,6 +10350,13 @@
       "year": 1925,
       "name": "Borislav Milic",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Vishy Anand won both World Rapid Championship (2017) and World Blitz Championship (2003).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-21": [
@@ -10396,6 +10410,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Stockfish, an open-source engine, is widely considered the strongest modern chess engine.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-23": [
@@ -10416,6 +10437,13 @@
     {
       "type": "fun_fact",
       "text": "Garry Kasparov became the youngest undisputed World Champion in 1985 at age 22 years and 210 days.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "AlphaZero achieved superhuman strength by learning solely through self-play, without human opening books.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -10442,6 +10470,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess engine analysis uses 'depth' to measure how many moves ahead the engine is calculating.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-25": [
@@ -10462,6 +10497,13 @@
     {
       "type": "fun_fact",
       "text": "The 'Game of the Century' was played by 13-year-old Bobby Fischer against Donald Byrne in 1956, featuring a famous Queen sacrifice.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Top players use engines extensively for both analysis and opening preparation.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -10518,6 +10560,13 @@
       "year": 1972,
       "name": "Andrei Shchekachev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess streaming has massively boosted the game's popularity, led by Hikaru Nakamura and Levy Rozman (GothamChess).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-28": [
@@ -10541,6 +10590,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Modern chess apps use neural networks (like Stockfish NNUE) for better positional evaluation.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-29": [
@@ -10561,6 +10617,13 @@
     {
       "type": "fun_fact",
       "text": "Akiba Rubinstein was a brilliant Russian Grandmaster known for endgame technique, despite never winning the World Championship.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In online chess, 'Blunder' is tracked statistically as a move that drastically lowers winning probability.",
       "year": null,
       "name": null,
       "source": "Chess History"

@@ -5,20 +5,18 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Tournaments
-  "The Aeroflot Open in Moscow used to be one of the largest and strongest open tournaments globally.",
+  // Player Records
+  "Fabiano Caruana holds the highest performance rating ever in a closed tournament (3098 at 2014 Sinquefield Cup).",
+  "Vishy Anand won both World Rapid Championship (2017) and World Blitz Championship (2003).",
   
-  // Specific People and Anecdotes
-  "Aron Nimzowitsch invented terms like 'Prophylaxis' and 'Overprotection' that are now standard chess vocabulary.",
-  "Siegbert Tarrasch was called 'Praeceptor Germaniae' (Teacher of Germany) for his belief in classical principles.",
-  "Alexander Alekhine was known for extensive analysis, sometimes inventing lines that favored his side.",
-  "Garry Kasparov once played a simultaneous exhibition against the entire Iranian national team in Tehran.",
-  "Mikhail Tal was known to sacrifice pieces for minimal material, relying on immense pressure created.",
-  "Viktor Korchnoi played in the Candidates Tournament at age 75 (2007 event).",
-  "The Polgár sisters were part of an experiment by their father László to prove genius is nurtured, not born.",
-  "Magnus Carlsen dropped out of the 2023 World Championship cycle, stating he had 'nothing to gain'.",
-  "Viswanathan Anand was nicknamed 'The Tiger of Madras' for his speed of calculation.",
-  "Wesley So is known for his solid, strategic style, often drawing comparisons to Karpov."
+  // Modern Chess and Technology
+  "Stockfish, an open-source engine, is widely considered the strongest modern chess engine.",
+  "AlphaZero achieved superhuman strength by learning solely through self-play, without human opening books.",
+  "Chess engine analysis uses 'depth' to measure how many moves ahead the engine is calculating.",
+  "Top players use engines extensively for both analysis and opening preparation.",
+  "Chess streaming has massively boosted the game's popularity, led by Hikaru Nakamura and Levy Rozman (GothamChess).",
+  "Modern chess apps use neural networks (like Stockfish NNUE) for better positional evaluation.",
+  "In online chess, 'Blunder' is tracked statistically as a move that drastically lowers winning probability."
 ];
 
 // Get all dates sorted by number of facts (ascending)
