@@ -2313,9 +2313,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               cleanupSimulMatch(matchId, allPairings.map(p => p.id));
             } else {
               // Trigger auto-switch for both players
+              console.log(`[SimulTimer] Auto-switch needed, checking focus for match ${matchId}`);
               const matchFocus = simulPlayerFocus.get(matchId);
+              console.log(`[SimulTimer] matchFocus exists: ${!!matchFocus}, players: ${matchFocus ? Array.from(matchFocus.keys()).join(', ') : 'none'}`);
               if (matchFocus) {
                 for (const [playerId, focus] of matchFocus.entries()) {
+                  console.log(`[SimulTimer] Player ${playerId} focus: activePairingId=${focus.activePairingId}, expired=${pairingId}, match=${focus.activePairingId === pairingId}`);
                   if (focus.activePairingId === pairingId) {
                     // This player was watching the expired game, trigger auto-switch
                     const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, playerId);
@@ -2328,12 +2331,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       result: p.result,
                     }));
                     
+                    console.log(`[SimulTimer] Computing auto-switch target for player ${playerId}, ${pairingsForSwitch.length} games`);
                     const nextBoard = computeAutoSwitchTarget(playerId, pairingsForSwitch, pairingId);
+                    console.log(`[SimulTimer] Next board: ${nextBoard}, current: ${pairingId}`);
                     if (nextBoard && nextBoard !== pairingId) {
                       focus.activePairingId = nextBoard;
                       focus.pendingAutoSwitch = false;
                       focus.pendingAck = true;
                       focus.pendingAckTimestamp = Date.now();
+                      console.log(`[SimulTimer] Sending focus update to player ${playerId} for board ${nextBoard}`);
                       sendSimulFocusUpdate(playerId, matchId, nextBoard, 'auto_switch');
                     }
                   }
