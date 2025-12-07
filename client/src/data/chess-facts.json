@@ -1799,6 +1799,13 @@
       "year": 1922,
       "name": "Rudolf Teschner",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess originated in India around the 6th century AD as Chaturanga, meaning 'four divisions' (infantry, cavalry, elephants, and chariots).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "02-17": [
@@ -2120,6 +2127,13 @@
       "year": 1967,
       "name": "Petr Velicka",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The word 'Chess' comes from the Persian word 'shāh', meaning 'king'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "02-27": [
@@ -2291,6 +2305,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The word 'checkmate' comes from the Persian phrase 'shāh māt', meaning 'the king is helpless' or 'the king is dead'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "03-03": [
@@ -2455,6 +2476,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess spread through Persia and the Islamic world, arriving in Europe (Spain and Italy) around the 10th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "03-08": [
@@ -2607,6 +2635,13 @@
       "year": 1957,
       "name": "Jonathan Mestel",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The pieces gained their modern movement rules (especially the powerful Queen and Bishop) in the late 15th century during the Renaissance.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "03-14": [
@@ -2854,6 +2889,13 @@
       "year": 1979,
       "name": "Zoltan Medvegy",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The powerful Queen's movement was added in the late 15th century - this version was called 'Queen's Chess' or 'Mad Queen Chess'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "03-22": [
@@ -3441,6 +3483,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Wilhelm Steinitz was the first official World Chess Champion, claiming the title in 1886.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-08": [
@@ -3695,6 +3744,13 @@
       "year": 1980,
       "name": "Andrey Sumets",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Shannon Number ($10^{120}$) represents the estimated number of possible unique chess games.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-16": [
@@ -4176,6 +4232,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The longest tournament game ever played was between Ivan Nikolić and Goran Arsović in 1989, lasting 20 hours and 15 minutes over 269 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-29": [
@@ -4548,6 +4611,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A rule once existed that prohibited draws before move 50. The longest game under this rule lasted 193 moves (Karpov vs Kaidanov, 1993).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-10": [
@@ -4846,6 +4916,13 @@
       "year": 1943,
       "name": "Gennadi Sosonko",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "From the initial position, White has 20 possible first moves. After the first pair of moves, there are 400 possible positions.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-19": [
@@ -5398,6 +5475,13 @@
       "year": 1979,
       "name": "Mikheil Mchedlishvili",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The average chess game lasts about 40 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-05": [
@@ -5508,6 +5592,13 @@
     {
       "type": "fun_fact",
       "text": "Chess originated in India around the 6th century AD as 'Chaturanga' meaning 'four divisions' of the military.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The longest known forced mate in a composed problem is over 500 moves, though the 50-move rule usually forces a draw first.",
       "year": null,
       "name": null,
       "source": "Chess History"
