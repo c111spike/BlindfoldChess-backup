@@ -5857,6 +5857,13 @@
       "year": 1965,
       "name": "Aleksandr Poluljahov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Sicilian Defense is the most popular response by Black to 1. e4 at the master level.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-07": [
@@ -5914,6 +5921,13 @@
     {
       "type": "fun_fact",
       "text": "The longest known forced mate in a composed problem is over 500 moves, though the 50-move rule usually forces a draw first.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Queen's Gambit is the oldest opening still considered fully sound and popular at Grandmaster level.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -5984,6 +5998,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The King's Gambit (1. e4 e5 2. f4) was the opening of choice during the 'Romantic Era' of chess (18th-19th centuries).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-11": [
@@ -6037,6 +6058,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Queen sacrifices are so rare and brilliant that they are often highlighted as moments of genius.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-13": [
@@ -6060,6 +6088,13 @@
       "year": 1964,
       "name": "Vadim Ruban",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Zwischenzug (intermediate move) is often a check or forcing move that changes the anticipated order of a combination.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-14": [
@@ -6143,6 +6178,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The World Computer Chess Championship is a separate tournament where computer programs compete against each other.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-17": [
@@ -6217,6 +6259,13 @@
       "year": 1952,
       "name": "Efim Bogoljubov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Russian School of Chess emphasized state support, scientific analysis, and systematic training.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-19": [
@@ -6240,6 +6289,13 @@
       "year": 2002,
       "name": "David Garcia Ilundain",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Correspondence Chess involves players taking days or weeks for a single move, using tools and databases for deep analysis.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-20": [
@@ -6374,6 +6430,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The FIDE Master (FM) title is ranked below International Master (IM) and Grandmaster (GM) titles.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-24": [
@@ -6454,6 +6517,13 @@
     {
       "type": "fun_fact",
       "text": "FIDE (Fédération Internationale des Échecs) was founded in Paris on July 20, 1924 - now celebrated as International Chess Day.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess pieces have symbolic point values: Pawn (1), Knight/Bishop (3), Rook (5), Queen (9), King (Infinite).",
       "year": null,
       "name": null,
       "source": "Chess History"

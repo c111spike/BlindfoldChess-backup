@@ -5,20 +5,21 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Player Facts
-  "Hou Yifan became the youngest female Grandmaster ever at age 14 years and 6 months in 2018.",
+  // Openings
+  "The Sicilian Defense is the most popular response by Black to 1. e4 at the master level.",
+  "The Queen's Gambit is the oldest opening still considered fully sound and popular at Grandmaster level.",
+  "The King's Gambit (1. e4 e5 2. f4) was the opening of choice during the 'Romantic Era' of chess (18th-19th centuries).",
   
-  // Openings and Tactics
-  "The Reti Opening (1. Nf3) is named after Hypermodern master Richard Réti, who championed indirect central control.",
-  "Chess boxing is a hybrid sport where competitors alternate between rounds of chess and boxing.",
-  "The original Indian word Chaturanga means 'four divisions,' referring to military components represented by pieces.",
-  "Pawn storms are aggressive pawn advances, usually on the wing, aimed at weakening opponent's King safety.",
+  // Strategy and Tactics
+  "Queen sacrifices are so rare and brilliant that they are often highlighted as moments of genius.",
+  "Zwischenzug (intermediate move) is often a check or forcing move that changes the anticipated order of a combination.",
   
-  // Quotes and Strategy
-  "Emanuel Lasker famously said: 'When you see a good move, look for a better one.'",
-  "The 'desperate check' is a tactic giving a seemingly useless check to repeat position for a draw or win material.",
-  "The King is the weakest piece in terms of movement power, moving only one square at a time.",
-  "Promotion isn't limited to captured pieces - you can have two or more Queens if you promote with all pieces still on board."
+  // Competitive Chess
+  "The World Computer Chess Championship is a separate tournament where computer programs compete against each other.",
+  "The Russian School of Chess emphasized state support, scientific analysis, and systematic training.",
+  "Correspondence Chess involves players taking days or weeks for a single move, using tools and databases for deep analysis.",
+  "The FIDE Master (FM) title is ranked below International Master (IM) and Grandmaster (GM) titles.",
+  "Chess pieces have symbolic point values: Pawn (1), Knight/Bishop (3), Rook (5), Queen (9), King (Infinite)."
 ];
 
 // Get all dates sorted by number of facts (ascending)
