@@ -11290,6 +11290,13 @@
       "year": 1954,
       "name": "Adrian Mikhalchishin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Damiano's Defense (1. e4 e5 2. Nf3 f6) is a weak but named defense dating back to the 16th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-19": [
@@ -11417,6 +11424,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Gambits are opening sacrifices typically aimed at gaining time advantage or control of the center.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-23": [
@@ -11521,6 +11535,13 @@
       "year": 1980,
       "name": "Bator Sambuev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first known chess problem composer was likely al-Adli (9th century Arab master).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-26": [
@@ -11764,6 +11785,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The World Junior Championship has been a proving ground for future champions: Kasparov, Anand, and Carlsen.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-02": [
@@ -11784,6 +11812,13 @@
     {
       "type": "fun_fact",
       "text": "Miguel Najdorf, namesake of the Sicilian Najdorf, was one of the first to give successful blindfold chess exhibitions.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The game Go is computationally more complex than chess, with a larger board and longer games.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -11840,6 +11875,13 @@
       "year": 1960,
       "name": "Viktor Moskalenko",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Judit Polgár's peak rating of 2735 remains the highest female rating ever achieved.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-05": [
@@ -11967,6 +12009,13 @@
       "year": 1980,
       "name": "Petar Trifunović",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess sets featuring unusual themes (historical figures, movie characters) are popular collectibles.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-09": [
@@ -12024,6 +12073,13 @@
     {
       "type": "fun_fact",
       "text": "Frank Marshall (U.S. Champion for 30 years) was the first American to defeat a Soviet player in an international tournament in 1924.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Centipawn is the standard engine evaluation unit - 100 centipawns equals one pawn's worth of material.",
       "year": null,
       "name": null,
       "source": "Chess History"

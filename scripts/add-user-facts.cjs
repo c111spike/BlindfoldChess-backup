@@ -5,14 +5,17 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Obscure Rules and History
-  "Early 19th-century rules sometimes allowed the King to make a Knight move on its first turn.",
-  "Until mid-19th century, opponents were required to announce 'Check!' or the move would be invalid.",
-  "Castling was not fully standardized until the 17th century - different European regions had different rules.",
-  "Fischer Random Chess (Chess960) has 960 possible starting positions to negate memorized opening theory.",
-  "The Old Indian Defense (1. d4 Nf6 2. c4 d6) predates the more popular King's Indian Defense.",
-  "The first 'Master-level' chess book was written by François-André Danican Philidor in the 18th century.",
-  "The 'Immortal Zugzwang Game' (Nimzowitsch vs Sämisch, 1923) ended in a pure zugzwang position."
+  // Openings and History
+  "Damiano's Defense (1. e4 e5 2. Nf3 f6) is a weak but named defense dating back to the 16th century.",
+  "Gambits are opening sacrifices typically aimed at gaining time advantage or control of the center.",
+  "The first known chess problem composer was likely al-Adli (9th century Arab master).",
+  
+  // Miscellaneous & Records
+  "The World Junior Championship has been a proving ground for future champions: Kasparov, Anand, and Carlsen.",
+  "The game Go is computationally more complex than chess, with a larger board and longer games.",
+  "Judit Polgár's peak rating of 2735 remains the highest female rating ever achieved.",
+  "Chess sets featuring unusual themes (historical figures, movie characters) are popular collectibles.",
+  "The Centipawn is the standard engine evaluation unit - 100 centipawns equals one pawn's worth of material."
 ];
 
 // Get all dates sorted by number of facts (ascending)
