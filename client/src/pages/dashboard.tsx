@@ -203,6 +203,7 @@ export default function Dashboard() {
             </div>
             <CardTitle className="text-primary-foreground text-2xl">Blindfold Settings</CardTitle>
             <CardDescription className="text-primary-foreground/80">
+              (Standard only)<br />
               {ongoingGame && ongoingGame.status === 'active' 
                 ? "Finish current game to change" 
                 : "Select difficulty level"}
