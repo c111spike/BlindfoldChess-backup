@@ -5,17 +5,21 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Openings and History
-  "Damiano's Defense (1. e4 e5 2. Nf3 f6) is a weak but named defense dating back to the 16th century.",
-  "Gambits are opening sacrifices typically aimed at gaining time advantage or control of the center.",
-  "The first known chess problem composer was likely al-Adli (9th century Arab master).",
+  // Records and Landmarks
+  "The St. Louis Chess Club holds the record for the world's largest chess piece - a 20-foot tall King.",
+  "The 1972 Fischer-Spassky match was the first to be broadcast live to a global audience.",
   
-  // Miscellaneous & Records
-  "The World Junior Championship has been a proving ground for future champions: Kasparov, Anand, and Carlsen.",
-  "The game Go is computationally more complex than chess, with a larger board and longer games.",
-  "Judit Polgár's peak rating of 2735 remains the highest female rating ever achieved.",
-  "Chess sets featuring unusual themes (historical figures, movie characters) are popular collectibles.",
-  "The Centipawn is the standard engine evaluation unit - 100 centipawns equals one pawn's worth of material."
+  // Terminology
+  "'The clock is running' means it is officially the player's turn to move.",
+  "The Swiss System format allows maximum players to compete efficiently without excessive rounds.",
+  "The Round-Robin format is where every competitor plays every other competitor once.",
+  "The earliest reference to a chess rating or ranking system dates back to the 18th century.",
+  
+  // Strategy
+  "The 'Alekhine Gun' is a formation where the Queen backs up two Rooks along an open file.",
+  "Prophylaxis (preventing opponent's threats rather than pursuing your own plan) was championed by Nimzowitsch.",
+  "The 'Kiss of Death' is a colloquial term for a King-side attack ending in Queen checkmate.",
+  "In the endgame, the King becomes a powerful attacking and defensive piece."
 ];
 
 // Get all dates sorted by number of facts (ascending)
