@@ -61,6 +61,7 @@ export const gameModeEnum = pgEnum("game_mode", [
   "simul_8",
   "simul_9",
   "simul_10",
+  "simul_vs_simul",
 ]);
 
 export const gameStatusEnum = pgEnum("game_status", [

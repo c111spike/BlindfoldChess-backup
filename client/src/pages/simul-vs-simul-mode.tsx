@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown } from "lucide-react";
+import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SimulVsSimulBoard {
@@ -28,6 +28,7 @@ interface SimulVsSimulBoard {
   result: string;
   chess: Chess;
   timeRemaining: number;
+  gameId?: string;
 }
 
 interface MatchPlayer {
@@ -199,6 +200,7 @@ export default function SimulVsSimulMode() {
           newBoards[boardIndex] = {
             ...newBoards[boardIndex],
             result: data.result,
+            gameId: data.gameId,
           };
           
           return newBoards;
@@ -594,6 +596,22 @@ export default function SimulVsSimulMode() {
                           <Clock className="h-3 w-3" />
                           <span>{board.timeRemaining}s</span>
                         </div>
+                      )}
+                      
+                      {board.result !== 'ongoing' && board.gameId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full mt-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLocation(`/analysis/${board.gameId}`);
+                          }}
+                          data-testid={`button-analyze-${index}`}
+                        >
+                          <BarChart3 className="h-3 w-3 mr-1" />
+                          Analyze
+                        </Button>
                       )}
                     </CardContent>
                   </Card>

@@ -2935,9 +2935,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const pairing = await storage.getSimulVsSimulPairing(pairingId);
             if (!pairing || pairing.result !== 'ongoing') return;
             
+            // Determine game result for games table (enum uses singular form)
+            let gameResult: 'white_win' | 'black_win' | 'draw' | 'ongoing' = 'ongoing';
+            if (result === 'white_wins') gameResult = 'white_win';
+            else if (result === 'black_wins') gameResult = 'black_win';
+            else if (result === 'draw') gameResult = 'draw';
+            
+            // Create games table entries for analysis if human players are involved
+            let whiteGameId: string | null = null;
+            let blackGameId: string | null = null;
+            
+            // Get player names for the game record
+            const matchPlayers = await storage.getSimulVsSimulMatchPlayers(pairing.matchId);
+            const whitePlayer = !pairing.whiteIsBot && pairing.whitePlayerId 
+              ? matchPlayers.find(mp => mp.odId === pairing.whitePlayerId) 
+              : null;
+            const blackPlayer = !pairing.blackIsBot && pairing.blackPlayerId 
+              ? matchPlayers.find(mp => mp.odId === pairing.blackPlayerId) 
+              : null;
+            
+            const whiteUser = whitePlayer ? await storage.getUserByOdId(pairing.whitePlayerId!) : null;
+            const blackUser = blackPlayer ? await storage.getUserByOdId(pairing.blackPlayerId!) : null;
+            
+            // Create game for white player (if human)
+            if (!pairing.whiteIsBot && pairing.whitePlayerId) {
+              const opponentName = blackUser?.username || (pairing.blackIsBot ? `Bot ${pairing.blackBotId}` : 'Unknown');
+              const whiteGame = await storage.createGame({
+                userId: pairing.whitePlayerId,
+                whitePlayerId: pairing.whitePlayerId,
+                blackPlayerId: pairing.blackPlayerId,
+                mode: 'simul_vs_simul',
+                status: 'completed',
+                result: gameResult,
+                opponentName,
+                playerColor: 'white',
+                timeControl: 30,
+                fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                moves: pairing.moves || [],
+              });
+              whiteGameId = whiteGame.id;
+            }
+            
+            // Create game for black player (if human)
+            if (!pairing.blackIsBot && pairing.blackPlayerId) {
+              const opponentName = whiteUser?.username || (pairing.whiteIsBot ? `Bot ${pairing.whiteBotId}` : 'Unknown');
+              const blackGame = await storage.createGame({
+                userId: pairing.blackPlayerId,
+                whitePlayerId: pairing.whitePlayerId,
+                blackPlayerId: pairing.blackPlayerId,
+                mode: 'simul_vs_simul',
+                status: 'completed',
+                result: gameResult,
+                opponentName,
+                playerColor: 'black',
+                timeControl: 30,
+                fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                moves: pairing.moves || [],
+              });
+              blackGameId = blackGame.id;
+            }
+            
             await storage.updateSimulVsSimulPairing(pairingId, {
               result,
               completedAt: new Date(),
+              gameId: whiteGameId || blackGameId,
             });
             
             // Stop timer
@@ -2947,17 +3008,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
               timer.deadline = null;
             }
             
-            // Notify both players
+            // Notify both players with their respective gameId for analysis
             const room = simulPairingRooms.get(pairingId);
             if (room) {
               room.forEach((roomUserId) => {
                 const playerWs = userConnections.get(roomUserId);
                 if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                  let playerGameId: string | null = null;
+                  if (pairing.whitePlayerId && roomUserId === pairing.whitePlayerId) {
+                    playerGameId = whiteGameId;
+                  } else if (pairing.blackPlayerId && roomUserId === pairing.blackPlayerId) {
+                    playerGameId = blackGameId;
+                  }
                   playerWs.send(JSON.stringify({
                     type: 'simul_game_end',
                     pairingId,
                     result,
                     reason,
+                    gameId: playerGameId,
                   }));
                 }
               });
