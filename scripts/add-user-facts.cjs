@@ -5,16 +5,23 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Famous Players and Anecdotes
-  "During the 1972 Fischer-Spassky match, the Soviet team claimed Fischer used electronic devices in his chair - inspection found nothing.",
-  "Akiba Rubinstein was a brilliant Russian Grandmaster known for endgame technique, despite never winning the World Championship.",
-  "Paul Morphy (19th century American master) traveled the world playing without demanding money, seeking only intellectual challenge.",
-  "WWII code breakers at Bletchley Park included British chess masters Harry Golombek, Stuart Milner-Barry, and C.H.O'D. Alexander.",
-  "The 1973 Cleveland Chess Tournament was raided by police who confiscated chess sets, claiming they were 'gambling devices' due to cash prizes.",
-  "Vladimir Nabokov, author of Lolita, wrote 'The Luzhin Defense' based on the tragic life of a chess grandmaster.",
-  "Fidel Castro was a passionate chess player and hosted numerous international tournaments in Cuba.",
-  "Miguel Najdorf, namesake of the Sicilian Najdorf, was one of the first to give successful blindfold chess exhibitions.",
-  "Frank Marshall (U.S. Champion for 30 years) was the first American to defeat a Soviet player in an international tournament in 1924."
+  // Blindfold Record
+  "George Koltanowski set a record by playing 56 games blindfolded simultaneously in 1960.",
+  
+  // Piece Nicknames and Terms
+  "Zugzwang (German for 'compulsion to move') is a position where any legal move worsens the player's position.",
+  "Zwischenzug (German for 'intermediate move') is a tactic inserting an unexpected check or threat before a planned sequence.",
+  "A Desperado is a doomed piece that captures other pieces or gives checks before its demise to gain advantage.",
+  "The Bishop is called 'The Runner' (Läufer) in German.",
+  "In Russian, the Rook is called 'Ladya', meaning a boat or ship.",
+  "The King and Queen are sometimes called the 'Royalty' or 'Major Pieces'.",
+  "The Knight and Bishop are sometimes called the 'Minor Pieces' or 'Minors'.",
+  "A 'Swindler' is a player known for turning hopelessly lost positions into draws or wins using tricks and traps.",
+  "'The Queen on her own color' is a mnemonic for the starting position (White Queen on d1 white, Black Queen on d8 black).",
+  "The King and Rook are the only pieces that can participate in the special move Castling.",
+  
+  // Pop Culture
+  "The 1957 film 'The Seventh Seal' features a famous scene where a knight plays chess against Death."
 ];
 
 // Get all dates sorted by number of facts (ascending)

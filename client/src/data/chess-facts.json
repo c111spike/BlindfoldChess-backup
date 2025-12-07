@@ -78,6 +78,13 @@
       "year": 1993,
       "name": "Vladimir Makogonov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Zugzwang (German for 'compulsion to move') is a position where any legal move worsens the player's position.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-03": [
@@ -437,6 +444,13 @@
       "year": 1952,
       "name": "Oleg Romanishin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Zwischenzug (German for 'intermediate move') is a tactic inserting an unexpected check or threat before a planned sequence.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-11": [
@@ -460,6 +474,13 @@
       "year": 1975,
       "name": "Hedinn Steingrimsson",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A Desperado is a doomed piece that captures other pieces or gives checks before its demise to gain advantage.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-12": [
@@ -483,6 +504,13 @@
       "year": 1990,
       "name": "Sergey Karjakin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Bishop is called 'The Runner' (Läufer) in German.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-13": [
@@ -670,6 +698,13 @@
       "year": 1934,
       "name": "Igor Platonov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In Russian, the Rook is called 'Ladya', meaning a boat or ship.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-19": [
@@ -693,6 +728,13 @@
       "year": 1989,
       "name": "Maxim Rodshtein",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The King and Queen are sometimes called the 'Royalty' or 'Major Pieces'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-20": [
@@ -797,6 +839,13 @@
       "year": 1968,
       "name": "Maxim Sorokin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Knight and Bishop are sometimes called the 'Minor Pieces' or 'Minors'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-23": [
@@ -894,6 +943,13 @@
       "year": 1974,
       "name": "Igor Miladinović",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A 'Swindler' is a player known for turning hopelessly lost positions into draws or wins using tricks and traps.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-26": [
@@ -1806,6 +1862,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "'The Queen on her own color' is a mnemonic for the starting position (White Queen on d1 white, Black Queen on d8 black).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "02-17": [
@@ -2037,6 +2100,13 @@
       "year": 1954,
       "name": "Jacques Mieses",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The King and Rook are the only pieces that can participate in the special move Castling.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "02-24": [
@@ -2131,6 +2201,13 @@
     {
       "type": "fun_fact",
       "text": "The word 'Chess' comes from the Persian word 'shāh', meaning 'king'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 1957 film 'The Seventh Seal' features a famous scene where a knight plays chess against Death.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -11606,6 +11683,13 @@
       "year": 1958,
       "name": "Raset Ziatdinov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "George Koltanowski set a record by playing 56 games blindfolded simultaneously in 1960.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-28": [
