@@ -14,7 +14,6 @@ import {
   LayoutDashboard, 
   Clock, 
   Brain, 
-  Grid3x3, 
   History, 
   BarChart3, 
   Settings,
@@ -45,11 +44,6 @@ const menuItems = [
     title: "Standard",
     url: "/standard",
     icon: Brain,
-  },
-  {
-    title: "Simul",
-    url: "/simul",
-    icon: Grid3x3,
   },
   {
     title: "Simul vs Simul",

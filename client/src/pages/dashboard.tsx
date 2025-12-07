@@ -61,12 +61,12 @@ export default function Dashboard() {
   }
 
   const difficultyOptions = [
-    { value: "easy", label: "Easy", description: "Unlimited peeks (3 sec)" },
-    { value: "medium", label: "Medium", description: "20 peeks (3 sec)" },
-    { value: "hard", label: "Hard", description: "15 peeks (2.5 sec)" },
-    { value: "expert", label: "Expert", description: "10 peeks (2 sec)" },
-    { value: "master", label: "Master", description: "5 peeks (1.5 sec)" },
-    { value: "grandmaster", label: "Grandmaster", description: "0 peeks" },
+    { value: "easy", label: "Easy", description: "Unlimited press-and-hold peeks" },
+    { value: "medium", label: "Medium", description: "20 press-and-hold peeks" },
+    { value: "hard", label: "Hard", description: "15 press-and-hold peeks" },
+    { value: "expert", label: "Expert", description: "10 press-and-hold peeks" },
+    { value: "master", label: "Master", description: "5 press-and-hold peeks" },
+    { value: "grandmaster", label: "Grandmaster", description: "0 peeks (pure blindfold)" },
   ];
 
   return (
@@ -161,7 +161,44 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <Card data-testid="card-blindfold-settings">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <Brain className="h-6 w-6 text-primary" />
+            <div>
+              <CardTitle className="text-lg">Blindfold Settings</CardTitle>
+              <CardDescription>
+                {ongoingGame && ongoingGame.status === 'active' 
+                  ? "Finish your current game to change difficulty" 
+                  : "Select difficulty for blindfold mode training"}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Select
+            value={userSettings?.blindfoldDifficulty || "medium"}
+            onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
+            disabled={updateBlindfolddifficultyMutation.isPending || (ongoingGame?.status === 'active')}
+          >
+            <SelectTrigger className="w-full max-w-xs" data-testid="select-blindfold-difficulty">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {difficultyOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  <div>
+                    <div className="font-medium">{option.label}</div>
+                    <div className="text-xs text-muted-foreground">{option.description}</div>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-simul-exhibition">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
@@ -193,41 +230,6 @@ export default function Dashboard() {
             <Button asChild variant="secondary" className="w-full" data-testid="button-mode-otb">
               <Link href="/otb">Start Game</Link>
             </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-blindfold-settings">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <Brain className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <CardTitle className="text-primary-foreground text-2xl">Blindfold Settings</CardTitle>
-            <CardDescription className="text-primary-foreground/80">
-              {ongoingGame && ongoingGame.status === 'active' 
-                ? "Finish your current game to change difficulty" 
-                : "Select difficulty for blindfold mode"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto">
-            <Select
-              value={userSettings?.blindfoldDifficulty || "medium"}
-              onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
-              disabled={updateBlindfolddifficultyMutation.isPending || (ongoingGame?.status === 'active')}
-            >
-              <SelectTrigger className="w-full bg-secondary text-secondary-foreground border-secondary-border" data-testid="select-blindfold-difficulty">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {difficultyOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    <div>
-                      <div className="font-medium">{option.label}</div>
-                      <div className="text-xs text-muted-foreground">{option.description}</div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </CardContent>
         </Card>
 
