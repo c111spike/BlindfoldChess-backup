@@ -76,12 +76,27 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Ready for your daily training?</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <Card>
+          <CardHeader className="space-y-0 pb-3">
+            <CardDescription className="text-xs font-medium">Simul Elo</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-simul">
+              {ratings?.simul || 1000}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <TrendingUp className="h-3 w-3" />
+              <span>+6</span>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="space-y-0 pb-3">
             <CardDescription className="text-xs font-medium">OTB Blitz</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-blitz">
-              {ratings?.blitz || 1200}
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-otb-blitz">
+              {ratings?.otbBlitz || 1200}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -95,8 +110,8 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="space-y-0 pb-3">
             <CardDescription className="text-xs font-medium">OTB Rapid</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-rapid">
-              {ratings?.rapid || 1200}
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-otb-rapid">
+              {ratings?.otbRapid || 1200}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -109,15 +124,30 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="space-y-0 pb-3">
-            <CardDescription className="text-xs font-medium">Simul Elo</CardDescription>
-            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-simul">
-              {ratings?.simul || 1000}
+            <CardDescription className="text-xs font-medium">Elo Blitz</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-blitz">
+              {ratings?.blitz || 1200}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3" />
-              <span>+6</span>
+              <span>+4</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="space-y-0 pb-3">
+            <CardDescription className="text-xs font-medium">Elo Rapid</CardDescription>
+            <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-rapid">
+              {ratings?.rapid || 1200}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <TrendingUp className="h-3 w-3" />
+              <span>+3</span>
             </div>
           </CardContent>
         </Card>
