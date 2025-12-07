@@ -38,6 +38,9 @@ export const users = pgTable("users", {
   dailyGamesPlayed: integer("daily_games_played").default(0),
   dailyBlindfoldGamesPlayed: integer("daily_blindfold_games_played").default(0),
   lastDailyReset: timestamp("last_daily_reset").defaultNow(),
+  isAdmin: boolean("is_admin").default(false),
+  puzzleReputation: integer("puzzle_reputation").default(0),
+  puzzleSolveStreak: integer("puzzle_solve_streak").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -154,6 +157,34 @@ export const ratings = pgTable("ratings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const puzzleTypeEnum = pgEnum("puzzle_type", [
+  "mate_in_1",
+  "mate_in_2",
+  "mate_in_3",
+  "mate_in_4_plus",
+  "win_piece",
+  "positional_advantage",
+  "endgame",
+  "opening_trap",
+  "defensive",
+  "sacrifice",
+  "other",
+]);
+
+export const puzzleDifficultyEnum = pgEnum("puzzle_difficulty", [
+  "beginner",
+  "intermediate",
+  "advanced",
+  "expert",
+]);
+
+export const puzzleSourceTypeEnum = pgEnum("puzzle_source_type", [
+  "created",
+  "book",
+  "youtube",
+  "other",
+]);
+
 export const puzzles = pgTable("puzzles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   fen: text("fen").notNull(),
@@ -161,7 +192,67 @@ export const puzzles = pgTable("puzzles", {
   rating: integer("rating").notNull(),
   themes: jsonb("themes").$type<string[]>().default([]),
   popularity: integer("popularity").default(0),
-});
+  creatorId: varchar("creator_id")
+    .references(() => users.id, { onDelete: "set null" }),
+  puzzleType: puzzleTypeEnum("puzzle_type"),
+  difficulty: puzzleDifficultyEnum("difficulty"),
+  solution: jsonb("solution").$type<string[]>().default([]),
+  hints: jsonb("hints").$type<string[]>().default([]),
+  sourceType: puzzleSourceTypeEnum("source_type"),
+  sourceName: varchar("source_name"),
+  whoToMove: varchar("who_to_move").default("white"),
+  upvotes: integer("upvotes").default(0),
+  downvotes: integer("downvotes").default(0),
+  reportCount: integer("report_count").default(0),
+  isVerified: boolean("is_verified").default(false),
+  isFeatured: boolean("is_featured").default(false),
+  isFlagged: boolean("is_flagged").default(false),
+  isRemoved: boolean("is_removed").default(false),
+  attemptCount: integer("attempt_count").default(0),
+  solveCount: integer("solve_count").default(0),
+  shareCode: varchar("share_code").unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  creatorIdx: index("puzzles_creator_idx").on(table.creatorId),
+  typeIdx: index("puzzles_type_idx").on(table.puzzleType),
+  verifiedIdx: index("puzzles_verified_idx").on(table.isVerified),
+  featuredIdx: index("puzzles_featured_idx").on(table.isFeatured),
+}));
+
+export const puzzleVotes = pgTable("puzzle_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  puzzleId: varchar("puzzle_id")
+    .references(() => puzzles.id, { onDelete: "cascade" })
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  voteType: varchar("vote_type").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  puzzleUserUnique: unique().on(table.puzzleId, table.userId),
+  puzzleIdx: index("puzzle_votes_puzzle_idx").on(table.puzzleId),
+}));
+
+export const puzzleReports = pgTable("puzzle_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  puzzleId: varchar("puzzle_id")
+    .references(() => puzzles.id, { onDelete: "cascade" })
+    .notNull(),
+  reporterId: varchar("reporter_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  reason: varchar("reason").notNull(),
+  details: text("details"),
+  isResolved: boolean("is_resolved").default(false),
+  resolvedById: varchar("resolved_by_id")
+    .references(() => users.id, { onDelete: "set null" }),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  puzzleIdx: index("puzzle_reports_puzzle_idx").on(table.puzzleId),
+  unresolvedIdx: index("puzzle_reports_unresolved_idx").on(table.isResolved),
+}));
 
 export const puzzleAttempts = pgTable("puzzle_attempts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -530,6 +621,13 @@ export type InsertPuzzle = typeof puzzles.$inferInsert;
 export type Puzzle = typeof puzzles.$inferSelect;
 export type InsertPuzzleAttempt = typeof puzzleAttempts.$inferInsert;
 export type PuzzleAttempt = typeof puzzleAttempts.$inferSelect;
+export type InsertPuzzleVote = typeof puzzleVotes.$inferInsert;
+export type PuzzleVote = typeof puzzleVotes.$inferSelect;
+export type InsertPuzzleReport = typeof puzzleReports.$inferInsert;
+export type PuzzleReport = typeof puzzleReports.$inferSelect;
+export type PuzzleType = typeof puzzleTypeEnum.enumValues[number];
+export type PuzzleDifficulty = typeof puzzleDifficultyEnum.enumValues[number];
+export type PuzzleSourceType = typeof puzzleSourceTypeEnum.enumValues[number];
 export type InsertUserSettings = typeof userSettings.$inferInsert;
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertStatistics = typeof statistics.$inferInsert;
@@ -697,4 +795,32 @@ export const insertPuzzleAttemptSchema = createInsertSchema(puzzleAttempts).omit
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
   id: true,
   updatedAt: true,
+});
+
+export const insertPuzzleSchema = createInsertSchema(puzzles).omit({
+  id: true,
+  upvotes: true,
+  downvotes: true,
+  reportCount: true,
+  isVerified: true,
+  isFeatured: true,
+  isFlagged: true,
+  isRemoved: true,
+  attemptCount: true,
+  solveCount: true,
+  shareCode: true,
+  createdAt: true,
+});
+
+export const insertPuzzleVoteSchema = createInsertSchema(puzzleVotes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPuzzleReportSchema = createInsertSchema(puzzleReports).omit({
+  id: true,
+  isResolved: true,
+  resolvedById: true,
+  resolvedAt: true,
+  createdAt: true,
 });
