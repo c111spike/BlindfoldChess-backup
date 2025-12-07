@@ -4,6 +4,8 @@ import {
   ratings,
   puzzles,
   puzzleAttempts,
+  puzzleVotes,
+  puzzleReports,
   userSettings,
   statistics,
   simulGames,
@@ -30,8 +32,13 @@ import {
   type Rating,
   type InsertRating,
   type Puzzle,
+  type InsertPuzzle,
   type PuzzleAttempt,
   type InsertPuzzleAttempt,
+  type PuzzleVote,
+  type InsertPuzzleVote,
+  type PuzzleReport,
+  type InsertPuzzleReport,
   type UserSettings,
   type InsertUserSettings,
   type Statistics,
@@ -90,6 +97,29 @@ export interface IStorage {
   
   getRandomPuzzle(): Promise<Puzzle | undefined>;
   createPuzzleAttempt(attempt: InsertPuzzleAttempt): Promise<PuzzleAttempt>;
+  
+  createPuzzle(puzzle: InsertPuzzle): Promise<Puzzle>;
+  getPuzzle(id: string): Promise<Puzzle | undefined>;
+  getPuzzleByShareCode(shareCode: string): Promise<Puzzle | undefined>;
+  getPuzzles(options: { type?: string; difficulty?: string; creatorId?: string; sortBy?: string; limit?: number; offset?: number; isVerified?: boolean }): Promise<Puzzle[]>;
+  getUserCreatedPuzzles(userId: string): Promise<Puzzle[]>;
+  updatePuzzle(id: string, data: Partial<Puzzle>): Promise<Puzzle>;
+  deletePuzzle(id: string): Promise<void>;
+  checkDuplicatePuzzle(fen: string): Promise<Puzzle | undefined>;
+  
+  createPuzzleVote(vote: InsertPuzzleVote): Promise<PuzzleVote>;
+  getUserPuzzleVote(userId: string, puzzleId: string): Promise<PuzzleVote | undefined>;
+  updatePuzzleVote(id: string, voteType: string): Promise<PuzzleVote>;
+  deletePuzzleVote(id: string): Promise<void>;
+  
+  createPuzzleReport(report: InsertPuzzleReport): Promise<PuzzleReport>;
+  getPuzzleReports(puzzleId?: string, isResolved?: boolean): Promise<PuzzleReport[]>;
+  resolvePuzzleReport(id: string, resolvedById: string): Promise<PuzzleReport>;
+  
+  getFlaggedPuzzles(): Promise<Puzzle[]>;
+  getPuzzleOfTheDay(): Promise<Puzzle | undefined>;
+  updateUserPuzzleReputation(userId: string, change: number): Promise<void>;
+  updateUserPuzzleSolveStreak(userId: string, solved: boolean): Promise<number>;
   
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
   upsertUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
@@ -317,6 +347,249 @@ export class DatabaseStorage implements IStorage {
   async createPuzzleAttempt(attemptData: InsertPuzzleAttempt): Promise<PuzzleAttempt> {
     const [attempt] = await db.insert(puzzleAttempts).values(attemptData).returning();
     return attempt;
+  }
+
+  async createPuzzle(puzzleData: InsertPuzzle): Promise<Puzzle> {
+    const shareCode = Math.random().toString(36).substring(2, 10);
+    const [puzzle] = await db.insert(puzzles).values({
+      ...puzzleData,
+      shareCode,
+    }).returning();
+    return puzzle;
+  }
+
+  async getPuzzle(id: string): Promise<Puzzle | undefined> {
+    const [puzzle] = await db.select().from(puzzles).where(eq(puzzles.id, id));
+    return puzzle;
+  }
+
+  async getPuzzleByShareCode(shareCode: string): Promise<Puzzle | undefined> {
+    const [puzzle] = await db.select().from(puzzles).where(eq(puzzles.shareCode, shareCode));
+    return puzzle;
+  }
+
+  async getPuzzles(options: { type?: string; difficulty?: string; creatorId?: string; sortBy?: string; limit?: number; offset?: number; isVerified?: boolean }): Promise<Puzzle[]> {
+    let query = db.select().from(puzzles).where(
+      and(
+        eq(puzzles.isRemoved, false),
+        options.type ? eq(puzzles.puzzleType, options.type as any) : undefined,
+        options.difficulty ? eq(puzzles.difficulty, options.difficulty as any) : undefined,
+        options.creatorId ? eq(puzzles.creatorId, options.creatorId) : undefined,
+        options.isVerified !== undefined ? eq(puzzles.isVerified, options.isVerified) : undefined
+      )
+    );
+
+    if (options.sortBy === 'newest') {
+      query = query.orderBy(desc(puzzles.createdAt)) as any;
+    } else if (options.sortBy === 'popular') {
+      query = query.orderBy(desc(puzzles.upvotes)) as any;
+    } else if (options.sortBy === 'rating') {
+      query = query.orderBy(desc(puzzles.rating)) as any;
+    }
+
+    if (options.limit) {
+      query = query.limit(options.limit) as any;
+    }
+    if (options.offset) {
+      query = query.offset(options.offset) as any;
+    }
+
+    return await query;
+  }
+
+  async getUserCreatedPuzzles(userId: string): Promise<Puzzle[]> {
+    return await db.select().from(puzzles)
+      .where(eq(puzzles.creatorId, userId))
+      .orderBy(desc(puzzles.createdAt));
+  }
+
+  async updatePuzzle(id: string, data: Partial<Puzzle>): Promise<Puzzle> {
+    const [puzzle] = await db.update(puzzles).set(data).where(eq(puzzles.id, id)).returning();
+    return puzzle;
+  }
+
+  async deletePuzzle(id: string): Promise<void> {
+    await db.delete(puzzles).where(eq(puzzles.id, id));
+  }
+
+  async checkDuplicatePuzzle(fen: string): Promise<Puzzle | undefined> {
+    const fenPosition = fen.split(' ')[0];
+    const allPuzzles = await db.select().from(puzzles).where(eq(puzzles.isRemoved, false));
+    return allPuzzles.find(p => p.fen.split(' ')[0] === fenPosition);
+  }
+
+  async createPuzzleVote(voteData: InsertPuzzleVote): Promise<PuzzleVote> {
+    const [vote] = await db.insert(puzzleVotes).values(voteData).returning();
+    
+    const puzzle = await this.getPuzzle(voteData.puzzleId);
+    if (puzzle) {
+      const update = voteData.voteType === 'up' 
+        ? { upvotes: (puzzle.upvotes || 0) + 1 }
+        : { downvotes: (puzzle.downvotes || 0) + 1 };
+      
+      const newUpvotes = voteData.voteType === 'up' ? (puzzle.upvotes || 0) + 1 : puzzle.upvotes || 0;
+      const newDownvotes = voteData.voteType === 'down' ? (puzzle.downvotes || 0) + 1 : puzzle.downvotes || 0;
+      
+      const isVerified = newUpvotes >= 5 && newUpvotes > newDownvotes * 2;
+      const isFlagged = newDownvotes >= 5 && newDownvotes > newUpvotes;
+      
+      await this.updatePuzzle(voteData.puzzleId, { ...update, isVerified, isFlagged });
+      
+      if (puzzle.creatorId && voteData.voteType === 'up') {
+        await this.updateUserPuzzleReputation(puzzle.creatorId, 1);
+      } else if (puzzle.creatorId && voteData.voteType === 'down') {
+        await this.updateUserPuzzleReputation(puzzle.creatorId, -1);
+      }
+    }
+    
+    return vote;
+  }
+
+  async getUserPuzzleVote(userId: string, puzzleId: string): Promise<PuzzleVote | undefined> {
+    const [vote] = await db.select().from(puzzleVotes)
+      .where(and(eq(puzzleVotes.userId, userId), eq(puzzleVotes.puzzleId, puzzleId)));
+    return vote;
+  }
+
+  async updatePuzzleVote(id: string, voteType: string): Promise<PuzzleVote> {
+    const [existingVote] = await db.select().from(puzzleVotes).where(eq(puzzleVotes.id, id));
+    
+    if (existingVote) {
+      const puzzle = await this.getPuzzle(existingVote.puzzleId);
+      if (puzzle) {
+        const oldVoteType = existingVote.voteType;
+        if (oldVoteType !== voteType) {
+          let newUpvotes = puzzle.upvotes || 0;
+          let newDownvotes = puzzle.downvotes || 0;
+          
+          if (oldVoteType === 'up') {
+            newUpvotes = Math.max(0, newUpvotes - 1);
+          } else {
+            newDownvotes = Math.max(0, newDownvotes - 1);
+          }
+          if (voteType === 'up') {
+            newUpvotes = newUpvotes + 1;
+          } else {
+            newDownvotes = newDownvotes + 1;
+          }
+          
+          const isVerified = newUpvotes >= 5 && newUpvotes > newDownvotes * 2;
+          const isFlagged = newDownvotes >= 5 && newDownvotes > newUpvotes;
+          
+          await this.updatePuzzle(existingVote.puzzleId, { 
+            upvotes: newUpvotes, 
+            downvotes: newDownvotes,
+            isVerified,
+            isFlagged 
+          });
+        }
+      }
+    }
+    
+    const [vote] = await db.update(puzzleVotes).set({ voteType }).where(eq(puzzleVotes.id, id)).returning();
+    return vote;
+  }
+
+  async deletePuzzleVote(id: string): Promise<void> {
+    const [existingVote] = await db.select().from(puzzleVotes).where(eq(puzzleVotes.id, id));
+    
+    if (existingVote) {
+      const puzzle = await this.getPuzzle(existingVote.puzzleId);
+      if (puzzle) {
+        const newUpvotes = existingVote.voteType === 'up' 
+          ? Math.max(0, (puzzle.upvotes || 0) - 1) 
+          : puzzle.upvotes || 0;
+        const newDownvotes = existingVote.voteType === 'down' 
+          ? Math.max(0, (puzzle.downvotes || 0) - 1) 
+          : puzzle.downvotes || 0;
+        
+        const isVerified = newUpvotes >= 5 && newUpvotes > newDownvotes * 2;
+        const isFlagged = newDownvotes >= 5 && newDownvotes > newUpvotes;
+        
+        await this.updatePuzzle(existingVote.puzzleId, { 
+          upvotes: newUpvotes, 
+          downvotes: newDownvotes,
+          isVerified,
+          isFlagged 
+        });
+      }
+    }
+    
+    await db.delete(puzzleVotes).where(eq(puzzleVotes.id, id));
+  }
+
+  async createPuzzleReport(reportData: InsertPuzzleReport): Promise<PuzzleReport> {
+    const [report] = await db.insert(puzzleReports).values(reportData).returning();
+    
+    const puzzle = await this.getPuzzle(reportData.puzzleId);
+    if (puzzle) {
+      await this.updatePuzzle(reportData.puzzleId, {
+        reportCount: (puzzle.reportCount || 0) + 1,
+        isFlagged: (puzzle.reportCount || 0) + 1 >= 3,
+      });
+    }
+    
+    return report;
+  }
+
+  async getPuzzleReports(puzzleId?: string, isResolved?: boolean): Promise<PuzzleReport[]> {
+    let conditions = [];
+    if (puzzleId) conditions.push(eq(puzzleReports.puzzleId, puzzleId));
+    if (isResolved !== undefined) conditions.push(eq(puzzleReports.isResolved, isResolved));
+    
+    return await db.select().from(puzzleReports)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(puzzleReports.createdAt));
+  }
+
+  async resolvePuzzleReport(id: string, resolvedById: string): Promise<PuzzleReport> {
+    const [report] = await db.update(puzzleReports)
+      .set({ isResolved: true, resolvedById, resolvedAt: new Date() })
+      .where(eq(puzzleReports.id, id))
+      .returning();
+    return report;
+  }
+
+  async getFlaggedPuzzles(): Promise<Puzzle[]> {
+    return await db.select().from(puzzles)
+      .where(and(eq(puzzles.isFlagged, true), eq(puzzles.isRemoved, false)))
+      .orderBy(desc(puzzles.reportCount));
+  }
+
+  async getPuzzleOfTheDay(): Promise<Puzzle | undefined> {
+    const today = new Date();
+    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+    
+    const verifiedPuzzles = await db.select().from(puzzles)
+      .where(and(eq(puzzles.isVerified, true), eq(puzzles.isRemoved, false)));
+    
+    if (verifiedPuzzles.length === 0) {
+      const allPuzzles = await db.select().from(puzzles).where(eq(puzzles.isRemoved, false));
+      if (allPuzzles.length === 0) return undefined;
+      return allPuzzles[dayOfYear % allPuzzles.length];
+    }
+    
+    return verifiedPuzzles[dayOfYear % verifiedPuzzles.length];
+  }
+
+  async updateUserPuzzleReputation(userId: string, change: number): Promise<void> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (user) {
+      await db.update(users)
+        .set({ puzzleReputation: Math.max(0, (user.puzzleReputation || 0) + change) })
+        .where(eq(users.id, userId));
+    }
+  }
+
+  async updateUserPuzzleSolveStreak(userId: string, solved: boolean): Promise<number> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return 0;
+    
+    const newStreak = solved ? (user.puzzleSolveStreak || 0) + 1 : 0;
+    await db.update(users)
+      .set({ puzzleSolveStreak: newStreak })
+      .where(eq(users.id, userId));
+    return newStreak;
   }
 
   async getUserSettings(userId: string): Promise<UserSettings | undefined> {

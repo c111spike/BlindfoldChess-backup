@@ -46,6 +46,40 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **Bot Training System**: AI opponents with 7 distinct personalities (Balanced, Tactician, Positional, Bishop/Knight Specialist, Aggressor, Defender) and 7 Elo levels (400-2000) for unrated practice.
 - **Board Spin**: Memory and tactics training game. Step 1: Memorize a position. Step 2: Recreate it from memory. Step 3 (optional): Find the best move. Uses Stockfish as a separate process (UCI protocol) for infinite random position generation and best move evaluation. No GPL exposure since Stockfish runs as independent executable.
 
+### User-Created Puzzles
+Community-driven puzzle system allowing players to create, share, solve, and moderate puzzles:
+
+- **Puzzle Creator** (`/puzzles/create`): 3-step wizard with:
+  - Drag-and-drop board editor for position setup
+  - Puzzle types: Mate in 1/2/3/4+, Win a Piece, Positional Advantage, Endgame, Opening Trap, Defensive, Sacrifice
+  - Difficulty levels: Beginner (800-1200), Intermediate (1200-1600), Advanced (1600-2000), Expert (2000+)
+  - Solution moves input with hints system
+  - Source attribution: Original, Book, YouTube, Other
+
+- **Puzzle Browser** (`/puzzles`): Three tabs:
+  - Train: Random puzzle training with progress tracking
+  - Browse: Community puzzles with filtering (type, difficulty, sort by newest/popular/rating)
+  - My Puzzles: Puzzles created by the current user
+
+- **Puzzle Solving** (`/puzzle/:id`): Interactive solving with:
+  - Click-to-move interface with legal move highlighting
+  - Progressive hint system
+  - Solution validation with multiple move format support (SAN, LAN, UCI)
+  - Share functionality via unique share codes
+
+- **Community Voting**: Upvote/downvote system with:
+  - Auto-verification: 5+ net upvotes AND upvotes > 2x downvotes
+  - Auto-flagging: 5+ net downvotes AND downvotes > upvotes
+  - User reputation system (gain/lose reputation from votes)
+  - Solve streak tracking
+
+- **Moderation System**:
+  - Report reasons: Incorrect Solution, Duplicate, Impossible Position, Inappropriate, Other
+  - Admin endpoints for flagged puzzles, report resolution, verification, and removal
+  - Ownership checks: Only creators or admins can edit/delete puzzles
+
+- **Database Tables**: `puzzles` (with metadata), `puzzleVotes`, `puzzleReports`, plus user fields (`isAdmin`, `puzzleReputation`, `puzzleSolveStreak`)
+
 ### Post-Game Analysis System
 After each game, players access the analysis page from Game History with two tabbed modes:
 

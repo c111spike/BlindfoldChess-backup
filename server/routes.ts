@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema } from "@shared/schema";
+import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema, insertPuzzleSchema, insertPuzzleVoteSchema, insertPuzzleReportSchema } from "@shared/schema";
 import { createQueueManager } from "./queueManager";
 import { generatePosition, calculateScore, getAllDifficulties } from "./positionGenerator";
 import { stockfishService } from "./stockfish";
@@ -1419,10 +1419,306 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const attempt = await storage.createPuzzleAttempt(attemptData);
+      
+      if (attempt.solved) {
+        await storage.updateUserPuzzleSolveStreak(userId, true);
+      } else {
+        await storage.updateUserPuzzleSolveStreak(userId, false);
+      }
+      
       res.json(attempt);
     } catch (error) {
       console.error("Error creating puzzle attempt:", error);
       res.status(500).json({ message: "Failed to record puzzle attempt" });
+    }
+  });
+
+  app.get('/api/puzzles', isAuthenticated, async (req: any, res) => {
+    try {
+      const { type, difficulty, creatorId, sortBy, limit, offset, isVerified } = req.query;
+      const puzzles = await storage.getPuzzles({
+        type,
+        difficulty,
+        creatorId,
+        sortBy: sortBy || 'newest',
+        limit: limit ? parseInt(limit) : 20,
+        offset: offset ? parseInt(offset) : 0,
+        isVerified: isVerified !== undefined ? isVerified === 'true' : undefined,
+      });
+      res.json(puzzles);
+    } catch (error) {
+      console.error("Error fetching puzzles:", error);
+      res.status(500).json({ message: "Failed to fetch puzzles" });
+    }
+  });
+
+  app.get('/api/puzzles/my-puzzles', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const puzzles = await storage.getUserCreatedPuzzles(userId);
+      res.json(puzzles);
+    } catch (error) {
+      console.error("Error fetching user puzzles:", error);
+      res.status(500).json({ message: "Failed to fetch your puzzles" });
+    }
+  });
+
+  app.get('/api/puzzles/of-the-day', async (_req, res) => {
+    try {
+      const puzzle = await storage.getPuzzleOfTheDay();
+      if (!puzzle) {
+        return res.status(404).json({ message: "No puzzle of the day available" });
+      }
+      res.json(puzzle);
+    } catch (error) {
+      console.error("Error fetching puzzle of the day:", error);
+      res.status(500).json({ message: "Failed to fetch puzzle of the day" });
+    }
+  });
+
+  app.get('/api/puzzles/share/:shareCode', async (req, res) => {
+    try {
+      const puzzle = await storage.getPuzzleByShareCode(req.params.shareCode);
+      if (!puzzle) {
+        return res.status(404).json({ message: "Puzzle not found" });
+      }
+      res.json(puzzle);
+    } catch (error) {
+      console.error("Error fetching shared puzzle:", error);
+      res.status(500).json({ message: "Failed to fetch puzzle" });
+    }
+  });
+
+  app.get('/api/puzzles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const puzzle = await storage.getPuzzle(req.params.id);
+      if (!puzzle) {
+        return res.status(404).json({ message: "Puzzle not found" });
+      }
+      
+      const userId = req.user.claims.sub;
+      const userVote = await storage.getUserPuzzleVote(userId, puzzle.id);
+      
+      res.json({ ...puzzle, userVote: userVote?.voteType || null });
+    } catch (error) {
+      console.error("Error fetching puzzle:", error);
+      res.status(500).json({ message: "Failed to fetch puzzle" });
+    }
+  });
+
+  app.post('/api/puzzles', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const existingPuzzle = await storage.checkDuplicatePuzzle(req.body.fen);
+      if (existingPuzzle) {
+        return res.status(400).json({ message: "A puzzle with this position already exists" });
+      }
+      
+      const puzzleData = insertPuzzleSchema.parse({
+        ...req.body,
+        creatorId: userId,
+      });
+      
+      const puzzle = await storage.createPuzzle(puzzleData);
+      
+      await storage.updateUserPuzzleReputation(userId, 5);
+      
+      res.json(puzzle);
+    } catch (error) {
+      console.error("Error creating puzzle:", error);
+      res.status(500).json({ message: "Failed to create puzzle" });
+    }
+  });
+
+  app.patch('/api/puzzles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const puzzle = await storage.getPuzzle(req.params.id);
+      
+      if (!puzzle) {
+        return res.status(404).json({ message: "Puzzle not found" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (puzzle.creatorId !== userId && !user?.isAdmin) {
+        return res.status(403).json({ message: "Not authorized to edit this puzzle" });
+      }
+      
+      const updatedPuzzle = await storage.updatePuzzle(req.params.id, req.body);
+      res.json(updatedPuzzle);
+    } catch (error) {
+      console.error("Error updating puzzle:", error);
+      res.status(500).json({ message: "Failed to update puzzle" });
+    }
+  });
+
+  app.delete('/api/puzzles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const puzzle = await storage.getPuzzle(req.params.id);
+      
+      if (!puzzle) {
+        return res.status(404).json({ message: "Puzzle not found" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (puzzle.creatorId !== userId && !user?.isAdmin) {
+        return res.status(403).json({ message: "Not authorized to delete this puzzle" });
+      }
+      
+      await storage.deletePuzzle(req.params.id);
+      res.json({ message: "Puzzle deleted" });
+    } catch (error) {
+      console.error("Error deleting puzzle:", error);
+      res.status(500).json({ message: "Failed to delete puzzle" });
+    }
+  });
+
+  app.post('/api/puzzles/:id/vote', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const puzzleId = req.params.id;
+      const { voteType } = req.body;
+      
+      if (!['up', 'down'].includes(voteType)) {
+        return res.status(400).json({ message: "Invalid vote type" });
+      }
+      
+      const puzzle = await storage.getPuzzle(puzzleId);
+      if (!puzzle) {
+        return res.status(404).json({ message: "Puzzle not found" });
+      }
+      
+      if (puzzle.creatorId === userId) {
+        return res.status(400).json({ message: "Cannot vote on your own puzzle" });
+      }
+      
+      const existingVote = await storage.getUserPuzzleVote(userId, puzzleId);
+      
+      if (existingVote) {
+        if (existingVote.voteType === voteType) {
+          await storage.deletePuzzleVote(existingVote.id);
+          return res.json({ message: "Vote removed" });
+        } else {
+          const vote = await storage.updatePuzzleVote(existingVote.id, voteType);
+          return res.json(vote);
+        }
+      }
+      
+      const vote = await storage.createPuzzleVote({
+        userId,
+        puzzleId,
+        voteType,
+      });
+      
+      res.json(vote);
+    } catch (error) {
+      console.error("Error voting on puzzle:", error);
+      res.status(500).json({ message: "Failed to vote" });
+    }
+  });
+
+  app.post('/api/puzzles/:id/report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const puzzleId = req.params.id;
+      const { reason, description } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ message: "Report reason is required" });
+      }
+      
+      const puzzle = await storage.getPuzzle(puzzleId);
+      if (!puzzle) {
+        return res.status(404).json({ message: "Puzzle not found" });
+      }
+      
+      const report = await storage.createPuzzleReport({
+        puzzleId,
+        reporterId: userId,
+        reason,
+        description,
+      });
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Error reporting puzzle:", error);
+      res.status(500).json({ message: "Failed to report puzzle" });
+    }
+  });
+
+  const isAdmin = async (req: any, res: any, next: any) => {
+    const userId = req.user.claims.sub;
+    const user = await storage.getUser(userId);
+    if (!user?.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    next();
+  };
+
+  app.get('/api/admin/puzzles/flagged', isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const puzzles = await storage.getFlaggedPuzzles();
+      res.json(puzzles);
+    } catch (error) {
+      console.error("Error fetching flagged puzzles:", error);
+      res.status(500).json({ message: "Failed to fetch flagged puzzles" });
+    }
+  });
+
+  app.get('/api/admin/puzzles/reports', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { puzzleId, isResolved } = req.query;
+      const reports = await storage.getPuzzleReports(
+        puzzleId as string | undefined,
+        isResolved !== undefined ? isResolved === 'true' : undefined
+      );
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ message: "Failed to fetch reports" });
+    }
+  });
+
+  app.post('/api/admin/puzzles/:id/verify', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const puzzle = await storage.updatePuzzle(req.params.id, { isVerified: true, isFlagged: false });
+      res.json(puzzle);
+    } catch (error) {
+      console.error("Error verifying puzzle:", error);
+      res.status(500).json({ message: "Failed to verify puzzle" });
+    }
+  });
+
+  app.post('/api/admin/puzzles/:id/remove', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const puzzle = await storage.updatePuzzle(req.params.id, { isRemoved: true });
+      res.json(puzzle);
+    } catch (error) {
+      console.error("Error removing puzzle:", error);
+      res.status(500).json({ message: "Failed to remove puzzle" });
+    }
+  });
+
+  app.post('/api/admin/puzzles/:id/unflag', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const puzzle = await storage.updatePuzzle(req.params.id, { isFlagged: false, reportCount: 0 });
+      res.json(puzzle);
+    } catch (error) {
+      console.error("Error unflagging puzzle:", error);
+      res.status(500).json({ message: "Failed to unflag puzzle" });
+    }
+  });
+
+  app.post('/api/admin/reports/:id/resolve', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const report = await storage.resolvePuzzleReport(req.params.id, userId);
+      res.json(report);
+    } catch (error) {
+      console.error("Error resolving report:", error);
+      res.status(500).json({ message: "Failed to resolve report" });
     }
   });
 

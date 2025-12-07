@@ -26,6 +26,7 @@ import {
   Crown,
   Navigation,
   Users,
+  Puzzle,
 } from "lucide-react";
 import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
 
@@ -69,6 +70,11 @@ const menuItems = [
     title: "Knight's Tour",
     url: "/knights-tour",
     icon: Navigation,
+  },
+  {
+    title: "Puzzles",
+    url: "/puzzles",
+    icon: Puzzle,
   },
   {
     title: "Game History",

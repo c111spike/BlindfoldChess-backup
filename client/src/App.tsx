@@ -26,6 +26,9 @@ import Settings from "@/pages/settings";
 import GameAnalysis from "@/pages/game-analysis";
 import SimulVsSimulMode from "@/pages/simul-vs-simul-mode";
 import SimulMatchReview from "@/pages/simul-match-review";
+import PuzzleCreator from "@/pages/puzzle-creator";
+import Puzzles from "@/pages/puzzles";
+import PuzzleSolve from "@/pages/puzzle-solve";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -55,6 +58,9 @@ function Router() {
       <Route path="/analysis/:gameId" component={GameAnalysis} />
       <Route path="/analysis/shared/:shareCode" component={GameAnalysis} />
       <Route path="/simul-match/:matchId" component={SimulMatchReview} />
+      <Route path="/puzzles" component={Puzzles} />
+      <Route path="/puzzles/create" component={PuzzleCreator} />
+      <Route path="/puzzle/:id" component={PuzzleSolve} />
       <Route component={NotFound} />
     </Switch>
   );
