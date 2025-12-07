@@ -343,11 +343,11 @@ function getMoveSequenceKey(moveHistory: string[]): string {
 }
 
 function selectWeightedMove(moves: BookMove[], personality: BotPersonality): BookMove {
-  const stylePreference = PERSONALITY_STYLE_PREFERENCE[personality];
+  const stylePreference = PERSONALITY_STYLE_PREFERENCE[personality] || PERSONALITY_STYLE_PREFERENCE.balanced;
   
   const adjustedMoves = moves.map(m => {
     let weight = m.weight;
-    if (m.style) {
+    if (m.style && stylePreference) {
       const styleIndex = stylePreference.indexOf(m.style);
       if (styleIndex !== -1) {
         const multiplier = [2.0, 1.5, 1.0, 0.6][styleIndex];

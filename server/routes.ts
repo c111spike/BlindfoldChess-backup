@@ -2872,7 +2872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
-          console.log(`[SimulWS] User ${userId} joining simul match ${matchId}`);
+          console.log(`[SimulWS] User ${userId} (type: ${typeof userId}) joining simul match ${matchId}`);
           
           try {
             const match = await storage.getSimulVsSimulMatch(matchId);
@@ -2889,6 +2889,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Get player's games and add to pairing rooms
             const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, userId);
+            
+            console.log(`[SimulWS] Found ${playerGames.length} games for user ${userId} in match ${matchId}`);
+            console.log(`[SimulWS] Game details:`, playerGames.map(p => ({
+              id: p.id,
+              whitePlayerId: p.whitePlayerId,
+              blackPlayerId: p.blackPlayerId,
+              boardNumWhite: p.boardNumberWhite,
+              boardNumBlack: p.boardNumberBlack
+            })));
             
             for (const pairing of playerGames) {
               if (!simulPairingRooms.has(pairing.id)) {
@@ -2938,6 +2947,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Get all players info for the match
             const allPlayers = await storage.getSimulVsSimulMatchPlayers(matchId);
             
+            console.log(`[SimulWS] All players in match:`, allPlayers.map(p => ({
+              odId: p.odId,
+              isBot: p.isBot,
+              botPersonality: p.botPersonality,
+              seat: p.odnt
+            })));
+            
             // Send join confirmation with full match data
             ws.send(JSON.stringify({
               type: 'simul_joined',
@@ -2973,6 +2989,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }));
             
             console.log(`[SimulWS] User ${userId} joined simul match ${matchId} with ${playerGames.length} boards`);
+            console.log(`[SimulWS] Sending ${playerGames.length} boards and ${allPlayers.length} players to client`);
             
             // Trigger initial bot moves for games where white is a bot
             // Only do this once per pairing - use a Set to track which we've started

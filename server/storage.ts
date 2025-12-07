@@ -1485,7 +1485,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSimulVsSimulPlayerGames(matchId: string, odId: string): Promise<SimulVsSimulPairing[]> {
-    return db
+    console.log(`[Storage] getSimulVsSimulPlayerGames called with matchId=${matchId}, odId=${odId}`);
+    const results = await db
       .select()
       .from(simulVsSimulPairings)
       .where(
@@ -1498,6 +1499,8 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(simulVsSimulPairings.createdAt);
+    console.log(`[Storage] getSimulVsSimulPlayerGames returned ${results.length} pairings for odId=${odId}`);
+    return results;
   }
 
   async getSimulVsSimulPairing(pairingId: string): Promise<SimulVsSimulPairing | undefined> {
@@ -1543,11 +1546,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(simulVsSimulPlayers.odId, userId),
-          or(
-            eq(simulVsSimulMatches.status, "waiting"),
-            eq(simulVsSimulMatches.status, "starting"),
-            eq(simulVsSimulMatches.status, "in_progress")
-          )
+          eq(simulVsSimulMatches.status, "in_progress")
         )
       );
     return player?.simul_vs_simul_matches;
