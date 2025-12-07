@@ -6,17 +6,21 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 // User-provided facts - parsed from plain text
 const userFacts = [
   // World Championship History
-  "The first unofficial World Chess Champion is often considered to be Pedro Damiano (16th century).",
-  "The 1886 Steinitz match was played across three American cities: New York, St. Louis, and New Orleans.",
-  "José Raúl Capablanca was undefeated for eight years (1916-1924) in serious classical play.",
-  "In the 1930s, Mikhail Botvinnik began applying scientific training methods that became standard for modern preparation.",
-  "The 1948 World Championship establishing the cycle after Alekhine's death was held in The Hague and Moscow.",
-  "The 1984-85 Karpov vs Kasparov match was controversially ended after 48 games by FIDE President Campomanes.",
-  "Viswanathan Anand was the first to win the World Championship in three formats (Knockout, Tournament, Match).",
-  "The Candidates Tournament is the final event to select the challenger to the reigning World Champion.",
-  "Ding Liren became the first Chinese male World Champion after winning the 2023 match against Nepomniachtchi.",
-  "Mikhail Botvinnik was the first player to successfully defend the title in the FIDE era (since 1948).",
-  "Anatoly Karpov won the 1975 World Championship by forfeit when Bobby Fischer refused to defend his title."
+  "Garry Kasparov split from FIDE in 1993 to create the Professional Chess Association (PCA).",
+  "The 2024 World Championship was the first in 100+ years with two Challengers due to Carlsen's withdrawal.",
+  "The official FIDE World Championship trophy is named the 'Kasparov-Karpov' trophy.",
+  
+  // Pieces, Notation, and Equipment
+  "Algebraic Notation (e.g., e4, Nf3) was standardized in the 19th century; Descriptive Notation was used before.",
+  "In Descriptive Notation, the square c1 would be known as QR1 (Queen's Rook 1).",
+  "A Bishop Pair is often considered a long-term advantage, especially in open positions.",
+  "The King uses 'K' in notation while the Knight uses 'N' to avoid confusion.",
+  "The Knight is often nicknamed 'The Horse' in common chess parlance.",
+  "A 'Battery' refers to lining up two pieces (often Queen and Bishop/Rook) to attack along the same line.",
+  "The earliest chess clocks were sandglasses, used at the London Tournament in 1862.",
+  "Modern tournaments use digital clocks with increment or delay time controls (e.g., Fischer Delay).",
+  "Fischer Delay, invented by Bobby Fischer, gives a fixed time delay before the clock counts down each move.",
+  "Increment time control adds a fixed amount of time (e.g., 30 seconds) to a player's clock after every move."
 ];
 
 // Get all dates sorted by number of facts (ascending)

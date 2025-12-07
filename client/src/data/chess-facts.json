@@ -7294,6 +7294,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Garry Kasparov split from FIDE in 1993 to create the Professional Chess Association (PCA).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-20": [
@@ -7384,6 +7391,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 2024 World Championship was the first in 100+ years with two Challengers due to Carlsen's withdrawal.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-23": [
@@ -7407,6 +7421,13 @@
       "year": 2006,
       "name": "Rudolf Teschner",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The official FIDE World Championship trophy is named the 'Kasparov-Karpov' trophy.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-24": [
@@ -7430,6 +7451,13 @@
       "year": 1975,
       "name": "Nicolas Rossolimo",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Algebraic Notation (e.g., e4, Nf3) was standardized in the 19th century; Descriptive Notation was used before.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-25": [
@@ -7497,6 +7525,13 @@
       "year": 1971,
       "name": "Vladimir Petkov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In Descriptive Notation, the square c1 would be known as QR1 (Queen's Rook 1).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-27": [
@@ -7517,6 +7552,13 @@
     {
       "type": "fun_fact",
       "text": "The alternating light and dark squares on the chessboard first appeared in Europe around 1090.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A Bishop Pair is often considered a long-term advantage, especially in open positions.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -7617,6 +7659,13 @@
       "year": 1975,
       "name": "Tomasz Markowski",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The King uses 'K' in notation while the Knight uses 'N' to avoid confusion.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-31": [
@@ -7677,6 +7726,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Knight is often nicknamed 'The Horse' in common chess parlance.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-02": [
@@ -7697,6 +7753,13 @@
     {
       "type": "fun_fact",
       "text": "In early chess (Shatranj), stalemate was considered a win for the stalemated player.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A 'Battery' refers to lining up two pieces (often Queen and Bishop/Rook) to attack along the same line.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -7723,6 +7786,13 @@
       "year": 1979,
       "name": "Andrey Rychagov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The earliest chess clocks were sandglasses, used at the London Tournament in 1862.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-04": [
@@ -7945,6 +8015,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Modern tournaments use digital clocks with increment or delay time controls (e.g., Fischer Delay).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-10": [
@@ -8160,6 +8237,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Fischer Delay, invented by Bobby Fischer, gives a fixed time delay before the clock counts down each move.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-16": [
@@ -8270,6 +8354,13 @@
     {
       "type": "fun_fact",
       "text": "The Rook was originally a chariot (Ratha in Sanskrit), later becoming Rukh (Persian for chariot/tower).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Increment time control adds a fixed amount of time (e.g., 30 seconds) to a player's clock after every move.",
       "year": null,
       "name": null,
       "source": "Chess History"
