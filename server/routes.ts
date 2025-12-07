@@ -1911,6 +1911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Helper: Compute next focus board using priority algorithm
   // Priority: (1) your turn, (2) lowest move count, (3) lowest board number
+  // Returns null if only 1 or fewer ongoing games (no need to auto-switch)
   function computeAutoSwitchTarget(
     playerId: string,
     pairings: Array<{
@@ -1925,7 +1926,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   ): string | null {
     // Filter to only ongoing games
     const activeGames = pairings.filter(p => p.result === 'ongoing');
-    if (activeGames.length === 0) return null;
+    
+    // Don't auto-switch if only 1 or fewer active games remain
+    if (activeGames.length <= 1) {
+      return null;
+    }
     
     // Sort by priority: your turn first, then lowest moves, then lowest board
     const sorted = [...activeGames].sort((a, b) => {
@@ -1943,7 +1948,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return a.boardNumber - b.boardNumber;
     });
     
-    return sorted[0]?.id || currentPairingId;
+    const targetId = sorted[0]?.id;
+    
+    // Don't switch to the same board we're already on
+    if (targetId === currentPairingId) {
+      return null;
+    }
+    
+    return targetId || null;
   }
   
   // Helper: Send focus update to a player
@@ -2113,15 +2125,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timer.blackTimeRemaining = SIMUL_TURN_TIMER_SECONDS;
         }
         
-        // Check if human opponent is focused on this board
+        // Check if human opponent is focused on this board with confirmed focus
         const humanPlayerId = isWhiteTurn ? pairing.blackPlayerId : pairing.whitePlayerId;
         if (humanPlayerId) {
           const matchFocus = simulPlayerFocus.get(pairing.matchId);
           const humanFocus = matchFocus?.get(humanPlayerId);
           
-          if (humanFocus?.activePairingId === pairingId) {
+          // Only start timer if opponent has confirmed focus on this board (not pending ack)
+          if (humanFocus?.activePairingId === pairingId && !humanFocus?.pendingAck) {
             timer.isPaused = false;
             timer.deadline = Date.now() + (SIMUL_TURN_TIMER_SECONDS * 1000);
+            console.log(`[SimulTimer] Started timer for ${humanPlayerId} after bot move on pairing ${pairingId}`);
           } else {
             timer.isPaused = true;
             timer.deadline = null;
@@ -3078,17 +3092,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 timer.blackTimeRemaining = SIMUL_TURN_TIMER_SECONDS;
               }
               
-              // Check if opponent is focused on this board to start their timer
+              // Check if opponent is focused on this board with confirmed focus to start their timer
               const matchFocus = simulPlayerFocus.get(pairing.matchId);
               const opponentId = isWhite ? pairing.blackPlayerId : pairing.whitePlayerId;
-              const opponentFocus = matchFocus?.get(opponentId);
+              const opponentFocus = opponentId ? matchFocus?.get(opponentId) : null;
               
-              if (opponentFocus?.activePairingId === pairingId) {
-                // Opponent is watching, start their timer
+              // Only start timer if opponent has confirmed focus on this board (not pending ack)
+              if (opponentFocus?.activePairingId === pairingId && !opponentFocus?.pendingAck) {
+                // Opponent is watching with confirmed focus, start their timer
                 timer.isPaused = false;
                 timer.deadline = Date.now() + (SIMUL_TURN_TIMER_SECONDS * 1000);
+                console.log(`[SimulTimer] Started timer for ${opponentId} after human move on pairing ${pairingId}`);
               } else {
-                // Opponent not watching, pause timer
+                // Opponent not watching or focus not confirmed, pause timer
                 timer.isPaused = true;
                 timer.deadline = null;
               }
@@ -3262,31 +3278,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
-          // Clear pending ack state
+          // Clear pending ack state if set
           if (playerFocus.pendingAck) {
             playerFocus.pendingAck = false;
             playerFocus.pendingAckTimestamp = 0;
-            
-            // Now start the timer if it's this player's turn
-            const timer = simulTimers.get(pairingId);
-            if (timer && timer.isPaused) {
-              try {
-                const pairing = await storage.getSimulVsSimulPairing(pairingId);
-                if (pairing && pairing.result === 'ongoing') {
-                  const playerColor = pairing.whitePlayerId === userId ? 'white' : 'black';
-                  if (timer.turn === playerColor) {
-                    // It's our turn, start the timer now that focus is confirmed
-                    const timeRemaining = playerColor === 'white' 
-                      ? timer.whiteTimeRemaining 
-                      : timer.blackTimeRemaining;
-                    timer.isPaused = false;
-                    timer.deadline = Date.now() + (timeRemaining * 1000);
-                    sendSimulTimerState(pairingId, timer);
-                  }
+          }
+          
+          // Always try to start timer if it's this player's turn and timer is paused
+          // This handles both initial focus (white's first move) and manual switches
+          const timer = simulTimers.get(pairingId);
+          if (timer && timer.isPaused) {
+            try {
+              const pairing = await storage.getSimulVsSimulPairing(pairingId);
+              if (pairing && pairing.result === 'ongoing') {
+                const playerColor = pairing.whitePlayerId === userId ? 'white' : 'black';
+                if (timer.turn === playerColor) {
+                  // It's our turn, start the timer now that focus is confirmed
+                  const timeRemaining = playerColor === 'white' 
+                    ? timer.whiteTimeRemaining 
+                    : timer.blackTimeRemaining;
+                  timer.isPaused = false;
+                  timer.deadline = Date.now() + (timeRemaining * 1000);
+                  console.log(`[SimulTimer] Started timer for ${userId} on pairing ${pairingId} (${timeRemaining}s remaining)`);
+                  sendSimulTimerState(pairingId, timer);
                 }
-              } catch (error) {
-                console.error('[SimulWS] Error starting timer after ack:', error);
               }
+            } catch (error) {
+              console.error('[SimulWS] Error starting timer after ack:', error);
             }
           }
           

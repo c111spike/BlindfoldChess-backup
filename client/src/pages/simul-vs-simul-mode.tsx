@@ -78,6 +78,52 @@ export default function SimulVsSimulMode() {
     };
   }, []);
   
+  // Client-side countdown timer - decrements active board's timer every second
+  useEffect(() => {
+    if (!gameStarted || matchComplete) {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
+    }
+    
+    timerIntervalRef.current = setInterval(() => {
+      setBoards(prevBoards => {
+        if (prevBoards.length === 0) return prevBoards;
+        
+        // Find the active board
+        const activeBoardData = prevBoards[activeBoard];
+        if (!activeBoardData) return prevBoards;
+        
+        // Only decrement if it's player's turn and game is ongoing
+        const isPlayerTurn = activeBoardData.activeColor === activeBoardData.color;
+        if (!isPlayerTurn || activeBoardData.result !== 'ongoing') {
+          return prevBoards;
+        }
+        
+        // Decrement the timer for the active board
+        const newBoards = [...prevBoards];
+        const currentTime = newBoards[activeBoard].timeRemaining;
+        if (currentTime > 0) {
+          newBoards[activeBoard] = {
+            ...newBoards[activeBoard],
+            timeRemaining: currentTime - 1,
+          };
+        }
+        
+        return newBoards;
+      });
+    }, 1000);
+    
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [gameStarted, matchComplete, activeBoard]);
+  
   const connectWebSocket = useCallback(() => {
     if (!user?.id || wsRef.current?.readyState === WebSocket.OPEN) return;
     
@@ -125,6 +171,18 @@ export default function SimulVsSimulMode() {
         if (focusIndex >= 0) {
           setActiveBoard(focusIndex);
         }
+        
+        // Send initial focus acknowledgment to start the timer
+        // Use setTimeout to ensure wsRef is properly set
+        setTimeout(() => {
+          if (data.initialFocus && wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+              type: 'simul_focus_ack',
+              matchId: data.matchId,
+              pairingId: data.initialFocus,
+            }));
+          }
+        }, 100);
         
         toast({
           title: "Match found!",

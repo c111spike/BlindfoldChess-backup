@@ -131,12 +131,12 @@ export default function Dashboard() {
             </div>
             <CardTitle className="text-primary-foreground text-2xl">Simul vs Simul</CardTitle>
             <CardDescription className="text-primary-foreground/80">
-              2-10 boards<br />30 seconds/move<br />Once you start on a board.
+              5 boards<br />30 seconds/move<br />Once you start on a board.
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-simul">
-              <Link href="/simul">Start Simul</Link>
+            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-simul-vs-simul">
+              <Link href="/simul-vs-simul">Start Simul vs Simul</Link>
             </Button>
           </CardContent>
         </Card>
