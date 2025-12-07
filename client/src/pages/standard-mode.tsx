@@ -45,12 +45,12 @@ const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classica
 };
 
 const BLINDFOLD_CONFIG = {
-  easy: { maxPeeks: Number.POSITIVE_INFINITY, peekDuration: 3000 },
-  medium: { maxPeeks: 20, peekDuration: 3000 },
-  hard: { maxPeeks: 15, peekDuration: 2500 },
-  expert: { maxPeeks: 10, peekDuration: 2000 },
-  master: { maxPeeks: 5, peekDuration: 1500 },
-  grandmaster: { maxPeeks: 0, peekDuration: 0 },
+  easy: { maxPeeks: Number.POSITIVE_INFINITY },
+  medium: { maxPeeks: 20 },
+  hard: { maxPeeks: 15 },
+  expert: { maxPeeks: 10 },
+  master: { maxPeeks: 5 },
+  grandmaster: { maxPeeks: 0 },
 };
 
 export default function StandardMode() {
@@ -101,8 +101,8 @@ export default function StandardMode() {
   
   const [remainingPeeks, setRemainingPeeks] = useState<number>(Number.POSITIVE_INFINITY);
   const [isPeeking, setIsPeeking] = useState(false);
-  const [peekCountdown, setPeekCountdown] = useState<number>(0);
-  const peekTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const peekButtonRef = useRef<HTMLDivElement>(null);
+  const peekKeyHeldRef = useRef<boolean>(false);
   
   const [showBotSelection, setShowBotSelection] = useState(false);
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
@@ -238,10 +238,6 @@ export default function StandardMode() {
       clearInterval(clockIntervalRef.current);
       clockIntervalRef.current = null;
     }
-    if (peekTimerRef.current) {
-      clearInterval(peekTimerRef.current);
-      peekTimerRef.current = null;
-    }
     gameCompletionInProgressRef.current = false;
     setGame(null);
     setGameId(null);
@@ -261,7 +257,6 @@ export default function StandardMode() {
     setPlayerColor("white");
     setIncrement(0);
     setIsPeeking(false);
-    setPeekCountdown(0);
     setActiveBlindfoldDifficulty(null);
     setIsBotGame(false);
     setSelectedBot(null);
@@ -1107,48 +1102,43 @@ export default function StandardMode() {
     });
   };
 
-  const handlePeek = () => {
+  const handlePeekStart = () => {
     if (!isBlindfold || remainingPeeks <= 0 || isPeeking) return;
     
     // Use locked difficulty if in a game, otherwise use current setting
     const effectiveDifficulty = activeBlindfoldDifficulty || userSettings?.blindfoldDifficulty || 'easy';
     const config = BLINDFOLD_CONFIG[effectiveDifficulty as keyof typeof BLINDFOLD_CONFIG];
     
-    if (config.peekDuration === 0) return;
+    if (config.maxPeeks === 0) return;
     
     if (isFinite(config.maxPeeks)) {
       setRemainingPeeks(prev => prev - 1);
     }
     
     setIsPeeking(true);
-    setPeekCountdown(config.peekDuration);
-    
-    const startTime = Date.now();
-    const endTime = startTime + config.peekDuration;
-    
-    peekTimerRef.current = setInterval(() => {
-      const remaining = Math.max(0, endTime - Date.now());
-      setPeekCountdown(remaining);
-      
-      if (remaining <= 0 && peekTimerRef.current) {
-        clearInterval(peekTimerRef.current);
-        peekTimerRef.current = null;
-        setIsPeeking(false);
-        setPeekCountdown(0);
+  };
+
+  const handlePeekEnd = () => {
+    setIsPeeking(false);
+  };
+
+  const handlePeekKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === ' ' || e.key === 'Enter')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) {
+        if (isPeeking) {
+          handlePeekEnd();
+        } else {
+          handlePeekStart();
+        }
       }
-    }, 100);
+    }
   };
   
   useEffect(() => {
-    // Clean up any active peek timer
-    if (peekTimerRef.current) {
-      clearInterval(peekTimerRef.current);
-      peekTimerRef.current = null;
-    }
-    
     // Reset peek state
     setIsPeeking(false);
-    setPeekCountdown(0);
     
     // Determine which difficulty to use: active game difficulty takes precedence
     const effectiveDifficulty = activeBlindfoldDifficulty || userSettings?.blindfoldDifficulty;
@@ -1161,14 +1151,6 @@ export default function StandardMode() {
       // Not in blindfold mode - reset to infinity (doesn't matter)
       setRemainingPeeks(Number.POSITIVE_INFINITY);
     }
-    
-    // Cleanup function for when effect re-runs or component unmounts
-    return () => {
-      if (peekTimerRef.current) {
-        clearInterval(peekTimerRef.current);
-        peekTimerRef.current = null;
-      }
-    };
   }, [isBlindfold, activeBlindfoldDifficulty, userSettings?.blindfoldDifficulty]);
 
   return (
@@ -1500,7 +1482,7 @@ export default function StandardMode() {
                   
                   {isBlindfold && !isPeeking && (
                     <div className="absolute inset-0 bg-black pointer-events-none overflow-visible">
-                      <svg className="w-full h-full" viewBox="0 0 8 8" preserveAspectRatio="none">
+                      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 8 8" preserveAspectRatio="none">
                         {Array.from({ length: 9 }).map((_, i) => (
                           <line
                             key={`h-${i}`}
@@ -1530,21 +1512,30 @@ export default function StandardMode() {
                 
                 {isBlindfold && (userSettings?.blindfoldDifficulty !== 'grandmaster') && (
                   <div className="flex flex-col items-center gap-2 py-2">
-                    {isPeeking && peekCountdown > 0 && (
-                      <div className="text-2xl font-mono font-bold text-primary" data-testid="text-peek-countdown">
-                        {(peekCountdown / 1000).toFixed(1)}s
-                      </div>
-                    )}
-                    <Button
-                      onClick={handlePeek}
-                      variant="outline"
-                      size="lg"
-                      disabled={remainingPeeks === 0 || isPeeking}
+                    <div
+                      ref={peekButtonRef}
+                      role="button"
+                      tabIndex={remainingPeeks === 0 ? -1 : 0}
+                      onMouseDown={handlePeekStart}
+                      onMouseUp={handlePeekEnd}
+                      onMouseLeave={handlePeekEnd}
+                      onTouchStart={handlePeekStart}
+                      onTouchEnd={handlePeekEnd}
+                      onTouchCancel={handlePeekEnd}
+                      onKeyDown={handlePeekKeyDown}
+                      className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-10 px-8 select-none cursor-pointer ${
+                        remainingPeeks === 0 
+                          ? "pointer-events-none opacity-50 border border-input bg-background" 
+                          : isPeeking 
+                            ? "bg-primary text-primary-foreground shadow hover:bg-primary/90" 
+                            : "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
+                      }`}
+                      aria-disabled={remainingPeeks === 0}
                       data-testid="button-peek"
                     >
                       <Eye className="mr-2 h-5 w-5" />
-                      Peek
-                    </Button>
+                      {isPeeking ? "Peeking..." : "Hold to Peek"}
+                    </div>
                     <div className="text-sm text-muted-foreground" data-testid="text-remaining-peeks">
                       {!isFinite(remainingPeeks) ? (
                         <span className="flex items-center gap-1">
@@ -1554,6 +1545,14 @@ export default function StandardMode() {
                         <span>{remainingPeeks} peeks left</span>
                       )}
                     </div>
+                    {lastMove && moves.length > 0 && (
+                      <div className="mt-2 bg-muted border border-border px-4 py-2 rounded-lg">
+                        <div className="text-xs text-muted-foreground text-center">Last move</div>
+                        <div className="text-lg font-mono font-bold text-center" data-testid="text-last-move">
+                          {moves[moves.length - 1]}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 
