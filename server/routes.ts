@@ -1927,9 +1927,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Filter to only ongoing games
     const activeGames = pairings.filter(p => p.result === 'ongoing');
     
-    // Don't auto-switch if only 1 or fewer active games remain
-    if (activeGames.length <= 1) {
+    // If no active games remain, nothing to switch to
+    if (activeGames.length === 0) {
       return null;
+    }
+    
+    // If exactly 1 active game, switch to it if not already there
+    if (activeGames.length === 1) {
+      const lastGame = activeGames[0];
+      if (lastGame.id === currentPairingId) {
+        return null; // Already on the last active game
+      }
+      console.log(`[AutoSwitch] Switching to last remaining board ${lastGame.boardNumber}`);
+      return lastGame.id;
     }
     
     // Sort by priority: your turn first, then lowest moves, then lowest board
