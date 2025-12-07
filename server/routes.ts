@@ -3361,19 +3361,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Get player names for the game record
             const matchPlayers = await storage.getSimulVsSimulMatchPlayers(pairing.matchId);
-            const whitePlayer = !pairing.whiteIsBot && pairing.whitePlayerId 
+            const whitePlayerInfo = !pairing.whiteIsBot && pairing.whitePlayerId 
               ? matchPlayers.find(mp => mp.odId === pairing.whitePlayerId) 
               : null;
-            const blackPlayer = !pairing.blackIsBot && pairing.blackPlayerId 
+            const blackPlayerInfo = !pairing.blackIsBot && pairing.blackPlayerId 
               ? matchPlayers.find(mp => mp.odId === pairing.blackPlayerId) 
               : null;
             
-            const whiteUser = whitePlayer ? await storage.getUserByOdId(pairing.whitePlayerId!) : null;
-            const blackUser = blackPlayer ? await storage.getUserByOdId(pairing.blackPlayerId!) : null;
-            
             // Create game for white player (if human)
             if (!pairing.whiteIsBot && pairing.whitePlayerId) {
-              const opponentName = blackUser?.username || (pairing.blackIsBot ? `Bot ${pairing.blackBotId}` : 'Unknown');
+              const opponentName = blackPlayerInfo?.username || (pairing.blackIsBot ? `Bot ${pairing.blackBotId}` : 'Unknown');
               const whiteGame = await storage.createGame({
                 userId: pairing.whitePlayerId,
                 whitePlayerId: pairing.whitePlayerId,
@@ -3392,7 +3389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Create game for black player (if human)
             if (!pairing.blackIsBot && pairing.blackPlayerId) {
-              const opponentName = whiteUser?.username || (pairing.whiteIsBot ? `Bot ${pairing.whiteBotId}` : 'Unknown');
+              const opponentName = whitePlayerInfo?.username || (pairing.whiteIsBot ? `Bot ${pairing.whiteBotId}` : 'Unknown');
               const blackGame = await storage.createGame({
                 userId: pairing.blackPlayerId,
                 whitePlayerId: pairing.whitePlayerId,
@@ -3488,11 +3485,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       result: p.id === pairingId ? result : p.result,
                     }));
                     
+                    const ongoingBoards = pairingsForSwitch.filter(p => p.result === 'ongoing');
+                    console.log(`[AutoSwitch-GameEnd] Player ${playerId}: ended board=${pairingId}, ongoing boards=${JSON.stringify(ongoingBoards.map(b => ({ id: b.id, num: b.boardNumber })))}`);
+                    
                     const nextBoard = computeAutoSwitchTarget(playerId, pairingsForSwitch, pairingId);
+                    console.log(`[AutoSwitch-GameEnd] Next board computed: ${nextBoard}`);
+                    
                     if (nextBoard && nextBoard !== pairingId) {
                       focus.activePairingId = nextBoard;
                       focus.pendingAck = true;
                       focus.pendingAckTimestamp = Date.now();
+                      const nextBoardInfo = pairingsForSwitch.find(p => p.id === nextBoard);
+                      console.log(`[AutoSwitch-GameEnd] Switching player ${playerId} to board #${nextBoardInfo?.boardNumber}`);
                       sendSimulFocusUpdate(playerId, matchId, nextBoard, 'auto_switch');
                     }
                   }
