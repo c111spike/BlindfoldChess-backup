@@ -5,21 +5,20 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Blindfold Detail
-  "George Koltanowski's 1960 blindfold record of 56 games required memorizing the location and moves of 1,792 pieces.",
+  // Player Facts
+  "Hou Yifan became the youngest female Grandmaster ever at age 14 years and 6 months in 2018.",
   
-  // Miscellanea and Unusual Facts
-  "The Elo rating system was invented by Hungarian-American physicist Arpad Elo and is now used in many sports.",
-  "Chess professionals employ 'seconds' (assistant players/coaches) during major tournaments for opening preparation.",
-  "Magnus Carlsen once played ten consecutive checkmates in a single tournament, showcasing tactical accuracy.",
-  "The World Chess Olympiad, where nations compete in teams, first took place in 1927 and is organized by FIDE.",
-  "The first mass-market Soviet chess computer, the Electronica IM-01, was produced in 1977.",
-  "The Knight is the only piece that can 'jump' over other pieces and is not blocked by them.",
-  "The Bishop is sometimes referred to as a 'Churchman' due to its mitre-like shape.",
-  "The Grob Opening (1. g4) is an eccentric opening sometimes used to confuse unprepared opponents.",
-  "The Légal Mate is one of the oldest chess traps, named after 18th-century French master Sire de Legal.",
-  "Vladimir Putin officially designated chess as a required part of the school curriculum in Russia.",
-  "In the 19th century, players sometimes used live animals (like cats) near the board to distract opponents."
+  // Openings and Tactics
+  "The Reti Opening (1. Nf3) is named after Hypermodern master Richard Réti, who championed indirect central control.",
+  "Chess boxing is a hybrid sport where competitors alternate between rounds of chess and boxing.",
+  "The original Indian word Chaturanga means 'four divisions,' referring to military components represented by pieces.",
+  "Pawn storms are aggressive pawn advances, usually on the wing, aimed at weakening opponent's King safety.",
+  
+  // Quotes and Strategy
+  "Emanuel Lasker famously said: 'When you see a good move, look for a better one.'",
+  "The 'desperate check' is a tactic giving a seemingly useless check to repeat position for a draw or win material.",
+  "The King is the weakest piece in terms of movement power, moving only one square at a time.",
+  "Promotion isn't limited to captured pieces - you can have two or more Queens if you promote with all pieces still on board."
 ];
 
 // Get all dates sorted by number of facts (ascending)

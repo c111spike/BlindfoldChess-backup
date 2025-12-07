@@ -5085,6 +5085,13 @@
       "year": 1979,
       "name": "Erik Van Den Doel",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Hou Yifan became the youngest female Grandmaster ever at age 14 years and 6 months in 2018.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-16": [
@@ -5108,6 +5115,13 @@
       "year": 2003,
       "name": "Bogdan Śliwa",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Reti Opening (1. Nf3) is named after Hypermodern master Richard Réti, who championed indirect central control.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-17": [
@@ -5175,6 +5189,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess boxing is a hybrid sport where competitors alternate between rounds of chess and boxing.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-19": [
@@ -5198,6 +5219,13 @@
       "year": 1976,
       "name": "Jonathan Parker",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The original Indian word Chaturanga means 'four divisions,' referring to military components represented by pieces.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-20": [
@@ -5420,6 +5448,13 @@
       "year": 1966,
       "name": "Vladimir Nevostrujev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Pawn storms are aggressive pawn advances, usually on the wing, aimed at weakening opponent's King safety.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-26": [
@@ -5584,6 +5619,13 @@
       "year": 1985,
       "name": "Igor Kurnosov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Emanuel Lasker famously said: 'When you see a good move, look for a better one.'",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-31": [
@@ -5607,6 +5649,13 @@
       "year": 1971,
       "name": "Mikhail Ulibin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 'desperate check' is a tactic giving a seemingly useless check to repeat position for a draw or win material.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-01": [
@@ -5681,6 +5730,13 @@
       "year": 1980,
       "name": "Vasja Pirc",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The King is the weakest piece in terms of movement power, moving only one square at a time.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-03": [
@@ -5731,6 +5787,13 @@
     {
       "type": "fun_fact",
       "text": "The average chess game lasts about 40 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Promotion isn't limited to captured pieces - you can have two or more Queens if you promote with all pieces still on board.",
       "year": null,
       "name": null,
       "source": "Chess History"
