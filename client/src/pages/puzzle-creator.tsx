@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -135,6 +136,7 @@ export default function PuzzleCreator() {
   
   const [sourceType, setSourceType] = useState("");
   const [sourceName, setSourceName] = useState("");
+  const [hasPermission, setHasPermission] = useState(false);
   
   const displayRanks = orientation === "white" ? RANKS : [...RANKS].reverse();
   const displayFiles = orientation === "white" ? FILES : [...FILES].reverse();
@@ -238,7 +240,7 @@ export default function PuzzleCreator() {
 
   const canProceedToStep2 = board.some(row => row.some(cell => cell !== null));
   const canProceedToStep3 = puzzleType && difficulty && solutionMoves.some(m => m.trim());
-  const canSubmit = sourceType;
+  const canSubmit = sourceType && hasPermission;
 
   const hasPieces = board.some(row => row.some(cell => cell !== null));
 
@@ -681,6 +683,25 @@ export default function PuzzleCreator() {
                     <p><span className="text-muted-foreground">Solution:</span> {solutionMoves.filter(m => m.trim()).join(", ")}</p>
                     <p><span className="text-muted-foreground">Hints:</span> {hints.length || "None"}</p>
                     <p><span className="text-muted-foreground">Who to move:</span> {whoToMove === "white" ? "White" : "Black"}</p>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg bg-card">
+                  <div className="flex items-start gap-3">
+                    <Checkbox 
+                      id="permission"
+                      checked={hasPermission}
+                      onCheckedChange={(checked) => setHasPermission(checked === true)}
+                      data-testid="checkbox-permission"
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="permission" className="text-sm font-medium leading-none cursor-pointer">
+                        Rights Confirmation
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        I confirm this puzzle is my original creation, or I have permission to share it, or it is in the public domain. I understand my puzzle may be removed if it infringes on copyrights. By submitting, I agree to the <a href="/terms" className="underline hover:text-primary" data-testid="link-terms-of-service">Terms of Service</a>.
+                      </p>
+                    </div>
                   </div>
                 </div>
 

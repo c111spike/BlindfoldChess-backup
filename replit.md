@@ -142,6 +142,12 @@ Both modes include shareable analysis links and use Stockfish as a subprocess (U
 - **Color Strategy**: High-contrast, semantic color tokens.
 - **Responsive Design**: Mobile-first approach.
 
+## Pre-Publishing Checklist
+Before publishing the application, ensure the following legal documents are in place:
+- **Privacy Policy** (`/privacy`): Required page explaining data collection, storage, and usage practices
+- **Terms of Service** (`/terms`): Required page outlining user responsibilities, content ownership, DMCA takedown process, and liability disclaimers
+- **Note**: The puzzle creator requires users to confirm they have rights to share content and agree to Terms of Service before submission
+
 ## External Dependencies
 - **Neon Database**: Serverless PostgreSQL.
 - **Replit Auth**: OpenID Connect authentication.
