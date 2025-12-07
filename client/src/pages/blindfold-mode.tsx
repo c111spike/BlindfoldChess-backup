@@ -15,17 +15,34 @@ export default function BlindfoldMode() {
   const [lastMove, setLastMove] = useState<string>("");
 
   const levelSettings = {
-    beginner: { peeks: 5, description: "5 peeks · Voice hints enabled" },
-    intermediate: { peeks: 3, description: "3 peeks · No hints" },
-    advanced: { peeks: 1, description: "1 peek · Full blindfold" },
+    beginner: { peeks: 5, description: "5 press-and-hold peeks · Voice hints enabled" },
+    intermediate: { peeks: 3, description: "3 press-and-hold peeks · No hints" },
+    advanced: { peeks: 1, description: "1 press-and-hold peek · Full blindfold" },
     expert: { peeks: 0, description: "0 peeks · Pure memory" },
   };
 
-  const handlePeek = () => {
-    if (peeksRemaining > 0) {
+  const handlePeekStart = () => {
+    if (peeksRemaining > 0 && boardHidden) {
       setBoardHidden(false);
       setPeeksRemaining(peeksRemaining - 1);
-      setTimeout(() => setBoardHidden(true), 3000);
+    }
+  };
+
+  const handlePeekEnd = () => {
+    setBoardHidden(true);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === ' ' || e.key === 'Enter') && peeksRemaining > 0 && boardHidden) {
+      e.preventDefault();
+      handlePeekStart();
+    }
+  };
+
+  const handleKeyUp = (e: React.KeyboardEvent) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      handlePeekEnd();
     }
   };
 
@@ -153,14 +170,22 @@ export default function BlindfoldMode() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Button
-                    onClick={handlePeek}
-                    disabled={peeksRemaining === 0 || !boardHidden}
-                    className="w-full"
+                    onMouseDown={handlePeekStart}
+                    onMouseUp={handlePeekEnd}
+                    onMouseLeave={handlePeekEnd}
+                    onTouchStart={handlePeekStart}
+                    onTouchEnd={handlePeekEnd}
+                    onTouchCancel={handlePeekEnd}
+                    onKeyDown={handleKeyDown}
+                    onKeyUp={handleKeyUp}
+                    onBlur={handlePeekEnd}
+                    disabled={peeksRemaining === 0}
+                    className="w-full select-none"
                     size="lg"
                     data-testid="button-peek"
                   >
                     <Eye className="mr-2 h-5 w-5" />
-                    {boardHidden ? "Use Peek" : "Peeking..."}
+                    {boardHidden ? "Hold to Peek" : "Peeking..."}
                     <span className="ml-auto text-sm">({peeksRemaining} left)</span>
                   </Button>
 
