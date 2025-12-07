@@ -1545,14 +1545,6 @@ export default function StandardMode() {
                         <span>{remainingPeeks} peeks left</span>
                       )}
                     </div>
-                    {lastMove && moves.length > 0 && (
-                      <div className="mt-2 bg-muted border border-border px-4 py-2 rounded-lg">
-                        <div className="text-xs text-muted-foreground text-center">Last move</div>
-                        <div className="text-lg font-mono font-bold text-center" data-testid="text-last-move">
-                          {moves[moves.length - 1]}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
                 
@@ -1627,7 +1619,7 @@ export default function StandardMode() {
                   let myLastMove: string | null = null;
                   let opponentLastMove: string | null = null;
                   
-                  if (moves.length > 0 && matchId && playerColor) {
+                  if (moves.length > 0 && (matchId || isBotGame) && playerColor) {
                     const myColor = playerColor === "white" ? 'w' : 'b';
                     
                     // Find your last move and opponent's last move
