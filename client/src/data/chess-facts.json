@@ -9139,6 +9139,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 'touch-move' rule (if you touch a piece, you must move it) has been standard in chess for centuries.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-07": [
@@ -9215,6 +9222,13 @@
       "year": 1962,
       "name": "Milan Vidmar",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Threefold Repetition rule was sometimes required to be six repetitions in earlier rule sets.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-10": [
@@ -9298,6 +9312,13 @@
       "year": 1882,
       "name": "Akiba Rubinstein",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first book printed in English by William Caxton in 1474, 'The Game and Playe of the Chesse,' was the second book ever printed in English.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-13": [
@@ -9314,6 +9335,13 @@
       "year": 1965,
       "name": "Igor Yagupov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 'Immortal Draw' (Hamppe vs. Meitner, 1872) is famous for wild sacrifices leading to a forced draw by repetition.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-14": [
@@ -9418,6 +9446,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The fastest checkmate possible (Fool's Mate) is in just two moves: 1. f3 e5 2. g4 Qh4#.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-17": [
@@ -9457,6 +9492,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The highest-rated player ever with initials 'A.K.' is Anatoly Karpov.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-19": [
@@ -9470,6 +9512,13 @@
     {
       "type": "fun_fact",
       "text": "There are more possible chess games than atoms in the observable universe.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Emanuel Lasker retained the World Championship for 26 years and 337 days - the longest reign ever.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -9542,6 +9591,13 @@
       "year": 1963,
       "name": "Zaw Win Lay",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Emanuel Lasker was also a distinguished mathematician and philosopher, known for his psychological approach to chess.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-23": [
@@ -9558,6 +9614,13 @@
       "year": 1970,
       "name": "Xie Jun",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Garry Kasparov became the youngest undisputed World Champion in 1985 at age 22 years and 210 days.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-24": [
@@ -9574,6 +9637,13 @@
       "year": 1959,
       "name": "Jouni Yrjola",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The chess scene in James Bond's 'From Russia With Love' features a game based on an actual 1930 match.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-25": [
@@ -9590,6 +9660,13 @@
       "year": 1985,
       "name": "Arkadij Naiditsch",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 'Game of the Century' was played by 13-year-old Bobby Fischer against Donald Byrne in 1956, featuring a famous Queen sacrifice.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-26": [

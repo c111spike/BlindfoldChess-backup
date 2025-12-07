@@ -5,23 +5,20 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Etymology and History
-  "The term 'Rookie' (for a beginner) is sometimes traced back to the Rook piece, which is often the last to enter the game.",
-  "The Sicilian Defense (1. e4 c5) is named after the island of Sicily, though its association with the region is tenuous.",
-  "The 'Immortal Game' (Anderssen vs. Kieseritzky, 1851) was played during a break at the world's first international tournament in London.",
-  "The Black Death (1347-1351) is thought to have briefly reduced the popularity of chess in Europe due to social upheaval.",
-  "In some ancient versions, players could win by simply capturing all opponent's pieces (leaving a 'bare king') without checkmate.",
+  // Rules and History
+  "The 'touch-move' rule (if you touch a piece, you must move it) has been standard in chess for centuries.",
+  "The Threefold Repetition rule was sometimes required to be six repetitions in earlier rule sets.",
+  "The first book printed in English by William Caxton in 1474, 'The Game and Playe of the Chesse,' was the second book ever printed in English.",
+  "The 'Immortal Draw' (Hamppe vs. Meitner, 1872) is famous for wild sacrifices leading to a forced draw by repetition.",
+  "The fastest checkmate possible (Fool's Mate) is in just two moves: 1. f3 e5 2. g4 Qh4#.",
+  "The highest-rated player ever with initials 'A.K.' is Anatoly Karpov.",
   
-  // Rules, Records, and Numbers
-  "The longest theoretical chess game possible under FIDE rules is estimated to be around 5,949 moves.",
-  "There are over 318 billion possible ways of playing the first four moves for both sides.",
-  "There are 400 possible board positions after one move by White and one move by Black.",
-  "There are over 122 million unique ways to complete a Knight's Tour (visiting every square exactly once).",
-  "Through pawn promotion, it's theoretically possible to have nine Queens or up to ten Rooks, Knights, or Bishops of the same color.",
-  "Under-promotion (to a piece other than Queen) is most often a Knight to deliver immediate checkmate or fork.",
-  "The earliest known example of castling late in a game was in 1966, on move 46.",
-  "In the 18th century, pawns could only be promoted to pieces already captured by the opponent.",
-  "Chess clocks were first used at the 1862 London tournament, initially using hourglasses."
+  // Famous Players and Anecdotes
+  "Emanuel Lasker retained the World Championship for 26 years and 337 days - the longest reign ever.",
+  "Emanuel Lasker was also a distinguished mathematician and philosopher, known for his psychological approach to chess.",
+  "Garry Kasparov became the youngest undisputed World Champion in 1985 at age 22 years and 210 days.",
+  "The chess scene in James Bond's 'From Russia With Love' features a game based on an actual 1930 match.",
+  "The 'Game of the Century' was played by 13-year-old Bobby Fischer against Donald Byrne in 1956, featuring a famous Queen sacrifice."
 ];
 
 // Get all dates sorted by number of facts (ascending)
