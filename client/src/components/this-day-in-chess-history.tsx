@@ -23,6 +23,12 @@ function getDateKey(): string {
   return `${months[now.getMonth()]} ${now.getDate()}`;
 }
 
+function getFormattedDate(): string {
+  const now = new Date();
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${months[now.getMonth()]} ${now.getDate()}`;
+}
+
 function getDayOfYear(): number {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 1);
@@ -144,6 +150,7 @@ function getIconForType(type: string) {
 export function ThisDayInChessHistory() {
   const dateKey = getDateKey();
   const dayOfYear = getDayOfYear();
+  const formattedDate = getFormattedDate();
   
   const factsForToday = useMemo(() => {
     return getFactsForDay(dateKey, dayOfYear);
@@ -194,7 +201,7 @@ export function ThisDayInChessHistory() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-primary mb-1" data-testid="text-history-date">
-              This Day in Chess History
+              {formattedDate} in Chess History
             </p>
             <p className="text-sm text-foreground leading-relaxed" data-testid="text-history-fact">
               {currentFact.description}
