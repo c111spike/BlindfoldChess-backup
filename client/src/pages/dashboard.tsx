@@ -161,44 +161,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <Card data-testid="card-blindfold-settings">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-3">
-            <Brain className="h-6 w-6 text-primary" />
-            <div>
-              <CardTitle className="text-lg">Blindfold Settings</CardTitle>
-              <CardDescription>
-                {ongoingGame && ongoingGame.status === 'active' 
-                  ? "Finish your current game to change difficulty" 
-                  : "Select difficulty for blindfold mode training"}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Select
-            value={userSettings?.blindfoldDifficulty || "medium"}
-            onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
-            disabled={updateBlindfolddifficultyMutation.isPending || (ongoingGame?.status === 'active')}
-          >
-            <SelectTrigger className="w-full max-w-xs" data-testid="select-blindfold-difficulty">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {difficultyOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  <div>
-                    <div className="font-medium">{option.label}</div>
-                    <div className="text-xs text-muted-foreground">{option.description}</div>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-simul-exhibition">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
@@ -230,6 +193,41 @@ export default function Dashboard() {
             <Button asChild variant="secondary" className="w-full" data-testid="button-mode-otb">
               <Link href="/otb">Start Game</Link>
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-blindfold-settings">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <Brain className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-primary-foreground text-2xl">Blindfold Settings</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              {ongoingGame && ongoingGame.status === 'active' 
+                ? "Finish current game to change" 
+                : "Select difficulty level"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Select
+              value={userSettings?.blindfoldDifficulty || "medium"}
+              onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
+              disabled={updateBlindfolddifficultyMutation.isPending || (ongoingGame?.status === 'active')}
+            >
+              <SelectTrigger className="w-full bg-secondary text-secondary-foreground border-secondary-border" data-testid="select-blindfold-difficulty">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {difficultyOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div>
+                      <div className="font-medium">{option.label}</div>
+                      <div className="text-xs text-muted-foreground">{option.description}</div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
 
