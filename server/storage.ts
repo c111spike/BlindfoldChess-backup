@@ -19,6 +19,10 @@ import {
   playerWeaknesses,
   accuracyHistory,
   ratingBenchmarks,
+  simulVsSimulMatches,
+  simulVsSimulPlayers,
+  simulVsSimulPairings,
+  simulVsSimulQueue,
   type User,
   type UpsertUser,
   type Game,
@@ -56,6 +60,14 @@ import {
   type InsertPlayerWeakness,
   type AccuracyHistory,
   type InsertAccuracyHistory,
+  type SimulVsSimulMatch,
+  type InsertSimulVsSimulMatch,
+  type SimulVsSimulPlayer,
+  type InsertSimulVsSimulPlayer,
+  type SimulVsSimulPairing,
+  type InsertSimulVsSimulPairing,
+  type SimulVsSimulQueue,
+  type InsertSimulVsSimulQueue,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
@@ -141,6 +153,25 @@ export interface IStorage {
   getAccuracyHistory(userId: string, limit?: number): Promise<AccuracyHistory[]>;
   getPlayerWeaknesses(userId: string): Promise<PlayerWeakness[]>;
   upsertPlayerWeakness(weakness: InsertPlayerWeakness): Promise<PlayerWeakness>;
+  
+  // Simul vs Simul
+  joinSimulVsSimulQueue(userId: string, boardCount: number, rating?: number): Promise<SimulVsSimulQueue>;
+  leaveSimulVsSimulQueue(userId: string): Promise<void>;
+  getSimulVsSimulQueueStatus(userId: string): Promise<SimulVsSimulQueue | undefined>;
+  getSimulVsSimulQueuePlayers(boardCount: number): Promise<SimulVsSimulQueue[]>;
+  createSimulVsSimulMatch(boardCount: number): Promise<SimulVsSimulMatch>;
+  addPlayerToSimulVsSimulMatch(matchId: string, userId: string | null, seat: number, isBot?: boolean, botId?: string, botPersonality?: string): Promise<SimulVsSimulPlayer>;
+  createSimulVsSimulPairing(pairing: InsertSimulVsSimulPairing): Promise<SimulVsSimulPairing>;
+  getSimulVsSimulMatch(matchId: string): Promise<SimulVsSimulMatch | undefined>;
+  getSimulVsSimulMatchPlayers(matchId: string): Promise<SimulVsSimulPlayer[]>;
+  getSimulVsSimulPlayerGames(matchId: string, odId: string): Promise<SimulVsSimulPairing[]>;
+  getSimulVsSimulPairing(pairingId: string): Promise<SimulVsSimulPairing | undefined>;
+  updateSimulVsSimulPairing(pairingId: string, data: Partial<SimulVsSimulPairing>): Promise<SimulVsSimulPairing>;
+  updateSimulVsSimulMatch(matchId: string, data: Partial<SimulVsSimulMatch>): Promise<SimulVsSimulMatch>;
+  updateSimulVsSimulPlayer(playerId: string, data: Partial<SimulVsSimulPlayer>): Promise<SimulVsSimulPlayer>;
+  getActiveSimulVsSimulMatchForUser(userId: string): Promise<SimulVsSimulMatch | undefined>;
+  getAllSimulVsSimulPairings(matchId: string): Promise<SimulVsSimulPairing[]>;
+  clearSimulVsSimulQueue(boardCount: number, userIds: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1330,6 +1361,196 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return upserted;
+  }
+
+  // Simul vs Simul methods
+  async joinSimulVsSimulQueue(userId: string, boardCount: number, rating?: number): Promise<SimulVsSimulQueue> {
+    const [entry] = await db
+      .insert(simulVsSimulQueue)
+      .values({
+        odId: userId,
+        boardCount,
+        rating,
+      })
+      .onConflictDoUpdate({
+        target: simulVsSimulQueue.odId,
+        set: {
+          boardCount,
+          rating,
+          joinedAt: new Date(),
+        },
+      })
+      .returning();
+    return entry;
+  }
+
+  async leaveSimulVsSimulQueue(userId: string): Promise<void> {
+    await db
+      .delete(simulVsSimulQueue)
+      .where(eq(simulVsSimulQueue.odId, userId));
+  }
+
+  async getSimulVsSimulQueueStatus(userId: string): Promise<SimulVsSimulQueue | undefined> {
+    const [entry] = await db
+      .select()
+      .from(simulVsSimulQueue)
+      .where(eq(simulVsSimulQueue.odId, userId));
+    return entry;
+  }
+
+  async getSimulVsSimulQueuePlayers(boardCount: number): Promise<SimulVsSimulQueue[]> {
+    return db
+      .select()
+      .from(simulVsSimulQueue)
+      .where(eq(simulVsSimulQueue.boardCount, boardCount))
+      .orderBy(simulVsSimulQueue.joinedAt);
+  }
+
+  async createSimulVsSimulMatch(boardCount: number): Promise<SimulVsSimulMatch> {
+    const playerCount = boardCount + 1;
+    const [match] = await db
+      .insert(simulVsSimulMatches)
+      .values({
+        boardCount,
+        playerCount,
+        status: "starting",
+      })
+      .returning();
+    return match;
+  }
+
+  async addPlayerToSimulVsSimulMatch(
+    matchId: string,
+    odId: string | null,
+    seat: number,
+    isBot: boolean = false,
+    botId?: string,
+    botPersonality?: string
+  ): Promise<SimulVsSimulPlayer> {
+    const [player] = await db
+      .insert(simulVsSimulPlayers)
+      .values({
+        matchId,
+        odId: odId,
+        odnt: seat,
+        isBot,
+        botId,
+        botPersonality,
+      })
+      .returning();
+    return player;
+  }
+
+  async createSimulVsSimulPairing(pairing: InsertSimulVsSimulPairing): Promise<SimulVsSimulPairing> {
+    const [created] = await db
+      .insert(simulVsSimulPairings)
+      .values(pairing)
+      .returning();
+    return created;
+  }
+
+  async getSimulVsSimulMatch(matchId: string): Promise<SimulVsSimulMatch | undefined> {
+    const [match] = await db
+      .select()
+      .from(simulVsSimulMatches)
+      .where(eq(simulVsSimulMatches.id, matchId));
+    return match;
+  }
+
+  async getSimulVsSimulMatchPlayers(matchId: string): Promise<SimulVsSimulPlayer[]> {
+    return db
+      .select()
+      .from(simulVsSimulPlayers)
+      .where(eq(simulVsSimulPlayers.matchId, matchId))
+      .orderBy(simulVsSimulPlayers.odnt);
+  }
+
+  async getSimulVsSimulPlayerGames(matchId: string, odId: string): Promise<SimulVsSimulPairing[]> {
+    return db
+      .select()
+      .from(simulVsSimulPairings)
+      .where(
+        and(
+          eq(simulVsSimulPairings.matchId, matchId),
+          or(
+            eq(simulVsSimulPairings.whitePlayerId, odId),
+            eq(simulVsSimulPairings.blackPlayerId, odId)
+          )
+        )
+      )
+      .orderBy(simulVsSimulPairings.createdAt);
+  }
+
+  async getSimulVsSimulPairing(pairingId: string): Promise<SimulVsSimulPairing | undefined> {
+    const [pairing] = await db
+      .select()
+      .from(simulVsSimulPairings)
+      .where(eq(simulVsSimulPairings.id, pairingId));
+    return pairing;
+  }
+
+  async updateSimulVsSimulPairing(pairingId: string, data: Partial<SimulVsSimulPairing>): Promise<SimulVsSimulPairing> {
+    const [updated] = await db
+      .update(simulVsSimulPairings)
+      .set(data as any)
+      .where(eq(simulVsSimulPairings.id, pairingId))
+      .returning();
+    return updated;
+  }
+
+  async updateSimulVsSimulMatch(matchId: string, data: Partial<SimulVsSimulMatch>): Promise<SimulVsSimulMatch> {
+    const [updated] = await db
+      .update(simulVsSimulMatches)
+      .set(data as any)
+      .where(eq(simulVsSimulMatches.id, matchId))
+      .returning();
+    return updated;
+  }
+
+  async updateSimulVsSimulPlayer(playerId: string, data: Partial<SimulVsSimulPlayer>): Promise<SimulVsSimulPlayer> {
+    const [updated] = await db
+      .update(simulVsSimulPlayers)
+      .set(data as any)
+      .where(eq(simulVsSimulPlayers.id, playerId))
+      .returning();
+    return updated;
+  }
+
+  async getActiveSimulVsSimulMatchForUser(userId: string): Promise<SimulVsSimulMatch | undefined> {
+    const [player] = await db
+      .select()
+      .from(simulVsSimulPlayers)
+      .innerJoin(simulVsSimulMatches, eq(simulVsSimulPlayers.matchId, simulVsSimulMatches.id))
+      .where(
+        and(
+          eq(simulVsSimulPlayers.odId, userId),
+          or(
+            eq(simulVsSimulMatches.status, "waiting"),
+            eq(simulVsSimulMatches.status, "starting"),
+            eq(simulVsSimulMatches.status, "in_progress")
+          )
+        )
+      );
+    return player?.simul_vs_simul_matches;
+  }
+
+  async getAllSimulVsSimulPairings(matchId: string): Promise<SimulVsSimulPairing[]> {
+    return db
+      .select()
+      .from(simulVsSimulPairings)
+      .where(eq(simulVsSimulPairings.matchId, matchId));
+  }
+
+  async clearSimulVsSimulQueue(boardCount: number, userIds: string[]): Promise<void> {
+    if (userIds.length === 0) return;
+    await db
+      .delete(simulVsSimulQueue)
+      .where(
+        and(
+          eq(simulVsSimulQueue.boardCount, boardCount),
+          inArray(simulVsSimulQueue.odId, userIds)
+        )
+      );
   }
 }
 

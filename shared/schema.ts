@@ -559,6 +559,126 @@ export type AccuracyHistory = typeof accuracyHistory.$inferSelect;
 export type InsertRatingBenchmark = typeof ratingBenchmarks.$inferInsert;
 export type RatingBenchmark = typeof ratingBenchmarks.$inferSelect;
 
+// Simul vs Simul Match Status
+export const simulVsSimulStatusEnum = pgEnum("simul_vs_simul_status", [
+  "waiting",      // Waiting for players to join
+  "starting",     // Match found, initializing games
+  "in_progress",  // Match is active
+  "completed",    // All games finished
+  "cancelled",    // Match was cancelled
+]);
+
+// Simul vs Simul Pairing Result
+export const simulPairingResultEnum = pgEnum("simul_pairing_result", [
+  "ongoing",
+  "white_win",
+  "black_win",
+  "draw",
+  "white_forfeit",
+  "black_forfeit",
+]);
+
+// Simul vs Simul Matches - Container for a round-robin match
+export const simulVsSimulMatches = pgTable("simul_vs_simul_matches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  boardCount: integer("board_count").notNull().default(5), // N boards = N+1 players (5 boards = 6 players)
+  playerCount: integer("player_count").notNull().default(6),
+  status: simulVsSimulStatusEnum("status").default("waiting").notNull(),
+  queueTimeoutSeconds: integer("queue_timeout_seconds").default(60),
+  moveTimeSeconds: integer("move_time_seconds").default(30),
+  createdAt: timestamp("created_at").defaultNow(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+}, (table) => ({
+  statusIdx: index("simul_vs_simul_matches_status_idx").on(table.status),
+}));
+
+// Simul vs Simul Players - Links players to matches with their seat
+export const simulVsSimulPlayers = pgTable("simul_vs_simul_players", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchId: varchar("match_id")
+    .references(() => simulVsSimulMatches.id, { onDelete: "cascade" })
+    .notNull(),
+  odId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" }),
+  odnt: integer("seat").notNull(), // 1-6 for 6-player matches
+  isBot: boolean("is_bot").default(false),
+  botId: varchar("bot_id"), // If isBot, the bot identifier
+  botPersonality: varchar("bot_personality"), // Random personality type
+  focusedBoardNumber: integer("focused_board_number").default(1), // Current board being viewed
+  totalScore: real("total_score").default(0), // Win=1, Draw=0.5, Loss=0
+  joinedAt: timestamp("joined_at").defaultNow(),
+  isConnected: boolean("is_connected").default(true),
+  lastActiveAt: timestamp("last_active_at").defaultNow(),
+}, (table) => ({
+  matchPlayerUnique: unique().on(table.matchId, table.odId),
+  matchIdx: index("simul_vs_simul_players_match_idx").on(table.matchId),
+}));
+
+// Simul vs Simul Pairings - Individual games between pairs
+export const simulVsSimulPairings = pgTable("simul_vs_simul_pairings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchId: varchar("match_id")
+    .references(() => simulVsSimulMatches.id, { onDelete: "cascade" })
+    .notNull(),
+  gameId: varchar("game_id")
+    .references(() => games.id, { onDelete: "cascade" }),
+  whitePlayerId: varchar("white_player_id"), // Can be null for bots
+  blackPlayerId: varchar("black_player_id"), // Can be null for bots
+  whiteIsBot: boolean("white_is_bot").default(false),
+  blackIsBot: boolean("black_is_bot").default(false),
+  whiteBotId: varchar("white_bot_id"),
+  blackBotId: varchar("black_bot_id"),
+  boardNumberWhite: integer("board_number_white").notNull(), // Board number from white's perspective (1-5)
+  boardNumberBlack: integer("board_number_black").notNull(), // Board number from black's perspective (1-5)
+  fen: text("fen").default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+  moves: jsonb("moves").$type<string[]>().default([]),
+  moveCount: integer("move_count").default(0),
+  activeColor: varchar("active_color").default("white"), // Whose turn it is
+  result: simulPairingResultEnum("result").default("ongoing"),
+  whiteTimeRemaining: integer("white_time_remaining").default(30), // Seconds
+  blackTimeRemaining: integer("black_time_remaining").default(30), // Seconds
+  lastMoveAt: timestamp("last_move_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  matchIdx: index("simul_vs_simul_pairings_match_idx").on(table.matchId),
+  whitePlayerIdx: index("simul_vs_simul_pairings_white_idx").on(table.whitePlayerId),
+  blackPlayerIdx: index("simul_vs_simul_pairings_black_idx").on(table.blackPlayerId),
+}));
+
+// Simul vs Simul Queue - Players waiting to join a match
+export const simulVsSimulQueue = pgTable("simul_vs_simul_queue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  odId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull()
+    .unique(),
+  boardCount: integer("board_count").default(5), // Which queue they're in (5, 10, 25 boards)
+  rating: integer("rating"), // Player's simul rating for matchmaking
+  joinedAt: timestamp("joined_at").defaultNow(),
+}, (table) => ({
+  boardCountIdx: index("simul_vs_simul_queue_board_idx").on(table.boardCount),
+  joinedAtIdx: index("simul_vs_simul_queue_joined_idx").on(table.joinedAt),
+}));
+
+// Type exports for Simul vs Simul
+export type SimulVsSimulStatus = typeof simulVsSimulStatusEnum.enumValues[number];
+export type SimulPairingResult = typeof simulPairingResultEnum.enumValues[number];
+export type InsertSimulVsSimulMatch = typeof simulVsSimulMatches.$inferInsert;
+export type SimulVsSimulMatch = typeof simulVsSimulMatches.$inferSelect;
+export type InsertSimulVsSimulPlayer = typeof simulVsSimulPlayers.$inferInsert;
+export type SimulVsSimulPlayer = typeof simulVsSimulPlayers.$inferSelect;
+export type InsertSimulVsSimulPairing = typeof simulVsSimulPairings.$inferInsert;
+export type SimulVsSimulPairing = typeof simulVsSimulPairings.$inferSelect;
+export type InsertSimulVsSimulQueue = typeof simulVsSimulQueue.$inferInsert;
+export type SimulVsSimulQueue = typeof simulVsSimulQueue.$inferSelect;
+
+export const insertSimulVsSimulQueueSchema = createInsertSchema(simulVsSimulQueue).omit({
+  id: true,
+  joinedAt: true,
+});
+
 export const insertGameSchema = createInsertSchema(games).omit({
   id: true,
   createdAt: true,

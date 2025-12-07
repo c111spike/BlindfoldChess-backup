@@ -25,6 +25,7 @@ import {
   RotateCw,
   Crown,
   Navigation,
+  Users,
 } from "lucide-react";
 import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
 
@@ -48,6 +49,11 @@ const menuItems = [
     title: "Simul",
     url: "/simul",
     icon: Grid3x3,
+  },
+  {
+    title: "Simul vs Simul",
+    url: "/simul-vs-simul",
+    icon: Users,
   },
   {
     title: "Board Spin",

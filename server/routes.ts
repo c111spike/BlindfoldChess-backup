@@ -314,6 +314,373 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ SIMUL VS SIMUL ROUTES ============
+  
+  // Matchmaking mutex using a queue pattern to prevent race conditions
+  class Mutex {
+    private locked = false;
+    private waiting: (() => void)[] = [];
+    
+    async acquire(): Promise<void> {
+      if (!this.locked) {
+        this.locked = true;
+        return;
+      }
+      
+      return new Promise<void>((resolve) => {
+        this.waiting.push(resolve);
+      });
+    }
+    
+    release(): void {
+      if (this.waiting.length > 0) {
+        const next = this.waiting.shift()!;
+        next();
+      } else {
+        this.locked = false;
+      }
+    }
+  }
+  
+  // One mutex per board count to serialize matchmaking
+  const simulMatchmakingMutexes = new Map<number, Mutex>();
+  
+  function getMutex(boardCount: number): Mutex {
+    if (!simulMatchmakingMutexes.has(boardCount)) {
+      simulMatchmakingMutexes.set(boardCount, new Mutex());
+    }
+    return simulMatchmakingMutexes.get(boardCount)!;
+  }
+  
+  async function withMatchmakingLock<T>(boardCount: number, fn: () => Promise<T>): Promise<T> {
+    const mutex = getMutex(boardCount);
+    await mutex.acquire();
+    
+    try {
+      return await fn();
+    } finally {
+      mutex.release();
+    }
+  }
+
+  // Join Simul vs Simul queue
+  app.post('/api/simul-vs-simul/queue/join', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { boardCount = 5 } = req.body;
+
+      // Check if already in an active match
+      const existingMatch = await storage.getActiveSimulVsSimulMatchForUser(userId);
+      if (existingMatch) {
+        return res.json({
+          success: true,
+          inMatch: true,
+          matchId: existingMatch.id,
+          message: "Already in an active match"
+        });
+      }
+
+      // Use atomic lock for matchmaking to prevent race conditions
+      const result = await withMatchmakingLock(boardCount, async () => {
+        // Get user's simul rating
+        const rating = await storage.getOrCreateRating(userId);
+        const simulRating = rating.simul || 1000;
+
+        // Re-check queue status under lock (another request may have already created a match)
+        const currentQueueStatus = await storage.getSimulVsSimulQueueStatus(userId);
+        if (!currentQueueStatus) {
+          // Join the queue
+          await storage.joinSimulVsSimulQueue(userId, boardCount, simulRating);
+        }
+
+        // Check if we have enough players to start a match
+        const queuePlayers = await storage.getSimulVsSimulQueuePlayers(boardCount);
+        const requiredPlayers = boardCount + 1; // N boards = N+1 players
+
+        if (queuePlayers.length >= requiredPlayers) {
+          // We have enough players! Create the match atomically
+          const playersForMatch = queuePlayers.slice(0, requiredPlayers);
+          const match = await createSimulVsSimulMatch(playersForMatch, boardCount);
+          
+          return {
+            success: true,
+            matchFound: true,
+            matchId: match.id,
+            message: "Match found!"
+          };
+        }
+
+        // Not enough players yet, return queue status
+        return {
+          success: true,
+          inQueue: true,
+          position: queuePlayers.findIndex(p => p.odId === userId) + 1,
+          playersInQueue: queuePlayers.length,
+          playersNeeded: requiredPlayers,
+          boardCount,
+          message: `Waiting for ${requiredPlayers - queuePlayers.length} more player(s)`
+        };
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error joining simul vs simul queue:", error);
+      res.status(500).json({ message: "Failed to join queue" });
+    }
+  });
+
+  // Leave Simul vs Simul queue
+  app.post('/api/simul-vs-simul/queue/leave', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await storage.leaveSimulVsSimulQueue(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error leaving simul vs simul queue:", error);
+      res.status(500).json({ message: "Failed to leave queue" });
+    }
+  });
+
+  // Get Simul vs Simul queue status
+  app.get('/api/simul-vs-simul/queue/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const boardCount = parseInt(req.query.boardCount as string) || 5;
+
+      // Check if in active match
+      const existingMatch = await storage.getActiveSimulVsSimulMatchForUser(userId);
+      if (existingMatch) {
+        return res.json({
+          inMatch: true,
+          matchId: existingMatch.id,
+          status: existingMatch.status
+        });
+      }
+
+      // Check queue status
+      const queueStatus = await storage.getSimulVsSimulQueueStatus(userId);
+      if (queueStatus) {
+        const queuePlayers = await storage.getSimulVsSimulQueuePlayers(queueStatus.boardCount || 5);
+        const requiredPlayers = (queueStatus.boardCount || 5) + 1;
+        return res.json({
+          inQueue: true,
+          position: queuePlayers.findIndex(p => p.odId === userId) + 1,
+          playersInQueue: queuePlayers.length,
+          playersNeeded: requiredPlayers,
+          boardCount: queueStatus.boardCount
+        });
+      }
+
+      res.json({ inQueue: false, inMatch: false });
+    } catch (error) {
+      console.error("Error fetching simul vs simul queue status:", error);
+      res.status(500).json({ message: "Failed to fetch queue status" });
+    }
+  });
+
+  // Get match data
+  app.get('/api/simul-vs-simul/match/:matchId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { matchId } = req.params;
+
+      const match = await storage.getSimulVsSimulMatch(matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      const players = await storage.getSimulVsSimulMatchPlayers(matchId);
+      const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, userId);
+
+      // Get player's board assignments
+      const boards = playerGames.map(pairing => {
+        const isWhite = pairing.whitePlayerId === userId || (pairing.whiteIsBot && !pairing.blackIsBot);
+        const opponentPlayer = players.find(p => 
+          isWhite ? (p.odId === pairing.blackPlayerId || (pairing.blackIsBot && p.isBot && p.botId === pairing.blackBotId)) 
+                  : (p.odId === pairing.whitePlayerId || (pairing.whiteIsBot && p.isBot && p.botId === pairing.whiteBotId))
+        );
+
+        return {
+          pairingId: pairing.id,
+          boardNumber: isWhite ? pairing.boardNumberWhite : pairing.boardNumberBlack,
+          color: isWhite ? 'white' : 'black',
+          opponentName: opponentPlayer?.isBot 
+            ? `Bot (${opponentPlayer.botPersonality})` 
+            : 'Opponent',
+          opponentId: isWhite ? pairing.blackPlayerId : pairing.whitePlayerId,
+          isOpponentBot: isWhite ? pairing.blackIsBot : pairing.whiteIsBot,
+          fen: pairing.fen,
+          moves: pairing.moves,
+          moveCount: pairing.moveCount,
+          activeColor: pairing.activeColor,
+          result: pairing.result,
+          timeRemaining: isWhite ? pairing.whiteTimeRemaining : pairing.blackTimeRemaining,
+        };
+      }).sort((a, b) => a.boardNumber - b.boardNumber);
+
+      res.json({
+        matchId: match.id,
+        status: match.status,
+        boardCount: match.boardCount,
+        playerCount: match.playerCount,
+        boards,
+        createdAt: match.createdAt,
+        startedAt: match.startedAt,
+      });
+    } catch (error) {
+      console.error("Error fetching simul vs simul match:", error);
+      res.status(500).json({ message: "Failed to fetch match data" });
+    }
+  });
+
+  // Make a move in a Simul vs Simul game
+  app.post('/api/simul-vs-simul/move', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pairingId, move, fen } = req.body;
+
+      const pairing = await storage.getSimulVsSimulPairing(pairingId);
+      if (!pairing) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+
+      // Verify it's the player's turn
+      const isWhite = pairing.whitePlayerId === userId;
+      const isBlack = pairing.blackPlayerId === userId;
+      if (!isWhite && !isBlack) {
+        return res.status(403).json({ message: "Not your game" });
+      }
+
+      const playerColor = isWhite ? 'white' : 'black';
+      if (pairing.activeColor !== playerColor) {
+        return res.status(400).json({ message: "Not your turn" });
+      }
+
+      // Update the pairing
+      const newMoves = [...(pairing.moves || []), move];
+      const newActiveColor = playerColor === 'white' ? 'black' : 'white';
+      
+      const updated = await storage.updateSimulVsSimulPairing(pairingId, {
+        fen,
+        moves: newMoves,
+        moveCount: newMoves.length,
+        activeColor: newActiveColor,
+        lastMoveAt: new Date(),
+        whiteTimeRemaining: 30, // Reset timer
+        blackTimeRemaining: 30, // Reset timer
+      });
+
+      res.json({
+        success: true,
+        pairing: updated,
+      });
+    } catch (error) {
+      console.error("Error making simul vs simul move:", error);
+      res.status(500).json({ message: "Failed to make move" });
+    }
+  });
+
+  // End a Simul vs Simul game
+  app.post('/api/simul-vs-simul/game/end', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pairingId, result } = req.body;
+
+      const pairing = await storage.getSimulVsSimulPairing(pairingId);
+      if (!pairing) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+
+      await storage.updateSimulVsSimulPairing(pairingId, {
+        result,
+        completedAt: new Date(),
+      });
+
+      // Check if all games in the match are complete
+      const allPairings = await storage.getAllSimulVsSimulPairings(pairing.matchId);
+      const allComplete = allPairings.every(p => p.result !== 'ongoing');
+
+      if (allComplete) {
+        await storage.updateSimulVsSimulMatch(pairing.matchId, {
+          status: 'completed',
+          completedAt: new Date(),
+        });
+        
+        // Clean up match resources (timers, rooms, focus state)
+        cleanupSimulMatch(pairing.matchId, allPairings.map(p => p.id));
+      }
+
+      res.json({ success: true, matchComplete: allComplete });
+    } catch (error) {
+      console.error("Error ending simul vs simul game:", error);
+      res.status(500).json({ message: "Failed to end game" });
+    }
+  });
+
+  // Helper function to create a Simul vs Simul match
+  async function createSimulVsSimulMatch(queuePlayers: any[], boardCount: number) {
+    const playerCount = boardCount + 1;
+    
+    // Create the match
+    const match = await storage.createSimulVsSimulMatch(boardCount);
+    
+    // Add players to the match
+    const players = [];
+    for (let i = 0; i < queuePlayers.length; i++) {
+      const player = await storage.addPlayerToSimulVsSimulMatch(
+        match.id,
+        queuePlayers[i].odId,
+        i + 1, // seat 1-6
+        false
+      );
+      players.push({ ...player, odId: queuePlayers[i].odId });
+    }
+
+    // Create all pairings (each player plays every other player)
+    // For N+1 players, each player plays N games
+    const pairings = [];
+    let boardNumberCounters: Record<string, number> = {};
+    
+    // Initialize board counters for each player
+    players.forEach(p => {
+      boardNumberCounters[p.odId] = 1;
+    });
+
+    for (let i = 0; i < players.length; i++) {
+      for (let j = i + 1; j < players.length; j++) {
+        // Randomly assign colors
+        const whiteIsFirst = Math.random() < 0.5;
+        const whitePlayer = whiteIsFirst ? players[i] : players[j];
+        const blackPlayer = whiteIsFirst ? players[j] : players[i];
+
+        const pairing = await storage.createSimulVsSimulPairing({
+          matchId: match.id,
+          whitePlayerId: whitePlayer.odId,
+          blackPlayerId: blackPlayer.odId,
+          whiteIsBot: false,
+          blackIsBot: false,
+          boardNumberWhite: boardNumberCounters[whitePlayer.odId]++,
+          boardNumberBlack: boardNumberCounters[blackPlayer.odId]++,
+        });
+        pairings.push(pairing);
+      }
+    }
+
+    // Clear matched players from queue
+    const userIds = queuePlayers.map(p => p.odId);
+    await storage.clearSimulVsSimulQueue(boardCount, userIds);
+
+    // Update match status to in_progress
+    await storage.updateSimulVsSimulMatch(match.id, {
+      status: 'in_progress',
+      startedAt: new Date(),
+    });
+
+    return match;
+  }
+
+  // ============ END SIMUL VS SIMUL ROUTES ============
+
   app.post('/api/queue/findMatch', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1373,6 +1740,281 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   const matchHandshakeState = new Map<string, HandshakeState>();
 
+  // ============ SIMUL VS SIMUL DATA STRUCTURES ============
+  
+  // Pairing rooms: Map<pairingId, Set<userId>> for broadcasting moves to 2 players
+  const simulPairingRooms = new Map<string, Set<string>>();
+  
+  // Match rooms for Simul vs Simul: Map<matchId, Set<userId>> for match-wide announcements
+  const simulMatchRooms = new Map<string, Set<string>>();
+  
+  // Timer state: Map<pairingId, { turn: 'white'|'black', deadline: number|null, timeRemaining: number }>
+  interface SimulTimerState {
+    turn: 'white' | 'black';
+    deadline: number | null; // timestamp when timer expires, null if paused
+    whiteTimeRemaining: number;
+    blackTimeRemaining: number;
+    isPaused: boolean;
+  }
+  const simulTimers = new Map<string, SimulTimerState>();
+  
+  // Focus state: Map<matchId, Map<playerId, FocusState>>
+  interface SimulFocusState {
+    activePairingId: string;
+    lastManualSwitch: number; // timestamp
+    pendingAutoSwitch: boolean;
+    pendingAck: boolean; // true when waiting for client to acknowledge focus change
+    pendingAckTimestamp: number; // when we started waiting for ack
+  }
+  const simulPlayerFocus = new Map<string, Map<string, SimulFocusState>>();
+  
+  // Auto-switch cooldown (prevent thrashing)
+  const AUTO_SWITCH_COOLDOWN_MS = 3000;
+  const SIMUL_TURN_TIMER_SECONDS = 30;
+  const FOCUS_ACK_TIMEOUT_MS = 5000; // 5 seconds to acknowledge focus change
+  
+  // Helper: Compute next focus board using priority algorithm
+  // Priority: (1) your turn, (2) lowest move count, (3) lowest board number
+  function computeAutoSwitchTarget(
+    playerId: string,
+    pairings: Array<{
+      id: string;
+      boardNumber: number;
+      moveCount: number;
+      activeColor: 'white' | 'black';
+      playerColor: 'white' | 'black';
+      result: string;
+    }>,
+    currentPairingId: string | null
+  ): string | null {
+    // Filter to only ongoing games
+    const activeGames = pairings.filter(p => p.result === 'ongoing');
+    if (activeGames.length === 0) return null;
+    
+    // Sort by priority: your turn first, then lowest moves, then lowest board
+    const sorted = [...activeGames].sort((a, b) => {
+      const aIsYourTurn = a.activeColor === a.playerColor;
+      const bIsYourTurn = b.activeColor === b.playerColor;
+      
+      // Priority 1: Your turn
+      if (aIsYourTurn && !bIsYourTurn) return -1;
+      if (!aIsYourTurn && bIsYourTurn) return 1;
+      
+      // Priority 2: Lowest move count
+      if (a.moveCount !== b.moveCount) return a.moveCount - b.moveCount;
+      
+      // Priority 3: Lowest board number
+      return a.boardNumber - b.boardNumber;
+    });
+    
+    return sorted[0]?.id || currentPairingId;
+  }
+  
+  // Helper: Send focus update to a player
+  function sendSimulFocusUpdate(
+    userId: string,
+    matchId: string,
+    focusedPairingId: string,
+    reason: 'initial' | 'auto_switch' | 'manual_switch' | 'opponent_moved'
+  ) {
+    const ws = userConnections.get(userId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'simul_focus_update',
+        matchId,
+        pairingId: focusedPairingId,
+        reason,
+      }));
+    }
+  }
+  
+  // Helper: Send timer state to relevant players
+  function sendSimulTimerState(pairingId: string, timerState: SimulTimerState) {
+    const room = simulPairingRooms.get(pairingId);
+    if (room) {
+      room.forEach((userId) => {
+        const ws = userConnections.get(userId);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'simul_timer_state',
+            pairingId,
+            turn: timerState.turn,
+            whiteTimeRemaining: timerState.whiteTimeRemaining,
+            blackTimeRemaining: timerState.blackTimeRemaining,
+            isPaused: timerState.isPaused,
+            deadline: timerState.deadline,
+          }));
+        }
+      });
+    }
+  }
+  
+  // Helper: Clean up match resources (timers, rooms, focus) when match ends
+  function cleanupSimulMatch(matchId: string, pairingIds: string[]) {
+    console.log(`[SimulCleanup] Cleaning up match ${matchId} with ${pairingIds.length} pairings`);
+    
+    // Clean up timers for all pairings
+    for (const pairingId of pairingIds) {
+      const timer = simulTimers.get(pairingId);
+      if (timer) {
+        timer.isPaused = true;
+        timer.deadline = null;
+      }
+      simulTimers.delete(pairingId);
+      simulPairingRooms.delete(pairingId);
+    }
+    
+    // Clean up focus state and match room
+    simulPlayerFocus.delete(matchId);
+    simulMatchRooms.delete(matchId);
+    
+    console.log(`[SimulCleanup] Match ${matchId} cleanup complete`);
+  }
+  
+  // Helper: Clean up a single player from a match (disconnect)
+  function cleanupSimulPlayer(userId: string, matchId: string) {
+    console.log(`[SimulCleanup] Cleaning up player ${userId} from match ${matchId}`);
+    
+    // Remove from match room
+    const matchRoom = simulMatchRooms.get(matchId);
+    if (matchRoom) {
+      matchRoom.delete(userId);
+    }
+    
+    // Remove from all pairing rooms
+    for (const [pairingId, room] of simulPairingRooms.entries()) {
+      room.delete(userId);
+    }
+    
+    // Remove focus state
+    const matchFocus = simulPlayerFocus.get(matchId);
+    if (matchFocus) {
+      matchFocus.delete(userId);
+    }
+  }
+  
+  // Timer scheduler: runs every second to update timers
+  setInterval(async () => {
+    const now = Date.now();
+    
+    for (const [pairingId, timer] of simulTimers.entries()) {
+      if (timer.isPaused || !timer.deadline) continue;
+      
+      // Check if timer expired
+      if (now >= timer.deadline) {
+        // Timer expired - forfeit this board
+        timer.isPaused = true;
+        timer.deadline = null;
+        
+        // Determine who lost on time
+        const loser = timer.turn;
+        const winner = loser === 'white' ? 'black' : 'white';
+        
+        console.log(`[SimulTimer] Timer expired for pairing ${pairingId}, ${loser} lost on time`);
+        
+        try {
+          const pairing = await storage.getSimulVsSimulPairing(pairingId);
+          if (pairing && pairing.result === 'ongoing') {
+            await storage.updateSimulVsSimulPairing(pairingId, {
+              result: winner === 'white' ? 'white_wins' : 'black_wins',
+              completedAt: new Date(),
+            });
+            
+            // Notify players in this pairing
+            const room = simulPairingRooms.get(pairingId);
+            if (room) {
+              room.forEach((userId) => {
+                const ws = userConnections.get(userId);
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({
+                    type: 'simul_game_end',
+                    pairingId,
+                    result: winner === 'white' ? 'white_wins' : 'black_wins',
+                    reason: 'timeout',
+                  }));
+                }
+              });
+            }
+            
+            // Check if match is complete
+            const matchId = pairing.matchId;
+            const allPairings = await storage.getAllSimulVsSimulPairings(matchId);
+            const allComplete = allPairings.every(p => p.result !== 'ongoing');
+            
+            if (allComplete) {
+              await storage.updateSimulVsSimulMatch(matchId, {
+                status: 'completed',
+                completedAt: new Date(),
+              });
+              
+              // Notify all players in match before cleanup
+              const matchRoom = simulMatchRooms.get(matchId);
+              if (matchRoom) {
+                matchRoom.forEach((roomUserId) => {
+                  const playerWs = userConnections.get(roomUserId);
+                  if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                    playerWs.send(JSON.stringify({
+                      type: 'simul_match_complete',
+                      matchId,
+                    }));
+                  }
+                });
+              }
+              
+              // Clean up match resources
+              cleanupSimulMatch(matchId, allPairings.map(p => p.id));
+            } else {
+              // Trigger auto-switch for both players
+              const matchFocus = simulPlayerFocus.get(matchId);
+              if (matchFocus) {
+                for (const [playerId, focus] of matchFocus.entries()) {
+                  if (focus.activePairingId === pairingId) {
+                    // This player was watching the expired game, trigger auto-switch
+                    const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, playerId);
+                    const pairingsForSwitch = playerGames.map(p => ({
+                      id: p.id,
+                      boardNumber: p.whitePlayerId === playerId ? p.boardNumberWhite : p.boardNumberBlack,
+                      moveCount: p.moveCount,
+                      activeColor: p.activeColor as 'white' | 'black',
+                      playerColor: (p.whitePlayerId === playerId ? 'white' : 'black') as 'white' | 'black',
+                      result: p.result,
+                    }));
+                    
+                    const nextBoard = computeAutoSwitchTarget(playerId, pairingsForSwitch, pairingId);
+                    if (nextBoard && nextBoard !== pairingId) {
+                      focus.activePairingId = nextBoard;
+                      focus.pendingAutoSwitch = false;
+                      focus.pendingAck = true;
+                      focus.pendingAckTimestamp = Date.now();
+                      sendSimulFocusUpdate(playerId, matchId, nextBoard, 'auto_switch');
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[SimulTimer] Error processing timeout:', error);
+        }
+      } else {
+        // Update remaining time
+        const remaining = Math.max(0, Math.ceil((timer.deadline - now) / 1000));
+        if (timer.turn === 'white') {
+          timer.whiteTimeRemaining = remaining;
+        } else {
+          timer.blackTimeRemaining = remaining;
+        }
+        
+        // Send periodic updates every 5 seconds
+        if (remaining % 5 === 0 || remaining <= 5) {
+          sendSimulTimerState(pairingId, timer);
+        }
+      }
+    }
+  }, 1000);
+  
+  // ============ END SIMUL VS SIMUL DATA STRUCTURES ============
+
   wss.on('connection', (ws: WebSocket & { userId?: string; matchId?: string }) => {
     console.log('WebSocket client connected');
 
@@ -1906,6 +2548,482 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             });
           }
+        // ============ SIMUL VS SIMUL WEBSOCKET HANDLERS ============
+        } else if (data.type === 'simul_join') {
+          const userId = ws.userId;
+          const matchId = data.matchId;
+          
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
+            return;
+          }
+          
+          console.log(`[SimulWS] User ${userId} joining simul match ${matchId}`);
+          
+          try {
+            const match = await storage.getSimulVsSimulMatch(matchId);
+            if (!match) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Match not found' }));
+              return;
+            }
+            
+            // Add to simul match room
+            if (!simulMatchRooms.has(matchId)) {
+              simulMatchRooms.set(matchId, new Set());
+            }
+            simulMatchRooms.get(matchId)!.add(userId);
+            
+            // Get player's games and add to pairing rooms
+            const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, userId);
+            
+            for (const pairing of playerGames) {
+              if (!simulPairingRooms.has(pairing.id)) {
+                simulPairingRooms.set(pairing.id, new Set());
+              }
+              simulPairingRooms.get(pairing.id)!.add(userId);
+              
+              // Initialize timer if not exists
+              if (!simulTimers.has(pairing.id)) {
+                simulTimers.set(pairing.id, {
+                  turn: pairing.activeColor as 'white' | 'black',
+                  deadline: null,
+                  whiteTimeRemaining: SIMUL_TURN_TIMER_SECONDS,
+                  blackTimeRemaining: SIMUL_TURN_TIMER_SECONDS,
+                  isPaused: true, // Start paused until both players focus
+                });
+              }
+            }
+            
+            // Initialize focus state
+            if (!simulPlayerFocus.has(matchId)) {
+              simulPlayerFocus.set(matchId, new Map());
+            }
+            
+            // Compute initial focus
+            const pairingsForSwitch = playerGames.map(p => ({
+              id: p.id,
+              boardNumber: p.whitePlayerId === userId ? p.boardNumberWhite : p.boardNumberBlack,
+              moveCount: p.moveCount,
+              activeColor: p.activeColor as 'white' | 'black',
+              playerColor: (p.whitePlayerId === userId ? 'white' : 'black') as 'white' | 'black',
+              result: p.result,
+            }));
+            
+            const initialFocus = computeAutoSwitchTarget(userId, pairingsForSwitch, null);
+            
+            if (initialFocus) {
+              simulPlayerFocus.get(matchId)!.set(userId, {
+                activePairingId: initialFocus,
+                lastManualSwitch: 0,
+                pendingAutoSwitch: false,
+                pendingAck: false,
+                pendingAckTimestamp: 0,
+              });
+            }
+            
+            // Get all players info for the match
+            const allPlayers = await storage.getSimulVsSimulMatchPlayers(matchId);
+            
+            // Send join confirmation with full match data
+            ws.send(JSON.stringify({
+              type: 'simul_joined',
+              matchId,
+              boards: playerGames.map(p => {
+                const isWhite = p.whitePlayerId === userId;
+                const opponentId = isWhite ? p.blackPlayerId : p.whitePlayerId;
+                const opponentPlayer = allPlayers.find(pl => pl.odId === opponentId);
+                
+                return {
+                  pairingId: p.id,
+                  boardNumber: isWhite ? p.boardNumberWhite : p.boardNumberBlack,
+                  color: isWhite ? 'white' : 'black',
+                  opponentId,
+                  opponentName: opponentPlayer?.isBot 
+                    ? `Bot (${opponentPlayer.botPersonality})` 
+                    : 'Opponent',
+                  isOpponentBot: isWhite ? p.blackIsBot : p.whiteIsBot,
+                  fen: p.fen,
+                  moves: p.moves,
+                  moveCount: p.moveCount,
+                  activeColor: p.activeColor,
+                  result: p.result,
+                };
+              }),
+              initialFocus,
+              players: allPlayers.map(p => ({
+                odId: p.odId,
+                isBot: p.isBot,
+                botPersonality: p.botPersonality,
+                seat: p.seat,
+              })),
+            }));
+            
+            console.log(`[SimulWS] User ${userId} joined simul match ${matchId} with ${playerGames.length} boards`);
+          } catch (error) {
+            console.error('[SimulWS] Error joining simul match:', error);
+            ws.send(JSON.stringify({ type: 'error', message: 'Failed to join match' }));
+          }
+          
+        } else if (data.type === 'simul_move') {
+          const userId = ws.userId;
+          const { pairingId, move, fen, from, to, piece, captured } = data;
+          
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
+            return;
+          }
+          
+          console.log(`[SimulWS] Move from ${userId} in pairing ${pairingId}: ${move}`);
+          
+          try {
+            const pairing = await storage.getSimulVsSimulPairing(pairingId);
+            if (!pairing) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Game not found' }));
+              return;
+            }
+            
+            // Verify it's the player's turn
+            const isWhite = pairing.whitePlayerId === userId;
+            const isBlack = pairing.blackPlayerId === userId;
+            if (!isWhite && !isBlack) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Not your game' }));
+              return;
+            }
+            
+            const playerColor = isWhite ? 'white' : 'black';
+            if (pairing.activeColor !== playerColor) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Not your turn' }));
+              return;
+            }
+            
+            // Update the pairing
+            const newMoves = [...(pairing.moves || []), move];
+            const newActiveColor = playerColor === 'white' ? 'black' : 'white';
+            
+            await storage.updateSimulVsSimulPairing(pairingId, {
+              fen,
+              moves: newMoves,
+              moveCount: newMoves.length,
+              activeColor: newActiveColor,
+              lastMoveAt: new Date(),
+            });
+            
+            // Update timer - pause current player's, reset opponent's
+            const timer = simulTimers.get(pairingId);
+            if (timer) {
+              timer.turn = newActiveColor;
+              // Reset timer for next player's turn
+              if (newActiveColor === 'white') {
+                timer.whiteTimeRemaining = SIMUL_TURN_TIMER_SECONDS;
+              } else {
+                timer.blackTimeRemaining = SIMUL_TURN_TIMER_SECONDS;
+              }
+              
+              // Check if opponent is focused on this board to start their timer
+              const matchFocus = simulPlayerFocus.get(pairing.matchId);
+              const opponentId = isWhite ? pairing.blackPlayerId : pairing.whitePlayerId;
+              const opponentFocus = matchFocus?.get(opponentId);
+              
+              if (opponentFocus?.activePairingId === pairingId) {
+                // Opponent is watching, start their timer
+                timer.isPaused = false;
+                timer.deadline = Date.now() + (SIMUL_TURN_TIMER_SECONDS * 1000);
+              } else {
+                // Opponent not watching, pause timer
+                timer.isPaused = true;
+                timer.deadline = null;
+              }
+              
+              sendSimulTimerState(pairingId, timer);
+            }
+            
+            // Broadcast move to opponent
+            const room = simulPairingRooms.get(pairingId);
+            if (room) {
+              room.forEach((roomUserId) => {
+                if (roomUserId !== userId) {
+                  const opponentWs = userConnections.get(roomUserId);
+                  if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                    opponentWs.send(JSON.stringify({
+                      type: 'simul_opponent_move',
+                      pairingId,
+                      move,
+                      fen,
+                      from,
+                      to,
+                      piece,
+                      captured,
+                      moveCount: newMoves.length,
+                      activeColor: newActiveColor,
+                    }));
+                  }
+                }
+              });
+            }
+            
+            // After moving, trigger auto-switch for the player who just moved
+            const matchId = pairing.matchId;
+            const matchFocus = simulPlayerFocus.get(matchId);
+            const playerFocus = matchFocus?.get(userId);
+            
+            if (playerFocus && playerFocus.activePairingId === pairingId) {
+              // Player was on this board, check if they should auto-switch
+              const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, userId);
+              const pairingsForSwitch = playerGames.map(p => ({
+                id: p.id,
+                boardNumber: p.whitePlayerId === userId ? p.boardNumberWhite : p.boardNumberBlack,
+                moveCount: p.id === pairingId ? newMoves.length : p.moveCount,
+                activeColor: (p.id === pairingId ? newActiveColor : p.activeColor) as 'white' | 'black',
+                playerColor: (p.whitePlayerId === userId ? 'white' : 'black') as 'white' | 'black',
+                result: p.result,
+              }));
+              
+              const nextBoard = computeAutoSwitchTarget(userId, pairingsForSwitch, pairingId);
+              if (nextBoard && nextBoard !== pairingId) {
+                playerFocus.activePairingId = nextBoard;
+                playerFocus.pendingAutoSwitch = false;
+                playerFocus.pendingAck = true;
+                playerFocus.pendingAckTimestamp = Date.now();
+                sendSimulFocusUpdate(userId, matchId, nextBoard, 'auto_switch');
+              }
+            }
+            
+            // Confirm move to sender
+            ws.send(JSON.stringify({
+              type: 'simul_move_confirmed',
+              pairingId,
+              moveCount: newMoves.length,
+            }));
+            
+          } catch (error) {
+            console.error('[SimulWS] Error processing simul move:', error);
+            ws.send(JSON.stringify({ type: 'error', message: 'Failed to process move' }));
+          }
+          
+        } else if (data.type === 'simul_switch_board') {
+          const userId = ws.userId;
+          const { matchId, pairingId } = data;
+          
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
+            return;
+          }
+          
+          console.log(`[SimulWS] User ${userId} switching to board ${pairingId}`);
+          
+          const matchFocus = simulPlayerFocus.get(matchId);
+          if (!matchFocus) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Match not found' }));
+            return;
+          }
+          
+          const playerFocus = matchFocus.get(userId);
+          const now = Date.now();
+          
+          // Check cooldown
+          if (playerFocus && (now - playerFocus.lastManualSwitch) < AUTO_SWITCH_COOLDOWN_MS) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Switch cooldown active' }));
+            return;
+          }
+          
+          const previousPairingId = playerFocus?.activePairingId;
+          
+          // Update focus with pending ack - timer won't start until client confirms
+          matchFocus.set(userId, {
+            activePairingId: pairingId,
+            lastManualSwitch: now,
+            pendingAutoSwitch: false,
+            pendingAck: true,
+            pendingAckTimestamp: now,
+          });
+          
+          // Handle timer state changes
+          // Pause timer on old board if we were the one whose turn it was
+          if (previousPairingId) {
+            const oldTimer = simulTimers.get(previousPairingId);
+            if (oldTimer && !oldTimer.isPaused) {
+              const pairing = await storage.getSimulVsSimulPairing(previousPairingId);
+              if (pairing) {
+                const playerColor = pairing.whitePlayerId === userId ? 'white' : 'black';
+                if (oldTimer.turn === playerColor) {
+                  // We were the active player, pause our timer
+                  oldTimer.isPaused = true;
+                  oldTimer.deadline = null;
+                  sendSimulTimerState(previousPairingId, oldTimer);
+                }
+              }
+            }
+          }
+          
+          // NOTE: Timer on new board is NOT started here - it starts in simul_focus_ack
+          // This prevents timer running if client never received the switch confirmation
+          
+          // Send focus update with confirmation - client must ack to start timer
+          ws.send(JSON.stringify({
+            type: 'simul_switch_confirmed',
+            matchId,
+            pairingId,
+            previousPairingId: previousPairingId || null,
+            reason: 'manual_switch',
+          }));
+          
+          sendSimulFocusUpdate(userId, matchId, pairingId, 'manual_switch');
+          
+        } else if (data.type === 'simul_focus_ack') {
+          // Client acknowledges focus - clears pending state and starts timer
+          const userId = ws.userId;
+          const { matchId, pairingId } = data;
+          
+          if (!userId) return;
+          
+          const matchFocus = simulPlayerFocus.get(matchId);
+          if (!matchFocus) return;
+          
+          const playerFocus = matchFocus.get(userId);
+          if (!playerFocus) return;
+          
+          if (playerFocus.activePairingId !== pairingId) {
+            // Client is out of sync - force resync
+            ws.send(JSON.stringify({
+              type: 'simul_focus_resync',
+              matchId,
+              correctPairingId: playerFocus.activePairingId,
+            }));
+            return;
+          }
+          
+          // Clear pending ack state
+          if (playerFocus.pendingAck) {
+            playerFocus.pendingAck = false;
+            playerFocus.pendingAckTimestamp = 0;
+            
+            // Now start the timer if it's this player's turn
+            const timer = simulTimers.get(pairingId);
+            if (timer && timer.isPaused) {
+              try {
+                const pairing = await storage.getSimulVsSimulPairing(pairingId);
+                if (pairing && pairing.result === 'ongoing') {
+                  const playerColor = pairing.whitePlayerId === userId ? 'white' : 'black';
+                  if (timer.turn === playerColor) {
+                    // It's our turn, start the timer now that focus is confirmed
+                    const timeRemaining = playerColor === 'white' 
+                      ? timer.whiteTimeRemaining 
+                      : timer.blackTimeRemaining;
+                    timer.isPaused = false;
+                    timer.deadline = Date.now() + (timeRemaining * 1000);
+                    sendSimulTimerState(pairingId, timer);
+                  }
+                }
+              } catch (error) {
+                console.error('[SimulWS] Error starting timer after ack:', error);
+              }
+            }
+          }
+          
+        } else if (data.type === 'simul_game_result') {
+          const userId = ws.userId;
+          const { pairingId, result, reason } = data;
+          
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
+            return;
+          }
+          
+          console.log(`[SimulWS] Game result for pairing ${pairingId}: ${result} (${reason})`);
+          
+          try {
+            const pairing = await storage.getSimulVsSimulPairing(pairingId);
+            if (!pairing || pairing.result !== 'ongoing') return;
+            
+            await storage.updateSimulVsSimulPairing(pairingId, {
+              result,
+              completedAt: new Date(),
+            });
+            
+            // Stop timer
+            const timer = simulTimers.get(pairingId);
+            if (timer) {
+              timer.isPaused = true;
+              timer.deadline = null;
+            }
+            
+            // Notify both players
+            const room = simulPairingRooms.get(pairingId);
+            if (room) {
+              room.forEach((roomUserId) => {
+                const playerWs = userConnections.get(roomUserId);
+                if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                  playerWs.send(JSON.stringify({
+                    type: 'simul_game_end',
+                    pairingId,
+                    result,
+                    reason,
+                  }));
+                }
+              });
+            }
+            
+            // Check if match is complete
+            const matchId = pairing.matchId;
+            const allPairings = await storage.getAllSimulVsSimulPairings(matchId);
+            const allComplete = allPairings.every(p => p.result !== 'ongoing');
+            
+            if (allComplete) {
+              await storage.updateSimulVsSimulMatch(matchId, {
+                status: 'completed',
+                completedAt: new Date(),
+              });
+              
+              // Notify all players in match before cleanup
+              const matchRoom = simulMatchRooms.get(matchId);
+              if (matchRoom) {
+                matchRoom.forEach((roomUserId) => {
+                  const playerWs = userConnections.get(roomUserId);
+                  if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                    playerWs.send(JSON.stringify({
+                      type: 'simul_match_complete',
+                      matchId,
+                    }));
+                  }
+                });
+              }
+              
+              // Clean up match resources (timers, rooms, focus state)
+              cleanupSimulMatch(matchId, allPairings.map(p => p.id));
+            } else {
+              // Trigger auto-switch for players who were watching this game
+              const matchFocus = simulPlayerFocus.get(matchId);
+              if (matchFocus) {
+                for (const [playerId, focus] of matchFocus.entries()) {
+                  if (focus.activePairingId === pairingId) {
+                    const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, playerId);
+                    const pairingsForSwitch = playerGames.map(p => ({
+                      id: p.id,
+                      boardNumber: p.whitePlayerId === playerId ? p.boardNumberWhite : p.boardNumberBlack,
+                      moveCount: p.moveCount,
+                      activeColor: p.activeColor as 'white' | 'black',
+                      playerColor: (p.whitePlayerId === playerId ? 'white' : 'black') as 'white' | 'black',
+                      result: p.id === pairingId ? result : p.result,
+                    }));
+                    
+                    const nextBoard = computeAutoSwitchTarget(playerId, pairingsForSwitch, pairingId);
+                    if (nextBoard && nextBoard !== pairingId) {
+                      focus.activePairingId = nextBoard;
+                      focus.pendingAck = true;
+                      focus.pendingAckTimestamp = Date.now();
+                      sendSimulFocusUpdate(playerId, matchId, nextBoard, 'auto_switch');
+                    }
+                  }
+                }
+              }
+            }
+            
+          } catch (error) {
+            console.error('[SimulWS] Error processing game result:', error);
+          }
+          
+        // ============ END SIMUL VS SIMUL WEBSOCKET HANDLERS ============
+          
         } else if (data.type === 'request_rematch') {
           const matchId = data.matchId;
           const userId = ws.userId;
@@ -2374,6 +3492,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           } catch (error) {
             console.error('[Disconnect] Error checking game status:', error);
+          }
+        }
+        
+        // Clean up Simul vs Simul resources for this player
+        for (const [simulMatchId, matchRoom] of simulMatchRooms.entries()) {
+          if (matchRoom.has(userId)) {
+            console.log(`[SimulDisconnect] Cleaning up player ${userId} from simul match ${simulMatchId}`);
+            cleanupSimulPlayer(userId, simulMatchId);
+            
+            // Check if match should be cleaned up (all games done)
+            try {
+              const allPairings = await storage.getAllSimulVsSimulPairings(simulMatchId);
+              const allComplete = allPairings.every(p => p.result !== 'ongoing');
+              
+              if (allComplete) {
+                console.log(`[SimulDisconnect] All games complete, cleaning up match ${simulMatchId}`);
+                cleanupSimulMatch(simulMatchId, allPairings.map(p => p.id));
+              }
+            } catch (error) {
+              console.error('[SimulDisconnect] Error checking match status:', error);
+            }
+            break; // A player should only be in one simul match at a time
           }
         }
       }

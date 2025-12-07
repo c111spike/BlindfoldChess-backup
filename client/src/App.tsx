@@ -24,6 +24,7 @@ import History from "@/pages/history";
 import StatisticsPage from "@/pages/statistics";
 import Settings from "@/pages/settings";
 import GameAnalysis from "@/pages/game-analysis";
+import SimulVsSimulMode from "@/pages/simul-vs-simul-mode";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/standard" component={StandardMode} />
       <Route path="/blindfold" component={BlindfoldMode} />
       <Route path="/simul" component={SimulMode} />
+      <Route path="/simul-vs-simul" component={SimulVsSimulMode} />
       <Route path="/boardspin" component={BoardSpin} />
       <Route path="/n-piece" component={NPieceChallenge} />
       <Route path="/knights-tour" component={KnightsTour} />
