@@ -5,22 +5,20 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Strategy Terms
-  "'Doctrinaire' describes dogmatic players who strictly adhere to rigid opening principles.",
-  "Hanging Pawns are two adjacent pawns with no friendly pawns on adjacent files to defend them.",
-  "A Backward Pawn cannot be defended by other pawns and can be easily blockaded or attacked.",
-  "An Outpost is a square protected by a pawn on the opponent's side, often occupied by a Knight.",
-  "Pawn Structure is the arrangement of pawns - the skeleton that determines middlegame plans.",
+  // Tournaments
+  "The Aeroflot Open in Moscow used to be one of the largest and strongest open tournaments globally.",
   
-  // Tournament and Regional Facts
-  "The Sunway Sitges Chess Festival in Spain is one of the world's most popular open tournaments.",
-  "The Tata Steel Tournament (formerly Wijk aan Zee) in Netherlands is nicknamed the 'Wimbledon of Chess'.",
-  "The 2016 Baku Chess Olympiad was the first USA men's team gold medal since 1976.",
-  "The first official FIDE World Cup was held in 2000.",
-  "The US Chess Championship is typically held at the Saint Louis Chess Club.",
-  "The Sinquefield Cup is named after Rex and Jeanne Sinquefield, major American chess patrons.",
-  "The London Chess Classic is the UK's premier international chess tournament.",
-  "The Candidates Tournament has varied in format: round-robin, knockout, and double round-robin."
+  // Specific People and Anecdotes
+  "Aron Nimzowitsch invented terms like 'Prophylaxis' and 'Overprotection' that are now standard chess vocabulary.",
+  "Siegbert Tarrasch was called 'Praeceptor Germaniae' (Teacher of Germany) for his belief in classical principles.",
+  "Alexander Alekhine was known for extensive analysis, sometimes inventing lines that favored his side.",
+  "Garry Kasparov once played a simultaneous exhibition against the entire Iranian national team in Tehran.",
+  "Mikhail Tal was known to sacrifice pieces for minimal material, relying on immense pressure created.",
+  "Viktor Korchnoi played in the Candidates Tournament at age 75 (2007 event).",
+  "The Polgár sisters were part of an experiment by their father László to prove genius is nurtured, not born.",
+  "Magnus Carlsen dropped out of the 2023 World Championship cycle, stating he had 'nothing to gain'.",
+  "Viswanathan Anand was nicknamed 'The Tiger of Madras' for his speed of calculation.",
+  "Wesley So is known for his solid, strategic style, often drawing comparisons to Karpov."
 ];
 
 // Get all dates sorted by number of facts (ascending)
