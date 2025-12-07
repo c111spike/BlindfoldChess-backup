@@ -7949,6 +7949,13 @@
       "year": 1964,
       "name": "Vassilios Kotronias",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The term 'Rookie' (for a beginner) is sometimes traced back to the Rook piece, which is often the last to enter the game.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-26": [
@@ -8069,6 +8076,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Sicilian Defense (1. e4 c5) is named after the island of Sicily, though its association with the region is tenuous.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-30": [
@@ -8082,6 +8096,13 @@
     {
       "type": "fun_fact",
       "text": "The first unofficial World Chess Champion is often considered to be Pedro Damiano in the 16th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 'Immortal Game' (Anderssen vs. Kieseritzky, 1851) was played during a break at the world's first international tournament in London.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -8101,6 +8122,13 @@
       "year": 2003,
       "name": "Peter Szekely",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Black Death (1347-1351) is thought to have briefly reduced the popularity of chess in Europe due to social upheaval.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-01": [
@@ -8137,6 +8165,13 @@
     {
       "type": "fun_fact",
       "text": "The 1886 match that crowned Steinitz was played across three American cities: New York, St. Louis, and New Orleans.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In some ancient versions, players could win by simply capturing all opponent's pieces (leaving a 'bare king') without checkmate.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -8186,6 +8221,13 @@
       "year": 1953,
       "name": "Michael Stean",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The longest theoretical chess game possible under FIDE rules is estimated to be around 5,949 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-05": [
@@ -8202,6 +8244,13 @@
       "year": 1978,
       "name": "Zhang Zhong",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "There are over 318 billion possible ways of playing the first four moves for both sides.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-06": [
@@ -8252,6 +8301,13 @@
     {
       "type": "fun_fact",
       "text": "José Raúl Capablanca was undefeated for eight years (1916-1924) in serious classical play.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "There are 400 possible board positions after one move by White and one move by Black.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -8442,6 +8498,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "There are over 122 million unique ways to complete a Knight's Tour (visiting every square exactly once).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-14": [
@@ -8525,6 +8588,13 @@
       "year": 1964,
       "name": "Berge Østenstad",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Through pawn promotion, it's theoretically possible to have nine Queens or up to ten Rooks, Knights, or Bishops of the same color.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-17": [
@@ -8601,6 +8671,13 @@
       "year": 2000,
       "name": "Karl Robatsch",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Under-promotion (to a piece other than Queen) is most often a Knight to deliver immediate checkmate or fork.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-20": [
@@ -8614,6 +8691,13 @@
     {
       "type": "fun_fact",
       "text": "The 1948 World Championship was held as a tournament after Alekhine's death, won by Botvinnik.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The earliest known example of castling late in a game was in 1966, on move 46.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -8656,6 +8740,13 @@
       "year": 1976,
       "name": "Yannick Pelletier",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In the 18th century, pawns could only be promoted to pieces already captured by the opponent.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-23": [
@@ -8999,6 +9090,13 @@
     {
       "type": "fun_fact",
       "text": "Bobby Fischer learned chess at age 6 and became a Grandmaster at age 15.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess clocks were first used at the 1862 London tournament, initially using hourglasses.",
       "year": null,
       "name": null,
       "source": "Chess History"

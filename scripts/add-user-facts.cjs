@@ -5,18 +5,23 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Historical and Cultural Facts
-  "The first chess game played in space was in 1970 between the Soyuz 9 crew and a team on Earth - it ended in a draw.",
-  "The first mention of chess in Western writing was in a Spanish manuscript in the 13th century.",
-  "The modern two-square pawn move on the first turn was introduced in Spain in 1280 to speed up the game.",
-  "The alternating light and dark squares on the chessboard first appeared in Europe around 1090.",
-  "Before the modern Queen (c. 15th century), the piece was called the Vizier and only moved one square diagonally.",
-  "In early chess (Shatranj), stalemate was considered a win for the stalemated player.",
-  "White moving first was not standardized in international competition until 1889 - before that, choice was decided by chance.",
-  "The folding chessboard was allegedly invented by a chess-playing priest in 1125 to hide it from the Church.",
-  "The Rook was originally a chariot (Ratha in Sanskrit), later becoming Rukh (Persian for chariot/tower).",
-  "In French, the Bishop is called 'Le Fou' (The Fool) - derived from a misinterpretation of the Arabic word for elephant.",
-  "The English Opening (1. c4) was named for Howard Staunton, who used it frequently in the 19th century."
+  // Etymology and History
+  "The term 'Rookie' (for a beginner) is sometimes traced back to the Rook piece, which is often the last to enter the game.",
+  "The Sicilian Defense (1. e4 c5) is named after the island of Sicily, though its association with the region is tenuous.",
+  "The 'Immortal Game' (Anderssen vs. Kieseritzky, 1851) was played during a break at the world's first international tournament in London.",
+  "The Black Death (1347-1351) is thought to have briefly reduced the popularity of chess in Europe due to social upheaval.",
+  "In some ancient versions, players could win by simply capturing all opponent's pieces (leaving a 'bare king') without checkmate.",
+  
+  // Rules, Records, and Numbers
+  "The longest theoretical chess game possible under FIDE rules is estimated to be around 5,949 moves.",
+  "There are over 318 billion possible ways of playing the first four moves for both sides.",
+  "There are 400 possible board positions after one move by White and one move by Black.",
+  "There are over 122 million unique ways to complete a Knight's Tour (visiting every square exactly once).",
+  "Through pawn promotion, it's theoretically possible to have nine Queens or up to ten Rooks, Knights, or Bishops of the same color.",
+  "Under-promotion (to a piece other than Queen) is most often a Knight to deliver immediate checkmate or fork.",
+  "The earliest known example of castling late in a game was in 1966, on move 46.",
+  "In the 18th century, pawns could only be promoted to pieces already captured by the opponent.",
+  "Chess clocks were first used at the 1862 London tournament, initially using hourglasses."
 ];
 
 // Get all dates sorted by number of facts (ascending)
