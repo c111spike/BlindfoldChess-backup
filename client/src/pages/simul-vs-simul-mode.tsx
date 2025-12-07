@@ -10,7 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -439,7 +438,7 @@ export default function SimulVsSimulMode() {
           }
           
           if (chess.isCheckmate()) {
-            const result = chess.turn() === 'w' ? 'black_wins' : 'white_wins';
+            const result = chess.turn() === 'w' ? 'black_win' : 'white_win';
             updatedBoards[activeBoard].result = result;
             
             if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -492,7 +491,7 @@ export default function SimulVsSimulMode() {
   const getResultDisplay = (result: string, playerColor: string) => {
     if (result === 'ongoing') return null;
     if (result === 'draw') return { text: 'Draw', variant: 'secondary' as const };
-    if (result === `${playerColor}_wins`) return { text: 'Won', variant: 'default' as const };
+    if (result === `${playerColor}_win`) return { text: 'Won', variant: 'default' as const };
     return { text: 'Lost', variant: 'destructive' as const };
   };
   
@@ -650,18 +649,10 @@ export default function SimulVsSimulMode() {
                   
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Number of Boards (per player)</label>
-                    <Select value={boardCount} onValueChange={setBoardCount}>
-                      <SelectTrigger data-testid="select-board-count">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[5, 10, 25].map(num => (
-                          <SelectItem key={num} value={num.toString()}>
-                            {num} boards ({num + 1} players)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                      <span className="font-medium" data-testid="text-board-count">5 boards</span>
+                      <span className="text-muted-foreground">(6 players)</span>
+                    </div>
                   </div>
                   
                   <div className="p-4 bg-muted rounded-lg space-y-2">

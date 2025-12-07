@@ -2230,7 +2230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const pairing = await storage.getSimulVsSimulPairing(pairingId);
           if (pairing && pairing.result === 'ongoing') {
             await storage.updateSimulVsSimulPairing(pairingId, {
-              result: winner === 'white' ? 'white_wins' : 'black_wins',
+              result: winner === 'white' ? 'white_win' : 'black_win',
               completedAt: new Date(),
             });
             
@@ -2243,7 +2243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   ws.send(JSON.stringify({
                     type: 'simul_game_end',
                     pairingId,
-                    result: winner === 'white' ? 'white_wins' : 'black_wins',
+                    result: winner === 'white' ? 'white_win' : 'black_win',
                     reason: 'timeout',
                   }));
                 }
@@ -3278,10 +3278,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const pairing = await storage.getSimulVsSimulPairing(pairingId);
             if (!pairing || pairing.result !== 'ongoing') return;
             
-            // Determine game result for games table (enum uses singular form)
+            // Determine game result for games table
             let gameResult: 'white_win' | 'black_win' | 'draw' | 'ongoing' = 'ongoing';
-            if (result === 'white_wins') gameResult = 'white_win';
-            else if (result === 'black_wins') gameResult = 'black_win';
+            if (result === 'white_win') gameResult = 'white_win';
+            else if (result === 'black_win') gameResult = 'black_win';
             else if (result === 'draw') gameResult = 'draw';
             
             // Create games table entries for analysis if human players are involved
