@@ -843,7 +843,7 @@ export default function SimulVsSimulMode() {
               </div>
             )}
             
-            <div className="max-w-[500px] w-full aspect-square">
+            <div className="max-w-[665px] w-full aspect-square">
               <ChessBoard
                 fen={activeGame.fen}
                 orientation={activeGame.color}
