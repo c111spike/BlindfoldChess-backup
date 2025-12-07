@@ -59,10 +59,15 @@ export default function SimulVsSimulMode() {
   const wsRef = useRef<WebSocket | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const queuePollRef = useRef<NodeJS.Timeout | null>(null);
+  const matchIdRef = useRef<string | null>(null);
   
   useEffect(() => {
     boardsRef.current = boards;
   }, [boards]);
+  
+  useEffect(() => {
+    matchIdRef.current = matchId;
+  }, [matchId]);
   
   useEffect(() => {
     return () => {
@@ -227,10 +232,12 @@ export default function SimulVsSimulMode() {
             });
           }
           // Send focus acknowledgment so timer starts on the new board
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && matchId) {
+          // Use matchIdRef to get current value (avoids stale closure)
+          const currentMatchId = matchIdRef.current;
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && currentMatchId) {
             wsRef.current.send(JSON.stringify({
               type: 'simul_focus_ack',
-              matchId: matchId,
+              matchId: currentMatchId,
               pairingId: data.pairingId,
             }));
           }
