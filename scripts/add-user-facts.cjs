@@ -5,21 +5,14 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Records and Landmarks
-  "The St. Louis Chess Club holds the record for the world's largest chess piece - a 20-foot tall King.",
-  "The 1972 Fischer-Spassky match was the first to be broadcast live to a global audience.",
+  // Strategy and Endgames
+  "The Tarrasch Rule states that Rooks usually belong behind passed pawns, both friendly and enemy.",
+  "The Bishop of Opposite Colors endgame is highly drawish because Bishops can never attack each other's squares.",
+  "A 'Holey Grail' is a weak square that cannot be controlled by pawns, often serving as an enemy outpost.",
   
-  // Terminology
-  "'The clock is running' means it is officially the player's turn to move.",
-  "The Swiss System format allows maximum players to compete efficiently without excessive rounds.",
-  "The Round-Robin format is where every competitor plays every other competitor once.",
-  "The earliest reference to a chess rating or ranking system dates back to the 18th century.",
-  
-  // Strategy
-  "The 'Alekhine Gun' is a formation where the Queen backs up two Rooks along an open file.",
-  "Prophylaxis (preventing opponent's threats rather than pursuing your own plan) was championed by Nimzowitsch.",
-  "The 'Kiss of Death' is a colloquial term for a King-side attack ending in Queen checkmate.",
-  "In the endgame, the King becomes a powerful attacking and defensive piece."
+  // Records
+  "Computer chess programs can calculate up to 200 million positions per second.",
+  "The first documented game of chess played in the Americas was in 1640."
 ];
 
 // Get all dates sorted by number of facts (ascending)

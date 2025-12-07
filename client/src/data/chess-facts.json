@@ -458,6 +458,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Tarrasch Rule states that Rooks usually belong behind passed pawns, both friendly and enemy.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-11": [
@@ -485,6 +492,13 @@
     {
       "type": "fun_fact",
       "text": "A Desperado is a doomed piece that captures other pieces or gives checks before its demise to gain advantage.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Bishop of Opposite Colors endgame is highly drawish because Bishops can never attack each other's squares.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -518,6 +532,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A 'Holey Grail' is a weak square that cannot be controlled by pawns, often serving as an enemy outpost.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-13": [
@@ -548,6 +569,13 @@
       "year": 1987,
       "name": "Vladimir Alatortsev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Computer chess programs can calculate up to 200 million positions per second.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-14": [
@@ -652,6 +680,13 @@
       "year": 1973,
       "name": "Roman Ovetchkin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first documented game of chess played in the Americas was in 1640.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-17": [
