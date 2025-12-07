@@ -793,39 +793,22 @@ export default function SimulVsSimulMode() {
           </div>
         ) : activeGame ? (
           <div className="w-full max-w-3xl mx-auto space-y-2">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleBoardSwitch(activeBoard - 1)}
-                  disabled={!matchComplete || activeBoard === 0}
-                  data-testid="button-prev-board"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                
-                <div>
-                  <h3 className="font-semibold" data-testid="text-active-board">
-                    Board #{activeGame.boardNumber}
-                  </h3>
-                  <p className="text-sm text-muted-foreground" data-testid="text-active-opponent">
-                    vs {activeGame.opponentName}
-                  </p>
-                </div>
-                
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleBoardSwitch(activeBoard + 1)}
-                  disabled={!matchComplete || activeBoard === boards.length - 1}
-                  data-testid="button-next-board"
-                >
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleBoardSwitch(activeBoard - 1)}
+                disabled={!matchComplete || activeBoard === 0}
+                data-testid="button-prev-board"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <h3 className="font-semibold" data-testid="text-active-board">
+                  Board #{activeGame.boardNumber}
+                </h3>
+                <span className="text-muted-foreground">vs {activeGame.opponentName}</span>
                 <Badge variant={activeGame.color === 'white' ? 'outline' : 'secondary'}>
                   {activeGame.color}
                 </Badge>
@@ -835,7 +818,7 @@ export default function SimulVsSimulMode() {
                   </Badge>
                 )}
                 {activeGame.result === 'ongoing' && isMyTurn && (
-                  <div className="flex items-center gap-1 text-lg font-mono ml-2" data-testid="text-timer">
+                  <div className="flex items-center gap-1 text-lg font-mono" data-testid="text-timer">
                     <Clock className="h-4 w-4" />
                     <span className={activeGame.timeRemaining <= 10 ? 'text-red-500 font-bold' : ''}>
                       {activeGame.timeRemaining}s
@@ -843,6 +826,16 @@ export default function SimulVsSimulMode() {
                   </div>
                 )}
               </div>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleBoardSwitch(activeBoard + 1)}
+                disabled={!matchComplete || activeBoard === boards.length - 1}
+                data-testid="button-next-board"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </Button>
             </div>
             
             <div className="w-full aspect-square">
