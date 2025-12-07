@@ -6,12 +6,8 @@
         "description": "1987: Birth of Georgian Grandmaster Nana Dzagnidze, a World Blitz Champion and Olympiad individual gold medalist."
       },
       {
-        "type": "tournament_start",
+        "type": "tournament_end",
         "description": "1968: The Hastings 1967/68 tournament concluded, won by Grandmaster Florin Gheorghiu."
-      },
-      {
-        "type": "tournament_start",
-        "description": "1895: The legendary Hastings 1895 tournament began, famously won by the young American Harry Nelson Pillsbury."
       },
       {
         "type": "tournament_start",
@@ -24,12 +20,8 @@
         "description": "2024: The Pan-American Intercollegiate Team Chess Championship concluded, with UTRGV securing a historic outright victory."
       },
       {
-        "type": "tournament_start",
-        "description": "1986: The Reggio Emilia 1985/86 tournament concluded, won by Garry Kasparov and Ulf Andersson."
-      },
-      {
         "type": "tournament_end",
-        "description": "1937: The Hastings 1936/37 tournament concluded, won by Grandmaster Aleksandr Alekhine."
+        "description": "1986: The Reggio Emilia 1985/86 tournament concluded, won by Garry Kasparov and Ulf Andersson."
       }
     ],
     "Jan 3": [
@@ -38,16 +30,8 @@
         "description": "1985: Birth of Polish Grandmaster Mateusz Bartel, a four-time Polish Champion."
       },
       {
-        "type": "tournament_start",
+        "type": "tournament_end",
         "description": "1978: The Hastings 1977/78 tournament concluded, won by the young future World Champion Ulf Andersson."
-      },
-      {
-        "type": "match_end",
-        "description": "1935: The World Chess Championship 1935 match between Alekhine and Max Euwe concluded, with Euwe becoming the 5th World Champion."
-      },
-      {
-        "type": "birth",
-        "description": "1886: Birth of American chess master and writer Albert Beauregard Hodges."
       }
     ],
     "Jan 4": [
@@ -64,8 +48,8 @@
         "description": "1971: The Wijk aan Zee 1971 tournament (later Tata Steel) began; won by Viktor Korchnoi."
       },
       {
-        "type": "birth",
-        "description": "1908: Birth of Romanian-American International Master Imre König."
+        "type": "tournament_end",
+        "description": "1923: The Hastings 1922/23 tournament concluded, won by Akiba Rubinstein."
       }
     ],
     "Jan 5": [
@@ -76,10 +60,6 @@
       {
         "type": "tournament_start",
         "description": "2008: The Corus A Tournament (Wijk aan Zee) began, won by Levon Aronian."
-      },
-      {
-        "type": "birth",
-        "description": "1904: Birth of American master Edward Lasker (unrelated to World Champion Emanuel Lasker)."
       },
       {
         "type": "tournament_end",
@@ -97,11 +77,11 @@
       },
       {
         "type": "tournament_end",
-        "description": "1923: The Hastings 1922/23 tournament concluded, won by Akiba Rubinstein."
+        "description": "1951: The Hastings 1950/51 tournament concluded, won by Wolfgang Unzicker."
       },
       {
         "type": "tournament_end",
-        "description": "1951: The Hastings 1950/51 tournament concluded, won by Wolfgang Unzicker."
+        "description": "1937: The Hastings 1936/37 tournament concluded, won by Grandmaster Aleksandr Alekhine."
       }
     ],
     "Jan 7": [
@@ -178,8 +158,8 @@
     ],
     "Jan 11": [
       {
-        "type": "birth",
-        "description": "1868: Birth of Emanuel Lasker, the second and longest-reigning World Chess Champion (27 years)."
+        "type": "death",
+        "description": "1941: Death of Emanuel Lasker, the second and longest-reigning World Chess Champion (27 years)."
       },
       {
         "type": "tournament_end",
@@ -420,10 +400,6 @@
         "description": "2015: The Tata Steel Masters tournament began, won by Magnus Carlsen."
       },
       {
-        "type": "birth",
-        "description": "1880: Birth of Max Euwe's predecessor and 2nd World Champion, Emanuel Lasker."
-      },
-      {
         "type": "tournament_start",
         "description": "1976: The Wijk aan Zee 1976 tournament began, won by Friðrik Ólafsson."
       }
@@ -450,6 +426,10 @@
       {
         "type": "birth",
         "description": "1935: Birth of Icelandic Grandmaster Friðrik Ólafsson, the FIDE President from 1978 to 1982."
+      },
+      {
+        "type": "tournament_end",
+        "description": "2014: The Tata Steel Masters tournament concluded, won by Levon Aronian."
       },
       {
         "type": "tournament_start",
@@ -506,10 +486,6 @@
         "description": "1995: The Hoogovens Wijk aan Zee tournament began, won by Alexey Dreev."
       },
       {
-        "type": "tournament_end",
-        "description": "2014: The Tata Steel Masters tournament concluded, won by Levon Aronian."
-      },
-      {
         "type": "tournament_start",
         "description": "1974: The Wijk aan Zee 1974 tournament began, won by Walter Browne."
       },
@@ -540,10 +516,6 @@
       {
         "type": "tournament_end",
         "description": "1997: The Hoogovens Wijk aan Zee tournament concluded, won by Valery Salov."
-      },
-      {
-        "type": "match_end",
-        "description": "1978: The World Chess Championship Match between Karpov and Korchnoi concluded in Baguio, with Anatoly Karpov retaining his title."
       },
       {
         "type": "tournament_start",
@@ -704,7 +676,11 @@
         "description": "1947: Birth of Soviet-American Grandmaster Boris Gulko, the only player to have been champion of both the Soviet Union and the United States."
       },
       {
-        "type": "tournament_start",
+        "type": "birth",
+        "description": "1901: Birth of Romanian-American International Master Imre König, author of several chess books."
+      },
+      {
+        "type": "tournament_end",
         "description": "1977: The Wijk aan Zee tournament concluded, won by Svetozar Gligorić and Efim Geller."
       },
       {
@@ -2536,6 +2512,10 @@
         "description": "1982: Birth of Grandmaster Georg Meier, a German player and former National Champion."
       },
       {
+        "type": "birth",
+        "description": "1949: Birth of International Master Robert Bellin, an English chess player."
+      },
+      {
         "type": "historical_event",
         "description": "2021: Abhimanyu Mishra earned his third and final GM norm in Budapest, becoming the youngest Grandmaster in history at 12 years, 4 months, and 25 days old."
       }
@@ -2750,6 +2730,10 @@
         "description": "1984: Birth of Grandmaster Krishnan Sasikiran, an Indian player and former Asian Games gold medalist."
       },
       {
+        "type": "birth",
+        "description": "1861: Birth of American chess master Albert Beauregard Hodges, noted for his endgame skills."
+      },
+      {
         "type": "tournament_start",
         "description": "2025: The GRENKE Chess Classic is scheduled to begin, featuring Magnus Carlsen and other top elite players."
       }
@@ -2898,6 +2882,10 @@
       {
         "type": "tournament_end",
         "description": "2024: The British Chess Championship concluded, with a player successfully defending their title."
+      },
+      {
+        "type": "tournament_start",
+        "description": "1895: The legendary Hastings 1895 tournament began, famously won by the young American Harry Nelson Pillsbury."
       }
     ],
     "Aug 6": [
@@ -3628,6 +3616,10 @@
         "description": "2004: The Classical World Chess Championship match concluded, with Vladimir Kramnik retaining his title against Peter Leko."
       },
       {
+        "type": "match_end",
+        "description": "1978: The World Chess Championship match between Karpov and Korchnoi concluded in Baguio, with Anatoly Karpov retaining his title."
+      },
+      {
         "type": "tournament_start",
         "description": "2025: The FIDE Grand Prix series is scheduled to begin, offering elite qualification spots."
       }
@@ -4216,8 +4208,12 @@
     ],
     "Dec 3": [
       {
+        "type": "birth",
+        "description": "1885: Birth of American master Edward Lasker, a chess and Go player, and engineer (unrelated to World Champion Emanuel Lasker)."
+      },
+      {
         "type": "tournament_start",
-        "description": "2025: The **IV President Cup"
+        "description": "2025: The IV President Cup is scheduled to begin in Uzbekistan."
       },
       {
         "type": "tournament_end",
@@ -4272,16 +4268,8 @@
     ],
     "Dec 7": [
       {
-        "type": "birth",
-        "description": "1949: Birth of Grandmaster Robert Bellin, an English Grandmaster."
-      },
-      {
         "type": "tournament_end",
-        "description": "2025: The **IV President Cup"
-      },
-      {
-        "type": "birth",
-        "description": "1976: Birth of Russian Grandmaster Alexander Grischuk."
+        "description": "2025: The IV President Cup concluded in Uzbekistan."
       }
     ],
     "Dec 8": [
@@ -4399,7 +4387,11 @@
     "Dec 16": [
       {
         "type": "birth",
-        "description": "1966: Birth of Grandmaster Christiansen, Larry, an American Grandmaster and three-time U.S. Champion."
+        "description": "1966: Birth of Grandmaster Larry Christiansen, an American Grandmaster and three-time U.S. Champion."
+      },
+      {
+        "type": "match_end",
+        "description": "1935: The World Chess Championship match between Alekhine and Max Euwe concluded, with Euwe becoming the 5th World Champion."
       },
       {
         "type": "tournament_start",
