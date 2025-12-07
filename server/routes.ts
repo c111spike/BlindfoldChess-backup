@@ -553,6 +553,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Abandon active Simul vs Simul match (for stuck matches)
+  app.post('/api/simul-vs-simul/match/abandon', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const existingMatch = await storage.getActiveSimulVsSimulMatchForUser(userId);
+      if (!existingMatch) {
+        return res.json({ success: true, message: "No active match to abandon" });
+      }
+      
+      // Mark the match as completed (abandoned)
+      await storage.updateSimulVsSimulMatch(existingMatch.id, {
+        status: 'completed',
+        completedAt: new Date(),
+      });
+      
+      // Clean up in-memory state
+      const allPairings = await storage.getAllSimulVsSimulPairings(existingMatch.id);
+      cleanupSimulMatch(existingMatch.id, allPairings.map(p => p.id));
+      
+      console.log(`[SimulMatch] User ${userId} abandoned match ${existingMatch.id}`);
+      res.json({ success: true, message: "Match abandoned successfully" });
+    } catch (error) {
+      console.error("Error abandoning simul vs simul match:", error);
+      res.status(500).json({ message: "Failed to abandon match" });
+    }
+  });
+
   // Get Simul vs Simul queue status
   app.get('/api/simul-vs-simul/queue/status', isAuthenticated, async (req: any, res) => {
     try {
