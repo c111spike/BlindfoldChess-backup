@@ -5,21 +5,18 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Openings
-  "The Sicilian Defense is the most popular response by Black to 1. e4 at the master level.",
-  "The Queen's Gambit is the oldest opening still considered fully sound and popular at Grandmaster level.",
-  "The King's Gambit (1. e4 e5 2. f4) was the opening of choice during the 'Romantic Era' of chess (18th-19th centuries).",
-  
-  // Strategy and Tactics
-  "Queen sacrifices are so rare and brilliant that they are often highlighted as moments of genius.",
-  "Zwischenzug (intermediate move) is often a check or forcing move that changes the anticipated order of a combination.",
-  
-  // Competitive Chess
-  "The World Computer Chess Championship is a separate tournament where computer programs compete against each other.",
-  "The Russian School of Chess emphasized state support, scientific analysis, and systematic training.",
-  "Correspondence Chess involves players taking days or weeks for a single move, using tools and databases for deep analysis.",
-  "The FIDE Master (FM) title is ranked below International Master (IM) and Grandmaster (GM) titles.",
-  "Chess pieces have symbolic point values: Pawn (1), Knight/Bishop (3), Rook (5), Queen (9), King (Infinite)."
+  // World Championship History
+  "The first unofficial World Chess Champion is often considered to be Pedro Damiano (16th century).",
+  "The 1886 Steinitz match was played across three American cities: New York, St. Louis, and New Orleans.",
+  "José Raúl Capablanca was undefeated for eight years (1916-1924) in serious classical play.",
+  "In the 1930s, Mikhail Botvinnik began applying scientific training methods that became standard for modern preparation.",
+  "The 1948 World Championship establishing the cycle after Alekhine's death was held in The Hague and Moscow.",
+  "The 1984-85 Karpov vs Kasparov match was controversially ended after 48 games by FIDE President Campomanes.",
+  "Viswanathan Anand was the first to win the World Championship in three formats (Knockout, Tournament, Match).",
+  "The Candidates Tournament is the final event to select the challenger to the reigning World Champion.",
+  "Ding Liren became the first Chinese male World Champion after winning the 2023 match against Nepomniachtchi.",
+  "Mikhail Botvinnik was the first player to successfully defend the title in the FIDE era (since 1948).",
+  "Anatoly Karpov won the 1975 World Championship by forfeit when Bobby Fischer refused to defend his title."
 ];
 
 // Get all dates sorted by number of facts (ascending)

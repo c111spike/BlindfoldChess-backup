@@ -6550,6 +6550,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first unofficial World Chess Champion is often considered to be Pedro Damiano (16th century).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-28": [
@@ -6617,6 +6624,13 @@
       "year": 1980,
       "name": "Zhang Pengxiang",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 1886 Steinitz match was played across three American cities: New York, St. Louis, and New Orleans.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-30": [
@@ -6913,6 +6927,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "José Raúl Capablanca was undefeated for eight years (1916-1924) in serious classical play.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-08": [
@@ -6936,6 +6957,13 @@
       "year": 1972,
       "name": "Victor Mikhalevski",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In the 1930s, Mikhail Botvinnik began applying scientific training methods that became standard for modern preparation.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-09": [
@@ -6959,6 +6987,13 @@
       "year": 1950,
       "name": "Peter Lukacs",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 1948 World Championship establishing the cycle after Alekhine's death was held in The Hague and Moscow.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-10": [
@@ -6979,6 +7014,13 @@
     {
       "type": "fun_fact",
       "text": "Magnus Carlsen holds the highest classical Elo rating ever achieved: 2882.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 1984-85 Karpov vs Kasparov match was controversially ended after 48 games by FIDE President Campomanes.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -7005,6 +7047,13 @@
       "year": 1977,
       "name": "Robert Kempiński",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Viswanathan Anand was the first to win the World Championship in three formats (Knockout, Tournament, Match).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-12": [
@@ -7028,6 +7077,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Candidates Tournament is the final event to select the challenger to the reigning World Champion.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-13": [
@@ -7048,6 +7104,13 @@
     {
       "type": "fun_fact",
       "text": "Judit Polgár is the strongest female player ever - the only woman to break 2700 Elo and play for the World Championship.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Ding Liren became the first Chinese male World Champion after winning the 2023 match against Nepomniachtchi.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -7141,6 +7204,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Mikhail Botvinnik was the first player to successfully defend the title in the FIDE era (since 1948).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-17": [
@@ -7161,6 +7231,13 @@
     {
       "type": "fun_fact",
       "text": "The first chess game played in space was in 1970 between the Soyuz 9 crew and a team on Earth - it ended in a draw.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Anatoly Karpov won the 1975 World Championship by forfeit when Bobby Fischer refused to defend his title.",
       "year": null,
       "name": null,
       "source": "Chess History"
