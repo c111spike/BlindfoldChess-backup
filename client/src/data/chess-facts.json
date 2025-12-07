@@ -10724,6 +10724,13 @@
       "year": 1932,
       "name": "Yair Kraidman",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Early 19th-century rules sometimes allowed the King to make a Knight move on its first turn.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-02": [
@@ -10777,6 +10784,13 @@
       "year": 1992,
       "name": "Vladas Mikėnas",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Until mid-19th century, opponents were required to announce 'Check!' or the move would be invalid.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-04": [
@@ -10844,6 +10858,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Castling was not fully standardized until the 17th century - different European regions had different rules.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-06": [
@@ -10867,6 +10888,13 @@
       "year": 1986,
       "name": "Pavel Maletin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Fischer Random Chess (Chess960) has 960 possible starting positions to negate memorized opening theory.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-07": [
@@ -10890,6 +10918,13 @@
       "year": 1961,
       "name": "Andrei Kovalev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Old Indian Defense (1. d4 Nf6 2. c4 d6) predates the more popular King's Indian Defense.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-08": [
@@ -11128,6 +11163,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first 'Master-level' chess book was written by François-André Danican Philidor in the 18th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-15": [
@@ -11178,6 +11220,13 @@
     {
       "type": "fun_fact",
       "text": "The 1973 Cleveland Chess Tournament was raided by police who confiscated chess sets, claiming they were 'gambling devices' due to cash prizes.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 'Immortal Zugzwang Game' (Nimzowitsch vs Sämisch, 1923) ended in a pure zugzwang position.",
       "year": null,
       "name": null,
       "source": "Chess History"
