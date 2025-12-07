@@ -25,6 +25,7 @@ import StatisticsPage from "@/pages/statistics";
 import Settings from "@/pages/settings";
 import GameAnalysis from "@/pages/game-analysis";
 import SimulVsSimulMode from "@/pages/simul-vs-simul-mode";
+import SimulMatchReview from "@/pages/simul-match-review";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/analysis/:gameId" component={GameAnalysis} />
       <Route path="/analysis/shared/:shareCode" component={GameAnalysis} />
+      <Route path="/simul-match/:matchId" component={SimulMatchReview} />
       <Route component={NotFound} />
     </Switch>
   );

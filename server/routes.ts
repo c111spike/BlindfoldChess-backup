@@ -757,6 +757,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get match review data (for post-match analysis navigation)
+  app.get('/api/simul-vs-simul/match/:matchId/review', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { matchId } = req.params;
+
+      const match = await storage.getSimulVsSimulMatch(matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      const players = await storage.getSimulVsSimulMatchPlayers(matchId);
+      const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, userId);
+      const user = await storage.getUser(userId);
+
+      // Get player's board assignments with all data needed for review
+      const boards = playerGames.map(pairing => {
+        const isWhite = pairing.whitePlayerId === userId || (pairing.whiteIsBot && !pairing.blackIsBot);
+        const opponentPlayer = players.find(p => 
+          isWhite ? (p.odId === pairing.blackPlayerId || (pairing.blackIsBot && p.isBot && p.botId === pairing.blackBotId)) 
+                  : (p.odId === pairing.whitePlayerId || (pairing.whiteIsBot && p.isBot && p.botId === pairing.whiteBotId))
+        );
+
+        return {
+          pairingId: pairing.id,
+          gameId: pairing.gameId,
+          boardNumber: isWhite ? pairing.boardNumberWhite : pairing.boardNumberBlack,
+          color: isWhite ? 'white' : 'black',
+          opponentName: opponentPlayer?.isBot 
+            ? `Bot (${opponentPlayer.botPersonality})` 
+            : 'Opponent',
+          opponentId: isWhite ? pairing.blackPlayerId : pairing.whitePlayerId,
+          isOpponentBot: isWhite ? pairing.blackIsBot : pairing.whiteIsBot,
+          fen: pairing.fen,
+          moves: pairing.moves,
+          moveCount: pairing.moveCount,
+          result: pairing.result,
+        };
+      }).sort((a, b) => a.boardNumber - b.boardNumber);
+
+      // Calculate score summary
+      let wins = 0, losses = 0, draws = 0;
+      for (const board of boards) {
+        if (board.result === 'draw') {
+          draws++;
+        } else if (
+          (board.result === 'white_win' && board.color === 'white') ||
+          (board.result === 'black_win' && board.color === 'black')
+        ) {
+          wins++;
+        } else if (board.result !== 'ongoing') {
+          losses++;
+        }
+      }
+
+      res.json({
+        matchId: match.id,
+        status: match.status,
+        boardCount: match.boardCount,
+        playerCount: match.playerCount,
+        boards,
+        score: { wins, losses, draws },
+        playerName: user?.username || user?.firstName || 'You',
+        createdAt: match.createdAt,
+        completedAt: match.completedAt,
+      });
+    } catch (error) {
+      console.error("Error fetching simul vs simul match review:", error);
+      res.status(500).json({ message: "Failed to fetch match review data" });
+    }
+  });
+
   // Helper function to create a Simul vs Simul match
   async function createSimulVsSimulMatch(queuePlayers: any[], boardCount: number) {
     const playerCount = boardCount + 1;

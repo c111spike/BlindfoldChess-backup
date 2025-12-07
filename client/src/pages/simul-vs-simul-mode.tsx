@@ -846,7 +846,7 @@ export default function SimulVsSimulMode() {
                 {activeGame.gameId && (
                   <Button
                     variant="outline"
-                    onClick={() => setLocation(`/analysis/${activeGame.gameId}`)}
+                    onClick={() => setLocation(`/analysis/${activeGame.gameId}${matchId ? `?matchId=${matchId}` : ''}`)}
                     data-testid="button-analyze-main"
                   >
                     <BarChart3 className="h-4 w-4 mr-2" />
@@ -949,7 +949,7 @@ export default function SimulVsSimulMode() {
                           className="w-full mt-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setLocation(`/analysis/${board.gameId}`);
+                            setLocation(`/analysis/${board.gameId}${matchId ? `?matchId=${matchId}` : ''}`);
                           }}
                           data-testid={`button-analyze-${index}`}
                         >
@@ -1045,7 +1045,7 @@ export default function SimulVsSimulMode() {
                           size="sm"
                           onClick={() => {
                             setShowMatchEndDialog(false);
-                            setLocation(`/analysis/${board.gameId}`);
+                            setLocation(`/analysis/${board.gameId}${matchId ? `?matchId=${matchId}` : ''}`);
                           }}
                           data-testid={`button-analyze-result-${index}`}
                         >

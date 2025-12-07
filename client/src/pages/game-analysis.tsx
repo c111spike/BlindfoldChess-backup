@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Chess } from 'chess.js';
@@ -31,6 +31,7 @@ import {
   Activity,
   Eye,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react';
 import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase } from '@shared/schema';
 
@@ -535,6 +536,11 @@ export default function GameAnalysisPage() {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(-1);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("analyze");
+  
+  const simulMatchId = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('matchId');
+  }, []);
 
   const handleNavigateToMove = (moveIndex: number) => {
     setCurrentMoveIndex(moveIndex);
@@ -696,12 +702,33 @@ export default function GameAnalysisPage() {
   return (
     <div className="container max-w-7xl mx-auto p-4">
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Game Analysis</h1>
-          <p className="text-muted-foreground">
-            {game.mode?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} 
-            {game.opponentName && ` vs ${game.opponentName}`}
-          </p>
+        <div className="flex items-center gap-4">
+          {simulMatchId ? (
+            <Button
+              variant="outline"
+              onClick={() => setLocation(`/simul-match/${simulMatchId}`)}
+              data-testid="button-back-match"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Match
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => setLocation('/history')}
+              data-testid="button-back-history-header"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to History
+            </Button>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold">Game Analysis</h1>
+            <p className="text-muted-foreground">
+              {game.mode?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} 
+              {game.opponentName && ` vs ${game.opponentName}`}
+            </p>
+          </div>
         </div>
         
         {!isSharedView && (
