@@ -5,20 +5,18 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Pieces and Rules section
-  "The Fifty-Move Rule allows a player to claim a draw if 50 moves pass without a pawn move or capture.",
-  "A pawn is the only piece that changes identity - when it reaches the opposite end, it must be promoted to Queen, Rook, Bishop, or Knight.",
-  "En passant is a special pawn capture rule invented in the 15th century, allowing capture of a pawn that moved two squares as if it moved one.",
-  "Castling is the only move where two pieces (King and Rook) move simultaneously, and the only time a King moves two squares.",
-  
-  // Modern and Cultural Facts section
-  "FIDE (Fédération Internationale des Échecs) was founded in Paris on July 20, 1924 - now celebrated as International Chess Day.",
-  "The Grandmaster (GM) title is the highest title a chess player can achieve, awarded by FIDE.",
-  "Abhimanyu Mishra (USA) became the youngest Grandmaster ever at 12 years, 4 months, and 25 days in 2021.",
-  "Magnus Carlsen holds the highest classical Elo rating ever achieved: 2882.",
-  "Emanuel Lasker held the World Championship title for 27 years (1894-1921) - the longest reign in history.",
-  "Judit Polgár is the strongest female player ever - the only woman to break 2700 Elo and play for the World Championship.",
-  "In 1997, IBM's Deep Blue became the first computer to defeat a reigning World Champion (Garry Kasparov) in a classical match."
+  // Historical and Cultural Facts
+  "The first chess game played in space was in 1970 between the Soyuz 9 crew and a team on Earth - it ended in a draw.",
+  "The first mention of chess in Western writing was in a Spanish manuscript in the 13th century.",
+  "The modern two-square pawn move on the first turn was introduced in Spain in 1280 to speed up the game.",
+  "The alternating light and dark squares on the chessboard first appeared in Europe around 1090.",
+  "Before the modern Queen (c. 15th century), the piece was called the Vizier and only moved one square diagonally.",
+  "In early chess (Shatranj), stalemate was considered a win for the stalemated player.",
+  "White moving first was not standardized in international competition until 1889 - before that, choice was decided by chance.",
+  "The folding chessboard was allegedly invented by a chess-playing priest in 1125 to hide it from the Church.",
+  "The Rook was originally a chariot (Ratha in Sanskrit), later becoming Rukh (Persian for chariot/tower).",
+  "In French, the Bishop is called 'Le Fou' (The Fool) - derived from a misinterpretation of the Arabic word for elephant.",
+  "The English Opening (1. c4) was named for Howard Staunton, who used it frequently in the 19th century."
 ];
 
 // Get all dates sorted by number of facts (ascending)
