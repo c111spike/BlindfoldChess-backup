@@ -5,20 +5,16 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Rules and History
-  "The 'touch-move' rule (if you touch a piece, you must move it) has been standard in chess for centuries.",
-  "The Threefold Repetition rule was sometimes required to be six repetitions in earlier rule sets.",
-  "The first book printed in English by William Caxton in 1474, 'The Game and Playe of the Chesse,' was the second book ever printed in English.",
-  "The 'Immortal Draw' (Hamppe vs. Meitner, 1872) is famous for wild sacrifices leading to a forced draw by repetition.",
-  "The fastest checkmate possible (Fool's Mate) is in just two moves: 1. f3 e5 2. g4 Qh4#.",
-  "The highest-rated player ever with initials 'A.K.' is Anatoly Karpov.",
-  
   // Famous Players and Anecdotes
-  "Emanuel Lasker retained the World Championship for 26 years and 337 days - the longest reign ever.",
-  "Emanuel Lasker was also a distinguished mathematician and philosopher, known for his psychological approach to chess.",
-  "Garry Kasparov became the youngest undisputed World Champion in 1985 at age 22 years and 210 days.",
-  "The chess scene in James Bond's 'From Russia With Love' features a game based on an actual 1930 match.",
-  "The 'Game of the Century' was played by 13-year-old Bobby Fischer against Donald Byrne in 1956, featuring a famous Queen sacrifice."
+  "During the 1972 Fischer-Spassky match, the Soviet team claimed Fischer used electronic devices in his chair - inspection found nothing.",
+  "Akiba Rubinstein was a brilliant Russian Grandmaster known for endgame technique, despite never winning the World Championship.",
+  "Paul Morphy (19th century American master) traveled the world playing without demanding money, seeking only intellectual challenge.",
+  "WWII code breakers at Bletchley Park included British chess masters Harry Golombek, Stuart Milner-Barry, and C.H.O'D. Alexander.",
+  "The 1973 Cleveland Chess Tournament was raided by police who confiscated chess sets, claiming they were 'gambling devices' due to cash prizes.",
+  "Vladimir Nabokov, author of Lolita, wrote 'The Luzhin Defense' based on the tragic life of a chess grandmaster.",
+  "Fidel Castro was a passionate chess player and hosted numerous international tournaments in Cuba.",
+  "Miguel Najdorf, namesake of the Sicilian Najdorf, was one of the first to give successful blindfold chess exhibitions.",
+  "Frank Marshall (U.S. Champion for 30 years) was the first American to defeat a Soviet player in an international tournament in 1924."
 ];
 
 // Get all dates sorted by number of facts (ascending)

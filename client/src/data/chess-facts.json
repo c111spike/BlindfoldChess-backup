@@ -9736,6 +9736,13 @@
       "year": 1970,
       "name": "Tiger Hillarp Persson",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "During the 1972 Fischer-Spassky match, the Soviet team claimed Fischer used electronic devices in his chair - inspection found nothing.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "10-29": [
@@ -9749,6 +9756,13 @@
     {
       "type": "fun_fact",
       "text": "The number of possible unique chess games is estimated at 10^120 (the Shannon number).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Akiba Rubinstein was a brilliant Russian Grandmaster known for endgame technique, despite never winning the World Championship.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -9959,6 +9973,13 @@
     {
       "type": "fun_fact",
       "text": "The shortest possible checkmate (Fool's Mate) takes only 2 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Paul Morphy (19th century American master) traveled the world playing without demanding money, seeking only intellectual challenge.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -10239,6 +10260,13 @@
       "year": 1963,
       "name": "Michał Krasenkow",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "WWII code breakers at Bletchley Park included British chess masters Harry Golombek, Stuart Milner-Barry, and C.H.O'D. Alexander.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-15": [
@@ -10282,6 +10310,13 @@
     {
       "type": "fun_fact",
       "text": "The longest tournament game ever played lasted 269 moves (Nikolić vs. Arsović, 1989).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 1973 Cleveland Chess Tournament was raided by police who confiscated chess sets, claiming they were 'gambling devices' due to cash prizes.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -10465,6 +10500,13 @@
       "year": 2013,
       "name": "Magnus Carlsen",
       "source": "World Chess Championship History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Vladimir Nabokov, author of Lolita, wrote 'The Luzhin Defense' based on the tragic life of a chess grandmaster.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-23": [
@@ -10805,6 +10847,13 @@
       "year": 1968,
       "name": "Dimitri Komarov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Fidel Castro was a passionate chess player and hosted numerous international tournaments in Cuba.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-02": [
@@ -10821,6 +10870,13 @@
       "year": 1953,
       "name": "Carlos Garcia Palermo",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Miguel Najdorf, namesake of the Sicilian Najdorf, was one of the first to give successful blindfold chess exhibitions.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-03": [
@@ -11054,6 +11110,13 @@
       "year": 1977,
       "name": "Robert Ruck",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Frank Marshall (U.S. Champion for 30 years) was the first American to defeat a Soviet player in an international tournament in 1924.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-11": [
