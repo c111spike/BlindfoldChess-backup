@@ -600,11 +600,12 @@ export default function SimulVsSimulMode() {
                   <Card
                     key={board.pairingId}
                     className={cn(
-                      "cursor-pointer hover-elevate transition-all",
+                      "transition-all",
+                      matchComplete && "cursor-pointer hover-elevate",
                       isActive && "border-primary ring-2 ring-primary/20",
                       isPlayerTurn && !isActive && "border-yellow-500/50"
                     )}
-                    onClick={() => handleBoardSwitch(index)}
+                    onClick={matchComplete ? () => handleBoardSwitch(index) : undefined}
                     data-testid={`card-board-${index}`}
                   >
                     <CardContent className="p-3 space-y-2">
@@ -782,7 +783,7 @@ export default function SimulVsSimulMode() {
                 variant="outline"
                 size="icon"
                 onClick={() => handleBoardSwitch(activeBoard - 1)}
-                disabled={activeBoard === 0}
+                disabled={!matchComplete || activeBoard === 0}
                 data-testid="button-prev-board"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -811,7 +812,7 @@ export default function SimulVsSimulMode() {
                 variant="outline"
                 size="icon"
                 onClick={() => handleBoardSwitch(activeBoard + 1)}
-                disabled={activeBoard === boards.length - 1}
+                disabled={!matchComplete || activeBoard === boards.length - 1}
                 data-testid="button-next-board"
               >
                 <ArrowRight className="h-4 w-4" />
