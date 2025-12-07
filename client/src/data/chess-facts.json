@@ -8858,6 +8858,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "'Doctrinaire' describes dogmatic players who strictly adhere to rigid opening principles.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-05": [
@@ -8878,6 +8885,13 @@
     {
       "type": "fun_fact",
       "text": "There are over 318 billion possible ways of playing the first four moves for both sides.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Hanging Pawns are two adjacent pawns with no friendly pawns on adjacent files to defend them.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -8938,6 +8952,13 @@
     {
       "type": "fun_fact",
       "text": "There are 400 possible board positions after one move by White and one move by Black.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A Backward Pawn cannot be defended by other pawns and can be easily blockaded or attacked.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -9135,6 +9156,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "An Outpost is a square protected by a pawn on the opponent's side, often occupied by a Knight.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-14": [
@@ -9225,6 +9253,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Pawn Structure is the arrangement of pawns - the skeleton that determines middlegame plans.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-17": [
@@ -9308,6 +9343,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Sunway Sitges Chess Festival in Spain is one of the world's most popular open tournaments.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-20": [
@@ -9328,6 +9370,13 @@
     {
       "type": "fun_fact",
       "text": "The earliest known example of castling late in a game was in 1966, on move 46.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Tata Steel Tournament (formerly Wijk aan Zee) in Netherlands is nicknamed the 'Wimbledon of Chess'.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -9354,6 +9403,13 @@
       "year": 1990,
       "name": "Alexander Konstantinopolsky",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 2016 Baku Chess Olympiad was the first USA men's team gold medal since 1976.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-22": [
@@ -9374,6 +9430,13 @@
     {
       "type": "fun_fact",
       "text": "In the 18th century, pawns could only be promoted to pieces already captured by the opponent.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first official FIDE World Cup was held in 2000.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -9460,6 +9523,13 @@
       "year": 1968,
       "name": "Vladimir Simagin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The US Chess Championship is typically held at the Saint Louis Chess Club.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-26": [
@@ -9483,6 +9553,13 @@
       "year": 1940,
       "name": "Vladimir Savon",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Sinquefield Cup is named after Rex and Jeanne Sinquefield, major American chess patrons.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-27": [
@@ -9543,6 +9620,13 @@
       "year": 1963,
       "name": "Sergey Nadyrhanov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The London Chess Classic is the UK's premier international chess tournament.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-29": [
@@ -9566,6 +9650,13 @@
       "year": 1977,
       "name": "Vigen Mirumian",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Candidates Tournament has varied in format: round-robin, knockout, and double round-robin.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-30": [

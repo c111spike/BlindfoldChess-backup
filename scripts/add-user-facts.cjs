@@ -5,22 +5,22 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Equipment
-  "Chess pieces are traditionally made of Boxwood for light pieces and Ebony for dark pieces.",
-  "The most common size for tournament chess squares is 2 to 2.25 inches (5.1-5.7 cm).",
+  // Strategy Terms
+  "'Doctrinaire' describes dogmatic players who strictly adhere to rigid opening principles.",
+  "Hanging Pawns are two adjacent pawns with no friendly pawns on adjacent files to defend them.",
+  "A Backward Pawn cannot be defended by other pawns and can be easily blockaded or attacked.",
+  "An Outpost is a square protected by a pawn on the opponent's side, often occupied by a Knight.",
+  "Pawn Structure is the arrangement of pawns - the skeleton that determines middlegame plans.",
   
-  // Tactics
-  "The Smothered Mate is checkmate by a Knight when the King is surrounded by its own pieces.",
-  "The Epaulette Mate is checkmate where the King is restricted on both sides by its own Rooks.",
-  "A Fork is a tactic where one piece (usually a Knight) simultaneously attacks two or more pieces.",
-  "A Pin makes it inadvisable or illegal for a piece to move because a valuable piece is behind it.",
-  "A Skewer is the opposite of a Pin - a valuable piece is attacked, exposing a less valuable piece behind.",
-  
-  // Endgames
-  "Opposition is a fundamental endgame technique where Kings are separated by an odd number of squares.",
-  "Triangulation is used in King-and-Pawn endgames to lose a tempo and place the opponent in zugzwang.",
-  "The Lucena Position is a key theoretical winning position in Rook and Pawn vs. Rook endgames.",
-  "The Philidor Position is a key theoretical drawing position in Rook and Pawn vs. Rook endgames."
+  // Tournament and Regional Facts
+  "The Sunway Sitges Chess Festival in Spain is one of the world's most popular open tournaments.",
+  "The Tata Steel Tournament (formerly Wijk aan Zee) in Netherlands is nicknamed the 'Wimbledon of Chess'.",
+  "The 2016 Baku Chess Olympiad was the first USA men's team gold medal since 1976.",
+  "The first official FIDE World Cup was held in 2000.",
+  "The US Chess Championship is typically held at the Saint Louis Chess Club.",
+  "The Sinquefield Cup is named after Rex and Jeanne Sinquefield, major American chess patrons.",
+  "The London Chess Classic is the UK's premier international chess tournament.",
+  "The Candidates Tournament has varied in format: round-robin, knockout, and double round-robin."
 ];
 
 // Get all dates sorted by number of facts (ascending)
