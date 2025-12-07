@@ -90,6 +90,12 @@ Both modes include shareable analysis links and use Stockfish as a subprocess (U
 ### Simul ELO Calculation
 - ELO change is calculated per-board, aggregated, and then adjusted by a K-factor (K = 32 ÷ number of boards) to reflect multi-tasking skills.
 
+### Simul vs Simul Timer Implementation
+- **Current approach**: 30-second per-move timer with client-side countdown that syncs with server `simul_timer_state` updates. Client sends `simul_focus_ack` when focusing on a board, and server starts/stops timers based on turn and focus state.
+- **How it works**: Server is authoritative for timeouts. Client countdown provides smooth visual updates between server messages. Timer only runs when it's the player's turn AND they have confirmed focus on that board.
+- **Known limitation**: Minor display drift possible (1-2 seconds) between client countdown and server time. This is cosmetic only - server remains authoritative for actual timeout decisions.
+- **Future enhancement (if needed)**: If timer accuracy issues arise with real users, consider having server send a `deadline` timestamp instead of remaining seconds. Client would then derive countdown from `deadline - Date.now()`, eliminating any drift. Low priority since 30-second per-move timer resets each move.
+
 ### Infrastructure
 - **Cloudflare Waiting Room Strategy**: Uses a `/health-status` endpoint to trigger Cloudflare's waiting room when CPU load exceeds 90%, ensuring user experience during high traffic.
 
