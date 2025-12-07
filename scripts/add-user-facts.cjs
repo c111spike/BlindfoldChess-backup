@@ -5,22 +5,20 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // History and Origin section
-  "Chess originated in India around the 6th century AD as Chaturanga, meaning 'four divisions' (infantry, cavalry, elephants, and chariots).",
-  "The word 'Chess' comes from the Persian word 'shāh', meaning 'king'.",
-  "The word 'checkmate' comes from the Persian phrase 'shāh māt', meaning 'the king is helpless' or 'the king is dead'.",
-  "Chess spread through Persia and the Islamic world, arriving in Europe (Spain and Italy) around the 10th century.",
-  "The pieces gained their modern movement rules (especially the powerful Queen and Bishop) in the late 15th century during the Renaissance.",
-  "The powerful Queen's movement was added in the late 15th century - this version was called 'Queen's Chess' or 'Mad Queen Chess'.",
-  "Wilhelm Steinitz was the first official World Chess Champion, claiming the title in 1886.",
+  // Pieces and Rules section
+  "The Fifty-Move Rule allows a player to claim a draw if 50 moves pass without a pawn move or capture.",
+  "A pawn is the only piece that changes identity - when it reaches the opposite end, it must be promoted to Queen, Rook, Bishop, or Knight.",
+  "En passant is a special pawn capture rule invented in the 15th century, allowing capture of a pawn that moved two squares as if it moved one.",
+  "Castling is the only move where two pieces (King and Rook) move simultaneously, and the only time a King moves two squares.",
   
-  // Mathematics and Possibility section
-  "The Shannon Number ($10^{120}$) represents the estimated number of possible unique chess games.",
-  "The longest tournament game ever played was between Ivan Nikolić and Goran Arsović in 1989, lasting 20 hours and 15 minutes over 269 moves.",
-  "A rule once existed that prohibited draws before move 50. The longest game under this rule lasted 193 moves (Karpov vs Kaidanov, 1993).",
-  "From the initial position, White has 20 possible first moves. After the first pair of moves, there are 400 possible positions.",
-  "The average chess game lasts about 40 moves.",
-  "The longest known forced mate in a composed problem is over 500 moves, though the 50-move rule usually forces a draw first."
+  // Modern and Cultural Facts section
+  "FIDE (Fédération Internationale des Échecs) was founded in Paris on July 20, 1924 - now celebrated as International Chess Day.",
+  "The Grandmaster (GM) title is the highest title a chess player can achieve, awarded by FIDE.",
+  "Abhimanyu Mishra (USA) became the youngest Grandmaster ever at 12 years, 4 months, and 25 days in 2021.",
+  "Magnus Carlsen holds the highest classical Elo rating ever achieved: 2882.",
+  "Emanuel Lasker held the World Championship title for 27 years (1894-1921) - the longest reign in history.",
+  "Judit Polgár is the strongest female player ever - the only woman to break 2700 Elo and play for the World Championship.",
+  "In 1997, IBM's Deep Blue became the first computer to defeat a reigning World Champion (Garry Kasparov) in a classical match."
 ];
 
 // Get all dates sorted by number of facts (ascending)

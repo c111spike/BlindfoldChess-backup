@@ -5662,6 +5662,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Fifty-Move Rule allows a player to claim a draw if 50 moves pass without a pawn move or capture.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-11": [
@@ -5705,6 +5712,13 @@
     {
       "type": "fun_fact",
       "text": "The word 'checkmate' comes from the Persian phrase 'shāh māt' meaning 'the king is helpless'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A pawn is the only piece that changes identity - when it reaches the opposite end, it must be promoted to Queen, Rook, Bishop, or Knight.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -5807,6 +5821,13 @@
       "year": 1947,
       "name": "Mikhail Tseitlin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "En passant is a special pawn capture rule invented in the 15th century, allowing capture of a pawn that moved two squares as if it moved one.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-17": [
@@ -6031,6 +6052,13 @@
       "year": 1971,
       "name": "Vitali Golod",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Castling is the only move where two pieces (King and Rook) move simultaneously, and the only time a King moves two squares.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-24": [
@@ -6107,6 +6135,13 @@
       "year": 1986,
       "name": "Zhao Zong-Yuan",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "FIDE (Fédération Internationale des Échecs) was founded in Paris on July 20, 1924 - now celebrated as International Chess Day.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-27": [
@@ -6123,6 +6158,13 @@
       "year": 1956,
       "name": "Larry Christiansen",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Grandmaster (GM) title is the highest title a chess player can achieve, awarded by FIDE.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-28": [
@@ -6479,6 +6521,13 @@
       "year": 1981,
       "name": "Oswaldo Zambrana",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Abhimanyu Mishra (USA) became the youngest Grandmaster ever at 12 years, 4 months, and 25 days in 2021.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-08": [
@@ -6541,6 +6590,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Magnus Carlsen holds the highest classical Elo rating ever achieved: 2882.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-11": [
@@ -6580,6 +6636,13 @@
       "year": 1970,
       "name": "Zoltán Varga",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Emanuel Lasker held the World Championship title for 27 years (1894-1921) - the longest reign in history.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-13": [
@@ -6596,6 +6659,13 @@
       "year": 1960,
       "name": "Manuel Rivas Pastor",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Judit Polgár is the strongest female player ever - the only woman to break 2700 Elo and play for the World Championship.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-14": [
@@ -6676,6 +6746,13 @@
     {
       "type": "fun_fact",
       "text": "The modern two-square pawn move on the first turn was introduced in Spain in 1280 to speed up the game.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In 1997, IBM's Deep Blue became the first computer to defeat a reigning World Champion (Garry Kasparov) in a classical match.",
       "year": null,
       "name": null,
       "source": "Chess History"
