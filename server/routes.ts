@@ -2235,6 +2235,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setInterval(async () => {
     const now = Date.now();
     
+    // Debug: Log active timers
+    const activeTimers = Array.from(simulTimers.entries()).filter(([_, t]) => !t.isPaused && t.deadline);
+    if (activeTimers.length > 0) {
+      console.log(`[SimulTimer] Active timers: ${activeTimers.length}, checking...`);
+      for (const [pid, t] of activeTimers) {
+        const remaining = Math.ceil((t.deadline! - now) / 1000);
+        console.log(`[SimulTimer] Pairing ${pid}: ${remaining}s remaining, turn: ${t.turn}`);
+      }
+    }
+    
     for (const [pairingId, timer] of simulTimers.entries()) {
       if (timer.isPaused || !timer.deadline) continue;
       
