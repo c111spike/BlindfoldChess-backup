@@ -9,6 +9,7 @@ import type { Rating, Game, UserSettings } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { ThisDayInChessHistory } from "@/components/this-day-in-chess-history";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -71,9 +72,16 @@ export default function Dashboard() {
   return (
     <div className="p-8 space-y-8">
       <div className="mb-8">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4">Dashboard Mode</div>
-        <h1 className="text-4xl font-bold mb-2">Welcome back, {user?.firstName || 'Player'}</h1>
-        <p className="text-muted-foreground">Ready for your daily training?</p>
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div className="flex-shrink-0">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Dashboard Mode</div>
+            <h1 className="text-2xl lg:text-3xl font-bold mb-1">Welcome back, {user?.firstName || 'Player'}</h1>
+            <p className="text-sm text-muted-foreground">Ready for your daily training?</p>
+          </div>
+          <div className="lg:max-w-md w-full">
+            <ThisDayInChessHistory />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
