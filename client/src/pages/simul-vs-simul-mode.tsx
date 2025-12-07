@@ -708,9 +708,9 @@ export default function SimulVsSimulMode() {
         </div>
       )}
       
-      <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
+      <div className="flex-1 flex flex-col p-4 md:p-8 bg-muted/30 overflow-auto">
         {!gameStarted ? (
-          <>
+          <div className="flex-1 flex items-center justify-center">
             {!inQueue ? (
               <Card className="w-full max-w-md">
                 <CardContent className="pt-6 space-y-6">
@@ -790,60 +790,62 @@ export default function SimulVsSimulMode() {
                 </CardContent>
               </Card>
             )}
-          </>
+          </div>
         ) : activeGame ? (
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleBoardSwitch(activeBoard - 1)}
-                disabled={!matchComplete || activeBoard === 0}
-                data-testid="button-prev-board"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              
-              <div className="text-center min-w-48">
-                <h3 className="font-semibold text-lg" data-testid="text-active-board">
-                  Board #{activeGame.boardNumber}
-                </h3>
-                <p className="text-sm text-muted-foreground" data-testid="text-active-opponent">
-                  vs {activeGame.opponentName}
-                </p>
-                <div className="flex items-center justify-center gap-2 mt-1">
-                  <Badge variant={activeGame.color === 'white' ? 'outline' : 'secondary'}>
-                    Playing as {activeGame.color}
-                  </Badge>
-                  {activeGame.result === 'ongoing' && (
-                    <Badge variant={isMyTurn ? 'default' : 'secondary'}>
-                      {isMyTurn ? 'Your turn' : "Opponent's turn"}
-                    </Badge>
-                  )}
+          <div className="w-full max-w-3xl mx-auto space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleBoardSwitch(activeBoard - 1)}
+                  disabled={!matchComplete || activeBoard === 0}
+                  data-testid="button-prev-board"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                
+                <div>
+                  <h3 className="font-semibold" data-testid="text-active-board">
+                    Board #{activeGame.boardNumber}
+                  </h3>
+                  <p className="text-sm text-muted-foreground" data-testid="text-active-opponent">
+                    vs {activeGame.opponentName}
+                  </p>
                 </div>
+                
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleBoardSwitch(activeBoard + 1)}
+                  disabled={!matchComplete || activeBoard === boards.length - 1}
+                  data-testid="button-next-board"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
               </div>
               
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleBoardSwitch(activeBoard + 1)}
-                disabled={!matchComplete || activeBoard === boards.length - 1}
-                data-testid="button-next-board"
-              >
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Badge variant={activeGame.color === 'white' ? 'outline' : 'secondary'}>
+                  {activeGame.color}
+                </Badge>
+                {activeGame.result === 'ongoing' && (
+                  <Badge variant={isMyTurn ? 'default' : 'secondary'}>
+                    {isMyTurn ? 'Your turn' : "Opponent's turn"}
+                  </Badge>
+                )}
+                {activeGame.result === 'ongoing' && isMyTurn && (
+                  <div className="flex items-center gap-1 text-lg font-mono ml-2" data-testid="text-timer">
+                    <Clock className="h-4 w-4" />
+                    <span className={activeGame.timeRemaining <= 10 ? 'text-red-500 font-bold' : ''}>
+                      {activeGame.timeRemaining}s
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
             
-            {activeGame.result === 'ongoing' && isMyTurn && (
-              <div className="flex items-center gap-2 text-lg font-mono" data-testid="text-timer">
-                <Clock className="h-5 w-5" />
-                <span className={activeGame.timeRemaining <= 10 ? 'text-red-500' : ''}>
-                  {activeGame.timeRemaining}s
-                </span>
-              </div>
-            )}
-            
-            <div className="w-full max-w-3xl aspect-square">
+            <div className="w-full aspect-square">
               <ChessBoard
                 fen={activeGame.fen}
                 orientation={activeGame.color}
