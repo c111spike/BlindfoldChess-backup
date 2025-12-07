@@ -226,6 +226,14 @@ export default function SimulVsSimulMode() {
               description: `Auto-switched to Board ${boardsRef.current[newFocusIndex].boardNumber}`,
             });
           }
+          // Send focus acknowledgment so timer starts on the new board
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && matchId) {
+            wsRef.current.send(JSON.stringify({
+              type: 'simul_focus_ack',
+              matchId: matchId,
+              pairingId: data.pairingId,
+            }));
+          }
         }
         break;
         
