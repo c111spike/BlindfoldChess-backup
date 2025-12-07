@@ -770,6 +770,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     for (let i = 0; i < players.length; i++) {
       for (let j = i + 1; j < players.length; j++) {
+        // Skip bot-vs-bot matchups - bots are just fillers for humans
+        if (players[i].isBot && players[j].isBot) {
+          continue;
+        }
+        
         // Randomly assign colors
         const whiteIsFirst = Math.random() < 0.5;
         const whitePlayer = whiteIsFirst ? players[i] : players[j];
@@ -789,6 +794,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pairings.push(pairing);
       }
     }
+
+    // Log pairing creation summary
+    const humanCount = players.filter(p => !p.isBot).length;
+    const botCount = players.filter(p => p.isBot).length;
+    console.log(`[SimulVsSimul] Created ${pairings.length} pairings for match ${match.id} (${humanCount} humans, ${botCount} bots)`);
 
     // Clear matched human players from queue (not bots)
     const humanUserIds = queuePlayers.filter(p => !p.isBot).map(p => p.odId);
