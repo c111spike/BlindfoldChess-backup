@@ -3422,6 +3422,13 @@
       "year": 1968,
       "name": "Sarhan Guliev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "George Koltanowski's 1960 blindfold record of 56 games required memorizing the location and moves of 1,792 pieces.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-02": [
@@ -3658,6 +3665,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Elo rating system was invented by Hungarian-American physicist Arpad Elo and is now used in many sports.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-08": [
@@ -3681,6 +3695,13 @@
       "year": 1973,
       "name": "Peng Xiaomin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess professionals employ 'seconds' (assistant players/coaches) during major tournaments for opening preparation.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-09": [
@@ -3916,6 +3937,13 @@
     {
       "type": "fun_fact",
       "text": "The Shannon Number ($10^{120}$) represents the estimated number of possible unique chess games.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Magnus Carlsen once played ten consecutive checkmates in a single tournament, showcasing tactical accuracy.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -4294,6 +4322,13 @@
       "year": 1974,
       "name": "Tomas Polak",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The World Chess Olympiad, where nations compete in teams, first took place in 1927 and is organized by FIDE.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-25": [
@@ -4347,6 +4382,13 @@
       "year": 1967,
       "name": "Ariel Sorin",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first mass-market Soviet chess computer, the Electronica IM-01, was produced in 1977.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "04-27": [
@@ -4404,6 +4446,13 @@
     {
       "type": "fun_fact",
       "text": "The longest tournament game ever played was between Ivan Nikolić and Goran Arsović in 1989, lasting 20 hours and 15 minutes over 269 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Knight is the only piece that can 'jump' over other pieces and is not blocked by them.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -4467,6 +4516,13 @@
       "year": 2023,
       "name": "Ding Liren",
       "source": "World Chess Championship History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Bishop is sometimes referred to as a 'Churchman' due to its mitre-like shape.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-01": [
@@ -4578,6 +4634,13 @@
       "year": 1978,
       "name": "Mikhail Kobalia",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Grob Opening (1. g4) is an eccentric opening sometimes used to confuse unprepared opponents.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-04": [
@@ -4696,6 +4759,13 @@
       "year": 1974,
       "name": "Jens-Uwe Maiwald",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Légal Mate is one of the oldest chess traps, named after 18th-century French master Sire de Legal.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-07": [
@@ -4783,6 +4853,13 @@
     {
       "type": "fun_fact",
       "text": "A rule once existed that prohibited draws before move 50. The longest game under this rule lasted 193 moves (Karpov vs Kaidanov, 1993).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Vladimir Putin officially designated chess as a required part of the school curriculum in Russia.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -4978,6 +5055,13 @@
       "year": 1980,
       "name": "Leif Erlend Johannessen",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In the 19th century, players sometimes used live animals (like cats) near the board to distract opponents.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "05-15": [

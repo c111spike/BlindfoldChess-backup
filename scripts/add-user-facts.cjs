@@ -5,22 +5,21 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Pop Culture and Film
-  "Humphrey Bogart was an avid chess player - his character in 'Casablanca' (1942) is seen analyzing a chess game.",
-  "The first film to feature a chess theme was the British one-minute comedy 'A Chess Dispute' released in 1903.",
-  "In 'Independence Day' (1996), the alien invasion is compared to a chess game by David Levinson.",
-  "The 1993 film 'Searching for Bobby Fischer' is based on the life of chess prodigy Josh Waitzkin.",
-  "In '2001: A Space Odyssey' (1968), HAL 9000 plays a famous chess game against astronaut Frank Poole.",
-  "Professor X and Magneto are frequently shown playing chess in X-Men films, symbolizing their strategic rivalry.",
-  "The chess sequence in 'Harry Potter and the Sorcerer's Stone' is based on a real game (Petrosian vs. Larsen, 1966).",
-  "Netflix's 'The Queen's Gambit' is based on the 1983 novel of the same name by Walter Tevis.",
-  "Vladimir Lenin was a known fan of chess and was often photographed playing while in exile.",
+  // Blindfold Detail
+  "George Koltanowski's 1960 blindfold record of 56 games required memorizing the location and moves of 1,792 pieces.",
   
-  // Blindfold and Simultaneous Chess
-  "A Simultaneous Exhibition (Simul) is when a master plays against multiple opponents at the same time.",
-  "The record for most simultaneous games (non-blindfold) is over 600, set by Alireza Firouzja in 2022.",
-  "Blindfold chess originated in the Middle East, with records dating back to the 11th century.",
-  "Alexander Alekhine (4th World Champion) set a blindfold record in 1937 by playing 32 games simultaneously."
+  // Miscellanea and Unusual Facts
+  "The Elo rating system was invented by Hungarian-American physicist Arpad Elo and is now used in many sports.",
+  "Chess professionals employ 'seconds' (assistant players/coaches) during major tournaments for opening preparation.",
+  "Magnus Carlsen once played ten consecutive checkmates in a single tournament, showcasing tactical accuracy.",
+  "The World Chess Olympiad, where nations compete in teams, first took place in 1927 and is organized by FIDE.",
+  "The first mass-market Soviet chess computer, the Electronica IM-01, was produced in 1977.",
+  "The Knight is the only piece that can 'jump' over other pieces and is not blocked by them.",
+  "The Bishop is sometimes referred to as a 'Churchman' due to its mitre-like shape.",
+  "The Grob Opening (1. g4) is an eccentric opening sometimes used to confuse unprepared opponents.",
+  "The Légal Mate is one of the oldest chess traps, named after 18th-century French master Sire de Legal.",
+  "Vladimir Putin officially designated chess as a required part of the school curriculum in Russia.",
+  "In the 19th century, players sometimes used live animals (like cats) near the board to distract opponents."
 ];
 
 // Get all dates sorted by number of facts (ascending)
