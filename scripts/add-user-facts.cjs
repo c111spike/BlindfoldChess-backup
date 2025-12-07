@@ -5,23 +5,22 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // Blindfold Record
-  "George Koltanowski set a record by playing 56 games blindfolded simultaneously in 1960.",
+  // Pop Culture and Film
+  "Humphrey Bogart was an avid chess player - his character in 'Casablanca' (1942) is seen analyzing a chess game.",
+  "The first film to feature a chess theme was the British one-minute comedy 'A Chess Dispute' released in 1903.",
+  "In 'Independence Day' (1996), the alien invasion is compared to a chess game by David Levinson.",
+  "The 1993 film 'Searching for Bobby Fischer' is based on the life of chess prodigy Josh Waitzkin.",
+  "In '2001: A Space Odyssey' (1968), HAL 9000 plays a famous chess game against astronaut Frank Poole.",
+  "Professor X and Magneto are frequently shown playing chess in X-Men films, symbolizing their strategic rivalry.",
+  "The chess sequence in 'Harry Potter and the Sorcerer's Stone' is based on a real game (Petrosian vs. Larsen, 1966).",
+  "Netflix's 'The Queen's Gambit' is based on the 1983 novel of the same name by Walter Tevis.",
+  "Vladimir Lenin was a known fan of chess and was often photographed playing while in exile.",
   
-  // Piece Nicknames and Terms
-  "Zugzwang (German for 'compulsion to move') is a position where any legal move worsens the player's position.",
-  "Zwischenzug (German for 'intermediate move') is a tactic inserting an unexpected check or threat before a planned sequence.",
-  "A Desperado is a doomed piece that captures other pieces or gives checks before its demise to gain advantage.",
-  "The Bishop is called 'The Runner' (Läufer) in German.",
-  "In Russian, the Rook is called 'Ladya', meaning a boat or ship.",
-  "The King and Queen are sometimes called the 'Royalty' or 'Major Pieces'.",
-  "The Knight and Bishop are sometimes called the 'Minor Pieces' or 'Minors'.",
-  "A 'Swindler' is a player known for turning hopelessly lost positions into draws or wins using tricks and traps.",
-  "'The Queen on her own color' is a mnemonic for the starting position (White Queen on d1 white, Black Queen on d8 black).",
-  "The King and Rook are the only pieces that can participate in the special move Castling.",
-  
-  // Pop Culture
-  "The 1957 film 'The Seventh Seal' features a famous scene where a knight plays chess against Death."
+  // Blindfold and Simultaneous Chess
+  "A Simultaneous Exhibition (Simul) is when a master plays against multiple opponents at the same time.",
+  "The record for most simultaneous games (non-blindfold) is over 600, set by Alireza Firouzja in 2022.",
+  "Blindfold chess originated in the Middle East, with records dating back to the 11th century.",
+  "Alexander Alekhine (4th World Champion) set a blindfold record in 1937 by playing 32 games simultaneously."
 ];
 
 // Get all dates sorted by number of facts (ascending)
