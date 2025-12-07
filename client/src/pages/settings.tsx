@@ -263,21 +263,35 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Voice Settings</CardTitle>
-              <CardDescription>Configure voice control for Blindfold mode</CardDescription>
+              <CardDescription>Configure voice features for Blindfold mode</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="voice">Enable Voice Control</Label>
+                  <Label htmlFor="voice-output">Voice Announcements</Label>
                   <p className="text-sm text-muted-foreground">
-                    Use voice commands for blindfold chess
+                    Hear opponent moves spoken aloud in blindfold mode
                   </p>
                 </div>
                 <Switch
-                  id="voice"
-                  checked={settings?.voiceEnabled ?? false}
-                  onCheckedChange={(checked) => handleSettingChange("voiceEnabled", checked)}
-                  data-testid="switch-voice"
+                  id="voice-output"
+                  checked={settings?.voiceOutputEnabled ?? false}
+                  onCheckedChange={(checked) => handleSettingChange("voiceOutputEnabled", checked)}
+                  data-testid="switch-voice-output"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="voice-input">Voice Commands</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Speak your moves in blindfold mode (auto-listens on your turn)
+                  </p>
+                </div>
+                <Switch
+                  id="voice-input"
+                  checked={settings?.voiceInputEnabled ?? false}
+                  onCheckedChange={(checked) => handleSettingChange("voiceInputEnabled", checked)}
+                  data-testid="switch-voice-input"
                 />
               </div>
             </CardContent>

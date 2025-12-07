@@ -22,7 +22,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3, Pencil, Crown, Shuffle } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3, Pencil, Crown, Shuffle, Mic, MicOff, Volume2 } from "lucide-react";
+import { voiceRecognition, speak, moveToSpeech } from "@/lib/voice";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import type { Game, Rating } from "@shared/schema";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
@@ -120,6 +121,9 @@ export default function StandardMode() {
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [premove, setPremove] = useState<{ from: string; to: string } | null>(null);
   const [arrowDrawMode, setArrowDrawMode] = useState(false);
+  
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -327,6 +331,13 @@ export default function StandardMode() {
           title: "Opponent moved",
           description: data.move,
         });
+        
+        if (isBlindfold && userSettings?.voiceOutputEnabled) {
+          const isCheck = currentGame.isCheck();
+          const isCapture = data.move.includes('x');
+          const spokenMove = moveToSpeech(data.move, isCapture, isCheck, false);
+          speak(spokenMove);
+        }
         
         if (premoveRef.current) {
           const pendingPremove = premoveRef.current;
@@ -920,6 +931,93 @@ export default function StandardMode() {
     };
   }, [gameStarted, gameId, saveGameState]);
 
+  useEffect(() => {
+    if (!gameStarted || !game || !isBlindfold || !userSettings?.voiceInputEnabled) {
+      voiceRecognition.stop();
+      return;
+    }
+    
+    const currentTurn = game.turn();
+    const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
+    
+    if (isMyTurn && !botThinking && !pendingPromotion && gameResult === null) {
+      const allLegalMoves = game.moves();
+      voiceRecognition.setLegalMoves(allLegalMoves);
+      
+      voiceRecognition.setOnResult((move, transcript) => {
+        setVoiceTranscript(transcript);
+        
+        if (move) {
+          const spokenConfirm = moveToSpeech(move, move.includes('x'), false, false);
+          speak(spokenConfirm).then(() => {
+            const moveObj = game.move(move);
+            if (moveObj) {
+              const newFen = game.fen();
+              setFen(newFen);
+              setLastMove({ from: moveObj.from, to: moveObj.to });
+              
+              const newMoves = [...movesRef.current, moveObj.san];
+              setMoves(newMoves);
+              movesRef.current = newMoves;
+              
+              setSelectedSquare(null);
+              setLegalMoves([]);
+              setVoiceTranscript(null);
+              
+              if (gameIdRef.current && matchIdRef.current) {
+                sendMove(matchIdRef.current, moveObj.san, newFen, whiteTimeRef.current, blackTimeRef.current);
+              }
+              
+              if (game.isCheckmate()) {
+                const result = game.turn() === "w" ? "black_win" : "white_win";
+                completeGame(result);
+              } else if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
+                completeGame("draw");
+              } else if (isBotGame && selectedBot) {
+                const moveHistorySAN = game.history();
+                requestBotMove(newFen, selectedBot.id, moveHistorySAN).then((botMove) => {
+                  if (botMove && gameRef.current) {
+                    const botMoveResult = gameRef.current.move(botMove.move);
+                    if (botMoveResult) {
+                      setLastMove({ from: botMoveResult.from, to: botMoveResult.to });
+                    }
+                    const botNewFen = gameRef.current.fen();
+                    setFen(botNewFen);
+                    const updatedMoves = [...movesRef.current, botMove.move];
+                    setMoves(updatedMoves);
+                    movesRef.current = updatedMoves;
+                    
+                    if (isBlindfold && userSettings?.voiceOutputEnabled) {
+                      const isCheck = gameRef.current.isCheck();
+                      const isCapture = botMove.move.includes('x');
+                      const spokenMove = moveToSpeech(botMove.move, isCapture, isCheck, gameRef.current.isCheckmate());
+                      speak(spokenMove);
+                    }
+                  }
+                });
+              }
+            }
+          });
+        } else {
+          toast({
+            title: "Didn't understand",
+            description: `Heard: "${transcript}". Try again.`,
+            variant: "destructive",
+          });
+        }
+      });
+      
+      voiceRecognition.setOnListeningChange(setIsVoiceListening);
+      voiceRecognition.start();
+    } else {
+      voiceRecognition.stop();
+    }
+    
+    return () => {
+      voiceRecognition.reset();
+    };
+  }, [gameStarted, game, fen, isBlindfold, userSettings?.voiceInputEnabled, playerColor, botThinking, pendingPromotion, gameResult, isBotGame, selectedBot, toast, completeGame, sendMove, requestBotMove]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -988,6 +1086,13 @@ export default function StandardMode() {
               const updatedMoves = [...movesRef.current, botMove.move];
               setMoves(updatedMoves);
               movesRef.current = updatedMoves;
+              
+              if (isBlindfold && userSettings?.voiceOutputEnabled) {
+                const isCheck = game.isCheck();
+                const isCapture = botMove.move.includes('x');
+                const spokenMove = moveToSpeech(botMove.move, isCapture, isCheck, game.isCheckmate());
+                speak(spokenMove);
+              }
               
               if (game.isCheckmate()) {
                 await handleGameEnd(game.turn() === "w" ? "black_win" : "white_win");
@@ -1548,6 +1653,29 @@ export default function StandardMode() {
                         <span>{remainingPeeks} peeks left</span>
                       )}
                     </div>
+                  </div>
+                )}
+                
+                {isBlindfold && userSettings?.voiceInputEnabled && (
+                  <div className="flex items-center justify-center gap-2 py-2">
+                    <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${isVoiceListening ? 'bg-primary/10 border border-primary' : 'bg-muted'}`} data-testid="voice-status">
+                      {isVoiceListening ? (
+                        <>
+                          <Mic className="h-5 w-5 text-primary animate-pulse" />
+                          <span className="text-sm font-medium">Listening...</span>
+                        </>
+                      ) : (
+                        <>
+                          <MicOff className="h-5 w-5 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">Voice off</span>
+                        </>
+                      )}
+                    </div>
+                    {voiceTranscript && (
+                      <div className="text-sm text-muted-foreground italic">
+                        "{voiceTranscript}"
+                      </div>
+                    )}
                   </div>
                 )}
                 
