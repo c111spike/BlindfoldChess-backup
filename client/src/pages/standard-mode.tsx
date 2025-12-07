@@ -1464,51 +1464,54 @@ export default function StandardMode() {
                   </CardContent>
                 </Card>
                 
-                <div className="relative">
-                  <ChessBoard 
-                    fen={fen}
-                    orientation={playerColor}
-                    showCoordinates={true}
-                    highlightedSquares={legalMoves}
-                    lastMove={lastMove || undefined}
-                    onSquareClick={handleSquareClick}
-                    enableArrows={true}
-                    enablePremoves={!isBotGame}
-                    isPlayerTurn={game ? ((game.turn() === "w" && playerColor === "white") || (game.turn() === "b" && playerColor === "black")) : true}
-                    premove={premove}
-                    onPremove={setPremove}
-                    arrowDrawMode={arrowDrawMode}
-                  />
-                  
-                  {isBlindfold && !isPeeking && (
-                    <div className="absolute inset-0 bg-black pointer-events-none overflow-visible">
-                      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 8 8" preserveAspectRatio="none">
-                        {Array.from({ length: 9 }).map((_, i) => (
-                          <line
-                            key={`h-${i}`}
-                            x1="0"
-                            y1={i}
-                            x2="8"
-                            y2={i}
-                            stroke="white"
-                            strokeWidth="0.02"
-                          />
-                        ))}
-                        {Array.from({ length: 9 }).map((_, i) => (
-                          <line
-                            key={`v-${i}`}
-                            x1={i}
-                            y1="0"
-                            x2={i}
-                            y2="8"
-                            stroke="white"
-                            strokeWidth="0.02"
-                          />
-                        ))}
-                      </svg>
-                    </div>
-                  )}
-                </div>
+                <Card className="aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2">
+                  <div className="relative w-full h-full">
+                    <ChessBoard 
+                      fen={fen}
+                      orientation={playerColor}
+                      showCoordinates={true}
+                      highlightedSquares={legalMoves}
+                      lastMove={lastMove || undefined}
+                      onSquareClick={handleSquareClick}
+                      enableArrows={true}
+                      enablePremoves={!isBotGame}
+                      isPlayerTurn={game ? ((game.turn() === "w" && playerColor === "white") || (game.turn() === "b" && playerColor === "black")) : true}
+                      premove={premove}
+                      onPremove={setPremove}
+                      arrowDrawMode={arrowDrawMode}
+                      noCard={true}
+                    />
+                    
+                    {isBlindfold && !isPeeking && (
+                      <div className="absolute inset-0 bg-black pointer-events-none overflow-visible">
+                        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 8 8" preserveAspectRatio="none">
+                          {Array.from({ length: 9 }).map((_, i) => (
+                            <line
+                              key={`h-${i}`}
+                              x1="0"
+                              y1={i}
+                              x2="8"
+                              y2={i}
+                              stroke="white"
+                              strokeWidth="0.02"
+                            />
+                          ))}
+                          {Array.from({ length: 9 }).map((_, i) => (
+                            <line
+                              key={`v-${i}`}
+                              x1={i}
+                              y1="0"
+                              x2={i}
+                              y2="8"
+                              stroke="white"
+                              strokeWidth="0.02"
+                            />
+                          ))}
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </Card>
                 
                 {isBlindfold && (userSettings?.blindfoldDifficulty !== 'grandmaster') && (
                   <div className="flex flex-col items-center gap-2 py-2">
