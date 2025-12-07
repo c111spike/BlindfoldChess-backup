@@ -138,6 +138,27 @@
       "year": 1971,
       "name": "Ioannis Nikolaidis",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Mikhail Botvinnik pioneered scientific, systematic training methods in the 1930s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Emanuel Lasker held the World Championship title for 27 years (1894-1921) - the longest reign ever.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Anatoly Karpov became World Champion in 1975 by default when Fischer refused to defend his title.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-05": [
@@ -372,6 +393,27 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Garry Kasparov became the youngest World Champion in history at age 22 in 1985.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Judit Polgár is considered the strongest female chess player of all time.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Vera Menchik was the first Women's World Chess Champion, holding the title from 1927-1944.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-10": [
@@ -487,6 +529,27 @@
       "year": 1984,
       "name": "Milos Perunovic",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Mikhail Tal was known as 'The Magician from Riga' for his spectacular attacking style.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Bobby Fischer's IQ was estimated at 180 - genius level.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Viswanathan Anand was the first Asian player to become World Chess Champion.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-15": [
@@ -503,6 +566,27 @@
       "year": 1963,
       "name": "Aleksander Wojtkiewicz",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Sicilian Defense is the most popular response to 1.e4 at the grandmaster level.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Italian Game (Giuoco Piano) dates back to the 16th century and means 'quiet game'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The London System has become extremely popular in the 21st century for its solid structure.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-16": [
@@ -729,6 +813,27 @@
       "year": 1952,
       "name": "Henrique Mecking",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The King's Indian Defense was considered dubious until Soviet players proved its worth in the 1950s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Najdorf Sicilian is named after Miguel Najdorf, who used it as a memorial to his family lost in the Holocaust.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Dragon Sicilian is named after the constellation Draco, which the pawn structure resembles.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-24": [
@@ -742,6 +847,27 @@
     {
       "type": "fun_fact",
       "text": "The Grünfeld Defense was introduced by Austrian GM Ernst Grünfeld in 1922.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Berlin Defense gained fame when Kramnik used it to defeat Kasparov for the World Championship in 2000.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Marshall Attack in the Ruy Lopez was kept as a secret weapon for 8 years before being played.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The longest tournament game ever was Nikolić vs. Arsović in 1989, lasting 269 moves over 20 hours.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -879,6 +1005,27 @@
       "year": 1969,
       "name": "Ferdinand Hellers",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Hastings International Chess Congress has been held annually since 1895 (except during wars).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Chess Olympiad is the world's biggest chess event, with over 180 countries participating.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Candidates Tournament determines who challenges the World Champion.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "01-29": [
@@ -983,6 +1130,27 @@
       "year": 1968,
       "name": "Saidali Iuldachev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Tata Steel Chess (formerly Wijk aan Zee) is known as the 'Wimbledon of Chess'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Sinquefield Cup in Saint Louis offers one of the largest prize funds in chess.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The World Rapid and Blitz Championships have been held annually since 2012.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "02-01": [
@@ -1191,6 +1359,27 @@
       "year": 1945,
       "name": "Mišo Cebalo",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Online chess became mainstream during the COVID-19 pandemic, with millions of new players.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first chess club was established in London in 1747 at Slaughter's Coffee House.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first international chess tournament was held in London in 1851.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "02-07": [
@@ -1353,6 +1542,27 @@
       "year": 1989,
       "name": "Manuel Leon Hoyos",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The en passant rule was added to chess around the 15th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 50-move draw rule has been a part of chess since the 19th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Stalemate being a draw (not a loss) is a European innovation from around 1800.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "02-11": [
@@ -1396,6 +1606,27 @@
     {
       "type": "fun_fact",
       "text": "The Bogo-Indian Defense was a cornerstone of Efim Bogoljubov's repertoire in the 1920s-30s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first chess magazine was 'Le Palamède', founded in Paris in 1836.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first chess problem was published in a book in 1497.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess clocks with two faces connected by a mechanism were invented in 1883 by Thomas Wilson.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -1983,6 +2214,34 @@
     {
       "type": "fun_fact",
       "text": "The Ruy Lopez (Spanish Game) was first systematically analyzed by Spanish priest Ruy López de Segura in 1561.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess originated in India around the 6th century CE as 'chaturanga', meaning 'four divisions of the military'.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The earliest recorded chess game in history is from the 900s, between a historian from Baghdad and his student.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Archaeologists discovered ivory chess pieces in Uzbekistan dating back to 760 AD.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The word 'checkmate' comes from the Persian phrase 'Shah Mat', meaning 'the King is dead'.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -5563,6 +5822,34 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess reached Western Europe around the year 1000.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The oldest surviving complete chess sets are the Lewis Chessmen, found on the Isle of Lewis in Scotland, dating to the 12th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Queen originally could only move one square diagonally - she was the weakest piece!",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Queen was initially called the 'counselor' or 'minister' (fers).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "06-21": [
@@ -6372,6 +6659,34 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Around 1475, the Queen gained vastly increased power to become the most powerful piece.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "This transformation possibly occurred due to powerful female monarchs like Queen Isabella of Spain.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Bishop (originally called 'elephant') could only jump two squares diagonally before gaining extended range.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Pawns advancing two squares from their starting position was introduced in 1280 in Spain.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "07-21": [
@@ -6789,6 +7104,34 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Castling was two separate moves as late as 1561.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The convention that white moves first was established during the Romantic Era (18th century - 1880s).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Traditional chess pieces look abstract because the game passed through the Islamic world, which forbids making statues of animals.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first black and white chessboard appeared in Europe around 1020 CE.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-06": [
@@ -6825,6 +7168,34 @@
     {
       "type": "fun_fact",
       "text": "Petrov's Defense was analyzed and popularized by Russian master Alexander Petrov in the 1840s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Folding chessboards were invented to hide chess games after the Pope banned chess in 1061.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In 1474, William Caxton printed 'Game and Playe of the Chesse' - the second book ever printed in English.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess was called 'the royal game' in the 15th century due to its popularity among nobility.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Before the late 15th century, checkmate was relatively rare - more games were decided by 'baring the king'.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -7056,6 +7427,34 @@
     {
       "type": "fun_fact",
       "text": "The Philidor Defense was championed by François-André Danican Philidor in his famous 1749 chess book.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "There are more possible chess games than atoms in the observable universe: 10^120 possible games.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "This number is called 'Shannon's number', calculated by mathematician Claude Shannon in 1950.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The longest chess game theoretically possible is 5,949 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "After each player's first move, there are 400 possible positions.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -7837,6 +8236,34 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The number of possibilities for a Knight's tour (visiting every square once) is over 122 million.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "It is possible to checkmate in just two moves (Fool's Mate).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The world record for moves without capture is 100 moves, set in 1992.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The longest official chess game took place in 1989 and lasted 20 hours with 269 moves.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-16": [
@@ -8209,6 +8636,34 @@
     {
       "type": "fun_fact",
       "text": "The Caro-Kann Defense was independently analyzed by Horatio Caro and Marcus Kann in the 1880s.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess has been called the second-oldest subject of book publishing.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first book on chess openings was published in 1843.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Ruy Lopez's 1561 chess book advocated playing with the sun in your opponent's eyes!",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The 'Immortal Game' between Adolf Anderssen and Lionel Kieseritzky (1851) defined the Romantic era of chess.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -9643,6 +10098,34 @@
       "year": 1966,
       "name": "Yakov Nesterov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Reliable timing mechanisms were first introduced to chess in 1861.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first official World Chess Championship was held in 1886 in the United States.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Wilhelm Steinitz defeated Johannes Zuckertort to become the first official World Champion in 1886.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Paul Morphy holds the unofficial title of 'World's First Chess Champion' before official championships.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "11-25": [
@@ -10342,6 +10825,34 @@
       "year": 1971,
       "name": "Nikola Mitkov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "FIDE, the international chess federation, was founded in 1924 in Paris.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "July 20th is celebrated as World Chess Day, proclaimed by the UN General Assembly in 2019.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "All World Champions and challengers from 1951 to 1969 were Soviet citizens.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "US Chess Federation membership jumped from 2,100 in 1957 to over 70,000 in 1973.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-19": [
@@ -10374,6 +10885,34 @@
       "year": 1976,
       "name": "Alexei Kornev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Abhimanyu Mishra became the youngest grandmaster ever at 12 years, 4 months, 25 days in June 2021.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "To become a grandmaster, players need three GM norms and an Elo rating of at least 2500.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Bobby Fischer was the 11th World Champion and ended Soviet dominance during the Cold War.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Fischer refused to defend his title in 1975 and disappeared, resurfacing in 1992 to play Spassky.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-21": [
@@ -10420,12 +10959,68 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Garry Kasparov was defeated by IBM's Deep Blue in 1997 - a major shock to the chess world.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Magnus Carlsen holds the record for highest rating in history at 2882, attained in 2014.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The first Soviet mass-market chess computer 'Electronica IM-01' was produced in 1977.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "DeepThought became the first computer to beat an international grandmaster in November 1988.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-23": [
     {
       "type": "fun_fact",
       "text": "The Pirc Defense was developed by Slovenian GM Vasja Pirc in the mid-20th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Deep Blue's victory over Kasparov in 1997 ushered chess into an era of computer domination.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Top players now rely on computer analysis and databases of millions of games.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "About 600-605 million people worldwide know how to play chess.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "About 70% of adults have played chess at some point in their lives.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -10484,6 +11079,34 @@
       "year": 1975,
       "name": "Attila Czebe",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess is a required school subject in Armenia.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Playing chess can enhance cognitive ability, especially in children.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess is recommended in the fight against Alzheimer's disease.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "There are now more than 2,000 International Grandmasters worldwide.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-27": [
@@ -10560,6 +11183,34 @@
       "year": 1996,
       "name": "Wolfgang Pietzsch",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Blindfold chess is real - players make moves without looking at the board.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess boxing is a real hybrid sport popular in Europe - players alternate between boxing and chess rounds.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Caïssa is the mythological goddess of chess from the Romantic Era.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Police raided a chess tournament in Cleveland in 1973, arresting the director for 'illegal gaming' (cash prizes).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-30": [
@@ -10569,6 +11220,34 @@
       "year": 1941,
       "name": "Bruno Parma",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "During WWII, top chess players helped break the Nazi Enigma code at Bletchley Park.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Bobby Fischer and GM Larry Evans famously played chess in a swimming pool.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Staunton pattern chess set designed in 1849 is still the standard used today.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "There are over 1,000 documented chess variants throughout history.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "12-31": [
@@ -10578,6 +11257,34 @@
       "year": 1964,
       "name": "Vlatko Bogdanovski",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The longest time for castling to occur in a game was move 46 (Bobotsor vs. Irkov, 1966).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "In German and Spanish, the pawn is called 'peasant' or 'farmer' instead of foot soldier.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The chess village of Ströbeck in Germany has played chess since the early 11th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "José Raúl Capablanca was undefeated for eight years (1916-1924) in serious classical play.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ]
 }
