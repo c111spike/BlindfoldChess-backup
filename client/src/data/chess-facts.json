@@ -8387,6 +8387,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Chess pieces are traditionally made of Boxwood for light pieces and Ebony for dark pieces.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-21": [
@@ -8440,6 +8447,13 @@
       "year": 2004,
       "name": "Konstantin Aseev",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The most common size for tournament chess squares is 2 to 2.25 inches (5.1-5.7 cm).",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-23": [
@@ -8460,6 +8474,13 @@
     {
       "type": "fun_fact",
       "text": "The English Opening (1. c4) was named for Howard Staunton, who used it frequently in the 19th century.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Smothered Mate is checkmate by a Knight when the King is surrounded by its own pieces.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -8486,6 +8507,13 @@
       "year": 1904,
       "name": "Vladimir Makogonov",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Epaulette Mate is checkmate where the King is restricted on both sides by its own Rooks.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-25": [
@@ -8506,6 +8534,13 @@
     {
       "type": "fun_fact",
       "text": "The term 'Rookie' (for a beginner) is sometimes traced back to the Rook piece, which is often the last to enter the game.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A Fork is a tactic where one piece (usually a Knight) simultaneously attacks two or more pieces.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -8569,6 +8604,13 @@
       "year": 1950,
       "name": "Elizbar Ubilava",
       "source": "Chess Fandom Wiki - List of Grandmasters"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A Pin makes it inadvisable or illegal for a piece to move because a valuable piece is behind it.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-28": [
@@ -8636,6 +8678,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "A Skewer is the opposite of a Pin - a valuable piece is attacked, exposing a less valuable piece behind.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "08-30": [
@@ -8656,6 +8705,13 @@
     {
       "type": "fun_fact",
       "text": "The 'Immortal Game' (Anderssen vs. Kieseritzky, 1851) was played during a break at the world's first international tournament in London.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Opposition is a fundamental endgame technique where Kings are separated by an odd number of squares.",
       "year": null,
       "name": null,
       "source": "Chess History"
@@ -8682,6 +8738,13 @@
       "year": null,
       "name": null,
       "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "Triangulation is used in King-and-Pawn endgames to lose a tempo and place the opponent in zugzwang.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-01": [
@@ -8705,6 +8768,13 @@
       "year": 1972,
       "name": "Bobby Fischer",
       "source": "World Chess Championship History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Lucena Position is a key theoretical winning position in Rook and Pawn vs. Rook endgames.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
     }
   ],
   "09-02": [
@@ -8725,6 +8795,13 @@
     {
       "type": "fun_fact",
       "text": "In some ancient versions, players could win by simply capturing all opponent's pieces (leaving a 'bare king') without checkmate.",
+      "year": null,
+      "name": null,
+      "source": "Chess History"
+    },
+    {
+      "type": "fun_fact",
+      "text": "The Philidor Position is a key theoretical drawing position in Rook and Pawn vs. Rook endgames.",
       "year": null,
       "name": null,
       "source": "Chess History"

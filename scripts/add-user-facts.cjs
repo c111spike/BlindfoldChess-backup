@@ -5,22 +5,22 @@ const existingFacts = JSON.parse(fs.readFileSync('client/src/data/chess-facts.js
 
 // User-provided facts - parsed from plain text
 const userFacts = [
-  // World Championship History
-  "Garry Kasparov split from FIDE in 1993 to create the Professional Chess Association (PCA).",
-  "The 2024 World Championship was the first in 100+ years with two Challengers due to Carlsen's withdrawal.",
-  "The official FIDE World Championship trophy is named the 'Kasparov-Karpov' trophy.",
+  // Equipment
+  "Chess pieces are traditionally made of Boxwood for light pieces and Ebony for dark pieces.",
+  "The most common size for tournament chess squares is 2 to 2.25 inches (5.1-5.7 cm).",
   
-  // Pieces, Notation, and Equipment
-  "Algebraic Notation (e.g., e4, Nf3) was standardized in the 19th century; Descriptive Notation was used before.",
-  "In Descriptive Notation, the square c1 would be known as QR1 (Queen's Rook 1).",
-  "A Bishop Pair is often considered a long-term advantage, especially in open positions.",
-  "The King uses 'K' in notation while the Knight uses 'N' to avoid confusion.",
-  "The Knight is often nicknamed 'The Horse' in common chess parlance.",
-  "A 'Battery' refers to lining up two pieces (often Queen and Bishop/Rook) to attack along the same line.",
-  "The earliest chess clocks were sandglasses, used at the London Tournament in 1862.",
-  "Modern tournaments use digital clocks with increment or delay time controls (e.g., Fischer Delay).",
-  "Fischer Delay, invented by Bobby Fischer, gives a fixed time delay before the clock counts down each move.",
-  "Increment time control adds a fixed amount of time (e.g., 30 seconds) to a player's clock after every move."
+  // Tactics
+  "The Smothered Mate is checkmate by a Knight when the King is surrounded by its own pieces.",
+  "The Epaulette Mate is checkmate where the King is restricted on both sides by its own Rooks.",
+  "A Fork is a tactic where one piece (usually a Knight) simultaneously attacks two or more pieces.",
+  "A Pin makes it inadvisable or illegal for a piece to move because a valuable piece is behind it.",
+  "A Skewer is the opposite of a Pin - a valuable piece is attacked, exposing a less valuable piece behind.",
+  
+  // Endgames
+  "Opposition is a fundamental endgame technique where Kings are separated by an odd number of squares.",
+  "Triangulation is used in King-and-Pawn endgames to lose a tempo and place the opponent in zugzwang.",
+  "The Lucena Position is a key theoretical winning position in Rook and Pawn vs. Rook endgames.",
+  "The Philidor Position is a key theoretical drawing position in Rook and Pawn vs. Rook endgames."
 ];
 
 // Get all dates sorted by number of facts (ascending)
