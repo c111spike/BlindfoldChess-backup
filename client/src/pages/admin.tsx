@@ -67,24 +67,31 @@ export default function AdminPage() {
   const [warningNotes, setWarningNotes] = useState("");
   const [reviewStatus, setReviewStatus] = useState("");
 
+  const isAdmin = user?.isAdmin === true;
+
   const { data: stats, isLoading: statsLoading } = useQuery<AntiCheatStats>({
     queryKey: ["/api/admin/anti-cheat/stats"],
+    enabled: isAdmin,
   });
 
   const { data: flaggedUsers, isLoading: flaggedLoading } = useQuery<FlaggedUserWithDetails[]>({
     queryKey: ["/api/admin/flagged-users"],
+    enabled: isAdmin,
   });
 
   const { data: cheatReports, isLoading: reportsLoading } = useQuery<CheatReport[]>({
-    queryKey: ["/api/admin/cheat-reports", { isResolved: "false" }],
+    queryKey: ["/api/admin/cheat-reports?isResolved=false"],
+    enabled: isAdmin,
   });
 
   const { data: flaggedPuzzles, isLoading: puzzlesLoading } = useQuery<Puzzle[]>({
     queryKey: ["/api/admin/puzzles/flagged"],
+    enabled: isAdmin,
   });
 
   const updateReviewMutation = useMutation({
     mutationFn: async ({ userId, status, notes }: { userId: string; status: string; notes?: string }) => {
+      if (!isAdmin) throw new Error("Unauthorized");
       return apiRequest(`/api/admin/users/${userId}/review`, {
         method: "POST",
         body: JSON.stringify({ status, notes }),
@@ -104,6 +111,7 @@ export default function AdminPage() {
 
   const issueWarningMutation = useMutation({
     mutationFn: async ({ userId, notes }: { userId: string; notes: string }) => {
+      if (!isAdmin) throw new Error("Unauthorized");
       return apiRequest(`/api/admin/users/${userId}/warn`, {
         method: "POST",
         body: JSON.stringify({ notes }),
@@ -123,13 +131,14 @@ export default function AdminPage() {
 
   const resolveReportMutation = useMutation({
     mutationFn: async ({ reportId, resolution }: { reportId: string; resolution: string }) => {
+      if (!isAdmin) throw new Error("Unauthorized");
       return apiRequest(`/api/admin/cheat-reports/${reportId}/resolve`, {
         method: "POST",
         body: JSON.stringify({ resolution }),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/cheat-reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cheat-reports?isResolved=false"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/anti-cheat/stats"] });
       toast({ title: "Report Resolved", description: "The report has been resolved." });
     },
@@ -140,6 +149,7 @@ export default function AdminPage() {
 
   const verifyPuzzleMutation = useMutation({
     mutationFn: async (puzzleId: string) => {
+      if (!isAdmin) throw new Error("Unauthorized");
       return apiRequest(`/api/admin/puzzles/${puzzleId}/verify`, {
         method: "POST",
       });
@@ -155,6 +165,7 @@ export default function AdminPage() {
 
   const removePuzzleMutation = useMutation({
     mutationFn: async (puzzleId: string) => {
+      if (!isAdmin) throw new Error("Unauthorized");
       return apiRequest(`/api/admin/puzzles/${puzzleId}/remove`, {
         method: "POST",
       });
@@ -168,7 +179,7 @@ export default function AdminPage() {
     },
   });
 
-  if (!user?.isAdmin) {
+  if (!isAdmin) {
     return (
       <div className="p-8 text-center">
         <Shield className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
