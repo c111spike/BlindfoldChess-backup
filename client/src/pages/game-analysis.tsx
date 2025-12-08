@@ -238,8 +238,8 @@ function QuickSummary({ analysis, moves, playerColor }: {
         
         <div className="space-y-2">
           <div className="text-sm font-medium">Move Breakdown</div>
-          <div className="grid grid-cols-3 gap-2 text-center text-sm">
-            {(['genius', 'fantastic', 'good', 'imprecise', 'mistake', 'blunder'] as MoveClassification[]).map(c => (
+          <div className="grid grid-cols-4 gap-2 text-center text-sm">
+            {(['genius', 'fantastic', 'best', 'forced', 'good', 'imprecise', 'mistake', 'blunder'] as MoveClassification[]).map(c => (
               <div key={c} className="flex flex-col items-center">
                 <Badge className={`${CLASSIFICATION_COLORS[c]} mb-1`}>
                   {classifications[c] || 0}

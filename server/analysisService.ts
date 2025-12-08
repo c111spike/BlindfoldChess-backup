@@ -91,11 +91,11 @@ function detectSacrifice(
 function classifyMove(ctx: ClassificationContext): MoveClassification {
   if (ctx.isForced) return 'forced';
   
-  if (ctx.isSacrifice && (ctx.evalSwing >= 150 || ctx.deliversMate)) {
+  if (ctx.isSacrifice && (ctx.evalSwing >= 250 || ctx.deliversMate)) {
     return 'genius';
   }
   
-  if (!ctx.isSacrifice && (ctx.deliversMate || ctx.evalSwing >= 200 || ctx.evalAfter >= 3)) {
+  if (!ctx.isSacrifice && (ctx.deliversMate || ctx.evalSwing >= 300)) {
     return 'fantastic';
   }
   
