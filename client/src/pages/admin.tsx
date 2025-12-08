@@ -1,0 +1,597 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { 
+  Shield, 
+  AlertTriangle, 
+  CheckCircle, 
+  XCircle, 
+  Flag, 
+  Users, 
+  FileWarning,
+  Eye,
+  MessageSquare,
+  Loader2,
+  TrendingUp
+} from "lucide-react";
+import type { User, Puzzle, CheatReport, UserAntiCheat } from "@shared/schema";
+
+interface FlaggedUserWithDetails extends UserAntiCheat {
+  user: User;
+  reportCount: number;
+}
+
+interface AntiCheatStats {
+  totalFlagged: number;
+  byPriority: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  unresolvedReports: number;
+}
+
+const PRIORITY_COLORS: Record<string, string> = {
+  critical: "bg-red-500 text-white",
+  high: "bg-orange-500 text-white",
+  medium: "bg-yellow-500 text-black",
+  low: "bg-gray-500 text-white",
+};
+
+const REVIEW_STATUS_LABELS: Record<string, string> = {
+  pending: "Pending Review",
+  under_review: "Under Review",
+  warning_issued: "Warning Issued",
+  cleared: "Cleared",
+  dismissed: "Dismissed",
+};
+
+export default function AdminPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("flagged-players");
+  const [selectedUser, setSelectedUser] = useState<FlaggedUserWithDetails | null>(null);
+  const [adminNotes, setAdminNotes] = useState("");
+  const [warningNotes, setWarningNotes] = useState("");
+  const [reviewStatus, setReviewStatus] = useState("");
+
+  const { data: stats, isLoading: statsLoading } = useQuery<AntiCheatStats>({
+    queryKey: ["/api/admin/anti-cheat/stats"],
+  });
+
+  const { data: flaggedUsers, isLoading: flaggedLoading } = useQuery<FlaggedUserWithDetails[]>({
+    queryKey: ["/api/admin/flagged-users"],
+  });
+
+  const { data: cheatReports, isLoading: reportsLoading } = useQuery<CheatReport[]>({
+    queryKey: ["/api/admin/cheat-reports", { isResolved: "false" }],
+  });
+
+  const { data: flaggedPuzzles, isLoading: puzzlesLoading } = useQuery<Puzzle[]>({
+    queryKey: ["/api/admin/puzzles/flagged"],
+  });
+
+  const updateReviewMutation = useMutation({
+    mutationFn: async ({ userId, status, notes }: { userId: string; status: string; notes?: string }) => {
+      return apiRequest(`/api/admin/users/${userId}/review`, {
+        method: "POST",
+        body: JSON.stringify({ status, notes }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/flagged-users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/anti-cheat/stats"] });
+      toast({ title: "Review Updated", description: "User review status has been updated." });
+      setSelectedUser(null);
+      setAdminNotes("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const issueWarningMutation = useMutation({
+    mutationFn: async ({ userId, notes }: { userId: string; notes: string }) => {
+      return apiRequest(`/api/admin/users/${userId}/warn`, {
+        method: "POST",
+        body: JSON.stringify({ notes }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/flagged-users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/anti-cheat/stats"] });
+      toast({ title: "Warning Issued", description: "The user has been warned." });
+      setSelectedUser(null);
+      setWarningNotes("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const resolveReportMutation = useMutation({
+    mutationFn: async ({ reportId, resolution }: { reportId: string; resolution: string }) => {
+      return apiRequest(`/api/admin/cheat-reports/${reportId}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({ resolution }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cheat-reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/anti-cheat/stats"] });
+      toast({ title: "Report Resolved", description: "The report has been resolved." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const verifyPuzzleMutation = useMutation({
+    mutationFn: async (puzzleId: string) => {
+      return apiRequest(`/api/admin/puzzles/${puzzleId}/verify`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/puzzles/flagged"] });
+      toast({ title: "Puzzle Verified", description: "The puzzle has been verified." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const removePuzzleMutation = useMutation({
+    mutationFn: async (puzzleId: string) => {
+      return apiRequest(`/api/admin/puzzles/${puzzleId}/remove`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/puzzles/flagged"] });
+      toast({ title: "Puzzle Removed", description: "The puzzle has been removed." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  if (!user?.isAdmin) {
+    return (
+      <div className="p-8 text-center">
+        <Shield className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+        <p className="text-muted-foreground">You do not have permission to access this page.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8 space-y-6">
+      <div className="flex items-center gap-3">
+        <Shield className="h-8 w-8 text-primary" />
+        <div>
+          <h1 className="text-4xl font-bold">Admin Dashboard</h1>
+          <p className="text-muted-foreground">Manage flagged players, reports, and moderation</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Flagged Players</p>
+                <p className="text-3xl font-bold">{statsLoading ? "..." : stats?.totalFlagged || 0}</p>
+              </div>
+              <Users className="h-8 w-8 text-yellow-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Critical Priority</p>
+                <p className="text-3xl font-bold text-red-500">
+                  {statsLoading ? "..." : stats?.byPriority.critical || 0}
+                </p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Pending Reports</p>
+                <p className="text-3xl font-bold">{statsLoading ? "..." : stats?.unresolvedReports || 0}</p>
+              </div>
+              <FileWarning className="h-8 w-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Flagged Puzzles</p>
+                <p className="text-3xl font-bold">{puzzlesLoading ? "..." : flaggedPuzzles?.length || 0}</p>
+              </div>
+              <Flag className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="flagged-players" data-testid="tab-flagged-players">
+            <Users className="h-4 w-4 mr-2" />
+            Flagged Players
+          </TabsTrigger>
+          <TabsTrigger value="cheat-reports" data-testid="tab-cheat-reports">
+            <FileWarning className="h-4 w-4 mr-2" />
+            Cheat Reports
+          </TabsTrigger>
+          <TabsTrigger value="flagged-puzzles" data-testid="tab-flagged-puzzles">
+            <Flag className="h-4 w-4 mr-2" />
+            Flagged Puzzles
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="flagged-players" className="space-y-4">
+          {flaggedLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}
+            </div>
+          ) : !flaggedUsers?.length ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">All Clear</h3>
+                <p className="text-muted-foreground">No flagged players to review.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {flaggedUsers.map(fu => (
+                <Card key={fu.id} data-testid={`flagged-user-${fu.userId}`}>
+                  <CardContent className="py-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                          <Users className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{fu.user.firstName} {fu.user.lastName}</p>
+                          <p className="text-sm text-muted-foreground">{fu.user.email}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Risk Score:</span>
+                            <span className="font-bold text-lg">{fu.riskScore?.toFixed(0) || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Reports:</span>
+                            <span>{fu.reportCount}</span>
+                          </div>
+                        </div>
+                        
+                        <Badge className={PRIORITY_COLORS[fu.reviewPriority || 'low']}>
+                          {fu.reviewPriority?.toUpperCase()}
+                        </Badge>
+                        
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setSelectedUser(fu)}
+                              data-testid={`button-review-${fu.userId}`}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Review
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Review Player: {fu.user.firstName} {fu.user.lastName}</DialogTitle>
+                              <DialogDescription>
+                                Review anti-cheat data and take appropriate action.
+                              </DialogDescription>
+                            </DialogHeader>
+                            
+                            <div className="grid gap-4 py-4">
+                              <div className="grid grid-cols-3 gap-4">
+                                <div className="p-3 bg-muted rounded-lg">
+                                  <p className="text-sm text-muted-foreground">Risk Score</p>
+                                  <p className="text-2xl font-bold">{fu.riskScore?.toFixed(1) || 0}</p>
+                                </div>
+                                <div className="p-3 bg-muted rounded-lg">
+                                  <p className="text-sm text-muted-foreground">Reports</p>
+                                  <p className="text-2xl font-bold">{fu.reportCount}</p>
+                                </div>
+                                <div className="p-3 bg-muted rounded-lg">
+                                  <p className="text-sm text-muted-foreground">Warnings</p>
+                                  <p className="text-2xl font-bold">{fu.warningCount || 0}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-3 gap-4 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Accuracy Anomaly</p>
+                                  <p className="font-semibold">{fu.accuracyAnomaly?.toFixed(1) || 0}%</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Time Anomaly</p>
+                                  <p className="font-semibold">{fu.timeAnomaly?.toFixed(1) || 0}%</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Simul Anomaly</p>
+                                  <p className="font-semibold">{fu.simulAnomaly?.toFixed(1) || 0}%</p>
+                                </div>
+                              </div>
+                              
+                              {fu.flagReason && (
+                                <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                                  <p className="text-sm font-medium">Flag Reason</p>
+                                  <p className="text-sm text-muted-foreground">{fu.flagReason}</p>
+                                </div>
+                              )}
+                              
+                              {fu.adminNotes && (
+                                <div className="p-3 bg-muted rounded-lg">
+                                  <p className="text-sm font-medium">Previous Admin Notes</p>
+                                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{fu.adminNotes}</p>
+                                </div>
+                              )}
+                              
+                              <div className="grid gap-2">
+                                <Label>Update Status</Label>
+                                <Select value={reviewStatus} onValueChange={setReviewStatus}>
+                                  <SelectTrigger data-testid="select-review-status">
+                                    <SelectValue placeholder="Select new status..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="under_review">Under Review</SelectItem>
+                                    <SelectItem value="cleared">Cleared (No Action)</SelectItem>
+                                    <SelectItem value="dismissed">Dismiss Flag</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label>Admin Notes</Label>
+                                <Textarea
+                                  value={adminNotes}
+                                  onChange={(e) => setAdminNotes(e.target.value)}
+                                  placeholder="Add notes about your review..."
+                                  data-testid="input-admin-notes"
+                                />
+                              </div>
+                            </div>
+                            
+                            <DialogFooter className="flex gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="destructive" data-testid="button-issue-warning">
+                                    <AlertTriangle className="h-4 w-4 mr-1" />
+                                    Issue Warning
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Issue Warning</DialogTitle>
+                                    <DialogDescription>
+                                      This will record a warning on the player's account.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="grid gap-4 py-4">
+                                    <div className="grid gap-2">
+                                      <Label>Warning Message</Label>
+                                      <Textarea
+                                        value={warningNotes}
+                                        onChange={(e) => setWarningNotes(e.target.value)}
+                                        placeholder="Reason for the warning..."
+                                        data-testid="input-warning-notes"
+                                      />
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button
+                                      variant="destructive"
+                                      onClick={() => fu && issueWarningMutation.mutate({ userId: fu.userId, notes: warningNotes })}
+                                      disabled={!warningNotes || issueWarningMutation.isPending}
+                                      data-testid="button-confirm-warning"
+                                    >
+                                      {issueWarningMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      ) : null}
+                                      Confirm Warning
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              
+                              <Button
+                                onClick={() => fu && updateReviewMutation.mutate({ 
+                                  userId: fu.userId, 
+                                  status: reviewStatus, 
+                                  notes: adminNotes 
+                                })}
+                                disabled={!reviewStatus || updateReviewMutation.isPending}
+                                data-testid="button-update-status"
+                              >
+                                {updateReviewMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : null}
+                                Update Status
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="cheat-reports" className="space-y-4">
+          {reportsLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}
+            </div>
+          ) : !cheatReports?.length ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Pending Reports</h3>
+                <p className="text-muted-foreground">All cheat reports have been resolved.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {cheatReports.map(report => (
+                <Card key={report.id} data-testid={`cheat-report-${report.id}`}>
+                  <CardContent className="py-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">Report #{report.id.slice(0, 8)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Reason: {report.reason.replace(/_/g, ' ')}
+                        </p>
+                        {report.details && (
+                          <p className="text-sm text-muted-foreground mt-1">{report.details}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Reported: {new Date(report.createdAt!).toLocaleString()}
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => resolveReportMutation.mutate({ 
+                            reportId: report.id, 
+                            resolution: "Reviewed and action taken" 
+                          })}
+                          disabled={resolveReportMutation.isPending}
+                          data-testid={`button-resolve-${report.id}`}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Resolve
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => resolveReportMutation.mutate({ 
+                            reportId: report.id, 
+                            resolution: "Dismissed as invalid" 
+                          })}
+                          disabled={resolveReportMutation.isPending}
+                          data-testid={`button-dismiss-${report.id}`}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Dismiss
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="flagged-puzzles" className="space-y-4">
+          {puzzlesLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}
+            </div>
+          ) : !flaggedPuzzles?.length ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Flagged Puzzles</h3>
+                <p className="text-muted-foreground">All puzzles are in good standing.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {flaggedPuzzles.map(puzzle => (
+                <Card key={puzzle.id} data-testid={`flagged-puzzle-${puzzle.id}`}>
+                  <CardContent className="py-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">{puzzle.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Type: {puzzle.puzzleType} | Difficulty: {puzzle.difficulty}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="secondary">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            {puzzle.upvotes || 0} upvotes
+                          </Badge>
+                          <Badge variant="destructive">
+                            {puzzle.downvotes || 0} downvotes
+                          </Badge>
+                          <Badge variant="outline">
+                            {puzzle.reportCount || 0} reports
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => verifyPuzzleMutation.mutate(puzzle.id)}
+                          disabled={verifyPuzzleMutation.isPending}
+                          data-testid={`button-verify-puzzle-${puzzle.id}`}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Verify
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removePuzzleMutation.mutate(puzzle.id)}
+                          disabled={removePuzzleMutation.isPending}
+                          data-testid={`button-remove-puzzle-${puzzle.id}`}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

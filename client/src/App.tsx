@@ -28,6 +28,7 @@ import SimulMatchReview from "@/pages/simul-match-review";
 import PuzzleCreator from "@/pages/puzzle-creator";
 import Puzzles from "@/pages/puzzles";
 import PuzzleSolve from "@/pages/puzzle-solve";
+import AdminPage from "@/pages/admin";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/puzzles" component={Puzzles} />
       <Route path="/puzzles/create" component={PuzzleCreator} />
       <Route path="/puzzle/:id" component={PuzzleSolve} />
+      <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
   );

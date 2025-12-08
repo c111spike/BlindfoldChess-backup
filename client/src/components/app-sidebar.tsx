@@ -26,7 +26,9 @@ import {
   Navigation,
   Users,
   Puzzle,
+  ShieldCheck,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
 
 const menuItems = [
@@ -89,6 +91,7 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
 
   return (
     <Sidebar>
@@ -119,6 +122,24 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {user?.isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/admin"}>
+                    <Link href="/admin" data-testid="nav-admin">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Admin Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter>
