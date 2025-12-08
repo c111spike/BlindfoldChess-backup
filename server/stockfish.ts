@@ -333,15 +333,36 @@ class StockfishService {
 
       const afterAnalysis = await this.analyzePosition(afterFen, depth);
 
-      const evalBefore = beforeAnalysis.evaluation;
-      const evalAfter = -afterAnalysis.evaluation;
+      // Stockfish always reports from side-to-move perspective
+      // 
+      // For CENTIPAWN LOSS: we need evaluations from the MOVER's perspective
+      // - beforeAnalysis.evaluation is already from the mover's perspective
+      // - afterAnalysis.evaluation is from opponent's perspective, so negate it to get mover's view
+      const moverEvalBefore = beforeAnalysis.evaluation;
+      const moverEvalAfter = -afterAnalysis.evaluation; // Flip to mover's perspective
+      
+      const normalizedMoverEvalBefore = normalizeEvaluation(moverEvalBefore);
+      const normalizedMoverEvalAfter = normalizeEvaluation(moverEvalAfter);
+      
+      // Centipawn loss: how much the mover's position got worse
+      const rawCentipawnLoss = Math.max(0, Math.round((normalizedMoverEvalBefore - normalizedMoverEvalAfter) * 100));
+      const centipawnLoss = rawCentipawnLoss;
+      const normalizedCentipawnLoss = normalizeCentipawnLoss(rawCentipawnLoss);
+      
+      // For DISPLAY: normalize evaluations to WHITE's perspective
+      // Positive = good for white, Negative = good for black
+      const isWhiteMove = color === 'white';
+      const evalBefore = isWhiteMove ? moverEvalBefore : -moverEvalBefore;
+      const evalAfter = isWhiteMove ? moverEvalAfter : -moverEvalAfter;
+      
+      // Also normalize bestMoveEval to white's perspective
+      // beforeAnalysis.bestMoveEval is from mover's perspective
+      const bestMoveEvalWhitePerspective = isWhiteMove 
+        ? beforeAnalysis.bestMoveEval 
+        : -beforeAnalysis.bestMoveEval;
       
       const normalizedEvalBefore = normalizeEvaluation(evalBefore);
       const normalizedEvalAfter = normalizeEvaluation(evalAfter);
-      
-      const rawCentipawnLoss = Math.max(0, Math.round((normalizedEvalBefore - normalizedEvalAfter) * 100));
-      const centipawnLoss = rawCentipawnLoss;
-      const normalizedCentipawnLoss = normalizeCentipawnLoss(rawCentipawnLoss);
 
       const isBestMove = uciMove === beforeAnalysis.bestMove || 
         (beforeAnalysis.principalVariation.length > 0 && uciMove === beforeAnalysis.principalVariation[0]);
@@ -356,7 +377,7 @@ class StockfishService {
         normalizedEvalBefore,
         normalizedEvalAfter,
         bestMove: beforeAnalysis.bestMove,
-        bestMoveEval: beforeAnalysis.bestMoveEval,
+        bestMoveEval: bestMoveEvalWhitePerspective,
         centipawnLoss,
         normalizedCentipawnLoss,
         principalVariation: beforeAnalysis.principalVariation,

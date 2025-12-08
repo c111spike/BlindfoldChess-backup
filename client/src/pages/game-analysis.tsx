@@ -65,6 +65,13 @@ const CLASSIFICATION_LABELS: Record<MoveClassification, string> = {
   forced: 'Forced',
 };
 
+// Helper to convert evaluation to player's perspective
+// Evaluations are stored from white's perspective, flip if player is black
+function getPlayerEval(evaluation: number | null | undefined, playerColor: string): number | null {
+  if (evaluation == null) return null;
+  return playerColor === 'black' ? -evaluation : evaluation;
+}
+
 function VerticalEvalBar({ 
   evaluation,
   flipped = false
@@ -73,10 +80,17 @@ function VerticalEvalBar({
   flipped?: boolean;
 }) {
   const maxEval = 10;
-  const evalValue = evaluation ?? 0;
-  const clampedEval = Math.max(-maxEval, Math.min(maxEval, evalValue));
+  // Evaluation is stored from white's perspective
+  // If player is black (flipped=true), flip to show from their perspective
+  const rawValue = evaluation ?? 0;
+  const playerEval = flipped ? -rawValue : rawValue;
+  const clampedEval = Math.max(-maxEval, Math.min(maxEval, playerEval));
   
-  const whitePercentage = 50 + (clampedEval / maxEval) * 50;
+  // Bar shows player's advantage: positive = bar fills toward player's side
+  // When not flipped: white at bottom, black at top (standard orientation)
+  // When flipped: black at bottom, white at top
+  const whiteAdvantage = Math.max(-maxEval, Math.min(maxEval, rawValue)); // Always from white's perspective for bar
+  const whitePercentage = 50 + (whiteAdvantage / maxEval) * 50;
   const blackPercentage = 100 - whitePercentage;
   
   const formatEval = (val: number) => {
@@ -104,10 +118,10 @@ function VerticalEvalBar({
       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center">
         <span 
           className={`text-[10px] font-bold px-0.5 rounded ${
-            evalValue >= 0 ? 'bg-zinc-100 text-zinc-800' : 'bg-zinc-800 text-zinc-100'
+            playerEval >= 0 ? 'bg-zinc-100 text-zinc-800' : 'bg-zinc-800 text-zinc-100'
           }`}
         >
-          {formatEval(evalValue)}
+          {formatEval(playerEval)}
         </span>
       </div>
     </div>
@@ -1030,7 +1044,7 @@ export default function GameAnalysisPage() {
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Eval: {currentMove.evalAfter?.toFixed(2) ?? '--'}
+                        Eval: {getPlayerEval(currentMove.evalAfter, playerColor)?.toFixed(2) ?? '--'}
                         {currentMove.centipawnLoss != null && currentMove.centipawnLoss > 0 && (
                           <span className="text-red-500 ml-2">
                             ({currentMove.centipawnLoss} cp loss)
@@ -1044,7 +1058,7 @@ export default function GameAnalysisPage() {
                         <span className="text-muted-foreground">Best was: </span>
                         <span className="font-mono">{currentMove.bestMove}</span>
                         <span className="text-muted-foreground ml-2">
-                          (eval: {currentMove.bestMoveEval?.toFixed(2)})
+                          (eval: {getPlayerEval(currentMove.bestMoveEval, playerColor)?.toFixed(2)})
                         </span>
                       </div>
                     )}
