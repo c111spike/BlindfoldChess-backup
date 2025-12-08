@@ -1722,6 +1722,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== ANTI-CHEAT SYSTEM ==========
+  
+  // Submit a cheat report (authenticated users)
+  app.post('/api/cheat-reports', isAuthenticated, async (req: any, res) => {
+    try {
+      const reporterId = req.user.claims.sub;
+      const { reportedUserId, gameId, reason, details } = req.body;
+      
+      if (!reportedUserId || !reason) {
+        return res.status(400).json({ message: "Reported user ID and reason are required" });
+      }
+      
+      // Prevent self-reports
+      if (reporterId === reportedUserId) {
+        return res.status(400).json({ message: "You cannot report yourself" });
+      }
+      
+      const report = await storage.createCheatReport({
+        reporterId,
+        reportedUserId,
+        gameId: gameId || null,
+        reason,
+        details: details || null,
+      });
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Error creating cheat report:", error);
+      res.status(500).json({ message: "Failed to submit report" });
+    }
+  });
+  
+  // Get user's own submitted reports
+  app.get('/api/cheat-reports/my-reports', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reports = await storage.getCheatReportsByReporter(userId);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching user's reports:", error);
+      res.status(500).json({ message: "Failed to fetch reports" });
+    }
+  });
+  
+  // Admin: Get all cheat reports
+  app.get('/api/admin/cheat-reports', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { userId, isResolved } = req.query;
+      const reports = await storage.getCheatReports(
+        userId as string | undefined,
+        isResolved !== undefined ? isResolved === 'true' : undefined
+      );
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching cheat reports:", error);
+      res.status(500).json({ message: "Failed to fetch cheat reports" });
+    }
+  });
+  
+  // Admin: Resolve a cheat report
+  app.post('/api/admin/cheat-reports/:id/resolve', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { resolution } = req.body;
+      
+      if (!resolution) {
+        return res.status(400).json({ message: "Resolution is required" });
+      }
+      
+      const report = await storage.resolveCheatReport(req.params.id, adminId, resolution);
+      res.json(report);
+    } catch (error) {
+      console.error("Error resolving cheat report:", error);
+      res.status(500).json({ message: "Failed to resolve report" });
+    }
+  });
+  
+  // Admin: Get all flagged users
+  app.get('/api/admin/flagged-users', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { priority } = req.query;
+      if (priority) {
+        const users = await storage.getFlaggedUsers(priority as any);
+        res.json(users);
+      } else {
+        const users = await storage.getAllFlaggedUsersWithDetails();
+        res.json(users);
+      }
+    } catch (error) {
+      console.error("Error fetching flagged users:", error);
+      res.status(500).json({ message: "Failed to fetch flagged users" });
+    }
+  });
+  
+  // Admin: Get user's anti-cheat record
+  app.get('/api/admin/users/:userId/anti-cheat', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const antiCheat = await storage.getUserAntiCheat(userId);
+      const reports = await storage.getCheatReports(userId);
+      const user = await storage.getUser(userId);
+      
+      res.json({
+        user,
+        antiCheat,
+        reports,
+      });
+    } catch (error) {
+      console.error("Error fetching user anti-cheat data:", error);
+      res.status(500).json({ message: "Failed to fetch anti-cheat data" });
+    }
+  });
+  
+  // Admin: Update review status
+  app.post('/api/admin/users/:userId/review', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { status, notes } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+      
+      const antiCheat = await storage.updateReviewStatus(userId, status, adminId, notes);
+      res.json(antiCheat);
+    } catch (error) {
+      console.error("Error updating review status:", error);
+      res.status(500).json({ message: "Failed to update review status" });
+    }
+  });
+  
+  // Admin: Issue a warning
+  app.post('/api/admin/users/:userId/warn', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { notes } = req.body;
+      
+      if (!notes) {
+        return res.status(400).json({ message: "Warning notes are required" });
+      }
+      
+      const antiCheat = await storage.issueWarning(userId, adminId, notes);
+      res.json(antiCheat);
+    } catch (error) {
+      console.error("Error issuing warning:", error);
+      res.status(500).json({ message: "Failed to issue warning" });
+    }
+  });
+  
+  // Admin: Flag user for review (manual flagging)
+  app.post('/api/admin/users/:userId/flag', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { reason, priority } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ message: "Reason is required" });
+      }
+      
+      const antiCheat = await storage.flagUserForReview(userId, reason, priority || 'medium');
+      res.json(antiCheat);
+    } catch (error) {
+      console.error("Error flagging user:", error);
+      res.status(500).json({ message: "Failed to flag user" });
+    }
+  });
+  
+  // Admin: Get anti-cheat statistics
+  app.get('/api/admin/anti-cheat/stats', isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const flagged = await storage.getFlaggedUsers();
+      const unresolvedReports = await storage.getCheatReports(undefined, false);
+      
+      const byPriority = {
+        critical: flagged.filter(u => u.reviewPriority === 'critical').length,
+        high: flagged.filter(u => u.reviewPriority === 'high').length,
+        medium: flagged.filter(u => u.reviewPriority === 'medium').length,
+        low: flagged.filter(u => u.reviewPriority === 'low').length,
+      };
+      
+      res.json({
+        totalFlagged: flagged.length,
+        byPriority,
+        unresolvedReports: unresolvedReports.length,
+      });
+    } catch (error) {
+      console.error("Error fetching anti-cheat stats:", error);
+      res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
   app.get('/api/settings', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
