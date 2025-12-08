@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Clock, Trophy, ChevronLeft, ChevronRight, BarChart3 } from "lucide-react";
-import type { Game } from "@shared/schema";
+import { Play, Clock, Trophy, ChevronLeft, ChevronRight, BarChart3, Mic } from "lucide-react";
+import type { Game, UserSettings } from "@shared/schema";
+import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
 
 interface SimulBoard {
   id: string;
@@ -32,7 +33,7 @@ interface SimulBoard {
 }
 
 export default function SimulMode() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
@@ -45,10 +46,22 @@ export default function SimulMode() {
   const [queueType, setQueueType] = useState<string | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   
   const boardsRef = useRef<SimulBoard[]>([]);
   const activeBoardRef = useRef(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const userSettingsRef = useRef<UserSettings | null>(null);
+
+  const { data: userSettings } = useQuery<UserSettings>({
+    queryKey: ["/api/settings"],
+    enabled: isAuthenticated,
+  });
+
+  useEffect(() => {
+    userSettingsRef.current = userSettings || null;
+  }, [userSettings]);
 
   useEffect(() => {
     boardsRef.current = boards;
@@ -81,6 +94,13 @@ export default function SimulMode() {
           title: `Opponent moved on Board ${boardIndex + 1}`,
           description: data.move,
         });
+        
+        if (userSettingsRef.current?.voiceOutputEnabled) {
+          const isCheck = chess.isCheck();
+          const isCapture = data.move.includes('x');
+          const spokenMove = moveToSpeech(data.move, isCapture, isCheck, chess.isCheckmate());
+          speak(`Board ${boardIndex + 1}: ${spokenMove}`);
+        }
       } catch (error) {
         console.error("Error handling opponent move:", error);
         toast({
@@ -341,7 +361,7 @@ export default function SimulMode() {
           };
 
           if (matchId && currentBoard.gameId) {
-            sendMove(currentBoard.gameId, move.san, newFen, currentBoard.whiteTime, currentBoard.blackTime, 0);
+            sendMove(currentBoard.gameId, move.san, newFen, currentBoard.whiteTime, currentBoard.blackTime);
           }
 
           if (chess.isCheckmate()) {
@@ -400,6 +420,82 @@ export default function SimulMode() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!gameStarted || boards.length === 0 || !userSettings?.voiceInputEnabled) {
+      voiceRecognition.stop();
+      return;
+    }
+    
+    const currentBoard = boards[activeBoard];
+    if (!currentBoard || currentBoard.result) {
+      voiceRecognition.stop();
+      return;
+    }
+    
+    const chess = currentBoard.chess;
+    const currentTurn = chess.turn();
+    const isMyTurn = (currentTurn === "w" && currentBoard.playerColor === "white") || 
+                     (currentTurn === "b" && currentBoard.playerColor === "black");
+    
+    if (isMyTurn) {
+      const allLegalMoves = chess.moves();
+      voiceRecognition.setLegalMoves(allLegalMoves);
+      
+      voiceRecognition.setOnResult((move, transcript) => {
+        setVoiceTranscript(transcript);
+        
+        if (move) {
+          const spokenConfirm = moveToSpeech(move, move.includes('x'), false, false);
+          speak(`Board ${activeBoard + 1}: ${spokenConfirm}`).then(() => {
+            const moveObj = chess.move(move);
+            if (moveObj) {
+              const newFen = chess.fen();
+              const updatedBoards = [...boardsRef.current];
+              updatedBoards[activeBoardRef.current] = {
+                ...updatedBoards[activeBoardRef.current],
+                fen: newFen,
+                moves: chess.history(),
+                chess,
+              };
+              
+              if (matchId && currentBoard.gameId) {
+                sendMove(currentBoard.gameId, moveObj.san, newFen, currentBoard.whiteTime, currentBoard.blackTime);
+              }
+              
+              if (chess.isCheckmate()) {
+                updatedBoards[activeBoardRef.current].result = chess.turn() === "w" ? "loss" : "win";
+              } else if (chess.isDraw() || chess.isStalemate()) {
+                updatedBoards[activeBoardRef.current].result = "draw";
+              }
+              
+              setBoards(updatedBoards);
+              setSelectedSquare(null);
+              setLegalMoves([]);
+              setVoiceTranscript(null);
+              
+              advanceToNextBoard();
+            }
+          });
+        } else {
+          toast({
+            title: "Didn't understand",
+            description: `Heard: "${transcript}". Try again.`,
+            variant: "destructive",
+          });
+        }
+      });
+      
+      voiceRecognition.setOnListeningChange(setIsVoiceListening);
+      voiceRecognition.start();
+    } else {
+      voiceRecognition.stop();
+    }
+    
+    return () => {
+      voiceRecognition.reset();
+    };
+  }, [gameStarted, boards, activeBoard, userSettings?.voiceInputEnabled, matchId, sendMove, advanceToNextBoard, toast]);
 
   const formatTime = (seconds: number) => {
     return `0:${seconds.toString().padStart(2, "0")}`;
@@ -484,11 +580,17 @@ export default function SimulMode() {
                     </div>
 
                     {board.isActive && !board.result && (
-                      <div className="pt-2 border-t">
+                      <div className="pt-2 border-t space-y-1">
                         <div className="flex items-center gap-2 text-xs text-primary">
                           <Clock className="h-3 w-3 animate-pulse" />
                           <span>Clock running</span>
                         </div>
+                        {isVoiceListening && userSettings?.voiceInputEnabled && (
+                          <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                            <Mic className="h-3 w-3 animate-pulse" />
+                            <span>Listening{voiceTranscript ? `: "${voiceTranscript}"` : "..."}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>

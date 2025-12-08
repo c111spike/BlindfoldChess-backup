@@ -262,15 +262,15 @@ export default function Settings() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Voice Settings</CardTitle>
-              <CardDescription>Configure voice features for Blindfold mode</CardDescription>
+              <CardTitle>Voice Control</CardTitle>
+              <CardDescription>Voice features for Standard and Simul games (not available in OTB mode)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="voice-output">Voice Announcements</Label>
                   <p className="text-sm text-muted-foreground">
-                    Hear opponent moves spoken aloud in blindfold mode
+                    Hear moves spoken aloud during games
                   </p>
                 </div>
                 <Switch
@@ -284,7 +284,7 @@ export default function Settings() {
                 <div className="space-y-0.5">
                   <Label htmlFor="voice-input">Voice Commands</Label>
                   <p className="text-sm text-muted-foreground">
-                    Speak your moves in blindfold mode (auto-listens on your turn)
+                    Speak your moves instead of clicking (auto-listens on your turn)
                   </p>
                 </div>
                 <Switch

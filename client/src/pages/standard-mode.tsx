@@ -332,7 +332,7 @@ export default function StandardMode() {
           description: data.move,
         });
         
-        if (isBlindfold && userSettings?.voiceOutputEnabled) {
+        if (userSettings?.voiceOutputEnabled) {
           const isCheck = currentGame.isCheck();
           const isCapture = data.move.includes('x');
           const spokenMove = moveToSpeech(data.move, isCapture, isCheck, false);
@@ -932,7 +932,7 @@ export default function StandardMode() {
   }, [gameStarted, gameId, saveGameState]);
 
   useEffect(() => {
-    if (!gameStarted || !game || !isBlindfold || !userSettings?.voiceInputEnabled) {
+    if (!gameStarted || !game || !userSettings?.voiceInputEnabled) {
       voiceRecognition.stop();
       return;
     }
@@ -987,7 +987,7 @@ export default function StandardMode() {
                     setMoves(updatedMoves);
                     movesRef.current = updatedMoves;
                     
-                    if (isBlindfold && userSettings?.voiceOutputEnabled) {
+                    if (userSettings?.voiceOutputEnabled) {
                       const isCheck = gameRef.current.isCheck();
                       const isCapture = botMove.move.includes('x');
                       const spokenMove = moveToSpeech(botMove.move, isCapture, isCheck, gameRef.current.isCheckmate());
@@ -1016,7 +1016,7 @@ export default function StandardMode() {
     return () => {
       voiceRecognition.reset();
     };
-  }, [gameStarted, game, fen, isBlindfold, userSettings?.voiceInputEnabled, playerColor, botThinking, pendingPromotion, gameResult, isBotGame, selectedBot, toast, completeGame, sendMove, requestBotMove]);
+  }, [gameStarted, game, fen, userSettings?.voiceInputEnabled, playerColor, botThinking, pendingPromotion, gameResult, isBotGame, selectedBot, toast, completeGame, sendMove, requestBotMove]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

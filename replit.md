@@ -46,6 +46,15 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **Bot Training System**: AI opponents with 7 distinct personalities (Balanced, Tactician, Positional, Bishop/Knight Specialist, Aggressor, Defender) and 7 Elo levels (400-2000) for unrated practice.
 - **Board Spin**: Memory and tactics training game. Step 1: Memorize a position. Step 2: Recreate it from memory. Step 3 (optional): Find the best move. Uses Stockfish as a separate process (UCI protocol) for infinite random position generation and best move evaluation. No GPL exposure since Stockfish runs as independent executable.
 
+### Voice Control System
+Voice control is a general feature available in Standard and Simul modes, configurable via Settings > Preferences > Voice Control:
+- **Voice Announcements**: Hear opponent moves spoken aloud during games
+- **Voice Commands**: Speak moves instead of clicking (auto-listens on your turn)
+- **Supported Modes**: Standard mode (including when blindfold toggle is on), Simul mode
+- **Not Available in OTB Mode**: OTB mode simulates real tournaments where you must physically move pieces
+- **Implementation**: Uses Web Speech API (browser's native speech synthesis and recognition) - no external costs
+- **Features**: Natural language move parsing (e.g., "knight to f3", "castle kingside", "pawn takes d5")
+
 ### User-Created Puzzles
 Community-driven puzzle system allowing players to create, share, solve, and moderate puzzles:
 
