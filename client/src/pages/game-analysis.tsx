@@ -359,7 +359,11 @@ function ReviewTab({ analysis, onNavigateToMove }: { analysis: GameAnalysis; onN
               {analysis.efficiencyFactor != null ? analysis.efficiencyFactor.toFixed(2) : '--'}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Time spent vs. move quality correlation
+              {analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 0.5 
+                ? "Your thinking time is being used productively - longer thinks lead to better moves."
+                : analysis.efficiencyFactor != null 
+                  ? "Move quality doesn't improve with longer thinks. You may be rushing critical positions or overthinking easy ones."
+                  : "Time spent vs. move quality correlation"}
             </p>
           </CardContent>
         </Card>
