@@ -4084,7 +4084,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
         } else if (data.type === 'simul_game_result') {
           const userId = ws.userId;
-          const { pairingId, result, reason } = data;
+          const { pairingId, result, reason, thinkingTimes } = data;
           
           if (!userId) {
             ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
@@ -4131,6 +4131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 timeControl: 30,
                 fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
                 moves: pairing.moves || [],
+                thinkingTimes: thinkingTimes || [],
               });
               whiteGameId = whiteGame.id;
             }
@@ -4150,6 +4151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 timeControl: 30,
                 fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
                 moves: pairing.moves || [],
+                thinkingTimes: thinkingTimes || [],
               });
               blackGameId = blackGame.id;
             }

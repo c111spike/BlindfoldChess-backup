@@ -129,6 +129,7 @@ export default function StandardMode() {
   
   const [isVoiceListening, setIsVoiceListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [thinkingTimes, setThinkingTimes] = useState<number[]>([]);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -141,6 +142,8 @@ export default function StandardMode() {
   const whiteTimeRef = useRef(180);
   const blackTimeRef = useRef(180);
   const movesRef = useRef<string[]>([]);
+  const thinkingTimesRef = useRef<number[]>([]);
+  const turnStartTimeRef = useRef<number>(Date.now());
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const gameCompletionInProgressRef = useRef(false);
@@ -153,7 +156,8 @@ export default function StandardMode() {
     blackTimeRef.current = blackTime;
     movesRef.current = moves;
     premoveRef.current = premove;
-  }, [game, gameId, matchId, whiteTime, blackTime, moves, premove]);
+    thinkingTimesRef.current = thinkingTimes;
+  }, [game, gameId, matchId, whiteTime, blackTime, moves, premove, thinkingTimes]);
 
   const completeGame = useCallback(async (result: "white_win" | "black_win" | "draw") => {
     // Guard against duplicate execution
@@ -195,6 +199,7 @@ export default function StandardMode() {
           moves: movesRef.current,
           whiteTime: whiteTimeRef.current,
           blackTime: blackTimeRef.current,
+          thinkingTimes: thinkingTimesRef.current,
           peekDurations: peekDurationsRef.current,
           totalPeekTime: totalPeekTimeRef.current,
           peeksUsed: peekDurationsRef.current.length,
@@ -274,9 +279,12 @@ export default function StandardMode() {
     setSelectedBot(null);
     setBotThinking(false);
     setShowBotSelection(false);
+    setThinkingTimes([]);
     gameRef.current = null;
     gameIdRef.current = null;
     matchIdRef.current = null;
+    thinkingTimesRef.current = [];
+    turnStartTimeRef.current = Date.now();
     whiteTimeRef.current = 180;
     blackTimeRef.current = 180;
     movesRef.current = [];
@@ -319,6 +327,16 @@ export default function StandardMode() {
       console.log('[handleOpponentMove] Updating moves:', newMoves);
       setMoves(newMoves);
       movesRef.current = newMoves;
+      
+      // Record opponent's thinking time (we don't know exact time, so we estimate from clock difference)
+      // This records the opponent's move time slot - the actual time is tracked server-side
+      const opponentThinkingTime = Math.round((Date.now() - turnStartTimeRef.current) / 1000);
+      const newThinkingTimes = [...thinkingTimesRef.current, opponentThinkingTime];
+      setThinkingTimes(newThinkingTimes);
+      thinkingTimesRef.current = newThinkingTimes;
+      
+      // Reset turn start time for player's turn
+      turnStartTimeRef.current = Date.now();
       
       setWhiteTime(data.whiteTime);
       setBlackTime(data.blackTime);
@@ -365,6 +383,12 @@ export default function StandardMode() {
                 const newFen = currentGame.fen();
                 setFen(newFen);
                 setLastMove({ from: premoveMoveObj.from, to: premoveMoveObj.to });
+                
+                // Record thinking time for premove (effectively instant since pre-planned)
+                const premoveThinkingTime = Math.round((Date.now() - turnStartTimeRef.current) / 1000);
+                const premoveNewThinkingTimes = [...thinkingTimesRef.current, premoveThinkingTime];
+                setThinkingTimes(premoveNewThinkingTimes);
+                thinkingTimesRef.current = premoveNewThinkingTimes;
                 
                 const updatedMoves = [...movesRef.current, premoveMoveObj.san];
                 setMoves(updatedMoves);
@@ -467,6 +491,11 @@ export default function StandardMode() {
       peekStartTimeRef.current = null;
       peekDurationsRef.current = [];
       totalPeekTimeRef.current = 0;
+      
+      // Reset thinking time tracking for new game
+      setThinkingTimes([]);
+      thinkingTimesRef.current = [];
+      turnStartTimeRef.current = Date.now();
       
       setGameResult(null);
       setGameStarted(true);
@@ -1071,6 +1100,12 @@ export default function StandardMode() {
         console.log('[executeMove] New FEN:', newFen);
         console.log('[executeMove] Move SAN:', move.san);
         
+        // Record thinking time for this move
+        const thinkingTime = Math.round((Date.now() - turnStartTimeRef.current) / 1000);
+        const newThinkingTimes = [...thinkingTimesRef.current, thinkingTime];
+        setThinkingTimes(newThinkingTimes);
+        thinkingTimesRef.current = newThinkingTimes;
+        
         setFen(newFen);
         setLastMove({ from: move.from, to: move.to });
         
@@ -1096,9 +1131,19 @@ export default function StandardMode() {
           saveGameState();
           
           if (isBotGame && selectedBot) {
+            const botThinkStartTime = Date.now();
             const moveHistorySAN = game.history();
             const botMove = await requestBotMove(newFen, selectedBot.id, moveHistorySAN);
             if (botMove && game) {
+              // Record bot's thinking time
+              const botThinkingTime = Math.round((Date.now() - botThinkStartTime) / 1000);
+              const botNewThinkingTimes = [...thinkingTimesRef.current, botThinkingTime];
+              setThinkingTimes(botNewThinkingTimes);
+              thinkingTimesRef.current = botNewThinkingTimes;
+              
+              // Reset turn start time for player's next turn
+              turnStartTimeRef.current = Date.now();
+              
               const botMoveResult = game.move(botMove.move);
               if (botMoveResult) {
                 setLastMove({ from: botMoveResult.from, to: botMoveResult.to });

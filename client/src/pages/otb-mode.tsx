@@ -732,6 +732,22 @@ export default function OTBMode() {
     
     console.log('[OTB] Converted moves to SAN:', sanMoves);
     
+    // Calculate thinking times from move timestamps
+    // Each move's thinking time is the difference from the previous move (or game start)
+    const thinkingTimes: number[] = [];
+    for (let i = 0; i < moves.length; i++) {
+      if (i === 0) {
+        // First move - we don't have a reliable start time, estimate from timestamp
+        // Use 0 or a small default value since we don't have game start time
+        thinkingTimes.push(0);
+      } else {
+        const timeDiff = Math.round((moves[i].timestamp - moves[i - 1].timestamp) / 1000);
+        thinkingTimes.push(Math.max(0, timeDiff));
+      }
+    }
+    
+    console.log('[OTB] Calculated thinking times:', thinkingTimes);
+    
     updateGameMutation.mutate({
       status: "completed",
       result,
@@ -740,6 +756,7 @@ export default function OTBMode() {
       moves: sanMoves,
       whiteTime,
       blackTime,
+      thinkingTimes,
       manualClockPresses: clockPresses,
     });
 

@@ -38,6 +38,8 @@ interface SimulVsSimulBoard {
   timeRemaining: number;
   gameId?: string;
   lastMove?: { from: string; to: string };
+  thinkingTimes: number[];
+  turnStartTime: number;
 }
 
 interface PendingPromotion {
@@ -97,6 +99,22 @@ export default function SimulVsSimulMode() {
     queryKey: ['/api/settings'],
   });
   
+  // Centralized helper to update boards state and ref atomically
+  // This ensures boardsRef is always in sync with the latest state
+  const updateBoardsSync = useCallback((newBoards: SimulVsSimulBoard[]) => {
+    boardsRef.current = newBoards;
+    setBoards(newBoards);
+  }, []);
+  
+  // Helper for functional updates that also syncs the ref
+  const updateBoardsFn = useCallback((updater: (prev: SimulVsSimulBoard[]) => SimulVsSimulBoard[]) => {
+    setBoards(prevBoards => {
+      const newBoards = updater(prevBoards);
+      boardsRef.current = newBoards;
+      return newBoards;
+    });
+  }, []);
+  
   useEffect(() => {
     boardsRef.current = boards;
   }, [boards]);
@@ -138,7 +156,7 @@ export default function SimulVsSimulMode() {
     }
     
     timerIntervalRef.current = setInterval(() => {
-      setBoards(prevBoards => {
+      updateBoardsFn(prevBoards => {
         if (prevBoards.length === 0) return prevBoards;
         
         // Find the active board
@@ -171,7 +189,7 @@ export default function SimulVsSimulMode() {
         timerIntervalRef.current = null;
       }
     };
-  }, [gameStarted, matchComplete, activeBoard]);
+  }, [gameStarted, matchComplete, activeBoard, updateBoardsFn]);
   
   // Track when it's the player's turn - only updates on actual turn changes, not timer ticks
   useEffect(() => {
@@ -234,6 +252,10 @@ export default function SimulVsSimulMode() {
             const newFen = currentChess.fen();
             const newActiveColor = currentChess.turn() === 'w' ? 'white' : 'black';
             
+            // Record thinking time for this move
+            const thinkingTime = Math.round((Date.now() - currentBoardData.turnStartTime) / 1000);
+            const newThinkingTimes = [...currentBoardData.thinkingTimes, thinkingTime];
+            
             const updatedBoards = [...boardsRef.current];
             updatedBoards[activeBoardRef.current] = {
               ...currentBoardData,
@@ -243,6 +265,8 @@ export default function SimulVsSimulMode() {
               activeColor: newActiveColor as 'white' | 'black',
               chess: currentChess,
               lastMove: { from: moveResult.from, to: moveResult.to },
+              thinkingTimes: newThinkingTimes,
+              turnStartTime: Date.now(),
             };
             
             // Determine if this move ends the game
@@ -285,13 +309,14 @@ export default function SimulVsSimulMode() {
                     promotion: moveResult.promotion,
                   }));
                   
-                  // Now send game result
+                  // Now send game result with thinking times
                   if (gameResult && gameEndReason) {
                     wsRef.current.send(JSON.stringify({
                       type: 'simul_game_result',
                       pairingId: currentBoardData.pairingId,
                       result: gameResult,
                       reason: gameEndReason,
+                      thinkingTimes: newThinkingTimes,
                     }));
                   }
                 }
@@ -316,6 +341,7 @@ export default function SimulVsSimulMode() {
                       pairingId: currentBoardData.pairingId,
                       result: gameResult,
                       reason: gameEndReason,
+                      thinkingTimes: newThinkingTimes,
                     }));
                   }
                 }
@@ -337,6 +363,8 @@ export default function SimulVsSimulMode() {
               }
             }
             
+            // Update both ref and state atomically
+            boardsRef.current = updatedBoards;
             setBoards(updatedBoards);
             setSelectedSquare(null);
             setLegalMoves([]);
@@ -396,7 +424,11 @@ export default function SimulVsSimulMode() {
           ...b,
           chess: new Chess(b.fen),
           timeRemaining: 30,
+          thinkingTimes: [],
+          turnStartTime: Date.now(),
         }));
+        // Update ref immediately for consistency with executeMove
+        boardsRef.current = newBoards;
         setBoards(newBoards);
         setPlayers(data.players || []);
         setFocusedPairingId(data.initialFocus);
@@ -431,12 +463,18 @@ export default function SimulVsSimulMode() {
           const boardIndex = boardsRef.current.findIndex(b => b.pairingId === data.pairingId);
           const boardNumber = boardIndex >= 0 ? boardsRef.current[boardIndex].boardNumber : '?';
           
-          setBoards(prevBoards => {
+          updateBoardsFn(prevBoards => {
             const idx = prevBoards.findIndex(b => b.pairingId === data.pairingId);
             if (idx === -1) return prevBoards;
             
             const newBoards = [...prevBoards];
             const chess = new Chess(data.fen);
+            
+            // Calculate opponent's thinking time as elapsed time since our last move
+            // This is the time between when we finished our move (turnStartTime) and now
+            const opponentThinkingTime = Math.round((Date.now() - prevBoards[idx].turnStartTime) / 1000);
+            const newThinkingTimes = [...prevBoards[idx].thinkingTimes, opponentThinkingTime];
+            
             newBoards[idx] = {
               ...newBoards[idx],
               fen: data.fen,
@@ -445,6 +483,8 @@ export default function SimulVsSimulMode() {
               activeColor: data.activeColor,
               chess,
               lastMove: data.from && data.to ? { from: data.from, to: data.to } : newBoards[idx].lastMove,
+              thinkingTimes: newThinkingTimes,
+              turnStartTime: Date.now(), // Reset for player's turn
             };
             
             return newBoards;
@@ -496,7 +536,7 @@ export default function SimulVsSimulMode() {
         break;
         
       case 'simul_timer_state':
-        setBoards(prevBoards => {
+        updateBoardsFn(prevBoards => {
           const boardIndex = prevBoards.findIndex(b => b.pairingId === data.pairingId);
           if (boardIndex === -1) return prevBoards;
           
@@ -518,7 +558,7 @@ export default function SimulVsSimulMode() {
         {
           const board = boardsRef.current.find(b => b.pairingId === data.pairingId);
           
-          setBoards(prevBoards => {
+          updateBoardsFn(prevBoards => {
             const idx = prevBoards.findIndex(b => b.pairingId === data.pairingId);
             if (idx === -1) return prevBoards;
             
@@ -735,7 +775,8 @@ export default function SimulVsSimulMode() {
   // Execute a move with optional promotion piece
   // Uses async/await to ensure move is saved to database before sending game result
   const executeMove = async (boardIndex: number, from: string, to: string, promotion?: string) => {
-    const currentBoard = boards[boardIndex];
+    // Use boardsRef to get the latest state (avoids stale closure issues)
+    const currentBoard = boardsRef.current[boardIndex];
     if (!currentBoard) return;
     
     const chess = currentBoard.chess;
@@ -751,7 +792,12 @@ export default function SimulVsSimulMode() {
         const newFen = chess.fen();
         const newActiveColor = chess.turn() === 'w' ? 'white' : 'black';
         
-        const updatedBoards = [...boards];
+        // Record thinking time for this move
+        const thinkingTime = Math.round((Date.now() - currentBoard.turnStartTime) / 1000);
+        const newThinkingTimes = [...currentBoard.thinkingTimes, thinkingTime];
+        
+        // Use boardsRef.current to build updated boards (ensures latest state)
+        const updatedBoards = [...boardsRef.current];
         updatedBoards[boardIndex] = {
           ...currentBoard,
           fen: newFen,
@@ -760,6 +806,8 @@ export default function SimulVsSimulMode() {
           activeColor: newActiveColor as 'white' | 'black',
           chess,
           lastMove: { from: move.from, to: move.to },
+          thinkingTimes: newThinkingTimes,
+          turnStartTime: Date.now(), // Reset for opponent's turn
         };
         
         // Determine if this move ends the game
@@ -802,13 +850,14 @@ export default function SimulVsSimulMode() {
                 promotion: move.promotion,
               }));
               
-              // Now send game result
+              // Now send game result with thinking times
               if (gameResult && gameEndReason) {
                 wsRef.current.send(JSON.stringify({
                   type: 'simul_game_result',
                   pairingId: currentBoard.pairingId,
                   result: gameResult,
                   reason: gameEndReason,
+                  thinkingTimes: newThinkingTimes,
                 }));
               }
             }
@@ -833,6 +882,7 @@ export default function SimulVsSimulMode() {
                   pairingId: currentBoard.pairingId,
                   result: gameResult,
                   reason: gameEndReason,
+                  thinkingTimes: newThinkingTimes,
                 }));
               }
             }
@@ -854,6 +904,8 @@ export default function SimulVsSimulMode() {
           }
         }
         
+        // Update both state and ref immediately for consistency
+        boardsRef.current = updatedBoards;
         setBoards(updatedBoards);
         setSelectedSquare(null);
         setLegalMoves([]);

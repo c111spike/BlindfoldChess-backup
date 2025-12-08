@@ -119,6 +119,13 @@ After each game, players access the analysis page from Game History with two tab
   - Personalized improvement suggestions
   - **Blindfold Peek Statistics** (when blindfold enabled): Individual peek durations, total peek time, comparison to previous blindfold games with coaching feedback
 
+- **Thinking Time Tracking**: Per-move thinking times recorded for all game modes:
+  - **Standard Mode**: Client tracks turnStartTime, records thinking time on each move, includes in game completion
+  - **OTB Mode**: Derives thinking times from existing move timestamps (moveRecords with timestamp property)
+  - **Simul vs Simul Mode**: Tracks thinking times per board using centralized updateBoardsFn helper for state consistency
+  - Data stored in `games.thinkingTimes` as JSON array aligned with move ply indices
+  - Used to calculate average time per move in Review tab
+
 Both modes include shareable analysis links and use Stockfish as a subprocess (UCI protocol), keeping all application code private.
 
 ### User Systems
