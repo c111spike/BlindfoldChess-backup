@@ -825,3 +825,102 @@ export const insertPuzzleReportSchema = createInsertSchema(puzzleReports).omit({
   resolvedAt: true,
   createdAt: true,
 });
+
+// Anti-Cheat System
+export const cheatReportReasonEnum = pgEnum("cheat_report_reason", [
+  "engine_use",
+  "suspicious_accuracy",
+  "impossible_time",
+  "sandbagging",
+  "boosting",
+  "other",
+]);
+
+export const reviewStatusEnum = pgEnum("review_status", [
+  "pending",
+  "under_review",
+  "dismissed",
+  "warning_issued",
+  "restricted",
+  "banned",
+]);
+
+export const reviewPriorityEnum = pgEnum("review_priority", [
+  "low",
+  "medium",
+  "high",
+  "critical",
+]);
+
+export const cheatReports = pgTable("cheat_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reporterId: varchar("reporter_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  reportedUserId: varchar("reported_user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  gameId: varchar("game_id")
+    .references(() => games.id, { onDelete: "set null" }),
+  reason: cheatReportReasonEnum("reason").notNull(),
+  details: text("details"),
+  isResolved: boolean("is_resolved").default(false),
+  resolvedById: varchar("resolved_by_id")
+    .references(() => users.id, { onDelete: "set null" }),
+  resolvedAt: timestamp("resolved_at"),
+  resolution: text("resolution"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  reportedUserIdx: index("cheat_reports_reported_user_idx").on(table.reportedUserId),
+  unresolvedIdx: index("cheat_reports_unresolved_idx").on(table.isResolved),
+}));
+
+export const userAntiCheat = pgTable("user_anti_cheat", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull()
+    .unique(),
+  riskScore: real("risk_score").default(0),
+  accuracyAnomaly: real("accuracy_anomaly").default(0),
+  timeAnomaly: real("time_anomaly").default(0),
+  simulAnomaly: real("simul_anomaly").default(0),
+  reportCount: integer("report_count").default(0),
+  reviewStatus: reviewStatusEnum("review_status").default("pending"),
+  reviewPriority: reviewPriorityEnum("review_priority").default("low"),
+  isFlagged: boolean("is_flagged").default(false),
+  flaggedAt: timestamp("flagged_at"),
+  flagReason: text("flag_reason"),
+  lastReviewedAt: timestamp("last_reviewed_at"),
+  lastReviewedById: varchar("last_reviewed_by_id")
+    .references(() => users.id, { onDelete: "set null" }),
+  adminNotes: text("admin_notes"),
+  warningCount: integer("warning_count").default(0),
+  lastWarningAt: timestamp("last_warning_at"),
+  gamesAnalyzed: integer("games_analyzed").default(0),
+  avgAccuracy: real("avg_accuracy"),
+  avgMoveTime: real("avg_move_time"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  flaggedIdx: index("user_anti_cheat_flagged_idx").on(table.isFlagged),
+  riskScoreIdx: index("user_anti_cheat_risk_idx").on(table.riskScore),
+  priorityIdx: index("user_anti_cheat_priority_idx").on(table.reviewPriority),
+}));
+
+// Anti-cheat type exports
+export type CheatReportReason = typeof cheatReportReasonEnum.enumValues[number];
+export type ReviewStatus = typeof reviewStatusEnum.enumValues[number];
+export type ReviewPriority = typeof reviewPriorityEnum.enumValues[number];
+export type InsertCheatReport = typeof cheatReports.$inferInsert;
+export type CheatReport = typeof cheatReports.$inferSelect;
+export type InsertUserAntiCheat = typeof userAntiCheat.$inferInsert;
+export type UserAntiCheat = typeof userAntiCheat.$inferSelect;
+
+export const insertCheatReportSchema = createInsertSchema(cheatReports).omit({
+  id: true,
+  isResolved: true,
+  resolvedById: true,
+  resolvedAt: true,
+  resolution: true,
+  createdAt: true,
+});
