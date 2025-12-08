@@ -511,6 +511,22 @@ export const gameAnalysis = pgTable("game_analysis", {
 }));
 
 // Move Analysis table - stores per-move analysis data
+// 
+// EVALUATION PERSPECTIVE CONVENTION:
+// All evaluation fields (evalBefore, evalAfter, bestMoveEval) are stored from WHITE'S PERSPECTIVE.
+// - Positive values = good for White
+// - Negative values = good for Black
+// This follows the standard chess engine convention (Stockfish returns values from side-to-move,
+// which we normalize to White's perspective before storage).
+// 
+// CLIENT-SIDE DISPLAY:
+// When displaying evaluations to the user, flip the sign if the player was Black.
+// Use getPlayerEval(evaluation, playerColor) helper in game-analysis.tsx.
+// This ensures "positive = good for you" from the player's perspective.
+// 
+// CENTIPAWN LOSS:
+// Centipawn loss is always a positive value representing how much the move cost.
+// It's calculated from the mover's perspective before normalization.
 export const moveAnalysis = pgTable("move_analysis", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   gameAnalysisId: varchar("game_analysis_id")
