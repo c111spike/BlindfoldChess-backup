@@ -111,11 +111,13 @@ After each game, players access the analysis page from Game History with two tab
 
 - **Review Tab**: Psychology-focused coaching analysis featuring:
   - Focus Check score (consistency in move quality)
-  - Efficiency Factor (time spent vs. move quality correlation)
+  - Efficiency Factor (time spent vs. move quality correlation) with contextual explanations
   - Time Trouble detection (when rushing started)
   - Burnout Line (performance degradation in longer games)
-  - VSS Mismatch alerts (position misjudgment points)
+  - VSS Mismatch alerts showing time spent on each misjudged position with coaching when >1 minute remained
+  - Time Management card showing average time per move and remaining time at game end
   - Personalized improvement suggestions
+  - **Blindfold Peek Statistics** (when blindfold enabled): Individual peek durations, total peek time, comparison to previous blindfold games with coaching feedback
 
 Both modes include shareable analysis links and use Stockfish as a subprocess (UCI protocol), keeping all application code private.
 
