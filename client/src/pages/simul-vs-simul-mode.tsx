@@ -82,6 +82,7 @@ export default function SimulVsSimulMode() {
   const [showPromotionDialog, setShowPromotionDialog] = useState(false);
   const [isVoiceListening, setIsVoiceListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [voiceTurnKey, setVoiceTurnKey] = useState<string | null>(null);
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
   const activeBoardRef = useRef(0);
@@ -172,119 +173,139 @@ export default function SimulVsSimulMode() {
     };
   }, [gameStarted, matchComplete, activeBoard]);
   
-  // Voice input recognition for spoken moves
+  // Track when it's the player's turn - only updates on actual turn changes, not timer ticks
   useEffect(() => {
-    if (!gameStarted || boards.length === 0 || !userSettings?.voiceInputEnabled || matchComplete) {
-      voiceRecognition.stop();
+    if (!gameStarted || boards.length === 0 || matchComplete) {
+      setVoiceTurnKey(null);
       return;
     }
     
     const currentBoard = boards[activeBoard];
     if (!currentBoard || currentBoard.result !== 'ongoing') {
+      setVoiceTurnKey(null);
+      return;
+    }
+    
+    const isMyTurn = currentBoard.activeColor === currentBoard.color;
+    const newKey = isMyTurn ? `${currentBoard.pairingId}-${currentBoard.activeColor}-${currentBoard.fen}` : null;
+    
+    setVoiceTurnKey(prevKey => {
+      // Only update if the key actually changed (prevents unnecessary re-renders)
+      if (prevKey !== newKey) {
+        return newKey;
+      }
+      return prevKey;
+    });
+  }, [gameStarted, boards, activeBoard, matchComplete]);
+  
+  // Voice input recognition for spoken moves - uses stable voiceTurnKey instead of boards
+  useEffect(() => {
+    if (!voiceTurnKey || !userSettings?.voiceInputEnabled) {
+      voiceRecognition.stop();
+      return;
+    }
+    
+    // Get current board data from ref (stable, doesn't trigger re-renders)
+    const currentBoard = boardsRef.current[activeBoardRef.current];
+    if (!currentBoard) {
       voiceRecognition.stop();
       return;
     }
     
     const chess = currentBoard.chess;
-    const isMyTurn = currentBoard.activeColor === currentBoard.color;
+    const allLegalMoves = chess.moves();
+    voiceRecognition.setLegalMoves(allLegalMoves);
     
-    if (isMyTurn) {
-      const allLegalMoves = chess.moves();
-      voiceRecognition.setLegalMoves(allLegalMoves);
+    voiceRecognition.setOnResult((move, transcript) => {
+      setVoiceTranscript(transcript);
       
-      voiceRecognition.setOnResult((move, transcript) => {
-        setVoiceTranscript(transcript);
-        
-        if (move) {
-          const isCapture = move.includes('x');
-          const spokenConfirm = moveToSpeech(move, isCapture, false, false);
-          const boardNumber = boardsRef.current[activeBoardRef.current]?.boardNumber || '?';
-          speak(`Board ${boardNumber}: ${spokenConfirm}`).then(() => {
-            const currentBoardData = boardsRef.current[activeBoardRef.current];
-            if (!currentBoardData) return;
+      if (move) {
+        const isCapture = move.includes('x');
+        const spokenConfirm = moveToSpeech(move, isCapture, false, false);
+        const boardNumber = boardsRef.current[activeBoardRef.current]?.boardNumber || '?';
+        speak(`Board ${boardNumber}: ${spokenConfirm}`).then(() => {
+          const currentBoardData = boardsRef.current[activeBoardRef.current];
+          if (!currentBoardData) return;
+          
+          const currentChess = currentBoardData.chess;
+          const moveResult = currentChess.move(move);
+          
+          if (moveResult) {
+            const newFen = currentChess.fen();
+            const newActiveColor = currentChess.turn() === 'w' ? 'white' : 'black';
             
-            const currentChess = currentBoardData.chess;
-            const moveResult = currentChess.move(move);
+            const updatedBoards = [...boardsRef.current];
+            updatedBoards[activeBoardRef.current] = {
+              ...currentBoardData,
+              fen: newFen,
+              moves: currentChess.history(),
+              moveCount: currentChess.history().length,
+              activeColor: newActiveColor as 'white' | 'black',
+              chess: currentChess,
+              lastMove: { from: moveResult.from, to: moveResult.to },
+            };
             
-            if (moveResult) {
-              const newFen = currentChess.fen();
-              const newActiveColor = currentChess.turn() === 'w' ? 'white' : 'black';
-              
-              const updatedBoards = [...boardsRef.current];
-              updatedBoards[activeBoardRef.current] = {
-                ...currentBoardData,
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({
+                type: 'simul_move',
+                pairingId: currentBoardData.pairingId,
+                move: moveResult.san,
                 fen: newFen,
-                moves: currentChess.history(),
-                moveCount: currentChess.history().length,
-                activeColor: newActiveColor as 'white' | 'black',
-                chess: currentChess,
-                lastMove: { from: moveResult.from, to: moveResult.to },
-              };
+                from: moveResult.from,
+                to: moveResult.to,
+                piece: moveResult.piece,
+                captured: moveResult.captured,
+                promotion: moveResult.promotion,
+              }));
+            }
+            
+            if (currentChess.isCheckmate()) {
+              const result = currentChess.turn() === 'w' ? 'black_win' : 'white_win';
+              updatedBoards[activeBoardRef.current].result = result;
               
               if (wsRef.current?.readyState === WebSocket.OPEN) {
                 wsRef.current.send(JSON.stringify({
-                  type: 'simul_move',
+                  type: 'simul_game_result',
                   pairingId: currentBoardData.pairingId,
-                  move: moveResult.san,
-                  fen: newFen,
-                  from: moveResult.from,
-                  to: moveResult.to,
-                  piece: moveResult.piece,
-                  captured: moveResult.captured,
-                  promotion: moveResult.promotion,
+                  result,
+                  reason: 'checkmate',
                 }));
               }
+            } else if (currentChess.isDraw() || currentChess.isStalemate()) {
+              updatedBoards[activeBoardRef.current].result = 'draw';
               
-              if (currentChess.isCheckmate()) {
-                const result = currentChess.turn() === 'w' ? 'black_win' : 'white_win';
-                updatedBoards[activeBoardRef.current].result = result;
-                
-                if (wsRef.current?.readyState === WebSocket.OPEN) {
-                  wsRef.current.send(JSON.stringify({
-                    type: 'simul_game_result',
-                    pairingId: currentBoardData.pairingId,
-                    result,
-                    reason: 'checkmate',
-                  }));
-                }
-              } else if (currentChess.isDraw() || currentChess.isStalemate()) {
-                updatedBoards[activeBoardRef.current].result = 'draw';
-                
-                if (wsRef.current?.readyState === WebSocket.OPEN) {
-                  wsRef.current.send(JSON.stringify({
-                    type: 'simul_game_result',
-                    pairingId: currentBoardData.pairingId,
-                    result: 'draw',
-                    reason: currentChess.isStalemate() ? 'stalemate' : 'draw',
-                  }));
-                }
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
+                  type: 'simul_game_result',
+                  pairingId: currentBoardData.pairingId,
+                  result: 'draw',
+                  reason: currentChess.isStalemate() ? 'stalemate' : 'draw',
+                }));
               }
-              
-              setBoards(updatedBoards);
-              setSelectedSquare(null);
-              setLegalMoves([]);
-              setVoiceTranscript(null);
             }
-          });
-        } else {
-          toast({
-            title: "Didn't understand",
-            description: `Heard: "${transcript}". Try again.`,
-            variant: "destructive",
-          });
-        }
-      });
-      
-      voiceRecognition.setOnListeningChange(setIsVoiceListening);
-      voiceRecognition.start();
-    } else {
-      voiceRecognition.stop();
-    }
+            
+            setBoards(updatedBoards);
+            setSelectedSquare(null);
+            setLegalMoves([]);
+            setVoiceTranscript(null);
+          }
+        });
+      } else {
+        toast({
+          title: "Didn't understand",
+          description: `Heard: "${transcript}". Try again.`,
+          variant: "destructive",
+        });
+      }
+    });
+    
+    voiceRecognition.setOnListeningChange(setIsVoiceListening);
+    voiceRecognition.start();
     
     return () => {
       voiceRecognition.reset();
     };
-  }, [gameStarted, boards, activeBoard, userSettings?.voiceInputEnabled, matchComplete, toast]);
+  }, [voiceTurnKey, userSettings?.voiceInputEnabled, toast]);
   
   const connectWebSocket = useCallback(() => {
     if (!user?.id || wsRef.current?.readyState === WebSocket.OPEN) return;
