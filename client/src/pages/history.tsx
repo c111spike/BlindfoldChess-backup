@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { Trophy, TrendingUp, TrendingDown, BarChart3, Flag } from "lucide-react";
+import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
 import type { Game } from "@shared/schema";
 
 export default function History() {
@@ -135,7 +136,7 @@ export default function History() {
                     </p>
                   </div>
                   
-                  <div className="col-span-1 text-right">
+                  <div className="col-span-1 flex items-center justify-end gap-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -145,6 +146,23 @@ export default function History() {
                       <BarChart3 className="w-4 h-4 mr-1" />
                       Analyze
                     </Button>
+                    {game.opponentId && (
+                      <ReportPlayerDialog
+                        reportedUserId={game.opponentId}
+                        reportedUserName={game.opponentName || "Opponent"}
+                        gameId={game.id}
+                        trigger={
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-muted-foreground h-8 w-8"
+                            data-testid={`button-report-${game.id}`}
+                          >
+                            <Flag className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
+                    )}
                   </div>
                 </div>
                 
