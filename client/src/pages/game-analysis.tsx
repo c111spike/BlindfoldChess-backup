@@ -958,21 +958,19 @@ export default function GameAnalysisPage() {
             <TabsContent value="analyze" className="space-y-4">
               <Card>
                 <CardContent className="p-4">
-                  <div className="flex gap-2">
+                  <div className="grid gap-2" style={{ gridTemplateColumns: '24px 1fr' }}>
                     <VerticalEvalBar 
                       evaluation={currentMove?.evalAfter ?? 0} 
                       flipped={playerColor === 'black'}
                     />
-                    <div className="flex-1">
-                      <ChessBoard 
-                        fen={currentFen()} 
-                        lastMove={currentMove ? { 
-                          from: currentMove.move.substring(0, 2), 
-                          to: currentMove.move.substring(2, 4) 
-                        } : undefined}
-                        flipped={playerColor === 'black'}
-                      />
-                    </div>
+                    <ChessBoard 
+                      fen={currentFen()} 
+                      lastMove={currentMove ? { 
+                        from: currentMove.move.substring(0, 2), 
+                        to: currentMove.move.substring(2, 4) 
+                      } : undefined}
+                      flipped={playerColor === 'black'}
+                    />
                   </div>
                   
                   <div className="flex items-center justify-center gap-2 mt-4">
