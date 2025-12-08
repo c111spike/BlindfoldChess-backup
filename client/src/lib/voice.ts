@@ -326,10 +326,15 @@ export class VoiceRecognition {
         this.recognition.lang = 'en-US';
         
         this.recognition.onresult = (event: SpeechRecognitionEvent) => {
+          console.log('[VoiceRecognition] onresult triggered, results count:', event.results.length);
           const lastResult = event.results[event.results.length - 1];
+          console.log('[VoiceRecognition] isFinal:', lastResult.isFinal, 'shouldBeListening:', this.shouldBeListening);
           if (lastResult.isFinal && this.shouldBeListening) {
             const transcript = lastResult[0].transcript;
+            console.log('[VoiceRecognition] Transcript:', transcript);
+            console.log('[VoiceRecognition] Legal moves:', this.legalMoves.slice(0, 10), '...');
             const move = speechToMove(transcript, this.legalMoves);
+            console.log('[VoiceRecognition] Matched move:', move);
             if (this.onResult) {
               this.onResult(move, transcript);
             }
