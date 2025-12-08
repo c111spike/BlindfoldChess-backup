@@ -25,6 +25,8 @@ import {
   simulVsSimulPlayers,
   simulVsSimulPairings,
   simulVsSimulQueue,
+  cheatReports,
+  userAntiCheat,
   type User,
   type UpsertUser,
   type Game,
@@ -75,6 +77,12 @@ import {
   type InsertSimulVsSimulPairing,
   type SimulVsSimulQueue,
   type InsertSimulVsSimulQueue,
+  type CheatReport,
+  type InsertCheatReport,
+  type UserAntiCheat,
+  type InsertUserAntiCheat,
+  type ReviewStatus,
+  type ReviewPriority,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
@@ -204,6 +212,20 @@ export interface IStorage {
   getActiveSimulVsSimulMatchForUser(userId: string): Promise<SimulVsSimulMatch | undefined>;
   getAllSimulVsSimulPairings(matchId: string): Promise<SimulVsSimulPairing[]>;
   clearSimulVsSimulQueue(boardCount: number, userIds: string[]): Promise<void>;
+  
+  // Anti-Cheat System
+  createCheatReport(report: InsertCheatReport): Promise<CheatReport>;
+  getCheatReports(reportedUserId?: string, isResolved?: boolean): Promise<CheatReport[]>;
+  getCheatReportsByReporter(reporterId: string): Promise<CheatReport[]>;
+  resolveCheatReport(id: string, resolvedById: string, resolution: string): Promise<CheatReport>;
+  getUserAntiCheat(userId: string): Promise<UserAntiCheat | undefined>;
+  getOrCreateUserAntiCheat(userId: string): Promise<UserAntiCheat>;
+  updateUserAntiCheat(userId: string, data: Partial<UserAntiCheat>): Promise<UserAntiCheat>;
+  getFlaggedUsers(priority?: ReviewPriority): Promise<UserAntiCheat[]>;
+  getAllFlaggedUsersWithDetails(): Promise<Array<UserAntiCheat & { user: User; reportCount: number }>>;
+  flagUserForReview(userId: string, reason: string, priority: ReviewPriority): Promise<UserAntiCheat>;
+  updateReviewStatus(userId: string, status: ReviewStatus, adminId: string, notes?: string): Promise<UserAntiCheat>;
+  issueWarning(userId: string, adminId: string, notes: string): Promise<UserAntiCheat>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1842,6 +1864,195 @@ export class DatabaseStorage implements IStorage {
           inArray(simulVsSimulQueue.odId, userIds)
         )
       );
+  }
+
+  // Anti-Cheat System
+  async createCheatReport(report: InsertCheatReport): Promise<CheatReport> {
+    const [newReport] = await db.insert(cheatReports).values(report).returning();
+    
+    // Increment report count for the reported user
+    const antiCheat = await this.getOrCreateUserAntiCheat(report.reportedUserId);
+    await this.updateUserAntiCheat(report.reportedUserId, {
+      reportCount: (antiCheat.reportCount || 0) + 1,
+    });
+    
+    return newReport;
+  }
+
+  async getCheatReports(reportedUserId?: string, isResolved?: boolean): Promise<CheatReport[]> {
+    const conditions = [];
+    if (reportedUserId) {
+      conditions.push(eq(cheatReports.reportedUserId, reportedUserId));
+    }
+    if (isResolved !== undefined) {
+      conditions.push(eq(cheatReports.isResolved, isResolved));
+    }
+    
+    if (conditions.length === 0) {
+      return db.select().from(cheatReports).orderBy(desc(cheatReports.createdAt));
+    }
+    
+    return db
+      .select()
+      .from(cheatReports)
+      .where(and(...conditions))
+      .orderBy(desc(cheatReports.createdAt));
+  }
+
+  async getCheatReportsByReporter(reporterId: string): Promise<CheatReport[]> {
+    return db
+      .select()
+      .from(cheatReports)
+      .where(eq(cheatReports.reporterId, reporterId))
+      .orderBy(desc(cheatReports.createdAt));
+  }
+
+  async resolveCheatReport(id: string, resolvedById: string, resolution: string): Promise<CheatReport> {
+    const [updated] = await db
+      .update(cheatReports)
+      .set({
+        isResolved: true,
+        resolvedById,
+        resolvedAt: new Date(),
+        resolution,
+      })
+      .where(eq(cheatReports.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getUserAntiCheat(userId: string): Promise<UserAntiCheat | undefined> {
+    const [record] = await db
+      .select()
+      .from(userAntiCheat)
+      .where(eq(userAntiCheat.userId, userId));
+    return record;
+  }
+
+  async getOrCreateUserAntiCheat(userId: string): Promise<UserAntiCheat> {
+    const existing = await this.getUserAntiCheat(userId);
+    if (existing) return existing;
+    
+    const [created] = await db
+      .insert(userAntiCheat)
+      .values({ userId })
+      .returning();
+    return created;
+  }
+
+  async updateUserAntiCheat(userId: string, data: Partial<UserAntiCheat>): Promise<UserAntiCheat> {
+    const existing = await this.getOrCreateUserAntiCheat(userId);
+    
+    const [updated] = await db
+      .update(userAntiCheat)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(userAntiCheat.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async getFlaggedUsers(priority?: ReviewPriority): Promise<UserAntiCheat[]> {
+    if (priority) {
+      return db
+        .select()
+        .from(userAntiCheat)
+        .where(and(
+          eq(userAntiCheat.isFlagged, true),
+          eq(userAntiCheat.reviewPriority, priority)
+        ))
+        .orderBy(desc(userAntiCheat.flaggedAt));
+    }
+    return db
+      .select()
+      .from(userAntiCheat)
+      .where(eq(userAntiCheat.isFlagged, true))
+      .orderBy(desc(userAntiCheat.flaggedAt));
+  }
+
+  async getAllFlaggedUsersWithDetails(): Promise<Array<UserAntiCheat & { user: User; reportCount: number }>> {
+    const flaggedRecords = await db
+      .select({
+        antiCheat: userAntiCheat,
+        user: users,
+      })
+      .from(userAntiCheat)
+      .innerJoin(users, eq(userAntiCheat.userId, users.id))
+      .where(eq(userAntiCheat.isFlagged, true))
+      .orderBy(desc(userAntiCheat.riskScore));
+    
+    return flaggedRecords.map(r => ({
+      ...r.antiCheat,
+      user: r.user,
+      reportCount: r.antiCheat.reportCount || 0,
+    }));
+  }
+
+  async flagUserForReview(userId: string, reason: string, priority: ReviewPriority): Promise<UserAntiCheat> {
+    const antiCheat = await this.getOrCreateUserAntiCheat(userId);
+    
+    const [updated] = await db
+      .update(userAntiCheat)
+      .set({
+        isFlagged: true,
+        flaggedAt: new Date(),
+        flagReason: reason,
+        reviewPriority: priority,
+        reviewStatus: 'pending',
+        updatedAt: new Date(),
+      })
+      .where(eq(userAntiCheat.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async updateReviewStatus(userId: string, status: ReviewStatus, adminId: string, notes?: string): Promise<UserAntiCheat> {
+    const updateData: Partial<UserAntiCheat> = {
+      reviewStatus: status,
+      lastReviewedAt: new Date(),
+      lastReviewedById: adminId,
+      updatedAt: new Date(),
+    };
+    
+    if (notes) {
+      const existing = await this.getUserAntiCheat(userId);
+      updateData.adminNotes = existing?.adminNotes 
+        ? `${existing.adminNotes}\n\n[${new Date().toISOString()}] ${notes}`
+        : `[${new Date().toISOString()}] ${notes}`;
+    }
+    
+    // If dismissed, unflag the user
+    if (status === 'dismissed') {
+      updateData.isFlagged = false;
+    }
+    
+    const [updated] = await db
+      .update(userAntiCheat)
+      .set(updateData)
+      .where(eq(userAntiCheat.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async issueWarning(userId: string, adminId: string, notes: string): Promise<UserAntiCheat> {
+    const existing = await this.getOrCreateUserAntiCheat(userId);
+    
+    const [updated] = await db
+      .update(userAntiCheat)
+      .set({
+        warningCount: (existing.warningCount || 0) + 1,
+        lastWarningAt: new Date(),
+        reviewStatus: 'warning_issued',
+        lastReviewedAt: new Date(),
+        lastReviewedById: adminId,
+        adminNotes: existing.adminNotes 
+          ? `${existing.adminNotes}\n\n[${new Date().toISOString()}] WARNING: ${notes}`
+          : `[${new Date().toISOString()}] WARNING: ${notes}`,
+        isFlagged: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(userAntiCheat.userId, userId))
+      .returning();
+    return updated;
   }
 }
 
