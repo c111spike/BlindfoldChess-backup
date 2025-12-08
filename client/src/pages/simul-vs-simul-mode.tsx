@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Chess } from "chess.js";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,8 +17,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3 } from "lucide-react";
+import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
+import type { UserSettings } from "@shared/schema";
 
 interface SimulVsSimulBoard {
   pairingId: string;
@@ -78,17 +80,33 @@ export default function SimulVsSimulMode() {
   } | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
   const [showPromotionDialog, setShowPromotionDialog] = useState(false);
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
+  const activeBoardRef = useRef(0);
+  const userSettingsRef = useRef<UserSettings | null>(null);
   const promotionPendingRef = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const queuePollRef = useRef<NodeJS.Timeout | null>(null);
   const matchIdRef = useRef<string | null>(null);
   
+  const { data: userSettings } = useQuery<UserSettings>({
+    queryKey: ['/api/settings'],
+  });
+  
   useEffect(() => {
     boardsRef.current = boards;
   }, [boards]);
+  
+  useEffect(() => {
+    activeBoardRef.current = activeBoard;
+  }, [activeBoard]);
+  
+  useEffect(() => {
+    userSettingsRef.current = userSettings || null;
+  }, [userSettings]);
   
   useEffect(() => {
     matchIdRef.current = matchId;
@@ -153,6 +171,120 @@ export default function SimulVsSimulMode() {
       }
     };
   }, [gameStarted, matchComplete, activeBoard]);
+  
+  // Voice input recognition for spoken moves
+  useEffect(() => {
+    if (!gameStarted || boards.length === 0 || !userSettings?.voiceInputEnabled || matchComplete) {
+      voiceRecognition.stop();
+      return;
+    }
+    
+    const currentBoard = boards[activeBoard];
+    if (!currentBoard || currentBoard.result !== 'ongoing') {
+      voiceRecognition.stop();
+      return;
+    }
+    
+    const chess = currentBoard.chess;
+    const isMyTurn = currentBoard.activeColor === currentBoard.color;
+    
+    if (isMyTurn) {
+      const allLegalMoves = chess.moves();
+      voiceRecognition.setLegalMoves(allLegalMoves);
+      
+      voiceRecognition.setOnResult((move, transcript) => {
+        setVoiceTranscript(transcript);
+        
+        if (move) {
+          const isCapture = move.includes('x');
+          const spokenConfirm = moveToSpeech(move, isCapture, false, false);
+          const boardNumber = boardsRef.current[activeBoardRef.current]?.boardNumber || '?';
+          speak(`Board ${boardNumber}: ${spokenConfirm}`).then(() => {
+            const currentBoardData = boardsRef.current[activeBoardRef.current];
+            if (!currentBoardData) return;
+            
+            const currentChess = currentBoardData.chess;
+            const moveResult = currentChess.move(move);
+            
+            if (moveResult) {
+              const newFen = currentChess.fen();
+              const newActiveColor = currentChess.turn() === 'w' ? 'white' : 'black';
+              
+              const updatedBoards = [...boardsRef.current];
+              updatedBoards[activeBoardRef.current] = {
+                ...currentBoardData,
+                fen: newFen,
+                moves: currentChess.history(),
+                moveCount: currentChess.history().length,
+                activeColor: newActiveColor as 'white' | 'black',
+                chess: currentChess,
+                lastMove: { from: moveResult.from, to: moveResult.to },
+              };
+              
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
+                  type: 'simul_move',
+                  pairingId: currentBoardData.pairingId,
+                  move: moveResult.san,
+                  fen: newFen,
+                  from: moveResult.from,
+                  to: moveResult.to,
+                  piece: moveResult.piece,
+                  captured: moveResult.captured,
+                  promotion: moveResult.promotion,
+                }));
+              }
+              
+              if (currentChess.isCheckmate()) {
+                const result = currentChess.turn() === 'w' ? 'black_win' : 'white_win';
+                updatedBoards[activeBoardRef.current].result = result;
+                
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(JSON.stringify({
+                    type: 'simul_game_result',
+                    pairingId: currentBoardData.pairingId,
+                    result,
+                    reason: 'checkmate',
+                  }));
+                }
+              } else if (currentChess.isDraw() || currentChess.isStalemate()) {
+                updatedBoards[activeBoardRef.current].result = 'draw';
+                
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(JSON.stringify({
+                    type: 'simul_game_result',
+                    pairingId: currentBoardData.pairingId,
+                    result: 'draw',
+                    reason: currentChess.isStalemate() ? 'stalemate' : 'draw',
+                  }));
+                }
+              }
+              
+              setBoards(updatedBoards);
+              setSelectedSquare(null);
+              setLegalMoves([]);
+              setVoiceTranscript(null);
+            }
+          });
+        } else {
+          toast({
+            title: "Didn't understand",
+            description: `Heard: "${transcript}". Try again.`,
+            variant: "destructive",
+          });
+        }
+      });
+      
+      voiceRecognition.setOnListeningChange(setIsVoiceListening);
+      voiceRecognition.start();
+    } else {
+      voiceRecognition.stop();
+    }
+    
+    return () => {
+      voiceRecognition.reset();
+    };
+  }, [gameStarted, boards, activeBoard, userSettings?.voiceInputEnabled, matchComplete, toast]);
   
   const connectWebSocket = useCallback(() => {
     if (!user?.id || wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -221,29 +353,42 @@ export default function SimulVsSimulMode() {
         break;
         
       case 'simul_opponent_move':
-        setBoards(prevBoards => {
-          const boardIndex = prevBoards.findIndex(b => b.pairingId === data.pairingId);
-          if (boardIndex === -1) return prevBoards;
+        {
+          const boardIndex = boardsRef.current.findIndex(b => b.pairingId === data.pairingId);
+          const boardNumber = boardIndex >= 0 ? boardsRef.current[boardIndex].boardNumber : '?';
           
-          const newBoards = [...prevBoards];
-          const chess = new Chess(data.fen);
-          newBoards[boardIndex] = {
-            ...newBoards[boardIndex],
-            fen: data.fen,
-            moves: chess.history(),
-            moveCount: data.moveCount,
-            activeColor: data.activeColor,
-            chess,
-            lastMove: data.from && data.to ? { from: data.from, to: data.to } : newBoards[boardIndex].lastMove,
-          };
+          setBoards(prevBoards => {
+            const idx = prevBoards.findIndex(b => b.pairingId === data.pairingId);
+            if (idx === -1) return prevBoards;
+            
+            const newBoards = [...prevBoards];
+            const chess = new Chess(data.fen);
+            newBoards[idx] = {
+              ...newBoards[idx],
+              fen: data.fen,
+              moves: chess.history(),
+              moveCount: data.moveCount,
+              activeColor: data.activeColor,
+              chess,
+              lastMove: data.from && data.to ? { from: data.from, to: data.to } : newBoards[idx].lastMove,
+            };
+            
+            return newBoards;
+          });
           
-          return newBoards;
-        });
-        
-        toast({
-          title: `Opponent moved on Board ${boards.find(b => b.pairingId === data.pairingId)?.boardNumber || '?'}`,
-          description: data.move,
-        });
+          if (userSettingsRef.current?.voiceOutputEnabled && data.move) {
+            const chess = new Chess(data.fen);
+            const isCheck = chess.isCheck();
+            const isCapture = data.move.includes('x');
+            const spokenMove = moveToSpeech(data.move, isCapture, isCheck, chess.isCheckmate());
+            speak(`Board ${boardNumber}: ${spokenMove}`);
+          }
+          
+          toast({
+            title: `Opponent moved on Board ${boardNumber}`,
+            description: data.move,
+          });
+        }
         break;
         
       case 'simul_focus_update':
@@ -793,6 +938,12 @@ export default function SimulVsSimulMode() {
                     <span className={activeGame.timeRemaining <= 10 ? 'text-red-500 font-bold' : ''}>
                       {activeGame.timeRemaining}s
                     </span>
+                  </div>
+                )}
+                {isVoiceListening && userSettings?.voiceInputEnabled && (
+                  <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400" data-testid="voice-listening-indicator">
+                    <Mic className="h-3 w-3 animate-pulse" />
+                    <span>Listening{voiceTranscript ? `: "${voiceTranscript}"` : "..."}</span>
                   </div>
                 )}
               </div>

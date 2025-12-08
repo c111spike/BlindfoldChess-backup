@@ -15,7 +15,6 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import OTBMode from "@/pages/otb-mode";
 import StandardMode from "@/pages/standard-mode";
-import SimulMode from "@/pages/simul-mode";
 import BoardSpin from "@/pages/board-spin";
 import NPieceChallenge from "@/pages/n-piece-challenge";
 import KnightsTour from "@/pages/knights-tour";
@@ -46,7 +45,6 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/otb" component={OTBMode} />
       <Route path="/standard" component={StandardMode} />
-      <Route path="/simul" component={SimulMode} />
       <Route path="/simul-vs-simul" component={SimulVsSimulMode} />
       <Route path="/boardspin" component={BoardSpin} />
       <Route path="/n-piece" component={NPieceChallenge} />
