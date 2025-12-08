@@ -223,7 +223,7 @@ export default function SimulVsSimulMode() {
         const isCapture = move.includes('x');
         const spokenConfirm = moveToSpeech(move, isCapture, false, false);
         const boardNumber = boardsRef.current[activeBoardRef.current]?.boardNumber || '?';
-        speak(`Board ${boardNumber}: ${spokenConfirm}`).then(() => {
+        speak(`Board ${boardNumber}: ${spokenConfirm}`).then(async () => {
           const currentBoardData = boardsRef.current[activeBoardRef.current];
           if (!currentBoardData) return;
           
@@ -245,41 +245,94 @@ export default function SimulVsSimulMode() {
               lastMove: { from: moveResult.from, to: moveResult.to },
             };
             
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({
-                type: 'simul_move',
-                pairingId: currentBoardData.pairingId,
-                move: moveResult.san,
-                fen: newFen,
-                from: moveResult.from,
-                to: moveResult.to,
-                piece: moveResult.piece,
-                captured: moveResult.captured,
-                promotion: moveResult.promotion,
-              }));
-            }
+            // Determine if this move ends the game
+            const isGameEnding = currentChess.isCheckmate() || currentChess.isDraw() || currentChess.isStalemate();
+            let gameResult: 'white_win' | 'black_win' | 'draw' | null = null;
+            let gameEndReason: string | null = null;
             
             if (currentChess.isCheckmate()) {
-              const result = currentChess.turn() === 'w' ? 'black_win' : 'white_win';
-              updatedBoards[activeBoardRef.current].result = result;
-              
-              if (wsRef.current?.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({
-                  type: 'simul_game_result',
-                  pairingId: currentBoardData.pairingId,
-                  result,
-                  reason: 'checkmate',
-                }));
-              }
+              gameResult = currentChess.turn() === 'w' ? 'black_win' : 'white_win';
+              gameEndReason = 'checkmate';
+              updatedBoards[activeBoardRef.current].result = gameResult;
             } else if (currentChess.isDraw() || currentChess.isStalemate()) {
+              gameResult = 'draw';
+              gameEndReason = currentChess.isStalemate() ? 'stalemate' : 'draw';
               updatedBoards[activeBoardRef.current].result = 'draw';
-              
+            }
+            
+            // For game-ending moves, use REST API and await completion before sending game result
+            // This prevents race condition where game result is processed before final move is saved
+            if (isGameEnding) {
+              try {
+                await apiRequest('POST', '/api/simul-vs-simul/move', {
+                  pairingId: currentBoardData.pairingId,
+                  move: moveResult.san,
+                  fen: newFen,
+                });
+                
+                // Move is now saved - send WebSocket notification for opponent, then game result
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                  // Notify opponent of the move
+                  wsRef.current.send(JSON.stringify({
+                    type: 'simul_move',
+                    pairingId: currentBoardData.pairingId,
+                    move: moveResult.san,
+                    fen: newFen,
+                    from: moveResult.from,
+                    to: moveResult.to,
+                    piece: moveResult.piece,
+                    captured: moveResult.captured,
+                    promotion: moveResult.promotion,
+                  }));
+                  
+                  // Now send game result
+                  if (gameResult && gameEndReason) {
+                    wsRef.current.send(JSON.stringify({
+                      type: 'simul_game_result',
+                      pairingId: currentBoardData.pairingId,
+                      result: gameResult,
+                      reason: gameEndReason,
+                    }));
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to save game-ending move:', error);
+                // Still send via WebSocket as fallback
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(JSON.stringify({
+                    type: 'simul_move',
+                    pairingId: currentBoardData.pairingId,
+                    move: moveResult.san,
+                    fen: newFen,
+                    from: moveResult.from,
+                    to: moveResult.to,
+                    piece: moveResult.piece,
+                    captured: moveResult.captured,
+                    promotion: moveResult.promotion,
+                  }));
+                  if (gameResult && gameEndReason) {
+                    wsRef.current.send(JSON.stringify({
+                      type: 'simul_game_result',
+                      pairingId: currentBoardData.pairingId,
+                      result: gameResult,
+                      reason: gameEndReason,
+                    }));
+                  }
+                }
+              }
+            } else {
+              // Non-game-ending move: use WebSocket for speed
               if (wsRef.current?.readyState === WebSocket.OPEN) {
                 wsRef.current.send(JSON.stringify({
-                  type: 'simul_game_result',
+                  type: 'simul_move',
                   pairingId: currentBoardData.pairingId,
-                  result: 'draw',
-                  reason: currentChess.isStalemate() ? 'stalemate' : 'draw',
+                  move: moveResult.san,
+                  fen: newFen,
+                  from: moveResult.from,
+                  to: moveResult.to,
+                  piece: moveResult.piece,
+                  captured: moveResult.captured,
+                  promotion: moveResult.promotion,
                 }));
               }
             }
@@ -680,7 +733,8 @@ export default function SimulVsSimulMode() {
   };
   
   // Execute a move with optional promotion piece
-  const executeMove = (boardIndex: number, from: string, to: string, promotion?: string) => {
+  // Uses async/await to ensure move is saved to database before sending game result
+  const executeMove = async (boardIndex: number, from: string, to: string, promotion?: string) => {
     const currentBoard = boards[boardIndex];
     if (!currentBoard) return;
     
@@ -708,41 +762,94 @@ export default function SimulVsSimulMode() {
           lastMove: { from: move.from, to: move.to },
         };
         
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({
-            type: 'simul_move',
-            pairingId: currentBoard.pairingId,
-            move: move.san,
-            fen: newFen,
-            from: move.from,
-            to: move.to,
-            piece: move.piece,
-            captured: move.captured,
-            promotion: move.promotion,
-          }));
-        }
+        // Determine if this move ends the game
+        const isGameEnding = chess.isCheckmate() || chess.isDraw() || chess.isStalemate();
+        let gameResult: 'white_win' | 'black_win' | 'draw' | null = null;
+        let gameEndReason: string | null = null;
         
         if (chess.isCheckmate()) {
-          const result = chess.turn() === 'w' ? 'black_win' : 'white_win';
-          updatedBoards[boardIndex].result = result;
-          
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({
-              type: 'simul_game_result',
-              pairingId: currentBoard.pairingId,
-              result,
-              reason: 'checkmate',
-            }));
-          }
+          gameResult = chess.turn() === 'w' ? 'black_win' : 'white_win';
+          gameEndReason = 'checkmate';
+          updatedBoards[boardIndex].result = gameResult;
         } else if (chess.isDraw() || chess.isStalemate()) {
+          gameResult = 'draw';
+          gameEndReason = chess.isStalemate() ? 'stalemate' : 'draw';
           updatedBoards[boardIndex].result = 'draw';
-          
+        }
+        
+        // For game-ending moves, use REST API and await completion before sending game result
+        // This prevents race condition where game result is processed before final move is saved
+        if (isGameEnding) {
+          try {
+            await apiRequest('POST', '/api/simul-vs-simul/move', {
+              pairingId: currentBoard.pairingId,
+              move: move.san,
+              fen: newFen,
+            });
+            
+            // Move is now saved - send WebSocket notification for opponent, then game result
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              // Notify opponent of the move
+              wsRef.current.send(JSON.stringify({
+                type: 'simul_move',
+                pairingId: currentBoard.pairingId,
+                move: move.san,
+                fen: newFen,
+                from: move.from,
+                to: move.to,
+                piece: move.piece,
+                captured: move.captured,
+                promotion: move.promotion,
+              }));
+              
+              // Now send game result
+              if (gameResult && gameEndReason) {
+                wsRef.current.send(JSON.stringify({
+                  type: 'simul_game_result',
+                  pairingId: currentBoard.pairingId,
+                  result: gameResult,
+                  reason: gameEndReason,
+                }));
+              }
+            }
+          } catch (error) {
+            console.error('Failed to save game-ending move:', error);
+            // Still send via WebSocket as fallback
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({
+                type: 'simul_move',
+                pairingId: currentBoard.pairingId,
+                move: move.san,
+                fen: newFen,
+                from: move.from,
+                to: move.to,
+                piece: move.piece,
+                captured: move.captured,
+                promotion: move.promotion,
+              }));
+              if (gameResult && gameEndReason) {
+                wsRef.current.send(JSON.stringify({
+                  type: 'simul_game_result',
+                  pairingId: currentBoard.pairingId,
+                  result: gameResult,
+                  reason: gameEndReason,
+                }));
+              }
+            }
+          }
+        } else {
+          // Non-game-ending move: use WebSocket for speed
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
-              type: 'simul_game_result',
+              type: 'simul_move',
               pairingId: currentBoard.pairingId,
-              result: 'draw',
-              reason: chess.isStalemate() ? 'stalemate' : 'draw',
+              move: move.san,
+              fen: newFen,
+              from: move.from,
+              to: move.to,
+              piece: move.piece,
+              captured: move.captured,
+              promotion: move.promotion,
             }));
           }
         }
