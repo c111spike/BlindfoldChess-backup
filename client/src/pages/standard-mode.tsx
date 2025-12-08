@@ -102,8 +102,13 @@ export default function StandardMode() {
   
   const [remainingPeeks, setRemainingPeeks] = useState<number>(Number.POSITIVE_INFINITY);
   const [isPeeking, setIsPeeking] = useState(false);
+  const [peekDurations, setPeekDurations] = useState<number[]>([]);
+  const [totalPeekTime, setTotalPeekTime] = useState(0);
   const peekButtonRef = useRef<HTMLDivElement>(null);
   const peekKeyHeldRef = useRef<boolean>(false);
+  const peekStartTimeRef = useRef<number | null>(null);
+  const peekDurationsRef = useRef<number[]>([]);
+  const totalPeekTimeRef = useRef<number>(0);
   
   const [showBotSelection, setShowBotSelection] = useState(false);
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
@@ -190,6 +195,9 @@ export default function StandardMode() {
           moves: movesRef.current,
           whiteTime: whiteTimeRef.current,
           blackTime: blackTimeRef.current,
+          peekDurations: peekDurationsRef.current,
+          totalPeekTime: totalPeekTimeRef.current,
+          peeksUsed: peekDurationsRef.current.length,
         });
       } catch (error) {
         console.error("Error saving final game state:", error);
@@ -452,6 +460,13 @@ export default function StandardMode() {
       if (isBlindfold && userSettings?.blindfoldDifficulty) {
         setActiveBlindfoldDifficulty(userSettings.blindfoldDifficulty);
       }
+      
+      // Reset peek tracking for new game
+      setPeekDurations([]);
+      setTotalPeekTime(0);
+      peekStartTimeRef.current = null;
+      peekDurationsRef.current = [];
+      totalPeekTimeRef.current = 0;
       
       setGameResult(null);
       setGameStarted(true);
@@ -760,6 +775,13 @@ export default function StandardMode() {
       blackTime: seconds,
       opponentName: bot.name,
     });
+    
+    // Reset peek tracking for new game
+    setPeekDurations([]);
+    setTotalPeekTime(0);
+    peekStartTimeRef.current = null;
+    peekDurationsRef.current = [];
+    totalPeekTimeRef.current = 0;
     
     setGameStarted(true);
     
@@ -1210,7 +1232,6 @@ export default function StandardMode() {
   const handlePeekStart = () => {
     if (!isBlindfold || remainingPeeks <= 0 || isPeeking) return;
     
-    // Use locked difficulty if in a game, otherwise use current setting
     const effectiveDifficulty = activeBlindfoldDifficulty || userSettings?.blindfoldDifficulty || 'easy';
     const config = BLINDFOLD_CONFIG[effectiveDifficulty as keyof typeof BLINDFOLD_CONFIG];
     
@@ -1220,10 +1241,25 @@ export default function StandardMode() {
       setRemainingPeeks(prev => prev - 1);
     }
     
+    peekStartTimeRef.current = Date.now();
     setIsPeeking(true);
   };
 
   const handlePeekEnd = () => {
+    if (isPeeking && peekStartTimeRef.current) {
+      const duration = (Date.now() - peekStartTimeRef.current) / 1000;
+      setPeekDurations(prev => {
+        const newDurations = [...prev, duration];
+        peekDurationsRef.current = newDurations;
+        return newDurations;
+      });
+      setTotalPeekTime(prev => {
+        const newTotal = prev + duration;
+        totalPeekTimeRef.current = newTotal;
+        return newTotal;
+      });
+      peekStartTimeRef.current = null;
+    }
     setIsPeeking(false);
   };
 

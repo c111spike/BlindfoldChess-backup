@@ -326,9 +326,188 @@ function PhaseBreakdown({ analysis }: { analysis: GameAnalysis }) {
   );
 }
 
-function ReviewTab({ analysis, onNavigateToMove }: { analysis: GameAnalysis; onNavigateToMove?: (moveIndex: number) => void }) {
+function PeekStatistics({ game }: { game: Game }) {
+  const peekDurations = (game.peekDurations as number[] | null) || [];
+  const totalPeekTime = game.totalPeekTime || 0;
+  const peeksUsed = game.peeksUsed || 0;
+  const blindfoldEnabled = game.blindfoldEnabled;
+  
+  const { data: blindfoldHistory } = useQuery<{ games: Game[] }>({
+    queryKey: ['/api/games/blindfold-history'],
+    enabled: blindfoldEnabled === true && peeksUsed > 0,
+  });
+  
+  if (!blindfoldEnabled || peeksUsed === 0) {
+    return null;
+  }
+  
+  const formatDuration = (seconds: number) => {
+    return seconds < 60 
+      ? `${seconds.toFixed(1)}s` 
+      : `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(0).padStart(2, '0')}`;
+  };
+  
+  const previousGames = blindfoldHistory?.games?.filter(g => g.id !== game.id) || [];
+  const lastGame = previousGames[0];
+  const lastGamePeekTime = lastGame?.totalPeekTime || 0;
+  
+  const allPeekTimes = previousGames.map(g => g.totalPeekTime || 0).filter(t => t > 0);
+  const avgPeekTime = allPeekTimes.length > 0 
+    ? allPeekTimes.reduce((a, b) => a + b, 0) / allPeekTimes.length 
+    : 0;
+  
+  const vsLastGame = lastGamePeekTime > 0 ? totalPeekTime - lastGamePeekTime : null;
+  const vsAverage = avgPeekTime > 0 ? totalPeekTime - avgPeekTime : null;
+  
+  return (
+    <Card data-testid="peek-statistics">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Eye className="w-4 h-4" />
+          Blindfold Peek Statistics
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-2xl font-bold">{peeksUsed}</div>
+            <p className="text-sm text-muted-foreground">Times peeked</p>
+          </div>
+          <div>
+            <div className="text-2xl font-bold">{formatDuration(totalPeekTime)}</div>
+            <p className="text-sm text-muted-foreground">Total peek time</p>
+          </div>
+        </div>
+        
+        {peekDurations.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Individual peeks:</p>
+            <div className="flex flex-wrap gap-2">
+              {peekDurations.map((duration, i) => (
+                <Badge key={i} variant="outline" data-testid={`peek-duration-${i}`}>
+                  Peek {i + 1}: {formatDuration(duration)}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {(vsLastGame !== null || vsAverage !== null) && (
+          <div className="pt-3 border-t space-y-2">
+            <p className="text-sm font-medium">Comparison</p>
+            {vsLastGame !== null && (
+              <p className="text-sm">
+                {vsLastGame < 0 ? (
+                  <span className="text-green-500">
+                    {formatDuration(Math.abs(vsLastGame))} less than your last blindfold game
+                  </span>
+                ) : vsLastGame > 0 ? (
+                  <span className="text-yellow-500">
+                    {formatDuration(vsLastGame)} more than your last blindfold game
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Same as your last blindfold game</span>
+                )}
+              </p>
+            )}
+            {vsAverage !== null && (
+              <p className="text-sm">
+                {vsAverage < 0 ? (
+                  <span className="text-green-500">
+                    {formatDuration(Math.abs(vsAverage))} better than your average ({formatDuration(avgPeekTime)})
+                  </span>
+                ) : vsAverage > 0 ? (
+                  <span className="text-yellow-500">
+                    {formatDuration(vsAverage)} more than your average ({formatDuration(avgPeekTime)})
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Equal to your average</span>
+                )}
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReviewTab({ 
+  analysis, 
+  game, 
+  moves,
+  onNavigateToMove 
+}: { 
+  analysis: GameAnalysis; 
+  game: Game;
+  moves: MoveAnalysis[];
+  onNavigateToMove?: (moveIndex: number) => void;
+}) {
+  const thinkingTimes = (game.thinkingTimes as number[] | null) || [];
+  const playerColor = game.playerColor;
+  const remainingTime = playerColor === 'white' ? game.whiteTime : game.blackTime;
+  const initialTime = game.timeControl;
+  
+  const playerThinkingTimes = thinkingTimes.filter((_, i) => 
+    (playerColor === 'white' && i % 2 === 0) || (playerColor === 'black' && i % 2 === 1)
+  );
+  const avgTimePerMove = playerThinkingTimes.length > 0 
+    ? playerThinkingTimes.reduce((a, b) => a + b, 0) / playerThinkingTimes.length 
+    : 0;
+  
+  const hasTimeRemaining = remainingTime != null && remainingTime > 60;
+  const vssMismatches = (analysis.vssMismatchAlerts as number[] | null) || [];
+  const hadMismatchesWithTimeLeft = hasTimeRemaining && vssMismatches.length > 0;
+  
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
+  };
+
   return (
     <div className="space-y-4">
+      {initialTime && (
+        <Card data-testid="time-management">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Time Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-2xl font-bold">{formatTime(avgTimePerMove)}</div>
+                <p className="text-sm text-muted-foreground">Average per move</p>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{remainingTime != null ? formatTime(remainingTime) : '--'}</div>
+                <p className="text-sm text-muted-foreground">Time remaining</p>
+              </div>
+            </div>
+            {hadMismatchesWithTimeLeft && (
+              <div className="mt-3 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+                  <p className="text-sm">
+                    You had <strong>{formatTime(remainingTime!)}</strong> left on the clock. 
+                    On {vssMismatches.length === 1 ? 'move' : 'moves'}{' '}
+                    {vssMismatches.map((ply, i) => (
+                      <span key={ply}>
+                        {i > 0 && (i === vssMismatches.length - 1 ? ' and ' : ', ')}
+                        <strong>{Math.floor(ply / 2) + 1}</strong>
+                      </span>
+                    ))}
+                    {' '}you may have misjudged the position - taking more time here could have helped.
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card data-testid="focus-check">
           <CardHeader className="pb-2">
@@ -425,7 +604,7 @@ function ReviewTab({ analysis, onNavigateToMove }: { analysis: GameAnalysis; onN
         </Card>
       </div>
       
-      {analysis.vssMismatchAlerts && (analysis.vssMismatchAlerts as number[]).length > 0 && (
+      {vssMismatches.length > 0 && (
         <Card data-testid="vss-mismatch">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -434,21 +613,33 @@ function ReviewTab({ analysis, onNavigateToMove }: { analysis: GameAnalysis; onN
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-2">
+            <p className="text-sm text-muted-foreground mb-3">
               Positions where you may have misjudged the evaluation
             </p>
-            <div className="flex flex-wrap gap-2">
-              {(analysis.vssMismatchAlerts as number[]).map((plyIndex, i) => (
-                <Badge 
-                  key={i} 
-                  variant="outline" 
-                  className={onNavigateToMove ? "cursor-pointer hover-elevate" : ""}
-                  onClick={() => onNavigateToMove?.(plyIndex)}
-                  data-testid={`vss-move-${plyIndex}`}
-                >
-                  Move {Math.floor(plyIndex / 2) + 1}{plyIndex % 2 === 0 ? '' : '...'}
-                </Badge>
-              ))}
+            <div className="space-y-2">
+              {vssMismatches.map((plyIndex, i) => {
+                const moveTime = thinkingTimes[plyIndex];
+                const moveNumber = Math.floor(plyIndex / 2) + 1;
+                const isBlackMove = plyIndex % 2 === 1;
+                return (
+                  <div 
+                    key={i}
+                    className={`flex items-center justify-between p-2 rounded-lg bg-muted/50 ${onNavigateToMove ? "cursor-pointer hover-elevate" : ""}`}
+                    onClick={() => onNavigateToMove?.(plyIndex)}
+                    data-testid={`vss-move-${plyIndex}`}
+                  >
+                    <span className="font-medium">
+                      Move {moveNumber}{isBlackMove ? '...' : ''}
+                    </span>
+                    {moveTime != null && (
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatTime(moveTime)} spent
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -474,6 +665,8 @@ function ReviewTab({ analysis, onNavigateToMove }: { analysis: GameAnalysis; onN
           </CardContent>
         </Card>
       )}
+      
+      <PeekStatistics game={game} />
     </div>
   );
 }
@@ -873,7 +1066,7 @@ export default function GameAnalysisPage() {
             </TabsContent>
             
             <TabsContent value="review">
-              <ReviewTab analysis={analysis} onNavigateToMove={handleNavigateToMove} />
+              <ReviewTab analysis={analysis} game={game} moves={moves} onNavigateToMove={handleNavigateToMove} />
             </TabsContent>
           </Tabs>
         </div>

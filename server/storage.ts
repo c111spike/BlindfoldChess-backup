@@ -96,6 +96,7 @@ export interface IStorage {
   getRecentGames(userId: string, limit?: number): Promise<Game[]>;
   getActiveGame(userId: string): Promise<Game | undefined>;
   getGamesByMode(userId: string, mode: string): Promise<Game[]>;
+  getBlindfoldGames(userId: string, limit?: number): Promise<Game[]>;
   updateGame(id: string, data: Partial<Game>): Promise<Game>;
   
   getRating(userId: string): Promise<Rating | undefined>;
@@ -304,6 +305,26 @@ export class DatabaseStorage implements IStorage {
         eq(games.mode, mode as any)
       ))
       .orderBy(desc(games.createdAt));
+  }
+
+  async getBlindfoldGames(userId: string, limit: number = 20): Promise<Game[]> {
+    return await db
+      .select()
+      .from(games)
+      .where(and(
+        or(
+          eq(games.userId, userId),
+          eq(games.whitePlayerId, userId),
+          eq(games.blackPlayerId, userId)
+        ),
+        or(
+          eq(games.blindfoldEnabled, true),
+          sql`${games.peeksUsed} > 0`
+        ),
+        eq(games.status, 'completed')
+      ))
+      .orderBy(desc(games.createdAt))
+      .limit(limit);
   }
 
   async updateGame(id: string, data: Partial<Game>): Promise<Game> {
