@@ -1508,15 +1508,7 @@ export default function GameAnalysisPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameMoves.length]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
-
-  // Auto-start analysis when status is 'not_started' or on error
+  // Auto-start analysis when status is 'not_started' - must be before early returns
   useEffect(() => {
     if (data?.analysis?.status === 'not_started' && !autoStarted && !startAnalysisMutation.isPending && !isSharedView && gameId) {
       setAutoStarted(true);
@@ -1524,6 +1516,14 @@ export default function GameAnalysisPage() {
       startAnalysisMutation.mutate();
     }
   }, [data?.analysis?.status, autoStarted, startAnalysisMutation.isPending, isSharedView, gameId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
 
   if (error || (!data && !isLoading)) {
     return (
