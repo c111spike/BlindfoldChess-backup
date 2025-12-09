@@ -91,18 +91,22 @@ function detectSacrifice(
 function classifyMove(ctx: ClassificationContext): MoveClassification {
   if (ctx.isForced) return 'forced';
   
-  if (ctx.isSacrifice && (ctx.evalSwing >= 250 || ctx.deliversMate)) {
+  // Genius: best move + sacrifice + ≥300cp improvement (or delivers mate)
+  if (ctx.isBestMove && ctx.isSacrifice && (ctx.evalSwing >= 300 || ctx.deliversMate)) {
     return 'genius';
   }
   
-  if (!ctx.isSacrifice && (ctx.deliversMate || ctx.evalSwing >= 300)) {
+  // Fantastic: best move + ≥200cp swing (or delivers mate without sacrifice)
+  if (ctx.isBestMove && (ctx.evalSwing >= 200 || ctx.deliversMate)) {
     return 'fantastic';
   }
   
-  if (ctx.isBestMove && ctx.normalizedCentipawnLoss <= 10) {
+  // Best: matches engine's best move (no cp threshold needed)
+  if (ctx.isBestMove) {
     return 'best';
   }
   
+  // Below best: use cp loss thresholds
   if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.good) return 'good';
   if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.imprecise) return 'imprecise';
   if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.mistake) return 'mistake';
