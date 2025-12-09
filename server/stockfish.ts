@@ -442,6 +442,8 @@ class StockfishService {
       await this.init();
     }
 
+    // Stop any ongoing analysis first to prevent state confusion
+    this.sendCommand('stop');
     this.sendCommand('ucinewgame');
     this.sendCommand(`setoption name MultiPV value ${numMoves}`);
     this.sendCommand(`position fen ${fen}`);
@@ -450,6 +452,8 @@ class StockfishService {
     return new Promise((resolve, reject) => {
       // Timeout to prevent hanging if Stockfish doesn't respond
       const timeoutId = setTimeout(() => {
+        // Stop the engine, restore handler, and resolve empty
+        this.sendCommand('stop');
         this.process?.stdout?.removeAllListeners('data');
         this.process?.stdout?.on('data', (d: Buffer) => {
           this.outputBuffer += d.toString();
@@ -457,7 +461,7 @@ class StockfishService {
         });
         this.sendCommand('setoption name MultiPV value 1');
         resolve([]);
-      }, 30000);
+      }, 15000); // Reduced to 15s for faster failure
       const results: Map<number, TopMoveResult> = new Map();
       let collectedOutput = '';
 
