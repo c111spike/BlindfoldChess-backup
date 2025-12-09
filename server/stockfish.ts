@@ -17,6 +17,14 @@ interface PositionAnalysis {
   mateIn?: number;
 }
 
+interface TopMoveResult {
+  move: string;
+  evaluation: number;
+  isMate: boolean;
+  mateIn?: number;
+  principalVariation: string[];
+}
+
 interface MoveAnalysisResult {
   moveNumber: number;
   color: 'white' | 'black';
@@ -428,7 +436,95 @@ class StockfishService {
     const analysis = await this.analyzePosition(fen, depth);
     return analysis.evaluation;
   }
+
+  async getTopMoves(fen: string, numMoves: number = 3, depth: number = 18): Promise<TopMoveResult[]> {
+    if (!this.isReady) {
+      await this.init();
+    }
+
+    this.sendCommand('ucinewgame');
+    this.sendCommand(`setoption name MultiPV value ${numMoves}`);
+    this.sendCommand(`position fen ${fen}`);
+    this.sendCommand(`go depth ${depth}`);
+
+    return new Promise((resolve) => {
+      const results: Map<number, TopMoveResult> = new Map();
+      let collectedOutput = '';
+
+      const handler = (data: Buffer) => {
+        collectedOutput += data.toString();
+        const lines = collectedOutput.split('\n');
+
+        for (const line of lines) {
+          // Parse info lines with multipv
+          if (line.startsWith('info depth') && line.includes(' pv ')) {
+            const depthMatch = line.match(/depth (\d+)/);
+            const multipvMatch = line.match(/multipv (\d+)/);
+            const scoreMatch = line.match(/score cp (-?\d+)/);
+            const mateMatch = line.match(/score mate (-?\d+)/);
+            const pvMatch = line.match(/ pv (.+)/);
+
+            const currentDepth = depthMatch ? parseInt(depthMatch[1]) : 0;
+            const pvIndex = multipvMatch ? parseInt(multipvMatch[1]) : 1;
+
+            if (currentDepth >= depth - 2 && pvMatch) {
+              const pv = pvMatch[1].trim().split(' ');
+              const move = pv[0];
+              
+              let evaluation = 0;
+              let isMate = false;
+              let mateIn: number | undefined;
+
+              if (scoreMatch) {
+                evaluation = parseInt(scoreMatch[1]) / 100;
+              }
+              if (mateMatch) {
+                const mateValue = parseInt(mateMatch[1]);
+                evaluation = mateValue > 0 ? 999 : -999;
+                isMate = true;
+                mateIn = Math.abs(mateValue);
+              }
+
+              results.set(pvIndex, {
+                move,
+                evaluation,
+                isMate,
+                mateIn,
+                principalVariation: pv,
+              });
+            }
+          }
+
+          if (line.startsWith('bestmove')) {
+            this.process?.stdout?.removeListener('data', handler);
+            this.process?.stdout?.on('data', (d: Buffer) => {
+              this.outputBuffer += d.toString();
+              this.processOutput();
+            });
+
+            // Reset MultiPV to 1 for future single-line analyses
+            this.sendCommand('setoption name MultiPV value 1');
+
+            // Convert map to sorted array
+            const topMoves: TopMoveResult[] = [];
+            for (let i = 1; i <= numMoves; i++) {
+              const result = results.get(i);
+              if (result) {
+                topMoves.push(result);
+              }
+            }
+
+            resolve(topMoves);
+            return;
+          }
+        }
+      };
+
+      this.process?.stdout?.removeAllListeners('data');
+      this.process?.stdout?.on('data', handler);
+    });
+  }
 }
 
 export const stockfishService = new StockfishService();
-export type { PositionAnalysis, MoveAnalysisResult };
+export type { PositionAnalysis, MoveAnalysisResult, TopMoveResult };
