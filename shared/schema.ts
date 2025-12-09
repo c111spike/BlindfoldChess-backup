@@ -445,6 +445,7 @@ export const moveClassificationEnum = pgEnum("move_classification", [
 
 // Analysis status enum
 export const analysisStatusEnum = pgEnum("analysis_status", [
+  "not_started",
   "pending",
   "processing",
   "completed",

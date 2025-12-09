@@ -209,6 +209,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('[PATCH /api/games/:id] Game updated successfully');
       
+      // Auto-start analysis when a game completes (has a final result)
+      const finalResults = ['white_win', 'black_win', 'draw', 'stalemate', 'timeout', 'resignation'];
+      const isGameComplete = req.body.status === 'completed' || 
+                             (req.body.result && finalResults.includes(req.body.result));
+      
+      if (isGameComplete && updatedGame.moves && Array.isArray(updatedGame.moves) && updatedGame.moves.length > 0) {
+        // Start analysis in background (don't await - fire and forget)
+        const { analyzeGame } = await import('./analysisService');
+        console.log('[PATCH /api/games/:id] Auto-starting analysis for completed game');
+        analyzeGame(id, userId).catch(err => {
+          console.error('[PATCH /api/games/:id] Auto-analysis failed:', err);
+        });
+      }
+      
       // If the game is being marked as completed and has a matchId, also update the match
       if (req.body.status === 'completed' && game.matchId) {
         console.log('[PATCH /api/games/:id] Game completed, updating match status');
@@ -2352,8 +2366,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const analysis = await storage.getGameAnalysis(gameId);
+      
+      // If no analysis exists yet, return game with placeholder analysis for pre-analysis navigation
       if (!analysis) {
-        return res.status(404).json({ message: "Analysis not found" });
+        return res.json({ 
+          analysis: { 
+            id: '', 
+            gameId, 
+            status: 'not_started' as const, 
+            whiteAccuracy: null, 
+            blackAccuracy: null,
+            openingAccuracy: null,
+            middlegameAccuracy: null,
+            endgameAccuracy: null,
+            shareCode: null,
+          }, 
+          moves: [], 
+          game 
+        });
       }
       
       const moves = await storage.getMoveAnalyses(analysis.id);

@@ -144,28 +144,38 @@ function VerticalEvalBar({
 }
 
 function MoveList({
-  moves,
+  gameMoves,
+  analyzedMoves,
   currentIndex,
   onMoveClick,
 }: {
-  moves: MoveAnalysis[];
+  gameMoves: string[];
+  analyzedMoves?: MoveAnalysis[];
   currentIndex: number;
   onMoveClick: (index: number) => void;
 }) {
-  const groupedMoves: { white?: MoveAnalysis; black?: MoveAnalysis; moveNumber: number }[] = [];
+  // Group moves into pairs (white + black per row)
+  interface MovePair {
+    white?: { san: string; analysis?: MoveAnalysis };
+    black?: { san: string; analysis?: MoveAnalysis };
+    moveNumber: number;
+  }
+  const groupedMoves: MovePair[] = [];
   
-  for (let i = 0; i < moves.length; i++) {
-    const move = moves[i];
+  for (let i = 0; i < gameMoves.length; i++) {
+    const san = gameMoves[i];
+    const analysis = analyzedMoves?.[i];
     const pairIndex = Math.floor(i / 2);
+    const isWhite = i % 2 === 0;
     
     if (!groupedMoves[pairIndex]) {
-      groupedMoves[pairIndex] = { moveNumber: move.moveNumber };
+      groupedMoves[pairIndex] = { moveNumber: pairIndex + 1 };
     }
     
-    if (move.color === 'white') {
-      groupedMoves[pairIndex].white = move;
+    if (isWhite) {
+      groupedMoves[pairIndex].white = { san, analysis };
     } else {
-      groupedMoves[pairIndex].black = move;
+      groupedMoves[pairIndex].black = { san, analysis };
     }
   }
 
@@ -184,13 +194,13 @@ function MoveList({
                 onClick={() => onMoveClick(pairIndex * 2)}
                 data-testid={`move-white-${pair.moveNumber}`}
               >
-                <span className="font-mono">{pair.white.move}</span>
-                {pair.white.classification && (
+                <span className="font-mono">{pair.white.san}</span>
+                {pair.white.analysis?.classification && (
                   <Badge 
                     variant="outline" 
-                    className={`text-xs px-1 py-0 ${CLASSIFICATION_COLORS[pair.white.classification]}`}
+                    className={`text-xs px-1 py-0 ${CLASSIFICATION_COLORS[pair.white.analysis.classification]}`}
                   >
-                    {CLASSIFICATION_LABELS[pair.white.classification][0]}
+                    {CLASSIFICATION_LABELS[pair.white.analysis.classification][0]}
                   </Badge>
                 )}
               </button>
@@ -204,13 +214,13 @@ function MoveList({
                 onClick={() => onMoveClick(pairIndex * 2 + 1)}
                 data-testid={`move-black-${pair.moveNumber}`}
               >
-                <span className="font-mono">{pair.black.move}</span>
-                {pair.black.classification && (
+                <span className="font-mono">{pair.black.san}</span>
+                {pair.black.analysis?.classification && (
                   <Badge 
                     variant="outline" 
-                    className={`text-xs px-1 py-0 ${CLASSIFICATION_COLORS[pair.black.classification]}`}
+                    className={`text-xs px-1 py-0 ${CLASSIFICATION_COLORS[pair.black.analysis.classification]}`}
                   >
-                    {CLASSIFICATION_LABELS[pair.black.classification][0]}
+                    {CLASSIFICATION_LABELS[pair.black.analysis.classification][0]}
                   </Badge>
                 )}
               </button>
@@ -1365,6 +1375,29 @@ export default function GameAnalysisPage() {
     },
   });
 
+  // Use raw game moves for navigation - always available even before analysis completes
+  const gameMoves: string[] = useMemo(() => {
+    if (!data?.game?.moves) return [];
+    if (Array.isArray(data.game.moves)) return data.game.moves as string[];
+    if (typeof data.game.moves === 'string') return (data.game.moves as string).split(' ').filter(m => m.trim());
+    return [];
+  }, [data?.game?.moves]);
+  
+  // Compute FEN positions for each move using chess.js (so navigation works before analysis)
+  const computedFens = useMemo(() => {
+    const fens: string[] = [];
+    const chess = new Chess();
+    for (const move of gameMoves) {
+      try {
+        chess.move(move);
+        fens.push(chess.fen());
+      } catch {
+        break; // Stop on invalid move
+      }
+    }
+    return fens;
+  }, [gameMoves]);
+
   const startAnalysisMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('POST', `/api/analysis/start/${gameId}`);
@@ -1418,17 +1451,23 @@ export default function GameAnalysisPage() {
   });
 
   const currentFen = useCallback(() => {
-    if (!data?.moves || currentMoveIndex < 0) {
-      return 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const startingFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    if (currentMoveIndex < 0) {
+      return startingFen;
     }
-    return data.moves[currentMoveIndex]?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-  }, [data?.moves, currentMoveIndex]);
+    // First try analyzed moves (have FEN stored), then fall back to computed FENs
+    if (data?.moves && data.moves[currentMoveIndex]?.fen) {
+      return data.moves[currentMoveIndex].fen;
+    }
+    // Use computed FEN from game moves (works before analysis completes)
+    return computedFens[currentMoveIndex] || startingFen;
+  }, [data?.moves, currentMoveIndex, computedFens]);
 
   // Pre-move FEN: the position BEFORE the current move was made
   // This is what Engine Suggestions should analyze to show what moves are best
   const preMoveFen = useCallback(() => {
     const startingFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    if (!data?.moves || currentMoveIndex < 0) {
+    if (currentMoveIndex < 0) {
       return startingFen;
     }
     // For move at index N, get the FEN from index N-1 (position before this move)
@@ -1436,34 +1475,38 @@ export default function GameAnalysisPage() {
     if (currentMoveIndex === 0) {
       return startingFen;
     }
-    return data.moves[currentMoveIndex - 1]?.fen || startingFen;
-  }, [data?.moves, currentMoveIndex]);
+    // First try analyzed moves, then fall back to computed FENs
+    if (data?.moves && data.moves[currentMoveIndex - 1]?.fen) {
+      return data.moves[currentMoveIndex - 1].fen;
+    }
+    return computedFens[currentMoveIndex - 1] || startingFen;
+  }, [data?.moves, currentMoveIndex, computedFens]);
 
   const currentMove = currentMoveIndex >= 0 && data?.moves ? data.moves[currentMoveIndex] : null;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!data?.moves) return;
+      if (gameMoves.length === 0) return;
       
       switch (e.key) {
         case 'ArrowLeft':
           setCurrentMoveIndex(prev => Math.max(-1, prev - 1));
           break;
         case 'ArrowRight':
-          setCurrentMoveIndex(prev => Math.min(data.moves.length - 1, prev + 1));
+          setCurrentMoveIndex(prev => Math.min(gameMoves.length - 1, prev + 1));
           break;
         case 'Home':
           setCurrentMoveIndex(-1);
           break;
         case 'End':
-          setCurrentMoveIndex(data.moves.length - 1);
+          setCurrentMoveIndex(gameMoves.length - 1);
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [data?.moves]);
+  }, [gameMoves.length]);
 
   if (isLoading) {
     return (
@@ -1472,6 +1515,15 @@ export default function GameAnalysisPage() {
       </div>
     );
   }
+
+  // Auto-start analysis when status is 'not_started' or on error
+  useEffect(() => {
+    if (data?.analysis?.status === 'not_started' && !autoStarted && !startAnalysisMutation.isPending && !isSharedView && gameId) {
+      setAutoStarted(true);
+      toast({ title: 'Starting analysis...', description: 'This usually takes 15-30 seconds' });
+      startAnalysisMutation.mutate();
+    }
+  }, [data?.analysis?.status, autoStarted, startAnalysisMutation.isPending, isSharedView, gameId]);
 
   if (error || (!data && !isLoading)) {
     return (
@@ -1549,7 +1601,7 @@ export default function GameAnalysisPage() {
           </div>
         </div>
         
-        {!isSharedView && (
+        {!isSharedView && analysis.status === 'completed' && (
           <Button
             variant="outline"
             onClick={() => shareAnalysisMutation.mutate()}
@@ -1629,8 +1681,8 @@ export default function GameAnalysisPage() {
                     <Button
                       size="icon"
                       variant="outline"
-                      onClick={() => setCurrentMoveIndex(prev => Math.min(moves.length - 1, prev + 1))}
-                      disabled={currentMoveIndex >= moves.length - 1}
+                      onClick={() => setCurrentMoveIndex(prev => Math.min(gameMoves.length - 1, prev + 1))}
+                      disabled={currentMoveIndex >= gameMoves.length - 1}
                       data-testid="button-next-move"
                     >
                       <ChevronRight className="w-4 h-4" />
@@ -1638,8 +1690,8 @@ export default function GameAnalysisPage() {
                     <Button
                       size="icon"
                       variant="outline"
-                      onClick={() => setCurrentMoveIndex(moves.length - 1)}
-                      disabled={currentMoveIndex >= moves.length - 1}
+                      onClick={() => setCurrentMoveIndex(gameMoves.length - 1)}
+                      disabled={currentMoveIndex >= gameMoves.length - 1}
                       data-testid="button-last-move"
                     >
                       <ChevronsRight className="w-4 h-4" />
@@ -1648,63 +1700,105 @@ export default function GameAnalysisPage() {
                 </CardContent>
               </Card>
               
-              {currentMove && (
+              {currentMoveIndex >= 0 && (
                 <Card data-testid="current-move-details">
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-mono text-lg">{currentMove.move}</span>
-                        {currentMove.classification && (
-                          <Badge className={`ml-2 ${CLASSIFICATION_COLORS[currentMove.classification]}`}>
-                            {CLASSIFICATION_LABELS[currentMove.classification]}
-                          </Badge>
+                    {currentMove ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-mono text-lg">{currentMove.move}</span>
+                            {currentMove.classification && (
+                              <Badge className={`ml-2 ${CLASSIFICATION_COLORS[currentMove.classification]}`}>
+                                {CLASSIFICATION_LABELS[currentMove.classification]}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Eval: {getPlayerEval(currentMove.evalAfter, playerColor)?.toFixed(2) ?? '--'}
+                            {currentMove.centipawnLoss != null && currentMove.centipawnLoss > 0 && (
+                              <span className="text-red-500 ml-2">
+                                ({currentMove.centipawnLoss} cp loss)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {currentMove.bestMove && currentMove.move !== currentMove.bestMove && (
+                          <div className="mt-2 p-2 bg-muted rounded text-sm">
+                            <span className="text-muted-foreground">Best was: </span>
+                            <span className="font-mono">{currentMove.bestMove}</span>
+                            <span className="text-muted-foreground ml-2">
+                              (eval: {getPlayerEval(currentMove.bestMoveEval, playerColor)?.toFixed(2)})
+                            </span>
+                          </div>
                         )}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Eval: {getPlayerEval(currentMove.evalAfter, playerColor)?.toFixed(2) ?? '--'}
-                        {currentMove.centipawnLoss != null && currentMove.centipawnLoss > 0 && (
-                          <span className="text-red-500 ml-2">
-                            ({currentMove.centipawnLoss} cp loss)
-                          </span>
+                        
+                        {currentMove.missedTactics && (currentMove.missedTactics as any[]).length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {(currentMove.missedTactics as { pattern: string }[]).map((t, i) => (
+                              <Badge key={i} variant="outline" className="bg-red-500/10">
+                                Missed {t.pattern}
+                              </Badge>
+                            ))}
+                          </div>
                         )}
-                      </div>
-                    </div>
-                    
-                    {currentMove.bestMove && currentMove.move !== currentMove.bestMove && (
-                      <div className="mt-2 p-2 bg-muted rounded text-sm">
-                        <span className="text-muted-foreground">Best was: </span>
-                        <span className="font-mono">{currentMove.bestMove}</span>
-                        <span className="text-muted-foreground ml-2">
-                          (eval: {getPlayerEval(currentMove.bestMoveEval, playerColor)?.toFixed(2)})
-                        </span>
-                      </div>
-                    )}
-                    
-                    {currentMove.missedTactics && (currentMove.missedTactics as any[]).length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {(currentMove.missedTactics as { pattern: string }[]).map((t, i) => (
-                          <Badge key={i} variant="outline" className="bg-red-500/10">
-                            Missed {t.pattern}
-                          </Badge>
-                        ))}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="font-mono">{gameMoves[currentMoveIndex]}</span>
+                        <span className="text-sm">- Analyzing move...</span>
                       </div>
                     )}
                   </CardContent>
                 </Card>
               )}
               
-              <EngineSuggestions fen={preMoveFen()} playerColor={playerColor} />
+              {analysis.status === 'completed' && (
+                <EngineSuggestions fen={preMoveFen()} playerColor={playerColor} />
+              )}
             </TabsContent>
             
             <TabsContent value="review">
-              <ReviewTab analysis={analysis} game={game} moves={moves} onNavigateToMove={handleNavigateToMove} />
+              {analysis.status === 'completed' ? (
+                <ReviewTab analysis={analysis} game={game} moves={moves} onNavigateToMove={handleNavigateToMove} />
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Analysis in Progress</h3>
+                    <p className="text-muted-foreground">
+                      The Review tab will be available once analysis completes.
+                      You can navigate through moves in the Analyze tab while waiting.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
         </div>
         
         <div className="space-y-4">
-          <QuickSummary analysis={analysis} moves={moves} playerColor={playerColor} />
-          <PhaseBreakdown analysis={analysis} />
+          {analysis.status === 'completed' ? (
+            <>
+              <QuickSummary analysis={analysis} moves={moves} playerColor={playerColor} />
+              <PhaseBreakdown analysis={analysis} />
+            </>
+          ) : (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="font-medium">Analyzing...</span>
+                </div>
+                <Progress value={moves.length / gameMoves.length * 100} className="h-2" />
+                <p className="text-sm text-muted-foreground mt-2">
+                  {moves.length} of {gameMoves.length} moves analyzed
+                </p>
+              </CardContent>
+            </Card>
+          )}
           
           <Card>
             <CardHeader className="pb-2">
@@ -1712,7 +1806,8 @@ export default function GameAnalysisPage() {
             </CardHeader>
             <CardContent className="p-0">
               <MoveList
-                moves={moves}
+                gameMoves={gameMoves}
+                analyzedMoves={moves}
                 currentIndex={currentMoveIndex}
                 onMoveClick={setCurrentMoveIndex}
               />
