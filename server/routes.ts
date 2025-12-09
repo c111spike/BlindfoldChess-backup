@@ -2427,6 +2427,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get top 3 engine moves for a position
+  app.post('/api/analysis/top-moves', isAuthenticated, async (req: any, res) => {
+    try {
+      const { fen } = req.body;
+      
+      if (!fen || typeof fen !== 'string') {
+        return res.status(400).json({ message: "FEN position is required" });
+      }
+      
+      const topMoves = await stockfishService.getTopMoves(fen, 3, 18);
+      
+      // Convert UCI moves to SAN for display
+      const { Chess } = await import('chess.js');
+      const chess = new Chess(fen);
+      
+      const formattedMoves = topMoves.map((move, index) => {
+        let san = move.move;
+        try {
+          // Try to convert UCI to SAN
+          const result = chess.move({
+            from: move.move.slice(0, 2),
+            to: move.move.slice(2, 4),
+            promotion: move.move.length > 4 ? move.move[4] : undefined,
+          });
+          if (result) {
+            san = result.san;
+            chess.undo();
+          }
+        } catch {
+          // Keep UCI format if conversion fails
+        }
+        
+        return {
+          rank: index + 1,
+          move: san,
+          uci: move.move,
+          evaluation: move.evaluation,
+          isMate: move.isMate,
+          mateIn: move.mateIn,
+        };
+      });
+      
+      res.json({ moves: formattedMoves });
+    } catch (error) {
+      console.error("Error getting top moves:", error);
+      res.status(500).json({ message: "Failed to get top moves" });
+    }
+  });
+
   // VSS Interactive Training - Validate user's move against best move
   app.post('/api/game-analyses/:gameId/vss-train', isAuthenticated, async (req: any, res) => {
     try {
