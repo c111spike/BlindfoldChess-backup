@@ -543,7 +543,7 @@ export const moveAnalysis = pgTable("move_analysis", {
   centipawnLoss: integer("centipawn_loss"),
   classification: moveClassificationEnum("classification"),
   phase: gamePhaseEnum("phase"),
-  thinkingTime: integer("thinking_time"),
+  thinkingTime: real("thinking_time"),
   clockTime: integer("clock_time"),
   isCheck: boolean("is_check").default(false),
   isCapture: boolean("is_capture").default(false),

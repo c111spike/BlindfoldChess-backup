@@ -487,7 +487,10 @@ function ReviewTab({
   // Get FEN at a specific ply index (position BEFORE the move at that ply)
   const getFenAtPly = useCallback((plyIndex: number): string => {
     const chess = new Chess();
-    const gameMoves = game.moves ? (game.moves as string).split(' ') : [];
+    // Handle both array and string formats for game.moves
+    const gameMoves = Array.isArray(game.moves) 
+      ? game.moves as string[]
+      : (typeof game.moves === 'string' ? (game.moves as string).split(' ') : []);
     
     for (let i = 0; i < plyIndex && i < gameMoves.length; i++) {
       try {
@@ -503,11 +506,12 @@ function ReviewTab({
     // Only open trainer if remaining time >= 60 seconds
     if (remainingTime && remainingTime >= 60) {
       const fen = getFenAtPly(plyIndex);
-      const moveAnalysis = moves.find(m => m.plyIndex === plyIndex);
+      // moveNumber is 1-indexed, plyIndex is 0-indexed
+      const moveAnalysis = moves.find(m => m.moveNumber === Math.floor(plyIndex / 2) + 1);
       setSelectedMismatch({
         plyIndex,
         fen,
-        bestMove: moveAnalysis?.engineBestMove || undefined,
+        bestMove: moveAnalysis?.bestMove || undefined,
       });
       setTrainerOpen(true);
     } else {
