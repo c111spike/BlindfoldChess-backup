@@ -528,7 +528,11 @@ function ReviewTab({
     : 0;
   
   const hasTimeRemaining = remainingTime != null && remainingTime > 60;
-  const vssMismatches = (analysis.vssMismatchAlerts as number[] | null) || [];
+  const allVssMismatches = (analysis.vssMismatchAlerts as number[] | null) || [];
+  // Filter to only show the player's own moves (white = even ply indices, black = odd ply indices)
+  const vssMismatches = allVssMismatches.filter(plyIndex => 
+    (playerColor === 'white' && plyIndex % 2 === 0) || (playerColor === 'black' && plyIndex % 2 === 1)
+  );
   const hadMismatchesWithTimeLeft = hasTimeRemaining && vssMismatches.length > 0;
   
   const formatTime = (seconds: number, showDecimals = true) => {
