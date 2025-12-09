@@ -330,7 +330,7 @@ export default function StandardMode() {
       
       // Record opponent's thinking time (we don't know exact time, so we estimate from clock difference)
       // This records the opponent's move time slot - the actual time is tracked server-side
-      const opponentThinkingTime = Math.round((Date.now() - turnStartTimeRef.current) / 1000);
+      const opponentThinkingTime = (Date.now() - turnStartTimeRef.current) / 1000;
       const newThinkingTimes = [...thinkingTimesRef.current, opponentThinkingTime];
       setThinkingTimes(newThinkingTimes);
       thinkingTimesRef.current = newThinkingTimes;
@@ -385,7 +385,7 @@ export default function StandardMode() {
                 setLastMove({ from: premoveMoveObj.from, to: premoveMoveObj.to });
                 
                 // Record thinking time for premove (effectively instant since pre-planned)
-                const premoveThinkingTime = Math.round((Date.now() - turnStartTimeRef.current) / 1000);
+                const premoveThinkingTime = (Date.now() - turnStartTimeRef.current) / 1000;
                 const premoveNewThinkingTimes = [...thinkingTimesRef.current, premoveThinkingTime];
                 setThinkingTimes(premoveNewThinkingTimes);
                 thinkingTimesRef.current = premoveNewThinkingTimes;
@@ -1101,7 +1101,7 @@ export default function StandardMode() {
         console.log('[executeMove] Move SAN:', move.san);
         
         // Record thinking time for this move
-        const thinkingTime = Math.round((Date.now() - turnStartTimeRef.current) / 1000);
+        const thinkingTime = (Date.now() - turnStartTimeRef.current) / 1000;
         const newThinkingTimes = [...thinkingTimesRef.current, thinkingTime];
         setThinkingTimes(newThinkingTimes);
         thinkingTimesRef.current = newThinkingTimes;
@@ -1136,7 +1136,7 @@ export default function StandardMode() {
             const botMove = await requestBotMove(newFen, selectedBot.id, moveHistorySAN);
             if (botMove && game) {
               // Record bot's thinking time
-              const botThinkingTime = Math.round((Date.now() - botThinkStartTime) / 1000);
+              const botThinkingTime = (Date.now() - botThinkStartTime) / 1000;
               const botNewThinkingTimes = [...thinkingTimesRef.current, botThinkingTime];
               setThinkingTimes(botNewThinkingTimes);
               thinkingTimesRef.current = botNewThinkingTimes;

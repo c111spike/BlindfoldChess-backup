@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Chess } from 'chess.js';
+import { Chess, Square } from 'chess.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import {
@@ -32,6 +33,10 @@ import {
   Eye,
   Loader2,
   ArrowLeft,
+  Play,
+  HelpCircle,
+  XCircle,
+  CheckCircle,
 } from 'lucide-react';
 import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase } from '@shared/schema';
 
@@ -74,23 +79,33 @@ function getPlayerEval(evaluation: number | null | undefined, playerColor: strin
 
 function VerticalEvalBar({ 
   evaluation,
-  flipped = false
+  flipped = false,
+  isCheckmate = false,
+  checkmateWinner
 }: { 
   evaluation: number | null;
   flipped?: boolean;
+  isCheckmate?: boolean;
+  checkmateWinner?: 'white' | 'black';
 }) {
   const maxEval = 10;
+  
+  // If checkmate, show maxed-out evaluation for the winner
+  let rawValue = evaluation ?? 0;
+  if (isCheckmate && checkmateWinner) {
+    rawValue = checkmateWinner === 'white' ? 999 : -999;
+  }
+  
   // Evaluation is stored from white's perspective
   // If player is black (flipped=true), flip to show from their perspective
-  const rawValue = evaluation ?? 0;
   const playerEval = flipped ? -rawValue : rawValue;
   const clampedEval = Math.max(-maxEval, Math.min(maxEval, playerEval));
   
   // Bar shows player's advantage: positive = bar fills toward player's side
   // When not flipped: white at bottom, black at top (standard orientation)
   // When flipped: black at bottom, white at top
-  const whiteAdvantage = Math.max(-maxEval, Math.min(maxEval, rawValue)); // Always from white's perspective for bar
-  const whitePercentage = 50 + (whiteAdvantage / maxEval) * 50;
+  const displayValue = isCheckmate ? (checkmateWinner === 'white' ? maxEval : -maxEval) : Math.max(-maxEval, Math.min(maxEval, rawValue));
+  const whitePercentage = 50 + (displayValue / maxEval) * 50;
   const blackPercentage = 100 - whitePercentage;
   
   const formatEval = (val: number) => {
@@ -457,10 +472,49 @@ function ReviewTab({
   moves: MoveAnalysis[];
   onNavigateToMove?: (moveIndex: number) => void;
 }) {
+  const [trainerOpen, setTrainerOpen] = useState(false);
+  const [selectedMismatch, setSelectedMismatch] = useState<{
+    plyIndex: number;
+    fen: string;
+    bestMove?: string;
+  } | null>(null);
+  
   const thinkingTimes = (game.thinkingTimes as number[] | null) || [];
   const playerColor = game.playerColor;
   const remainingTime = playerColor === 'white' ? game.whiteTime : game.blackTime;
   const initialTime = game.timeControl;
+  
+  // Get FEN at a specific ply index (position BEFORE the move at that ply)
+  const getFenAtPly = useCallback((plyIndex: number): string => {
+    const chess = new Chess();
+    const gameMoves = game.moves ? (game.moves as string).split(' ') : [];
+    
+    for (let i = 0; i < plyIndex && i < gameMoves.length; i++) {
+      try {
+        chess.move(gameMoves[i]);
+      } catch (e) {
+        break;
+      }
+    }
+    return chess.fen();
+  }, [game.moves]);
+  
+  const handleVSSMismatchClick = useCallback((plyIndex: number) => {
+    // Only open trainer if remaining time >= 60 seconds
+    if (remainingTime && remainingTime >= 60) {
+      const fen = getFenAtPly(plyIndex);
+      const moveAnalysis = moves.find(m => m.plyIndex === plyIndex);
+      setSelectedMismatch({
+        plyIndex,
+        fen,
+        bestMove: moveAnalysis?.engineBestMove || undefined,
+      });
+      setTrainerOpen(true);
+    } else {
+      // Just navigate if not enough time
+      onNavigateToMove?.(plyIndex);
+    }
+  }, [getFenAtPly, moves, remainingTime, onNavigateToMove]);
   
   const playerThinkingTimes = thinkingTimes.filter((_, i) => 
     (playerColor === 'white' && i % 2 === 0) || (playerColor === 'black' && i % 2 === 1)
@@ -473,10 +527,14 @@ function ReviewTab({
   const vssMismatches = (analysis.vssMismatchAlerts as number[] | null) || [];
   const hadMismatchesWithTimeLeft = hasTimeRemaining && vssMismatches.length > 0;
   
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds: number, showDecimals = true) => {
     const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
+    if (mins > 0) {
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    // For sub-minute times, show one decimal place for averages
+    return showDecimals ? `${seconds.toFixed(1)}s` : `${Math.floor(seconds)}s`;
   };
 
   return (
@@ -629,6 +687,11 @@ function ReviewTab({
           <CardContent>
             <p className="text-sm text-muted-foreground mb-3">
               Positions where you may have misjudged the evaluation
+              {hasTimeRemaining && (
+                <span className="block mt-1 text-primary">
+                  Click a move to practice finding the best move!
+                </span>
+              )}
             </p>
             <div className="space-y-2">
               {vssMismatches.map((plyIndex, i) => {
@@ -638,13 +701,21 @@ function ReviewTab({
                 return (
                   <div 
                     key={i}
-                    className={`flex items-center justify-between p-2 rounded-lg bg-muted/50 ${onNavigateToMove ? "cursor-pointer hover-elevate" : ""}`}
-                    onClick={() => onNavigateToMove?.(plyIndex)}
+                    className={`flex items-center justify-between p-2 rounded-lg bg-muted/50 cursor-pointer hover-elevate`}
+                    onClick={() => handleVSSMismatchClick(plyIndex)}
                     data-testid={`vss-move-${plyIndex}`}
                   >
-                    <span className="font-medium">
-                      Move {moveNumber}{isBlackMove ? '...' : ''}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">
+                        Move {moveNumber}{isBlackMove ? '...' : ''}
+                      </span>
+                      {hasTimeRemaining && (
+                        <Badge variant="outline" className="text-xs">
+                          <Play className="w-3 h-3 mr-1" />
+                          Practice
+                        </Badge>
+                      )}
+                    </div>
                     {moveTime != null && (
                       <span className="text-sm text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -681,6 +752,20 @@ function ReviewTab({
       )}
       
       <PeekStatistics game={game} />
+      
+      {/* VSS Interactive Training Dialog */}
+      {selectedMismatch && (
+        <VSSTrainerDialog
+          open={trainerOpen}
+          onOpenChange={setTrainerOpen}
+          fen={selectedMismatch.fen}
+          plyIndex={selectedMismatch.plyIndex}
+          gameId={String(game.id)}
+          remainingTime={Math.floor(remainingTime || 60)}
+          playerColor={playerColor || 'white'}
+          bestMove={selectedMismatch.bestMove}
+        />
+      )}
     </div>
   );
 }
@@ -737,6 +822,345 @@ function ChessBoard({ fen, lastMove, flipped = false }: { fen: string; lastMove?
         )}
       </div>
     </div>
+  );
+}
+
+// Interactive chessboard for VSS training
+function InteractiveTrainerBoard({ 
+  fen, 
+  flipped = false,
+  onMove,
+  highlightSquares = [],
+  disabled = false,
+}: { 
+  fen: string; 
+  flipped?: boolean;
+  onMove: (from: string, to: string) => void;
+  highlightSquares?: string[];
+  disabled?: boolean;
+}) {
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  
+  const chess = useMemo(() => new Chess(fen), [fen]);
+  const board = chess.board();
+  
+  const pieceSymbols: Record<string, string> = {
+    'k': '\u265A', 'q': '\u265B', 'r': '\u265C', 'b': '\u265D', 'n': '\u265E', 'p': '\u265F',
+    'K': '\u2654', 'Q': '\u2655', 'R': '\u2656', 'B': '\u2657', 'N': '\u2658', 'P': '\u2659',
+  };
+
+  const handleSquareClick = (square: string) => {
+    if (disabled) return;
+    
+    if (selectedSquare) {
+      if (legalMoves.includes(square)) {
+        onMove(selectedSquare, square);
+        setSelectedSquare(null);
+        setLegalMoves([]);
+      } else {
+        // Select new square
+        const piece = chess.get(square as Square);
+        if (piece && piece.color === chess.turn()) {
+          setSelectedSquare(square);
+          const moves = chess.moves({ square: square as Square, verbose: true });
+          setLegalMoves(moves.map(m => m.to));
+        } else {
+          setSelectedSquare(null);
+          setLegalMoves([]);
+        }
+      }
+    } else {
+      const piece = chess.get(square as Square);
+      if (piece && piece.color === chess.turn()) {
+        setSelectedSquare(square);
+        const moves = chess.moves({ square: square as Square, verbose: true });
+        setLegalMoves(moves.map(m => m.to));
+      }
+    }
+  };
+
+  const getSquareColor = (displayRow: number, displayCol: number) => {
+    const actualRow = flipped ? 7 - displayRow : displayRow;
+    const actualCol = flipped ? 7 - displayCol : displayCol;
+    const isLight = (actualRow + actualCol) % 2 === 0;
+    const file = String.fromCharCode(97 + actualCol);
+    const rank = 8 - actualRow;
+    const square = `${file}${rank}`;
+    
+    if (selectedSquare === square) {
+      return 'bg-blue-400';
+    }
+    if (legalMoves.includes(square)) {
+      return isLight ? 'bg-green-200' : 'bg-green-500';
+    }
+    if (highlightSquares.includes(square)) {
+      return isLight ? 'bg-yellow-200' : 'bg-yellow-500';
+    }
+    
+    return isLight ? 'bg-amber-100' : 'bg-amber-700';
+  };
+
+  const getSquareContent = (displayRow: number, displayCol: number) => {
+    const actualRow = flipped ? 7 - displayRow : displayRow;
+    const actualCol = flipped ? 7 - displayCol : displayCol;
+    return board[actualRow][actualCol];
+  };
+
+  const getSquareName = (displayRow: number, displayCol: number) => {
+    const actualRow = flipped ? 7 - displayRow : displayRow;
+    const actualCol = flipped ? 7 - displayCol : displayCol;
+    const file = String.fromCharCode(97 + actualCol);
+    const rank = 8 - actualRow;
+    return `${file}${rank}`;
+  };
+
+  return (
+    <div className="aspect-square w-full max-w-sm mx-auto" data-testid="trainer-chessboard">
+      <div className="grid grid-cols-8 grid-rows-8 w-full h-full border-2 border-foreground/20 rounded overflow-hidden">
+        {Array.from({ length: 8 }).map((_, rowIndex) =>
+          Array.from({ length: 8 }).map((_, colIndex) => {
+            const square = getSquareContent(rowIndex, colIndex);
+            const squareName = getSquareName(rowIndex, colIndex);
+            return (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className={`flex items-center justify-center aspect-square cursor-pointer transition-colors ${getSquareColor(rowIndex, colIndex)} ${disabled ? 'cursor-not-allowed opacity-75' : 'hover:brightness-110'}`}
+                onClick={() => handleSquareClick(squareName)}
+                data-testid={`square-${squareName}`}
+              >
+                {square && (
+                  <span className={`text-2xl md:text-3xl ${square.color === 'w' ? 'text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]' : 'text-gray-900'}`}>
+                    {pieceSymbols[square.color === 'w' ? square.type.toUpperCase() : square.type]}
+                  </span>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// VSS Interactive Training Dialog
+function VSSTrainerDialog({
+  open,
+  onOpenChange,
+  fen,
+  plyIndex,
+  gameId,
+  remainingTime,
+  playerColor,
+  bestMove,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  fen: string;
+  plyIndex: number;
+  gameId: string;
+  remainingTime: number;
+  playerColor: string;
+  bestMove?: string;
+}) {
+  const { toast } = useToast();
+  const [timeLeft, setTimeLeft] = useState(remainingTime);
+  const [attempts, setAttempts] = useState(0);
+  const [result, setResult] = useState<'pending' | 'correct' | 'incorrect' | 'timeout'>('pending');
+  const [highlightSquares, setHighlightSquares] = useState<string[]>([]);
+  const [revealedMove, setRevealedMove] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const moveNumber = Math.floor(plyIndex / 2) + 1;
+  const isBlackMove = plyIndex % 2 === 1;
+  const flipped = playerColor === 'black';
+  
+  // Reset state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setTimeLeft(remainingTime);
+      setAttempts(0);
+      setResult('pending');
+      setHighlightSquares([]);
+      setRevealedMove(null);
+    }
+  }, [open, remainingTime]);
+  
+  // Countdown timer
+  useEffect(() => {
+    if (open && result === 'pending') {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            setResult('timeout');
+            if (bestMove) {
+              setRevealedMove(bestMove);
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+      };
+    }
+  }, [open, result, bestMove]);
+  
+  // Clean up timer on close
+  useEffect(() => {
+    if (!open && timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  }, [open]);
+  
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  const handleMove = async (from: string, to: string) => {
+    if (result !== 'pending') return;
+    
+    setIsValidating(true);
+    const userMove = `${from}${to}`;
+    
+    try {
+      const response = await apiRequest('POST', `/api/game-analyses/${gameId}/vss-train`, {
+        plyIndex,
+        userMove,
+      });
+      const data = await response.json();
+      
+      if (data.correct) {
+        setResult('correct');
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+        toast({ title: 'Correct!', description: 'You found the best move!' });
+      } else {
+        setAttempts(prev => prev + 1);
+        
+        if (attempts >= 1) {
+          // Third attempt - reveal the answer
+          setResult('incorrect');
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+          }
+          setRevealedMove(data.bestMove || bestMove);
+          toast({ title: 'Not quite', description: 'The best move has been revealed.', variant: 'destructive' });
+        } else if (attempts === 0) {
+          // First wrong attempt - show hint squares
+          if (data.hintSquares) {
+            setHighlightSquares(data.hintSquares);
+          }
+          toast({ title: 'Try again', description: 'Look at the highlighted squares for a hint.' });
+        }
+      }
+    } catch (error) {
+      console.error('Error validating move:', error);
+      toast({ title: 'Error', description: 'Failed to validate move', variant: 'destructive' });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+  
+  const getResultIcon = () => {
+    switch (result) {
+      case 'correct':
+        return <CheckCircle className="w-8 h-8 text-green-500" />;
+      case 'incorrect':
+      case 'timeout':
+        return <XCircle className="w-8 h-8 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+  
+  const getTimerColor = () => {
+    if (timeLeft <= 10) return 'text-red-500';
+    if (timeLeft <= 30) return 'text-yellow-500';
+    return 'text-foreground';
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg" data-testid="vss-trainer-dialog">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Brain className="w-5 h-5" />
+            Find the Best Move
+          </DialogTitle>
+          <DialogDescription>
+            Move {moveNumber}{isBlackMove ? '...' : ''} - You had {formatCountdown(remainingTime)} left when the game ended.
+            Can you find the best move?
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Timer */}
+          <div className="flex items-center justify-center gap-2">
+            <Clock className="w-5 h-5" />
+            <span className={`text-2xl font-mono font-bold ${getTimerColor()}`} data-testid="trainer-timer">
+              {formatCountdown(timeLeft)}
+            </span>
+            {result === 'pending' && attempts > 0 && (
+              <Badge variant="outline" className="ml-2">
+                Attempt {attempts + 1}/3
+              </Badge>
+            )}
+          </div>
+          
+          {/* Board */}
+          <InteractiveTrainerBoard
+            fen={fen}
+            flipped={flipped}
+            onMove={handleMove}
+            highlightSquares={highlightSquares}
+            disabled={result !== 'pending' || isValidating}
+          />
+          
+          {/* Result feedback */}
+          {result !== 'pending' && (
+            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-muted">
+              {getResultIcon()}
+              <p className="font-semibold">
+                {result === 'correct' && 'Well done!'}
+                {result === 'incorrect' && 'Better luck next time!'}
+                {result === 'timeout' && 'Time\'s up!'}
+              </p>
+              {revealedMove && (
+                <p className="text-sm text-muted-foreground">
+                  The best move was: <span className="font-mono font-bold">{revealedMove}</span>
+                </p>
+              )}
+              {result === 'correct' && (
+                <p className="text-sm text-muted-foreground">
+                  Remember: taking your time on critical positions pays off!
+                </p>
+              )}
+            </div>
+          )}
+          
+          {isValidating && (
+            <div className="flex justify-center">
+              <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+          )}
+        </div>
+        
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} data-testid="button-close-trainer">
+            {result === 'pending' ? 'Cancel' : 'Close'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -973,10 +1397,20 @@ export default function GameAnalysisPage() {
               <Card>
                 <CardContent className="p-4">
                   <div className="grid gap-2" style={{ gridTemplateColumns: '24px 1fr' }}>
-                    <VerticalEvalBar 
-                      evaluation={currentMove?.evalAfter ?? 0} 
-                      flipped={playerColor === 'black'}
-                    />
+                    {(() => {
+                      const fen = currentFen();
+                      const chess = new Chess(fen);
+                      const isCheckmate = chess.isCheckmate();
+                      const checkmateWinner = isCheckmate ? (chess.turn() === 'w' ? 'black' : 'white') : undefined;
+                      return (
+                        <VerticalEvalBar 
+                          evaluation={currentMove?.evalAfter ?? 0} 
+                          flipped={playerColor === 'black'}
+                          isCheckmate={isCheckmate}
+                          checkmateWinner={checkmateWinner}
+                        />
+                      );
+                    })()}
                     <ChessBoard 
                       fen={currentFen()} 
                       lastMove={currentMove ? { 

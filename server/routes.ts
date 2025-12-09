@@ -2427,6 +2427,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // VSS Interactive Training - Validate user's move against best move
+  app.post('/api/game-analyses/:gameId/vss-train', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { gameId } = req.params;
+      const { plyIndex, userMove } = req.body;
+      
+      if (typeof plyIndex !== 'number' || typeof userMove !== 'string') {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      
+      // Get game and verify ownership
+      const game = await storage.getGame(gameId);
+      if (!game) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+      
+      if (game.whitePlayerId !== userId && game.blackPlayerId !== userId && game.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to access this game" });
+      }
+      
+      // Get the move analysis for this ply
+      const analysis = await storage.getGameAnalysis(gameId);
+      if (!analysis) {
+        return res.status(404).json({ message: "Analysis not found" });
+      }
+      
+      const moveAnalyses = await storage.getMoveAnalyses(analysis.id);
+      // plyIndex maps to moveNumber for the player's moves
+      const moveNumber = Math.floor(plyIndex / 2) + 1;
+      const color = plyIndex % 2 === 0 ? 'white' : 'black';
+      const moveAnalysis = moveAnalyses.find(m => m.moveNumber === moveNumber && m.color === color);
+      
+      if (!moveAnalysis || !moveAnalysis.bestMove) {
+        return res.status(404).json({ message: "Move analysis not found" });
+      }
+      
+      const bestMove = moveAnalysis.bestMove;
+      
+      // Normalize move formats for comparison
+      // User move is in format "e2e4", best move may be in SAN like "e4" or UCI like "e2e4"
+      const normalizeMove = (move: string) => move.toLowerCase().replace(/[+#=].*$/, '').trim();
+      const normalizedUserMove = normalizeMove(userMove);
+      const normalizedBestMove = normalizeMove(bestMove);
+      
+      // Check if user's move matches best move
+      // Handle both UCI format (e2e4) and partial matches
+      const isCorrect = normalizedUserMove === normalizedBestMove ||
+                        normalizedBestMove.includes(normalizedUserMove) ||
+                        normalizedUserMove.includes(normalizedBestMove);
+      
+      if (isCorrect) {
+        return res.json({ correct: true, bestMove });
+      }
+      
+      // Extract hint squares from best move (from and to squares)
+      const hintSquares: string[] = [];
+      if (bestMove.length >= 4) {
+        // UCI format: e2e4
+        hintSquares.push(bestMove.slice(0, 2));
+        hintSquares.push(bestMove.slice(2, 4));
+      }
+      
+      return res.json({ 
+        correct: false, 
+        bestMove,
+        hintSquares 
+      });
+    } catch (error) {
+      console.error("Error in VSS training validation:", error);
+      res.status(500).json({ message: "Failed to validate move" });
+    }
+  });
+
   app.get('/api/accuracy-history', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

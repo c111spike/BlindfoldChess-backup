@@ -140,6 +140,7 @@ export default function OTBMode() {
   const pendingCheckmateRef = useRef<NodeJS.Timeout | null>(null);
   const handleGameEndRef = useRef<((result: "white_win" | "black_win" | "draw") => void) | null>(null);
   const arbiterTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const gameStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     gameRef.current = game;
@@ -397,6 +398,7 @@ export default function OTBMode() {
     
     if (myHandshakeOffered) {
       setHandshakeComplete(true);
+      gameStartTimeRef.current = Date.now(); // Reset timer on handshake complete
       toast({ title: "Handshake complete!", description: "Good luck!" });
     }
   }, [matchId, playerColor, moves.length, myHandshakeOffered, toast]);
@@ -598,6 +600,7 @@ export default function OTBMode() {
           setGameResult(null);
           setGameStarted(true);
           setInQueue(false);
+          gameStartTimeRef.current = Date.now(); // Track game start for first move timing
           const assignedColor = response.game.playerColor === "white" ? "white" : "black";
           setPlayerColor(assignedColor);
           setActiveColor("white");
@@ -737,11 +740,15 @@ export default function OTBMode() {
     const thinkingTimes: number[] = [];
     for (let i = 0; i < moves.length; i++) {
       if (i === 0) {
-        // First move - we don't have a reliable start time, estimate from timestamp
-        // Use 0 or a small default value since we don't have game start time
-        thinkingTimes.push(0);
+        // First move - use game start time if available
+        if (gameStartTimeRef.current) {
+          const timeDiff = (moves[i].timestamp - gameStartTimeRef.current) / 1000;
+          thinkingTimes.push(Math.max(0, timeDiff));
+        } else {
+          thinkingTimes.push(0);
+        }
       } else {
-        const timeDiff = Math.round((moves[i].timestamp - moves[i - 1].timestamp) / 1000);
+        const timeDiff = (moves[i].timestamp - moves[i - 1].timestamp) / 1000;
         thinkingTimes.push(Math.max(0, timeDiff));
       }
     }
@@ -886,6 +893,7 @@ export default function OTBMode() {
     setIncrement(0);
     setGameResult(null);
     setGameStarted(true);
+    gameStartTimeRef.current = Date.now(); // Track game start for first move timing
     
     const newGame = new Chess();
     setGame(newGame);
@@ -1019,6 +1027,7 @@ export default function OTBMode() {
     }
     
     setGameStarted(true);
+    gameStartTimeRef.current = Date.now(); // Track game start for first move timing
     
     if (assignedColor === "black") {
       setTimeout(async () => {
@@ -1658,6 +1667,7 @@ export default function OTBMode() {
   useEffect(() => {
     if (myHandshakeOffered && opponentHandshakeOffered && !handshakeComplete) {
       setHandshakeComplete(true);
+      gameStartTimeRef.current = Date.now(); // Reset timer on handshake complete
       toast({ title: "Handshake complete!", description: "Good luck!" });
     }
   }, [myHandshakeOffered, opponentHandshakeOffered, handshakeComplete, toast]);
@@ -2210,6 +2220,7 @@ export default function OTBMode() {
                   }
                   if (opponentHandshakeOffered) {
                     setHandshakeComplete(true);
+                    gameStartTimeRef.current = Date.now(); // Reset timer on handshake complete
                     toast({ title: "Handshake accepted!", description: "Good luck!" });
                   }
                 }}
