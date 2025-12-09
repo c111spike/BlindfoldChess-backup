@@ -312,7 +312,7 @@ class StockfishService {
     });
   }
 
-  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', depth: number = 12): Promise<MoveAnalysisResult[]> {
+  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', depth: number = 18): Promise<MoveAnalysisResult[]> {
     if (!this.isReady) {
       await this.init();
     }
