@@ -1404,7 +1404,7 @@ export default function GameAnalysisPage() {
             <TabsContent value="analyze" className="space-y-4">
               <Card>
                 <CardContent className="p-4">
-                  <div className="grid gap-2" style={{ gridTemplateColumns: '24px 1fr' }}>
+                  <div className="grid gap-0" style={{ gridTemplateColumns: '24px 1fr' }}>
                     {(() => {
                       const fen = currentFen();
                       const chess = new Chess(fen);
