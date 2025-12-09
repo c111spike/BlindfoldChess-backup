@@ -447,7 +447,17 @@ class StockfishService {
     this.sendCommand(`position fen ${fen}`);
     this.sendCommand(`go depth ${depth}`);
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      // Timeout to prevent hanging if Stockfish doesn't respond
+      const timeoutId = setTimeout(() => {
+        this.process?.stdout?.removeAllListeners('data');
+        this.process?.stdout?.on('data', (d: Buffer) => {
+          this.outputBuffer += d.toString();
+          this.processOutput();
+        });
+        this.sendCommand('setoption name MultiPV value 1');
+        resolve([]);
+      }, 30000);
       const results: Map<number, TopMoveResult> = new Map();
       let collectedOutput = '';
 
@@ -496,6 +506,7 @@ class StockfishService {
           }
 
           if (line.startsWith('bestmove')) {
+            clearTimeout(timeoutId);
             this.process?.stdout?.removeListener('data', handler);
             this.process?.stdout?.on('data', (d: Buffer) => {
               this.outputBuffer += d.toString();

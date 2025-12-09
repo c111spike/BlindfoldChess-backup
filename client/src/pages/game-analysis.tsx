@@ -778,6 +778,166 @@ function ReviewTab({
   );
 }
 
+interface TopMove {
+  rank: number;
+  move: string;
+  uci: string;
+  evaluation: number;
+  isMate: boolean;
+  mateIn?: number;
+}
+
+function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: string }) {
+  const [topMoves, setTopMoves] = useState<TopMove[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pendingControllerRef = useRef<AbortController | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Cancel any pending debounce timer
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Cancel any in-flight request from a previous FEN
+    if (pendingControllerRef.current) {
+      pendingControllerRef.current.abort();
+      pendingControllerRef.current = null;
+    }
+
+    // Debounce: wait 300ms before fetching to avoid rapid consecutive requests
+    timeoutRef.current = setTimeout(() => {
+      const controller = new AbortController();
+      pendingControllerRef.current = controller;
+      
+      const fetchTopMoves = async () => {
+        setLoading(true);
+        setError(null);
+        
+        try {
+          const response = await fetch('/api/analysis/top-moves', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fen }),
+            credentials: 'include',
+            signal: controller.signal,
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch top moves');
+          }
+          
+          const data = await response.json();
+          // Filter out any malformed entries
+          const validMoves = (data.moves || []).filter(
+            (m: TopMove) => m.move && typeof m.evaluation === 'number'
+          );
+          
+          // Only update state if this is still the current request
+          if (pendingControllerRef.current === controller) {
+            setTopMoves(validMoves);
+            setLoading(false);
+          }
+        } catch (err: any) {
+          if (err.name !== 'AbortError' && pendingControllerRef.current === controller) {
+            setError('Unable to load engine suggestions');
+            setTopMoves([]);
+            setLoading(false);
+          }
+        }
+      };
+
+      fetchTopMoves();
+    }, 300);
+    
+    // Cleanup on unmount only - don't abort current request on fen change
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [fen]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingControllerRef.current) {
+        pendingControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const formatEval = (move: TopMove) => {
+    if (move.isMate) {
+      const mateValue = move.evaluation > 0 ? move.mateIn : -(move.mateIn || 0);
+      // Adjust for player perspective
+      const adjustedMate = playerColor === 'black' ? -mateValue! : mateValue;
+      return adjustedMate! > 0 ? `M${Math.abs(adjustedMate!)}` : `-M${Math.abs(adjustedMate!)}`;
+    }
+    // Adjust evaluation for player perspective (stored from white's view)
+    const adjustedEval = playerColor === 'black' ? -move.evaluation : move.evaluation;
+    return adjustedEval > 0 ? `+${adjustedEval.toFixed(1)}` : adjustedEval.toFixed(1);
+  };
+
+  const getEvalColor = (move: TopMove) => {
+    const adjustedEval = playerColor === 'black' ? -move.evaluation : move.evaluation;
+    if (move.isMate) {
+      return adjustedEval > 0 ? 'text-green-500' : 'text-red-500';
+    }
+    if (adjustedEval > 0.5) return 'text-green-500';
+    if (adjustedEval < -0.5) return 'text-red-500';
+    return 'text-muted-foreground';
+  };
+
+  return (
+    <Card data-testid="engine-suggestions">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Zap className="w-4 h-4" />
+          Engine Suggestions
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-sm text-muted-foreground">Analyzing...</span>
+          </div>
+        ) : error ? (
+          <p className="text-sm text-muted-foreground">{error}</p>
+        ) : topMoves.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No moves available</p>
+        ) : (
+          <div className="space-y-2">
+            {topMoves.map((move, index) => (
+              <div 
+                key={index}
+                className={`flex items-center justify-between p-2 rounded-lg ${
+                  index === 0 ? 'bg-primary/10' : 'bg-muted/50'
+                }`}
+                data-testid={`top-move-${index + 1}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                    index === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/20 text-muted-foreground'
+                  }`}>
+                    {move.rank}
+                  </span>
+                  <span className="font-mono font-medium">{move.move}</span>
+                </div>
+                <span className={`font-mono text-sm font-medium ${getEvalColor(move)}`}>
+                  {formatEval(move)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ChessBoard({ fen, lastMove, flipped = false }: { fen: string; lastMove?: { from: string; to: string }; flipped?: boolean }) {
   const chess = new Chess(fen);
   const board = chess.board();
@@ -1517,6 +1677,8 @@ export default function GameAnalysisPage() {
                   </CardContent>
                 </Card>
               )}
+              
+              <EngineSuggestions fen={currentFen()} playerColor={playerColor} />
             </TabsContent>
             
             <TabsContent value="review">
