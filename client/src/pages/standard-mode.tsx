@@ -193,8 +193,9 @@ export default function StandardMode() {
       setGameResult(result);
 
       // Save final game state - MUST succeed before completion
+      // If no matchId, also mark game as completed here since there's no match to complete
       try {
-        await apiRequest("PATCH", `/api/games/${currentGameId}`, {
+        const gameUpdatePayload: Record<string, any> = {
           pgn: currentGame.pgn(),
           moves: movesRef.current,
           whiteTime: whiteTimeRef.current,
@@ -203,7 +204,16 @@ export default function StandardMode() {
           peekDurations: peekDurationsRef.current,
           totalPeekTime: totalPeekTimeRef.current,
           peeksUsed: peekDurationsRef.current.length,
-        });
+        };
+        
+        // For games without a match, mark as completed directly
+        if (!currentMatchId) {
+          gameUpdatePayload.status = 'completed';
+          gameUpdatePayload.result = result;
+          console.log('[completeGame] No matchId, marking game as completed directly');
+        }
+        
+        await apiRequest("PATCH", `/api/games/${currentGameId}`, gameUpdatePayload);
       } catch (error) {
         console.error("Error saving final game state:", error);
         // Don't proceed to completion if game state save failed
@@ -216,7 +226,7 @@ export default function StandardMode() {
       }
 
       // Complete match (centralized - handles stats, ratings, WebSocket broadcast)
-      // Only proceed if PATCH succeeded above
+      // Only proceed if PATCH succeeded above and there's a match to complete
       try {
         if (currentMatchId) {
           console.log('[completeGame] Calling POST /api/matches/:id/complete');
