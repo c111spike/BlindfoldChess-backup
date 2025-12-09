@@ -1,5 +1,6 @@
 import { spawn, ChildProcess } from 'child_process';
 import { Chess } from 'chess.js';
+import { analysisQueueManager } from './analysisQueueManager';
 
 interface StockfishResult {
   bestMove: string;
@@ -237,7 +238,14 @@ class StockfishService {
     }
   }
 
-  async analyzePosition(fen: string, nodes: number = 2000000): Promise<PositionAnalysis> {
+  async analyzePosition(fen: string, nodes: number = 2000000, useCache: boolean = true): Promise<PositionAnalysis> {
+    if (useCache) {
+      const cached = await analysisQueueManager.getCachedPosition(fen, nodes);
+      if (cached) {
+        return cached;
+      }
+    }
+
     if (!this.isReady) {
       await this.init();
     }
@@ -292,7 +300,7 @@ class StockfishService {
                 this.outputBuffer += d.toString();
                 this.processOutput();
               });
-              resolve({
+              const result: PositionAnalysis = {
                 evaluation,
                 bestMove,
                 bestMoveEval: evaluation,
@@ -300,7 +308,15 @@ class StockfishService {
                 depth: currentDepth,
                 isMate,
                 mateIn
-              });
+              };
+              
+              if (useCache) {
+                analysisQueueManager.cachePosition(fen, nodes, result).catch(err => {
+                  console.error('[Stockfish] Failed to cache position:', err);
+                });
+              }
+              
+              resolve(result);
               return;
             }
           }
@@ -312,7 +328,9 @@ class StockfishService {
     });
   }
 
-  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', nodes: number = 2000000): Promise<MoveAnalysisResult[]> {
+  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', nodes?: number): Promise<MoveAnalysisResult[]> {
+    const adaptiveNodes = nodes ?? analysisQueueManager.getAdaptiveNodeCount();
+    
     if (!this.isReady) {
       await this.init();
     }
@@ -322,7 +340,7 @@ class StockfishService {
     
     const chess = new Chess(startFen);
     
-    let cachedBeforeAnalysis = await this.analyzePosition(currentFen, nodes);
+    let cachedBeforeAnalysis = await this.analyzePosition(currentFen, adaptiveNodes);
     
     for (let i = 0; i < moves.length; i++) {
       const sanMove = moves[i];
@@ -339,7 +357,7 @@ class StockfishService {
       const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
       const afterFen = chess.fen();
 
-      const afterAnalysis = await this.analyzePosition(afterFen, nodes);
+      const afterAnalysis = await this.analyzePosition(afterFen, adaptiveNodes);
 
       // Stockfish always reports from side-to-move perspective
       // 

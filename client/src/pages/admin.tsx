@@ -23,7 +23,12 @@ import {
   Eye,
   MessageSquare,
   Loader2,
-  TrendingUp
+  TrendingUp,
+  Activity,
+  Database,
+  Gauge,
+  Zap,
+  RefreshCw
 } from "lucide-react";
 import type { User, Puzzle, CheatReport, UserAntiCheat } from "@shared/schema";
 
@@ -41,6 +46,20 @@ interface AntiCheatStats {
     low: number;
   };
   unresolvedReports: number;
+}
+
+interface PerformanceStats {
+  cacheHitRate: number;
+  avgCacheLookupMs: number;
+  avgAnalysisTimeMs: number;
+  queueLength: number;
+  peakQueueLength: number;
+  totalCachedPositions: number;
+  analysesCompleted: number;
+  adaptiveScaledowns: number;
+  avgNodesUsed: number;
+  currentNodeCount: number;
+  gamesAnalyzedToday: number;
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -87,6 +106,12 @@ export default function AdminPage() {
   const { data: flaggedPuzzles, isLoading: puzzlesLoading } = useQuery<Puzzle[]>({
     queryKey: ["/api/admin/puzzles/flagged"],
     enabled: isAdmin,
+  });
+
+  const { data: performanceStats, isLoading: performanceLoading, refetch: refetchPerformance } = useQuery<PerformanceStats>({
+    queryKey: ["/api/admin/analysis/performance"],
+    enabled: isAdmin,
+    refetchInterval: 30000,
   });
 
   const updateReviewMutation = useMutation({
@@ -261,6 +286,10 @@ export default function AdminPage() {
           <TabsTrigger value="flagged-puzzles" data-testid="tab-flagged-puzzles">
             <Flag className="h-4 w-4 mr-2" />
             Flagged Puzzles
+          </TabsTrigger>
+          <TabsTrigger value="performance" data-testid="tab-performance">
+            <Activity className="h-4 w-4 mr-2" />
+            Performance
           </TabsTrigger>
         </TabsList>
 
@@ -600,6 +629,217 @@ export default function AdminPage() {
                 </Card>
               ))}
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="performance" className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Analysis Performance Metrics</h2>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => refetchPerformance()}
+              data-testid="button-refresh-performance"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+
+          {performanceLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <Skeleton key={i} className="h-32" />)}
+            </div>
+          ) : performanceStats ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card data-testid="card-cache-hit-rate">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      Cache Hit Rate
+                    </CardDescription>
+                    <CardTitle className="text-2xl">{performanceStats.cacheHitRate}%</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Higher is better. Consider Redis when this drops below 50%.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-cache-lookup">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      Avg Cache Lookup
+                    </CardDescription>
+                    <CardTitle className={`text-2xl ${performanceStats.avgCacheLookupMs > 50 ? 'text-orange-500' : ''}`}>
+                      {performanceStats.avgCacheLookupMs}ms
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      {performanceStats.avgCacheLookupMs > 50 
+                        ? '⚠️ Consider Redis for faster lookups' 
+                        : '✓ Database caching is performing well'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-cached-positions">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      Cached Positions
+                    </CardDescription>
+                    <CardTitle className={`text-2xl ${performanceStats.totalCachedPositions > 100000 ? 'text-orange-500' : ''}`}>
+                      {performanceStats.totalCachedPositions.toLocaleString()}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      {performanceStats.totalCachedPositions > 100000 
+                        ? '⚠️ Consider Redis for large cache' 
+                        : '✓ Cache size is manageable'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-queue-length">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center gap-2">
+                      <Gauge className="h-4 w-4" />
+                      Queue Length
+                    </CardDescription>
+                    <CardTitle className={`text-2xl ${performanceStats.queueLength > 5 ? 'text-orange-500' : ''}`}>
+                      {performanceStats.queueLength}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Peak: {performanceStats.peakQueueLength} | 
+                      {performanceStats.queueLength > 5 
+                        ? ' ⚠️ High load detected' 
+                        : ' ✓ Normal load'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-analyses-completed">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      Games Analyzed Today
+                    </CardDescription>
+                    <CardTitle className="text-2xl">{performanceStats.gamesAnalyzedToday}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Avg time: {performanceStats.avgAnalysisTimeMs}ms per game
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-current-nodes">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center gap-2">
+                      <Gauge className="h-4 w-4" />
+                      Current Node Count
+                    </CardDescription>
+                    <CardTitle className={`text-2xl ${performanceStats.currentNodeCount < 2000000 ? 'text-yellow-500' : ''}`}>
+                      {(performanceStats.currentNodeCount / 1000000).toFixed(1)}M
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      {performanceStats.currentNodeCount < 2000000 
+                        ? '⚠️ Reduced for high load' 
+                        : '✓ Full accuracy mode'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-avg-nodes">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Avg Nodes Used
+                    </CardDescription>
+                    <CardTitle className="text-2xl">
+                      {(performanceStats.avgNodesUsed / 1000000).toFixed(1)}M
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Average across all analyses
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-scaledowns">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Adaptive Scaledowns
+                    </CardDescription>
+                    <CardTitle className={`text-2xl ${performanceStats.adaptiveScaledowns > 10 ? 'text-orange-500' : ''}`}>
+                      {performanceStats.adaptiveScaledowns}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Times accuracy was reduced for performance
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="text-lg">When to Upgrade to Redis</CardTitle>
+                  <CardDescription>
+                    Monitor these indicators to know when database caching becomes insufficient
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className={`p-4 rounded-lg border ${performanceStats.avgCacheLookupMs > 50 ? 'border-orange-500 bg-orange-500/10' : 'border-green-500 bg-green-500/10'}`}>
+                      <p className="font-medium">Cache Lookup Time</p>
+                      <p className="text-sm text-muted-foreground">
+                        {performanceStats.avgCacheLookupMs > 50 
+                          ? 'Consider Redis - lookups exceeding 50ms' 
+                          : 'OK - under 50ms threshold'}
+                      </p>
+                    </div>
+                    <div className={`p-4 rounded-lg border ${performanceStats.totalCachedPositions > 100000 ? 'border-orange-500 bg-orange-500/10' : 'border-green-500 bg-green-500/10'}`}>
+                      <p className="font-medium">Cache Size</p>
+                      <p className="text-sm text-muted-foreground">
+                        {performanceStats.totalCachedPositions > 100000 
+                          ? 'Consider Redis - over 100k positions' 
+                          : 'OK - under 100k positions'}
+                      </p>
+                    </div>
+                    <div className={`p-4 rounded-lg border ${performanceStats.cacheHitRate < 50 ? 'border-orange-500 bg-orange-500/10' : 'border-green-500 bg-green-500/10'}`}>
+                      <p className="font-medium">Hit Rate</p>
+                      <p className="text-sm text-muted-foreground">
+                        {performanceStats.cacheHitRate < 50 
+                          ? 'Consider Redis - hit rate below 50%' 
+                          : 'OK - hit rate above 50%'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Performance Data</h3>
+                <p className="text-muted-foreground">Performance metrics will appear after game analyses are run.</p>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>

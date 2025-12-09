@@ -629,6 +629,61 @@ export const ratingBenchmarks = pgTable("rating_benchmarks", {
   ratingRangeUnique: unique().on(table.ratingMin, table.ratingMax, table.gameMode),
 }));
 
+// Position Cache table - caches Stockfish analysis results for positions
+export const positionCache = pgTable("position_cache", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fenHash: varchar("fen_hash", { length: 64 }).notNull().unique(), // SHA-256 hash of FEN
+  fen: text("fen").notNull(),
+  nodes: integer("nodes").notNull(), // Node count used for this analysis
+  evaluation: real("evaluation").notNull(),
+  bestMove: varchar("best_move").notNull(),
+  bestMoveEval: real("best_move_eval").notNull(),
+  principalVariation: jsonb("principal_variation").$type<string[]>().default([]),
+  depth: integer("depth").notNull(),
+  isMate: boolean("is_mate").default(false),
+  mateIn: integer("mate_in"),
+  hitCount: integer("hit_count").default(0), // How many times this cache was used
+  createdAt: timestamp("created_at").defaultNow(),
+  lastHitAt: timestamp("last_hit_at").defaultNow(),
+}, (table) => ({
+  fenHashIdx: index("position_cache_fen_hash_idx").on(table.fenHash),
+  hitCountIdx: index("position_cache_hit_count_idx").on(table.hitCount),
+}));
+
+// Analysis Metrics table - tracks performance metrics for scaling decisions
+export const analysisMetrics = pgTable("analysis_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  metricType: varchar("metric_type").notNull(), // 'hourly_summary', 'daily_summary'
+  
+  // Cache metrics
+  cacheHits: integer("cache_hits").default(0),
+  cacheMisses: integer("cache_misses").default(0),
+  cacheSize: integer("cache_size").default(0), // Total cached positions
+  avgCacheLookupMs: real("avg_cache_lookup_ms"),
+  
+  // Queue metrics
+  queueLength: integer("queue_length").default(0),
+  peakQueueLength: integer("peak_queue_length").default(0),
+  avgQueueWaitMs: real("avg_queue_wait_ms"),
+  
+  // Analysis performance
+  analysesCompleted: integer("analyses_completed").default(0),
+  avgAnalysisTimeMs: real("avg_analysis_time_ms"),
+  avgNodesUsed: integer("avg_nodes_used"),
+  adaptiveScaledowns: integer("adaptive_scaledowns").default(0), // Times we reduced nodes due to load
+  
+  // Game counts
+  gamesAnalyzedToday: integer("games_analyzed_today").default(0),
+  
+  // Period tracking
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+}, (table) => ({
+  timestampIdx: index("analysis_metrics_timestamp_idx").on(table.timestamp),
+  metricTypeIdx: index("analysis_metrics_type_idx").on(table.metricType),
+}));
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertGame = typeof games.$inferInsert;
@@ -681,6 +736,10 @@ export type InsertAccuracyHistory = typeof accuracyHistory.$inferInsert;
 export type AccuracyHistory = typeof accuracyHistory.$inferSelect;
 export type InsertRatingBenchmark = typeof ratingBenchmarks.$inferInsert;
 export type RatingBenchmark = typeof ratingBenchmarks.$inferSelect;
+export type InsertPositionCache = typeof positionCache.$inferInsert;
+export type PositionCache = typeof positionCache.$inferSelect;
+export type InsertAnalysisMetrics = typeof analysisMetrics.$inferInsert;
+export type AnalysisMetrics = typeof analysisMetrics.$inferSelect;
 
 // Simul vs Simul Match Status
 export const simulVsSimulStatusEnum = pgEnum("simul_vs_simul_status", [

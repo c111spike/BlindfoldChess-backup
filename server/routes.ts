@@ -10,6 +10,7 @@ import { stockfishService } from "./stockfish";
 import { generateBotMove, calculateBotThinkTime } from "./botEngine";
 import { BOTS, getBotById } from "../shared/botTypes";
 import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
+import { analysisQueueManager } from "./analysisQueueManager";
 
 const { queueManager } = createQueueManager();
 
@@ -1937,6 +1938,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching anti-cheat stats:", error);
       res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
+  // Admin: Get analysis performance metrics for scaling decisions
+  app.get('/api/admin/analysis/performance', isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const stats = await analysisQueueManager.getPerformanceStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching analysis performance stats:", error);
+      res.status(500).json({ message: "Failed to fetch performance statistics" });
+    }
+  });
+
+  // Admin: Get historical analysis metrics
+  app.get('/api/admin/analysis/history', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const hours = parseInt(req.query.hours as string) || 24;
+      const metrics = await analysisQueueManager.getHistoricalMetrics(hours);
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching analysis history:", error);
+      res.status(500).json({ message: "Failed to fetch historical metrics" });
+    }
+  });
+
+  // Admin: Trigger metrics snapshot save
+  app.post('/api/admin/analysis/save-metrics', isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      await analysisQueueManager.saveMetricsSnapshot();
+      res.json({ success: true, message: "Metrics snapshot saved" });
+    } catch (error) {
+      console.error("Error saving metrics snapshot:", error);
+      res.status(500).json({ message: "Failed to save metrics" });
     }
   });
 
