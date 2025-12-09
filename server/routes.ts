@@ -2436,7 +2436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "FEN position is required" });
       }
       
-      const topMoves = await stockfishService.getTopMoves(fen, 3, 18);
+      const topMoves = await stockfishService.getTopMoves(fen, 3);
       
       // Convert UCI moves to SAN for display
       const { Chess } = await import('chess.js');

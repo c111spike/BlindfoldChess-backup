@@ -237,14 +237,14 @@ class StockfishService {
     }
   }
 
-  async analyzePosition(fen: string, depth: number = 20): Promise<PositionAnalysis> {
+  async analyzePosition(fen: string, nodes: number = 2000000): Promise<PositionAnalysis> {
     if (!this.isReady) {
       await this.init();
     }
 
     this.sendCommand('ucinewgame');
     this.sendCommand(`position fen ${fen}`);
-    this.sendCommand(`go depth ${depth}`);
+    this.sendCommand(`go nodes ${nodes}`);
 
     return new Promise((resolve) => {
       let evaluation = 0;
@@ -312,7 +312,7 @@ class StockfishService {
     });
   }
 
-  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', depth: number = 18): Promise<MoveAnalysisResult[]> {
+  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', nodes: number = 2000000): Promise<MoveAnalysisResult[]> {
     if (!this.isReady) {
       await this.init();
     }
@@ -322,7 +322,7 @@ class StockfishService {
     
     const chess = new Chess(startFen);
     
-    let cachedBeforeAnalysis = await this.analyzePosition(currentFen, depth);
+    let cachedBeforeAnalysis = await this.analyzePosition(currentFen, nodes);
     
     for (let i = 0; i < moves.length; i++) {
       const sanMove = moves[i];
@@ -339,7 +339,7 @@ class StockfishService {
       const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
       const afterFen = chess.fen();
 
-      const afterAnalysis = await this.analyzePosition(afterFen, depth);
+      const afterAnalysis = await this.analyzePosition(afterFen, nodes);
 
       // Stockfish always reports from side-to-move perspective
       // 
@@ -432,12 +432,12 @@ class StockfishService {
     });
   }
 
-  async getEvaluation(fen: string, depth: number = 15): Promise<number> {
-    const analysis = await this.analyzePosition(fen, depth);
+  async getEvaluation(fen: string, nodes: number = 2000000): Promise<number> {
+    const analysis = await this.analyzePosition(fen, nodes);
     return analysis.evaluation;
   }
 
-  async getTopMoves(fen: string, numMoves: number = 3, depth: number = 18): Promise<TopMoveResult[]> {
+  async getTopMoves(fen: string, numMoves: number = 3, nodes: number = 2000000): Promise<TopMoveResult[]> {
     if (!this.isReady) {
       await this.init();
     }
@@ -447,7 +447,7 @@ class StockfishService {
     this.sendCommand('ucinewgame');
     this.sendCommand(`setoption name MultiPV value ${numMoves}`);
     this.sendCommand(`position fen ${fen}`);
-    this.sendCommand(`go depth ${depth}`);
+    this.sendCommand(`go nodes ${nodes}`);
 
     return new Promise((resolve, reject) => {
       // Timeout to prevent hanging if Stockfish doesn't respond
@@ -470,18 +470,16 @@ class StockfishService {
         const lines = collectedOutput.split('\n');
 
         for (const line of lines) {
-          // Parse info lines with multipv
+          // Parse info lines with multipv - with nodes, we just keep updating and use final values
           if (line.startsWith('info depth') && line.includes(' pv ')) {
-            const depthMatch = line.match(/depth (\d+)/);
             const multipvMatch = line.match(/multipv (\d+)/);
             const scoreMatch = line.match(/score cp (-?\d+)/);
             const mateMatch = line.match(/score mate (-?\d+)/);
             const pvMatch = line.match(/ pv (.+)/);
 
-            const currentDepth = depthMatch ? parseInt(depthMatch[1]) : 0;
             const pvIndex = multipvMatch ? parseInt(multipvMatch[1]) : 1;
 
-            if (currentDepth >= depth - 2 && pvMatch) {
+            if (pvMatch) {
               const pv = pvMatch[1].trim().split(' ');
               const move = pv[0];
               
