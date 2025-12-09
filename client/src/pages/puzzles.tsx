@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Chess } from "chess.js";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,7 +27,9 @@ import {
   CheckCircle,
   AlertCircle,
   Share2,
-  Puzzle as PuzzleIcon
+  Puzzle as PuzzleIcon,
+  Eye,
+  RotateCcw
 } from "lucide-react";
 import type { Puzzle } from "@shared/schema";
 
@@ -288,20 +291,177 @@ function PuzzleOfTheDay() {
 }
 
 function TrainTab() {
+  const { toast } = useToast();
   const [solved, setSolved] = useState<boolean | null>(null);
+  const [currentFen, setCurrentFen] = useState<string | null>(null);
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  const [moveIndex, setMoveIndex] = useState(0);
+  const [showSolution, setShowSolution] = useState(false);
 
   const { data: puzzle, isLoading } = useQuery<Puzzle>({
     queryKey: ["/api/puzzles/random"],
   });
 
-  const handleSolve = () => {
-    setSolved(true);
+  // Reset state when puzzle changes
+  useEffect(() => {
+    if (puzzle?.fen) {
+      setCurrentFen(puzzle.fen);
+      setMoveIndex(0);
+      setSolved(null);
+      setSelectedSquare(null);
+      setLegalMoves([]);
+      setShowSolution(false);
+    }
+  }, [puzzle?.id, puzzle?.fen]);
+
+  const handleSquareClick = (square: string) => {
+    if (!currentFen || solved !== null) return;
+    
+    const chess = new Chess(currentFen);
+    
+    // If we already have a selected piece, try to make the move
+    if (selectedSquare) {
+      try {
+        const result = chess.move({
+          from: selectedSquare,
+          to: square,
+          promotion: 'q', // Auto-queen for simplicity
+        });
+        
+        if (result) {
+          setCurrentFen(chess.fen());
+          setSelectedSquare(null);
+          setLegalMoves([]);
+          
+          // Check if move matches solution (normalize to handle both string and array formats)
+          const normMoves = (m: string | string[] | null | undefined): string[] => {
+            if (!m) return [];
+            if (Array.isArray(m)) return m.filter(x => x && x.length > 0);
+            if (typeof m === 'string') return m.replace(/,/g, ' ').split(/\s+/).filter(x => x.length > 0);
+            return [];
+          };
+          const rawSol = normMoves(puzzle?.solution);
+          const rawMov = normMoves(puzzle?.moves);
+          const solutionMoves = rawSol.length > 0 ? rawSol : rawMov;
+          if (solutionMoves.length > moveIndex) {
+            const expectedMove = solutionMoves[moveIndex];
+            const moveStr = `${result.from}${result.to}`;
+            const moveWithPromo = result.promotion ? `${moveStr}${result.promotion}` : moveStr;
+            
+            const normalizedExpected = expectedMove.toLowerCase().replace(/[+#=]/g, '');
+            const normalizedSan = result.san.toLowerCase().replace(/[+#=]/g, '');
+            
+            const isCorrect = 
+              moveStr === expectedMove || 
+              moveWithPromo === expectedMove ||
+              result.san === expectedMove ||
+              result.lan === expectedMove ||
+              normalizedSan === normalizedExpected ||
+              moveStr === normalizedExpected;
+            
+            if (isCorrect) {
+              setMoveIndex(moveIndex + 1);
+              
+              // Check if puzzle is complete
+              if (moveIndex + 1 >= solutionMoves.length) {
+                setSolved(true);
+                toast({ title: "Correct!", description: "You solved the puzzle!" });
+              } else if (solutionMoves.length > moveIndex + 1) {
+                // Make opponent's response after a short delay
+                setTimeout(() => {
+                  try {
+                    const opponentMove = solutionMoves[moveIndex + 1];
+                    const chessAfter = new Chess(chess.fen());
+                    chessAfter.move(opponentMove);
+                    setCurrentFen(chessAfter.fen());
+                    setMoveIndex(moveIndex + 2);
+                  } catch (e) {
+                    console.error("Error making opponent move:", e);
+                  }
+                }, 500);
+              }
+            } else {
+              // Wrong move - show feedback and reset
+              setSolved(false);
+              toast({ 
+                title: "Incorrect", 
+                description: "That's not the best move. Try again!",
+                variant: "destructive"
+              });
+              setTimeout(() => {
+                setCurrentFen(puzzle?.fen || currentFen);
+                setMoveIndex(0);
+                setSolved(null);
+              }, 1500);
+            }
+          }
+          return;
+        }
+      } catch (e) {
+        // Invalid move, deselect
+      }
+      
+      setSelectedSquare(null);
+      setLegalMoves([]);
+    }
+    
+    // Select a piece if it's the right color's turn
+    const piece = chess.get(square as any);
+    if (piece) {
+      const turn = chess.turn();
+      const pieceColor = piece.color;
+      if ((turn === 'w' && pieceColor === 'w') || (turn === 'b' && pieceColor === 'b')) {
+        setSelectedSquare(square);
+        const moves = chess.moves({ square: square as any, verbose: true });
+        setLegalMoves(moves.map(m => m.to));
+      }
+    }
+  };
+
+  const handleReset = () => {
+    if (puzzle?.fen) {
+      setCurrentFen(puzzle.fen);
+      setMoveIndex(0);
+      setSolved(null);
+      setSelectedSquare(null);
+      setLegalMoves([]);
+      setShowSolution(false);
+    }
   };
 
   const handleSkip = () => {
     setSolved(null);
+    setCurrentFen(null);
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setMoveIndex(0);
+    setShowSolution(false);
     queryClient.invalidateQueries({ queryKey: ["/api/puzzles/random"] });
   };
+
+  const handleShowSolution = () => {
+    setShowSolution(true);
+  };
+
+  // Helper to normalize moves (handle both string and array formats, including comma-separated)
+  const normalizeMoves = (moves: string | string[] | null | undefined): string[] => {
+    if (!moves) return [];
+    if (Array.isArray(moves)) return moves.filter(m => m && m.length > 0);
+    if (typeof moves === 'string') {
+      // Handle comma-separated, space-separated, or mixed formats
+      return moves
+        .replace(/,/g, ' ')
+        .split(/\s+/)
+        .filter(m => m.length > 0);
+    }
+    return [];
+  };
+
+  // Get solution moves for display (prefer solution if it has content, otherwise use moves)
+  const rawSolution = normalizeMoves(puzzle?.solution);
+  const rawMoves = normalizeMoves(puzzle?.moves);
+  const solutionMoves = rawSolution.length > 0 ? rawSolution : rawMoves;
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
@@ -311,9 +471,12 @@ function TrainTab() {
         ) : (
           <div className="max-w-[500px]">
             <ChessBoard
-              fen={puzzle?.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"}
-              orientation="white"
+              fen={currentFen || puzzle?.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"}
+              orientation={puzzle?.whoToMove === "black" ? "black" : "white"}
               showCoordinates={true}
+              onSquareClick={handleSquareClick}
+              selectedSquare={selectedSquare}
+              legalMoveSquares={legalMoves}
             />
           </div>
         )}
@@ -321,20 +484,28 @@ function TrainTab() {
         <div className="flex gap-3 max-w-[500px]">
           <Button
             variant="outline"
+            onClick={handleReset}
+            data-testid="button-reset-puzzle"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={handleShowSolution}
+            disabled={showSolution || solved === true}
+            data-testid="button-show-solution"
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Show Solution
+          </Button>
+          <Button
             className="flex-1"
             onClick={handleSkip}
             data-testid="button-skip-puzzle"
           >
             <SkipForward className="mr-2 h-4 w-4" />
-            Skip
-          </Button>
-          <Button
-            className="flex-1"
-            onClick={handleSolve}
-            disabled={solved !== null}
-            data-testid="button-check-solution"
-          >
-            {solved === null ? "Check Solution" : solved ? "Correct!" : "Try Again"}
+            {solved === true ? "Next Puzzle" : "Skip"}
           </Button>
         </div>
       </div>
@@ -369,6 +540,11 @@ function TrainTab() {
                   <p className="text-lg">
                     {puzzle?.whoToMove === "black" ? "Black" : "White"} to move and win
                   </p>
+                  {solutionMoves.length > 1 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {solutionMoves.length} moves to find
+                    </p>
+                  )}
                 </div>
 
                 {puzzle?.themes && puzzle.themes.length > 0 && (
@@ -381,6 +557,15 @@ function TrainTab() {
                         </Badge>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {showSolution && !solved && (
+                  <div className="p-4 rounded-lg border bg-muted/50">
+                    <p className="text-sm font-medium mb-2">Solution:</p>
+                    <p className="font-mono text-sm">
+                      {solutionMoves.join(' ')}
+                    </p>
                   </div>
                 )}
 
@@ -410,7 +595,7 @@ function TrainTab() {
                     <p className="text-sm text-muted-foreground">
                       {solved 
                         ? "Excellent! You found the winning move." 
-                        : "Keep trying or skip to the next puzzle."}
+                        : "That's not the best move. Try again!"}
                     </p>
                   </div>
                 )}
