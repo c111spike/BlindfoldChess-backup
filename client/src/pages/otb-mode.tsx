@@ -378,6 +378,7 @@ export default function OTBMode() {
     // Invalidate queries to refresh data
     queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
     queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/games/history"] });
     queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
   }, [toast]);
 
@@ -521,6 +522,7 @@ export default function OTBMode() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/games/history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
     },
   });

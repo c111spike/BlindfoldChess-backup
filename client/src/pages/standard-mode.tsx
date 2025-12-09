@@ -236,6 +236,7 @@ export default function StandardMode() {
         // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
         queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/games/history"] });
         queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
         queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
       } catch (error) {
@@ -693,6 +694,7 @@ export default function StandardMode() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/games/history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
       queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
       resetGameState();
