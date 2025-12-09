@@ -1424,6 +1424,21 @@ export default function GameAnalysisPage() {
     return data.moves[currentMoveIndex]?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
   }, [data?.moves, currentMoveIndex]);
 
+  // Pre-move FEN: the position BEFORE the current move was made
+  // This is what Engine Suggestions should analyze to show what moves are best
+  const preMoveFen = useCallback(() => {
+    const startingFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    if (!data?.moves || currentMoveIndex < 0) {
+      return startingFen;
+    }
+    // For move at index N, get the FEN from index N-1 (position before this move)
+    // For index 0 (first move), use starting position
+    if (currentMoveIndex === 0) {
+      return startingFen;
+    }
+    return data.moves[currentMoveIndex - 1]?.fen || startingFen;
+  }, [data?.moves, currentMoveIndex]);
+
   const currentMove = currentMoveIndex >= 0 && data?.moves ? data.moves[currentMoveIndex] : null;
 
   useEffect(() => {
@@ -1678,7 +1693,7 @@ export default function GameAnalysisPage() {
                 </Card>
               )}
               
-              <EngineSuggestions fen={currentFen()} playerColor={playerColor} />
+              <EngineSuggestions fen={preMoveFen()} playerColor={playerColor} />
             </TabsContent>
             
             <TabsContent value="review">
