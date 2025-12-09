@@ -252,8 +252,8 @@ export default function SimulVsSimulMode() {
             const newFen = currentChess.fen();
             const newActiveColor = currentChess.turn() === 'w' ? 'white' : 'black';
             
-            // Record thinking time for this move
-            const thinkingTime = Math.round((Date.now() - currentBoardData.turnStartTime) / 1000);
+            // Record thinking time for this move (preserve decimal precision)
+            const thinkingTime = (Date.now() - currentBoardData.turnStartTime) / 1000;
             const newThinkingTimes = [...currentBoardData.thinkingTimes, thinkingTime];
             
             const updatedBoards = [...boardsRef.current];
@@ -471,8 +471,8 @@ export default function SimulVsSimulMode() {
             const chess = new Chess(data.fen);
             
             // Calculate opponent's thinking time as elapsed time since our last move
-            // This is the time between when we finished our move (turnStartTime) and now
-            const opponentThinkingTime = Math.round((Date.now() - prevBoards[idx].turnStartTime) / 1000);
+            // This is the time between when we finished our move (turnStartTime) and now (preserve decimal precision)
+            const opponentThinkingTime = (Date.now() - prevBoards[idx].turnStartTime) / 1000;
             const newThinkingTimes = [...prevBoards[idx].thinkingTimes, opponentThinkingTime];
             
             newBoards[idx] = {
@@ -792,8 +792,8 @@ export default function SimulVsSimulMode() {
         const newFen = chess.fen();
         const newActiveColor = chess.turn() === 'w' ? 'white' : 'black';
         
-        // Record thinking time for this move
-        const thinkingTime = Math.round((Date.now() - currentBoard.turnStartTime) / 1000);
+        // Record thinking time for this move (preserve decimal precision)
+        const thinkingTime = (Date.now() - currentBoard.turnStartTime) / 1000;
         const newThinkingTimes = [...currentBoard.thinkingTimes, thinkingTime];
         
         // Use boardsRef.current to build updated boards (ensures latest state)
