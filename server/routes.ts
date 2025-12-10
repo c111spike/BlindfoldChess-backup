@@ -2329,7 +2329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await new Promise(resolve => setTimeout(resolve, thinkTime));
       }
       
-      const move = generateBotMove(fen, bot.personality, bot.difficulty, moveHistory);
+      const move = await generateBotMove(fen, bot.personality, bot.difficulty, moveHistory);
       
       if (!move) {
         return res.status(400).json({ message: "No legal moves available" });
@@ -2995,7 +2995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[SimulBot] Making move for bot ${botId} in pairing ${pairingId}`);
       
       // Generate bot move
-      const botMove = generateBotMove(pairing.fen, personality, difficulty, pairing.moves || []);
+      const botMove = await generateBotMove(pairing.fen, personality, difficulty, pairing.moves || []);
       if (!botMove) {
         console.log(`[SimulBot] No valid move for bot in pairing ${pairingId}`);
         return;

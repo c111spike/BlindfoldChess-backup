@@ -2,6 +2,7 @@ import { Chess, Move } from "chess.js";
 import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
 import { BOT_DIFFICULTY_ELO } from "../shared/botTypes";
 import { lookupOpeningMove, isInOpeningPhase } from "./openingBook";
+import { analysisQueueManager } from "./analysisQueueManager";
 
 const PIECE_VALUES: Record<string, number> = {
   p: 100,
@@ -292,12 +293,12 @@ function scoreMove(
   return score;
 }
 
-export function generateBotMove(
+export async function generateBotMove(
   fen: string,
   personality: BotPersonality,
   difficulty: BotDifficulty,
   moveHistory?: string[]
-): { move: string; from: string; to: string; promotion?: string } | null {
+): Promise<{ move: string; from: string; to: string; promotion?: string } | null> {
   const game = new Chess(fen);
   const moves = game.moves({ verbose: true });
 
@@ -335,19 +336,64 @@ export function generateBotMove(
   const depth = getSearchDepth(difficulty);
   const mistakeProbability = getMistakeProbability(difficulty);
 
-  const scoredMoves = moves.map(move => ({
-    move,
-    score: scoreMove(game, move, personality, depth),
-  }));
+  // Try to get cached Stockfish evaluations for resulting positions
+  const cachedEvals = new Map<string, { evaluation: number; bestMove: string }>();
+  
+  // Batch lookup cached positions for each candidate move
+  const cachePromises = moves.map(async (move) => {
+    const gameCopy = new Chess(fen);
+    gameCopy.move(move.san);
+    const resultFen = gameCopy.fen();
+    const cached = await analysisQueueManager.getPositionEvalForBot(resultFen);
+    if (cached) {
+      cachedEvals.set(move.san, cached);
+    }
+  });
+  
+  await Promise.all(cachePromises);
+  
+  const usedCache = cachedEvals.size > 0;
+  if (usedCache) {
+    console.log(`[Bot] Using ${cachedEvals.size} cached Stockfish evaluations`);
+  }
+
+  const scoredMoves = moves.map(move => {
+    // If we have a cached eval for this move's resulting position, use it
+    const cached = cachedEvals.get(move.san);
+    if (cached) {
+      // Convert Stockfish eval (in centipawns) to our scoring scale
+      // Stockfish evals are from white's perspective, so flip for black
+      const isBlack = game.turn() === "b";
+      const evalScore = isBlack ? -cached.evaluation * 100 : cached.evaluation * 100;
+      
+      // Add personality bonus on top of Stockfish evaluation
+      const personalityBonus = getPersonalityBonus(game, move, personality);
+      
+      return {
+        move,
+        score: evalScore + personalityBonus,
+        fromCache: true,
+      };
+    }
+    
+    // Fall back to minimax evaluation
+    return {
+      move,
+      score: scoreMove(game, move, personality, depth),
+      fromCache: false,
+    };
+  });
 
   scoredMoves.sort((a, b) => b.score - a.score);
 
   let selectedMove: Move;
 
+  // Mistake logic remains unchanged - bot still makes mistakes at the same rate
   if (Math.random() < mistakeProbability) {
     const mistakeRange = Math.min(moves.length, Math.floor(moves.length * 0.6) + 2);
     const randomIndex = Math.floor(Math.random() * mistakeRange);
     selectedMove = scoredMoves[randomIndex].move;
+    console.log(`[Bot] Making deliberate mistake (${(mistakeProbability * 100).toFixed(0)}% chance)`);
   } else {
     const topMovesCount = Math.min(3, scoredMoves.length);
     const topMoves = scoredMoves.slice(0, topMovesCount);
@@ -371,6 +417,53 @@ export function generateBotMove(
     to: selectedMove.to,
     promotion: selectedMove.promotion,
   };
+}
+
+// Extract personality bonuses into a separate function for use with cached evals
+function getPersonalityBonus(game: Chess, move: Move, personality: BotPersonality): number {
+  let bonus = 0;
+
+  if (personality === "tactician") {
+    if (move.captured) bonus += PIECE_VALUES[move.captured] * 0.1;
+    if (move.san.includes("+")) bonus += 30;
+    if (move.san.includes("#")) bonus += 1000;
+  }
+
+  if (personality === "aggressive") {
+    if (move.captured) bonus += 20;
+    if (move.san.includes("+")) bonus += 40;
+    const attackingSquares = ["e4", "d4", "e5", "d5", "f4", "f5", "g4", "g5", "h4", "h5"];
+    if (attackingSquares.includes(move.to)) bonus += 15;
+  }
+
+  if (personality === "defensive") {
+    const backRank = game.turn() === "w" ? "1" : "8";
+    if (move.to.includes(backRank)) bonus += 10;
+    if (move.piece === "k" && (move.san === "O-O" || move.san === "O-O-O")) bonus += 50;
+    if (!move.captured) bonus += 5;
+  }
+
+  if (personality === "positional") {
+    const centralSquares = ["c3", "c4", "c5", "c6", "d3", "d4", "d5", "d6", "e3", "e4", "e5", "e6", "f3", "f4", "f5", "f6"];
+    if (centralSquares.includes(move.to)) bonus += 20;
+    if (move.piece === "p" && !move.captured) bonus += 10;
+  }
+
+  if (personality === "bishop_lover") {
+    if (move.piece === "b") bonus += 20;
+    if (move.captured === "n") bonus += 15;
+    const longDiagonals = ["a1", "b2", "c3", "d4", "e5", "f6", "g7", "h8", "a8", "b7", "c6", "d5", "e4", "f3", "g2", "h1"];
+    if (longDiagonals.includes(move.to)) bonus += 15;
+  }
+
+  if (personality === "knight_lover") {
+    if (move.piece === "n") bonus += 20;
+    if (move.captured === "b") bonus += 15;
+    const outpostSquares = ["c5", "d5", "e5", "f5", "c4", "d4", "e4", "f4"];
+    if (outpostSquares.includes(move.to)) bonus += 25;
+  }
+
+  return bonus;
 }
 
 export function calculateBotThinkTime(difficulty: BotDifficulty): number {
