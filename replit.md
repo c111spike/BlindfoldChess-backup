@@ -81,6 +81,15 @@ Uses a 30-second per-move server-authoritative timer with client-side countdown 
 ### Stockfish Scaling Infrastructure
 Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueueManager.ts`, with adaptive scaling (2M nodes per position, adaptive to 1M under load), PostgreSQL caching, and performance monitoring via an Admin Performance Dashboard.
 
+**Scaling Recommendations**:
+- Consider Redis when: cache lookups exceed 50ms, cache size hits 100k+ positions, or hit rate drops below 50%
+- Monitor Admin Performance tab for real-time metrics
+
+**Future Optimization (not yet implemented)**:
+- Opening books: Could integrate Lichess opening database API or polyglot format for instant opening evaluations
+- Endgame tablebases: Syzygy tablebases provide mathematically perfect endgame solutions (5-piece ~1GB, 6-piece ~150GB)
+- Would query these first, only falling back to Stockfish for middlegame positions
+
 ### Engagement Features
 - **This Day in Chess History**: Displays historical chess facts.
 
