@@ -1177,6 +1177,29 @@ export default function OTBMode() {
     // Use validatedGameState if we just validated a move (it has the updated state)
     // Otherwise use legalChessGame (for bot's opening move when player is black)
     const gameStateForBot = validatedGameState || legalChessGame;
+    
+    // Check if the player's move resulted in checkmate, stalemate, or draw
+    // This must happen BEFORE requesting bot move to avoid "No legal moves" error
+    if (validatedGameState) {
+      if (validatedGameState.isCheckmate()) {
+        // Player delivered checkmate - player wins!
+        setBotThinking(false);
+        setTimeout(() => {
+          handleGameEnd(playerColor === "white" ? "white_win" : "black_win");
+        }, 500);
+        return;
+      }
+      
+      if (validatedGameState.isDraw() || validatedGameState.isStalemate()) {
+        // Player's move resulted in stalemate or draw
+        setBotThinking(false);
+        setTimeout(() => {
+          handleGameEnd("draw");
+        }, 500);
+        return;
+      }
+    }
+    
     const currentFen = gameStateForBot.fen();
     const moveHistorySAN = gameStateForBot.history();
     const botMove = await requestBotMove(currentFen, selectedBot.id, moveHistorySAN);
