@@ -1091,31 +1091,20 @@ export default function OTBMode() {
     
     if (moves.length > 0) {
       const lastMove = moves[moves.length - 1];
-      const tempChess = new Chess();
+      
+      // Validate only the CURRENT move against legalChessGame state
+      // Don't replay all moves from scratch - that fails for OTB free movement games
+      const validationChess = new Chess(legalChessGame.fen());
       let isLegal = true;
       
       try {
-        for (let i = 0; i < moves.length - 1; i++) {
-          const move = moves[i];
-          const result = tempChess.move({
-            from: move.from,
-            to: move.to,
-            promotion: 'q',
-          });
-          if (!result) {
-            isLegal = false;
-            break;
-          }
-        }
-        
-        if (isLegal) {
-          const result = tempChess.move({
-            from: lastMove.from,
-            to: lastMove.to,
-            promotion: 'q',
-          });
-          isLegal = !!result;
-        }
+        // Try to apply the player's last move to the current legal game state
+        const result = validationChess.move({
+          from: lastMove.from,
+          to: lastMove.to,
+          promotion: lastMove.promotion?.toLowerCase() as 'q' | 'r' | 'b' | 'n' | undefined,
+        });
+        isLegal = !!result;
       } catch (e) {
         isLegal = false;
       }
@@ -1163,6 +1152,8 @@ export default function OTBMode() {
           setBlackTime(prev => prev + 120);
         }
         
+        // legalChessGame stays unchanged - it's still at the correct state before the illegal move
+        
         setActiveColor(playerColor);
         setClockTurn(playerColor);
         setBotThinking(false);
@@ -1175,7 +1166,8 @@ export default function OTBMode() {
         return;
       }
       
-      setLegalChessGame(tempChess);
+      // Move was legal - update legalChessGame to the validated state
+      setLegalChessGame(validationChess);
     }
     
     const currentFen = legalChessGame.fen();
