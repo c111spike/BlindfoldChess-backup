@@ -1244,6 +1244,7 @@ export default function OTBMode() {
       }
       
       // Move was legal - update legalChessGame to the validated state
+      console.log('[OTB Bot] Player move validated, updating legalChessGame to:', validationChess.fen());
       setLegalChessGame(validationChess);
       validatedGameState = validationChess;
     }
@@ -1282,14 +1283,22 @@ export default function OTBMode() {
     
     const currentFen = gameStateForBot.fen();
     const moveHistorySAN = gameStateForBot.history();
+    console.log('[OTB Bot] === BOT MOVE REQUEST ===');
+    console.log('[OTB Bot] FEN sent to bot:', currentFen);
+    console.log('[OTB Bot] Move history:', moveHistorySAN);
     const botMove = await requestBotMove(currentFen, selectedBot.id, moveHistorySAN);
+    console.log('[OTB Bot] Bot response:', botMove);
     
     if (botMove && botMove.move) {
+      console.log('[OTB Bot] Applying bot move:', botMove.move);
       const newLegalGame = new Chess(gameStateForBot.fen());
       const moveResult = newLegalGame.move(botMove.move);
+      console.log('[OTB Bot] Move result:', moveResult ? moveResult.san : 'FAILED');
+      console.log('[OTB Bot] FEN after bot move:', newLegalGame.fen());
       
       if (moveResult) {
         setLegalChessGame(newLegalGame);
+        console.log('[OTB Bot] Updated legalChessGame to:', newLegalGame.fen());
         
         const { rank: fromRank, file: fromFile } = squareToIndices(moveResult.from);
         const { rank: toRank, file: toFile } = squareToIndices(moveResult.to);
@@ -1406,6 +1415,24 @@ export default function OTBMode() {
     captured: string | null,
     promotedPiece?: string
   ) => {
+    // SAFETY GUARD: Prevent king two-square moves from corrupting legalChessGame
+    // This should never be reached due to guards in handleSquareClick, but acts as a fail-safe
+    const isKing = originalPiece?.toLowerCase() === 'k';
+    const fileDiff = Math.abs(toFile - fromFile);
+    const rankDiff = Math.abs(toRank - fromRank);
+    if (isKing && (fileDiff > 1 || rankDiff > 1)) {
+      console.error('[completeMove] BLOCKED: King two-square move attempted - this should not happen!', fromSquare, '->', toSquare);
+      toast({
+        title: "Invalid Move",
+        description: "King cannot move more than one square (except via castling)",
+        variant: "destructive",
+      });
+      setSelectedSquare(null);
+      setLockedPiece(null);
+      setTouchedPiece(null);
+      return;
+    }
+    
     const newBoard = boardState.map(row => [...row]);
     newBoard[fromRank][fromFile] = null;
     newBoard[toRank][toFile] = promotedPiece || originalPiece;
@@ -1573,8 +1600,13 @@ export default function OTBMode() {
               const moveResult = newLegalGame.move({ from: selectedSquare, to: kingToSquare });
               
               if (moveResult && (moveResult.flags.includes('k') || moveResult.flags.includes('q'))) {
-                // Castling succeeded - update legalChessGame
-                setLegalChessGame(newLegalGame);
+                // Castling succeeded
+                // For multiplayer: update legalChessGame immediately
+                // For bot games: do NOT update here - let executeBotTurn handle validation
+                // This prevents double-applying the castling move
+                if (matchId) {
+                  setLegalChessGame(newLegalGame);
+                }
                 
                 // Mirror the result to boardState
                 const newBoard = boardState.map(row => [...row]);

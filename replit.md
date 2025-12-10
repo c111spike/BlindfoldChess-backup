@@ -41,6 +41,23 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **Simul Mode**: Multi-board management training for simultaneous exhibitions.
 - **Simul vs Simul Tournaments**: Structured events for multi-board simultaneous play.
 
+### OTB Castling Implementation
+OTB mode uses authentic over-the-board castling which requires clicking the king first, then clicking the rook (not the destination square). This simulates real tournament play where players physically pick up both pieces.
+
+**Technical Flow:**
+1. User clicks king (e1), then clicks rook (h1 for kingside)
+2. Guard detects king moving >1 square to own rook
+3. Castling validated against `legalChessGame` (pre-castled FEN)
+4. Visual board updated: king to g1, rook to f1
+5. Move record stored: `{from: e1, to: g1, notation: "O-O"}`
+6. User presses clock → `executeBotTurn` validates the move
+7. For bot games: `legalChessGame` is NOT updated during castling; validation happens in `executeBotTurn`
+8. For multiplayer: `legalChessGame` is updated immediately and move sent via WebSocket
+
+**Safety Guards:**
+- King moving >1 square without clicking own rook is blocked
+- `completeMove` has a fail-safe that rejects any king two-square move
+
 ### Training Tools
 - **Training Notes System**: In-game notes based on chess principles.
 - **Bot Training System**: AI opponents with 7 personalities and 7 Elo levels (400-2000).
