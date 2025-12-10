@@ -86,9 +86,34 @@ Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueu
 - Monitor Admin Performance tab for real-time metrics
 
 **Future Optimization (not yet implemented)**:
-- Opening books: Could integrate Lichess opening database API or polyglot format for instant opening evaluations
-- Endgame tablebases: Syzygy tablebases provide mathematically perfect endgame solutions (5-piece ~1GB, 6-piece ~150GB)
-- Would query these first, only falling back to Stockfish for middlegame positions
+
+**Lichess Opening Database Integration**:
+- Free API at lichess.org/api for instant opening evaluations (~100ms)
+- Shows master game statistics and popular continuations
+- Cuts Stockfish workload by ~25-40% (most analyzed positions are openings)
+- **For Analysis**: Instant opening evaluations, shows "masters played this"
+- **For Bots**: Access millions of master games; personality affects line choice (aggressive → sharp lines, defensive → solid lines)
+- Cache results in Redis for reuse
+
+**Syzygy Endgame Tablebases**:
+- 5-piece: ~1GB storage, covers most practical endgames
+- 6-piece: ~150GB (use remote API instead of local)
+- Sub-millisecond perfect endgame evaluations
+- **For Analysis**: Mathematically infallible endgame assessments
+- **For Bots**: Perfect endgame play at high difficulty; lower difficulty bots can still "miss" tablebase moves (intentional mistakes preserved)
+
+**Hybrid Move Pipeline (for bots)**:
+```
+1. Opening phase? → Check Lichess API → pick move matching personality
+2. Endgame (≤5 pieces)? → Check Syzygy → perfect move (or intentional miss for lower Elo)
+3. Middlegame? → Use Stockfish cache/minimax as now
+```
+
+**Implementation Order**:
+1. Redis caching (prerequisite for all optimizations)
+2. Lichess Opening API (easy, free, big impact)
+3. 5-piece Syzygy tablebases (1GB, one-time setup)
+4. Optional: 6-piece Syzygy via remote API
 
 **Redis Upgrade Instructions (When Ready)**:
 When metrics show Redis is needed (cache lookups >50ms, cache size >100k, hit rate <50%), follow these steps:
