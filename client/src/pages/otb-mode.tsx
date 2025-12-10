@@ -1099,9 +1099,16 @@ export default function OTBMode() {
       // Validate only the CURRENT move against legalChessGame state
       // Don't replay all moves from scratch - that fails for OTB free movement games
       // Use the ref value to ensure we have the latest state
-      const validationChess = new Chess(currentLegalGame.fen());
-      console.log('[OTB Bot] Validating move:', lastMove.from, '->', lastMove.to, 'against FEN:', currentLegalGame.fen());
+      const currentFenForValidation = currentLegalGame.fen();
+      const validationChess = new Chess(currentFenForValidation);
+      const moveHistory = currentLegalGame.history();
+      console.log('[OTB Bot] === VALIDATION START ===');
+      console.log('[OTB Bot] FEN:', currentFenForValidation);
+      console.log('[OTB Bot] Move history:', moveHistory);
+      console.log('[OTB Bot] Player move:', lastMove.from, '->', lastMove.to, lastMove.promotion ? `(promote: ${lastMove.promotion})` : '');
+      console.log('[OTB Bot] Legal moves for', lastMove.from + ':', validationChess.moves({ square: lastMove.from as any, verbose: true }).map(m => m.to).join(', ') || 'NONE');
       let isLegal = true;
+      let validationError: string | null = null;
       
       try {
         // Try to apply the player's last move to the current legal game state
@@ -1111,9 +1118,15 @@ export default function OTBMode() {
           promotion: lastMove.promotion?.toLowerCase() as 'q' | 'r' | 'b' | 'n' | undefined,
         });
         isLegal = !!result;
-      } catch (e) {
+        if (result) {
+          console.log('[OTB Bot] Move VALID:', result.san);
+        }
+      } catch (e: any) {
         isLegal = false;
+        validationError = e?.message || String(e);
+        console.log('[OTB Bot] Move INVALID - Error:', validationError);
       }
+      console.log('[OTB Bot] === VALIDATION END ===');
       
       if (!isLegal) {
         setArbiterPending(true);
