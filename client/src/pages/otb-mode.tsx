@@ -77,7 +77,6 @@ export default function OTBMode() {
   const [restoredGame, setRestoredGame] = useState(false);
   const [inQueue, setInQueue] = useState(false);
   const [queueType, setQueueType] = useState<string | null>(null);
-  const [opponentTouchedSquare, setOpponentTouchedSquare] = useState<string | null>(null);
   const [lastMoveSquares, setLastMoveSquares] = useState<string[]>([]);
   const [showLegalMoves, setShowLegalMoves] = useState(false);
   const [highlightLastMove, setHighlightLastMove] = useState(true);
@@ -99,6 +98,7 @@ export default function OTBMode() {
   const [opponentHandshakeViolation, setOpponentHandshakeViolation] = useState(false);
   
   const [touchedPiece, setTouchedPiece] = useState<string | null>(null);
+  const [lockedPiece, setLockedPiece] = useState<string | null>(null); // Touch-move: piece must be moved if it has legal moves
   const [arbiterResult, setArbiterResult] = useState<{
     type: "illegal" | "legal" | null;
     message: string;
@@ -202,7 +202,7 @@ export default function OTBMode() {
       setHasMadeMove(false);
       setWhiteTime(data.whiteTime);
       setBlackTime(data.blackTime);
-      setOpponentTouchedSquare(null);
+      setLockedPiece(null);
       return;
     }
     
@@ -255,18 +255,12 @@ export default function OTBMode() {
     
     setWhiteTime(data.whiteTime);
     setBlackTime(data.blackTime);
-    setOpponentTouchedSquare(null);
     
     toast({
       title: "Opponent moved",
       description: data.move,
     });
   }, [matchId, toast, playerColor]);
-
-  const handleOpponentTouch = useCallback((data: { matchId: string; square: string }) => {
-    if (data.matchId !== matchId) return;
-    setOpponentTouchedSquare(data.square);
-  }, [matchId]);
 
   const handleArbiterCall = useCallback((data: { matchId: string; callerId: string; moveIndex: number }) => {
     if (data.matchId !== matchId) return;
@@ -474,11 +468,10 @@ export default function OTBMode() {
     }
   }, [playerColor]);
 
-  const { sendMove, sendPieceTouch, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, joinMatch, isConnected, isAuthenticated } = useWebSocket({
+  const { sendMove, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, joinMatch, isConnected, isAuthenticated } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
-    onPieceTouch: handleOpponentTouch,
     onArbiterCall: handleArbiterCall,
     onArbiterRuling: handleArbiterRuling,
     onGameEnd: handleOpponentGameEnd,
@@ -1296,6 +1289,17 @@ export default function OTBMode() {
     const isWhitePawn = piece === 'P';
     return (isWhitePawn && toRank === 0) || (!isWhitePawn && toRank === 7);
   };
+  
+  // Check if a piece on a given square has any legal moves
+  const pieceHasLegalMoves = (square: string): boolean => {
+    if (!legalChessGame) return false;
+    try {
+      const moves = legalChessGame.moves({ square: square as any, verbose: true });
+      return moves.length > 0;
+    } catch {
+      return false;
+    }
+  };
 
   const completeMove = (
     fromSquare: string,
@@ -1327,6 +1331,7 @@ export default function OTBMode() {
     
     setMoves(prev => [...prev, newMove]);
     setSelectedSquare(null);
+    setLockedPiece(null); // Reset touch-move lock after completing a move
     setLastMoveSquares([fromSquare, toSquare]);
     
     if (matchId) {
@@ -1371,7 +1376,6 @@ export default function OTBMode() {
         promotion: promotedPiece || undefined,
         playerColor: playerColor,
       });
-      sendPieceTouch(null);
     }
     
     if (captured?.toLowerCase() === "k") {
@@ -1422,11 +1426,29 @@ export default function OTBMode() {
       
       if (movingPieceColor !== activeColor) {
         setSelectedSquare(null);
+        setLockedPiece(null);
         return;
       }
       
+      // Touch-move rule: Can only switch pieces if the locked piece has NO legal moves
       if (pieceColor === activeColor) {
-        setSelectedSquare(square);
+        // Check if trying to switch to a different piece
+        if (square !== selectedSquare) {
+          // Only allow switching if locked piece has no legal moves
+          if (lockedPiece && pieceHasLegalMoves(lockedPiece)) {
+            toast({
+              title: "Touch-Move Rule",
+              description: "You touched a piece with legal moves. You must move it.",
+              variant: "destructive",
+            });
+            return;
+          }
+          // Can switch - new piece becomes the selection (and potentially locked)
+          setSelectedSquare(square);
+          if (pieceHasLegalMoves(square)) {
+            setLockedPiece(square);
+          }
+        }
         return;
       }
       
@@ -1450,8 +1472,9 @@ export default function OTBMode() {
     } else {
       if (pieceOnSquare && pieceColor === activeColor) {
         setSelectedSquare(square);
-        if (matchId) {
-          sendPieceTouch(square);
+        // Touch-move: if piece has legal moves, lock to it
+        if (pieceHasLegalMoves(square)) {
+          setLockedPiece(square);
         }
       }
     }
@@ -2165,9 +2188,9 @@ export default function OTBMode() {
                   showCoordinates={true}
                   highlightedSquares={[]}
                   legalMoveSquares={legalMoveSquares}
-                  touchedSquare={opponentTouchedSquare}
                   lastMoveSquares={highlightLastMove ? lastMoveSquares : []}
                   selectedSquare={selectedSquare}
+                  lockedPiece={lockedPiece}
                   onSquareClick={handleSquareClick}
                 />
                 

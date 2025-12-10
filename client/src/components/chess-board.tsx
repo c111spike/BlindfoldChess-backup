@@ -18,10 +18,10 @@ interface ChessBoardProps {
   showCoordinates?: boolean;
   highlightedSquares?: string[];
   legalMoveSquares?: string[];
-  touchedSquare?: string | null;
   lastMoveSquares?: string[];
   lastMove?: { from: string; to: string };
   selectedSquare?: string | null;
+  lockedPiece?: string | null;
   onSquareClick?: (square: string) => void;
   className?: string;
   noCard?: boolean;
@@ -47,10 +47,10 @@ export function ChessBoard({
   showCoordinates = true,
   highlightedSquares = [],
   legalMoveSquares = [],
-  touchedSquare = null,
   lastMoveSquares = [],
   lastMove,
   selectedSquare: externalSelectedSquare = null,
+  lockedPiece = null,
   onSquareClick,
   className = "",
   noCard = false,
@@ -316,7 +316,7 @@ export function ChessBoard({
               const piece = board[boardRank]?.[boardFile];
               const isHighlighted = highlightedSquares.includes(square);
               const isSelected = selectedSquare === square;
-              const isOpponentTouched = touchedSquare === square;
+              const isLocked = lockedPiece === square;
               const isLastMove = effectiveLastMoveSquares.includes(square);
               const isPremove = isPremoveSquare(square);
               const isLegalMove = legalMoveSquares.includes(square);
@@ -332,8 +332,8 @@ export function ChessBoard({
                     relative flex items-center justify-center cursor-pointer
                     ${getSquareColor(fileIndex, rankIndex)}
                     ${isHighlighted ? "ring-2 ring-primary ring-inset" : ""}
-                    ${isSelected ? "ring-4 ring-yellow-400 ring-inset" : ""}
-                    ${isOpponentTouched ? "ring-4 ring-orange-500 ring-inset animate-pulse" : ""}
+                    ${isSelected && !isLocked ? "ring-4 ring-yellow-400 ring-inset" : ""}
+                    ${isLocked ? "ring-4 ring-red-500 ring-inset" : ""}
                     ${isLastMove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-yellow-400/30" : ""}
                     ${isPremove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-blue-500/40" : ""}
                     hover-elevate
