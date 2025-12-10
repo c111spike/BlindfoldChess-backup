@@ -2131,17 +2131,115 @@ export default function OTBMode() {
                 </CardContent>
               </Card>
 
-              <ChessBoard 
-                fen={fen}
-                orientation={playerColor}
-                showCoordinates={true}
-                highlightedSquares={[]}
-                legalMoveSquares={legalMoveSquares}
-                touchedSquare={opponentTouchedSquare}
-                lastMoveSquares={highlightLastMove ? lastMoveSquares : []}
-                selectedSquare={selectedSquare}
-                onSquareClick={handleSquareClick}
-              />
+              {/* Board with OTB controls on right side */}
+              <div className="flex gap-1">
+                <ChessBoard 
+                  fen={fen}
+                  orientation={playerColor}
+                  showCoordinates={true}
+                  highlightedSquares={[]}
+                  legalMoveSquares={legalMoveSquares}
+                  touchedSquare={opponentTouchedSquare}
+                  lastMoveSquares={highlightLastMove ? lastMoveSquares : []}
+                  selectedSquare={selectedSquare}
+                  onSquareClick={handleSquareClick}
+                />
+                
+                {/* OTB Control Column - 2 tiles wide, 8 tiles tall */}
+                <div 
+                  className="flex flex-col"
+                  style={{ width: 'calc(100% * 2 / 10)', aspectRatio: '2 / 8' }}
+                >
+                  {/* Top section: Handshake button (1x1) positioned at top-right */}
+                  <div className="flex justify-end" style={{ height: '12.5%' }}>
+                    {showHandshakeUI && !handshakeComplete && moves.length < 2 && (
+                      <button
+                        onClick={() => {
+                          setMyHandshakeOffered(true);
+                          const myFirstMoveNotMade = (playerColor === "white" && moves.length === 0) || 
+                                                     (playerColor === "black" && moves.length < 2);
+                          if (myFirstMoveNotMade) {
+                            setMyHandshakeBeforeFirstMove(true);
+                          }
+                          if (matchId && !isBotGame) {
+                            sendHandshakeOffer(matchId, playerColor);
+                          }
+                          if (opponentHandshakeOffered) {
+                            setHandshakeComplete(true);
+                            gameStartTimeRef.current = Date.now();
+                            toast({ title: "Handshake accepted!", description: "Good luck!" });
+                          }
+                        }}
+                        disabled={myHandshakeOffered}
+                        className={`aspect-square h-full rounded-md border-2 transition-all flex items-center justify-center
+                          ${myHandshakeOffered 
+                            ? "bg-green-500/20 border-green-500 text-green-600" 
+                            : opponentHandshakeOffered 
+                              ? "bg-primary/20 border-primary text-primary animate-pulse" 
+                              : "bg-card border-border hover:bg-accent hover:border-primary"
+                          }
+                          ${myHandshakeOffered ? "cursor-not-allowed" : "cursor-pointer active:scale-95"}
+                        `}
+                        data-testid="button-offer-handshake"
+                        title={myHandshakeOffered ? "Handshake Offered" : opponentHandshakeOffered ? "Accept Handshake" : "Offer Handshake"}
+                      >
+                        <HandshakeIcon className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Empty space (1 tile) */}
+                  <div style={{ height: '12.5%' }} />
+                  
+                  {/* Clock button (4 tiles tall x 2 tiles wide) */}
+                  <button
+                    onClick={handleClockPress}
+                    disabled={arbiterPending || !!pendingCheckmate || !gameStarted}
+                    className={`w-full rounded-lg border-4 transition-all flex flex-col items-center justify-center gap-1
+                      ${clockTurn === playerColor 
+                        ? "bg-primary text-primary-foreground border-primary shadow-lg" 
+                        : "bg-muted text-muted-foreground border-muted-foreground/30"
+                      }
+                      ${(arbiterPending || !!pendingCheckmate || !gameStarted) 
+                        ? "opacity-50 cursor-not-allowed" 
+                        : "cursor-pointer hover:shadow-xl active:scale-[0.98]"
+                      }
+                    `}
+                    style={{ height: '50%' }}
+                    data-testid="button-press-clock"
+                  >
+                    <Clock className="w-8 h-8" />
+                    <span className="text-sm font-bold">CLOCK</span>
+                    <span className="text-xs opacity-70">(Space)</span>
+                  </button>
+                  
+                  {/* Empty space (1 tile) */}
+                  <div style={{ height: '12.5%' }} />
+                  
+                  {/* Call Arbiter button (1 tile tall x 2 tiles wide) */}
+                  {!isBotGame && (
+                    <button
+                      onClick={handleCallArbiter}
+                      disabled={arbiterPending || moves.length === 0 || clockTurn !== playerColor}
+                      className={`w-full rounded-md border-2 transition-all flex items-center justify-center gap-1
+                        ${arbiterPending || moves.length === 0 || clockTurn !== playerColor
+                          ? "bg-muted/50 text-muted-foreground border-muted cursor-not-allowed opacity-50"
+                          : "bg-orange-500/10 text-orange-600 border-orange-500 hover:bg-orange-500/20 cursor-pointer active:scale-95"
+                        }
+                      `}
+                      style={{ height: '12.5%' }}
+                      data-testid="button-call-arbiter"
+                      title="Call Arbiter"
+                    >
+                      <Gavel className="w-4 h-4" />
+                      <span className="text-xs font-medium">Arbiter</span>
+                    </button>
+                  )}
+                  {isBotGame && (
+                    <div style={{ height: '12.5%' }} />
+                  )}
+                </div>
+              </div>
 
               {/* Player timer (bottom) */}
               <Card className={`${clockTurn === playerColor ? "ring-2 ring-primary" : ""}`}>
@@ -2192,71 +2290,6 @@ export default function OTBMode() {
 
       {gameStarted && (
         <div className="w-72 border-l bg-card flex flex-col">
-          <div className="p-3 border-b space-y-2">
-            <Button
-              onClick={handleClockPress}
-              size="lg"
-              className="w-full min-h-12 text-base font-semibold"
-              disabled={arbiterPending || !!pendingCheckmate}
-              data-testid="button-press-clock"
-            >
-              <Clock className="mr-2 h-5 w-5" />
-              Press Clock
-              <span className="ml-2 text-xs font-normal opacity-70">(Space)</span>
-            </Button>
-            
-            {/* Handshake button - only available before both players' first moves */}
-            {showHandshakeUI && !handshakeComplete && moves.length < 2 && (
-              <Button
-                onClick={() => {
-                  setMyHandshakeOffered(true);
-                  // Track if I offered handshake before my first move
-                  const myFirstMoveNotMade = (playerColor === "white" && moves.length === 0) || 
-                                             (playerColor === "black" && moves.length < 2);
-                  if (myFirstMoveNotMade) {
-                    setMyHandshakeBeforeFirstMove(true);
-                  }
-                  // Send handshake offer to opponent via WebSocket for multiplayer
-                  if (matchId && !isBotGame) {
-                    sendHandshakeOffer(matchId, playerColor);
-                  }
-                  if (opponentHandshakeOffered) {
-                    setHandshakeComplete(true);
-                    gameStartTimeRef.current = Date.now(); // Reset timer on handshake complete
-                    toast({ title: "Handshake accepted!", description: "Good luck!" });
-                  }
-                }}
-                size="default"
-                variant="outline"
-                className={`w-full ${myHandshakeOffered ? "border-green-500 text-green-600" : "border-primary"}`}
-                disabled={myHandshakeOffered}
-                data-testid="button-offer-handshake"
-              >
-                <HandshakeIcon className="mr-2 h-4 w-4" />
-                {myHandshakeOffered ? "Handshake Offered" : opponentHandshakeOffered ? "Accept Handshake" : "Offer Handshake"}
-              </Button>
-            )}
-            
-            {!isBotGame && (
-              <Button
-                onClick={handleCallArbiter}
-                size="default"
-                variant="outline"
-                className="w-full border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
-                disabled={arbiterPending || moves.length === 0 || clockTurn !== playerColor}
-                data-testid="button-call-arbiter"
-              >
-                <Gavel className="mr-2 h-4 w-4" />
-                Call Arbiter
-              </Button>
-            )}
-            {isBotGame && (
-              <p className="text-xs text-center text-muted-foreground">
-                Bot will call arbiter if you make an illegal move
-              </p>
-            )}
-          </div>
-          
           <div className="p-3 border-b">
             <h3 className="font-semibold text-sm">Move List</h3>
             <p className="text-xs text-muted-foreground">Free movement - arbiter validates</p>
