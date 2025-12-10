@@ -90,6 +90,23 @@ Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueu
 - Endgame tablebases: Syzygy tablebases provide mathematically perfect endgame solutions (5-piece ~1GB, 6-piece ~150GB)
 - Would query these first, only falling back to Stockfish for middlegame positions
 
+**Redis Upgrade Instructions (When Ready)**:
+When metrics show Redis is needed (cache lookups >50ms, cache size >100k, hit rate <50%), follow these steps:
+
+1. **Create Upstash Account**: Go to upstash.com and sign up (Google/GitHub/email)
+2. **Create Redis Database**:
+   - Click "Create Database"
+   - Name it "simulchess-cache"
+   - Choose region closest to your users
+   - Select "Regional" type (faster, $20/month Pro plan recommended)
+3. **Get Connection Credentials**:
+   - Copy `UPSTASH_REDIS_REST_URL` from dashboard
+   - Copy `UPSTASH_REDIS_REST_TOKEN` from dashboard
+4. **Add to Replit Secrets**: Add both values as secrets in Replit
+5. **Implementation**: Install `@upstash/redis` package and update analysisQueueManager.ts to use Redis instead of PostgreSQL for cache operations
+
+Benefits: Sub-millisecond lookups (vs 10-50ms PostgreSQL), better concurrency, automatic expiration policies
+
 ### Engagement Features
 - **This Day in Chess History**: Displays historical chess facts.
 
