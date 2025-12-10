@@ -6,6 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,6 +40,7 @@ import {
   Sparkles,
   Settings,
   Home,
+  Menu,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -82,6 +90,9 @@ export default function NPieceChallenge() {
   // Solution browser
   const [showSolutionBrowser, setShowSolutionBrowser] = useState(false);
   const [viewingSolution, setViewingSolution] = useState<number | null>(null);
+  
+  // Mobile sidebar
+  const [mobileInfoOpen, setMobileInfoOpen] = useState(false);
   
   // Derived values
   const maxPieces = MAX_PIECES[pieceType][boardSize];
@@ -625,9 +636,129 @@ export default function NPieceChallenge() {
         </div>
       </div>
       
-      {/* Sidebar */}
+      {/* Mobile Info Button - shows on small screens when game is started */}
       {gameStarted && (
-        <div className="w-72 border-l bg-card flex flex-col">
+        <div className="fixed bottom-4 right-4 md:hidden z-50">
+          <Sheet open={mobileInfoOpen} onOpenChange={setMobileInfoOpen}>
+            <SheetTrigger asChild>
+              <Button 
+                size="lg" 
+                className="rounded-full shadow-lg h-14 w-14"
+                data-testid="button-mobile-info"
+              >
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72 p-0">
+              <SheetHeader className="p-3 border-b">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{PIECE_SYMBOLS[pieceType]}</span>
+                  <div>
+                    <SheetTitle>{PIECE_NAMES[pieceType]} Challenge</SheetTitle>
+                    <p className="text-xs text-muted-foreground">{boardSize}x{boardSize} board</p>
+                  </div>
+                </div>
+              </SheetHeader>
+              
+              {/* Solutions Browser */}
+              <div className="p-3 border-b">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-between"
+                      data-testid="button-solutions-browser-mobile"
+                    >
+                      <span>
+                        {progress?.solutionsFound || 0} of {trackableSolutions} solutions
+                      </span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-64 max-h-80">
+                    <ScrollArea className="h-72">
+                      {Array.from({ length: trackableSolutions }, (_, i) => {
+                        const isSolvedSolution = userSolutions.some(s => s.solutionIndex === i);
+                        return (
+                          <DropdownMenuItem
+                            key={i}
+                            disabled={!isSolvedSolution}
+                            onClick={() => {
+                              if (isSolvedSolution) {
+                                handleViewSolution(i);
+                                setMobileInfoOpen(false);
+                              }
+                            }}
+                            className="flex items-center justify-between"
+                          >
+                            <span>Solution {i + 1}</span>
+                            {isSolvedSolution && (
+                              <Badge variant="secondary" className="ml-2">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                solved
+                              </Badge>
+                            )}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </ScrollArea>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
+              {/* Personal Best */}
+              {progress?.bestTime && (
+                <div className="p-3 border-b">
+                  <h4 className="text-sm font-medium mb-1">Personal Best</h4>
+                  <p className="text-lg font-mono text-primary">
+                    {formatTime(progress.bestTime)}
+                  </p>
+                </div>
+              )}
+              
+              {/* Overall Progress */}
+              <div className="p-3 border-b">
+                <h4 className="text-sm font-medium mb-2">Overall Progress</h4>
+                <Progress value={overallProgressPercent} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {overallProgress.found} / {overallProgress.total} solutions across all challenges
+                </p>
+              </div>
+              
+              {/* Rules */}
+              <div className="p-3 flex-1">
+                <h4 className="text-xs font-semibold mb-2">Rules</h4>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>Place {maxPieces} {PIECE_NAMES[pieceType].toLowerCase()}s</li>
+                  <li>No piece can attack another</li>
+                  <li>Red pieces are in conflict</li>
+                  <li>Click a piece to see its attacks</li>
+                </ul>
+              </div>
+              
+              {/* Back to menu */}
+              <div className="p-3 border-t">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setGameStarted(false);
+                    setViewingSolution(null);
+                    setMobileInfoOpen(false);
+                  }}
+                  data-testid="button-back-to-menu-mobile"
+                >
+                  Back to Menu
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      )}
+      
+      {/* Desktop Sidebar - hidden on mobile */}
+      {gameStarted && (
+        <div className="hidden md:flex w-72 border-l bg-card flex-col">
           <div className="p-3 border-b">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">{PIECE_SYMBOLS[pieceType]}</span>
