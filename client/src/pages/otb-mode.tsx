@@ -857,8 +857,8 @@ export default function OTBMode() {
       return; // Not your turn, can't press clock
     }
     
-    // Must have made a move before pressing clock (in multiplayer)
-    if (matchId && !hasMadeMove) {
+    // Must have made a move before pressing clock (in multiplayer and bot games)
+    if ((matchId || isBotGame) && !hasMadeMove) {
       toast({
         title: "Make a move first",
         description: "You must make a move before pressing the clock",
@@ -883,7 +883,7 @@ export default function OTBMode() {
     if (matchId) {
       sendMove(matchId, "__CLOCK_PRESS__", "", whiteTime, blackTime, undefined);
     }
-  }, [gameStarted, clockTurn, increment, clockPresses, arbiterPending, pendingCheckmate, matchId, hasMadeMove, playerColor, toast, sendMove, whiteTime, blackTime]);
+  }, [gameStarted, clockTurn, increment, clockPresses, arbiterPending, pendingCheckmate, matchId, isBotGame, hasMadeMove, playerColor, toast, sendMove, whiteTime, blackTime]);
 
   const handleStartGame = () => {
     const minutes = parseInt(timeControl);
@@ -1175,6 +1175,7 @@ export default function OTBMode() {
         
         setActiveColor(playerColor);
         setClockTurn(playerColor);
+        setHasMadeMove(false); // Allow player to retry with a legal move
         setBotThinking(false);
         
         setTimeout(() => {
@@ -1281,14 +1282,17 @@ export default function OTBMode() {
           setClockTurn(playerColor);
           setActiveColor(playerColor);
           setClockPresses(prev => prev + 1);
+          setHasMadeMove(false); // Allow player to make next move
           setBotThinking(false);
         }, 500);
       } else {
         // Bot move failed to execute, reset thinking state
+        setHasMadeMove(false);
         setBotThinking(false);
       }
     } else {
       // No valid bot move received, reset thinking state
+      setHasMadeMove(false);
       setBotThinking(false);
     }
   }, [isBotGame, selectedBot, legalChessGame, gameResult, playerColor, activeColor, moves, myViolations, toast, handleGameEnd, requestBotMove, increment]);
@@ -1357,7 +1361,8 @@ export default function OTBMode() {
     setLockedPiece(null); // Reset touch-move lock after completing a move
     setLastMoveSquares([fromSquare, toSquare]);
     
-    if (matchId) {
+    // Set hasMadeMove for both multiplayer AND bot games to prevent multiple moves before clock/validation
+    if (matchId || isBotGame) {
       setHasMadeMove(true);
     }
     
@@ -1429,7 +1434,7 @@ export default function OTBMode() {
     if (!isMyTurn && matchId) return;
     if (!isMyTurn && isBotGame) return;
     
-    if (hasMadeMove && matchId) {
+    if (hasMadeMove && (matchId || isBotGame)) {
       toast({
         title: "Press clock first",
         description: "You must press the clock before making another move",
