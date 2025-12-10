@@ -137,45 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
       });
       
-      if (!user.isPremium) {
-        const isOTB = gameData.mode.startsWith('otb_');
-        const isBlindfold = gameData.mode === 'blindfold';
-        
-        if (isOTB && (user.dailyGamesPlayed || 0) >= 5) {
-          return res.status(403).json({ 
-            message: "Daily OTB game limit reached. Upgrade to Premium for unlimited games.",
-            upgradeRequired: true,
-          });
-        }
-        
-        if (isBlindfold && (user.dailyBlindfoldGamesPlayed || 0) >= 5) {
-          return res.status(403).json({ 
-            message: "Daily Blindfold game limit reached. Upgrade to Premium for unlimited games.",
-            upgradeRequired: true,
-          });
-        }
-      }
-      
       const game = await storage.createGame(gameData);
-      
-      if (!user.isPremium) {
-        const isOTB = gameData.mode.startsWith('otb_');
-        const isBlindfold = gameData.mode === 'blindfold';
-        
-        if (isOTB) {
-          await storage.upsertUser({
-            ...user,
-            dailyGamesPlayed: (user.dailyGamesPlayed || 0) + 1,
-          });
-        }
-        
-        if (isBlindfold) {
-          await storage.upsertUser({
-            ...user,
-            dailyBlindfoldGamesPlayed: (user.dailyBlindfoldGamesPlayed || 0) + 1,
-          });
-        }
-      }
       
       res.json(game);
     } catch (error) {
@@ -1248,13 +1210,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      if (!user.isPremium && (user.dailyBlindfoldGamesPlayed || 0) >= 5) {
-        return res.status(403).json({ 
-          message: "Daily Blindfold game limit reached. Upgrade to Premium for unlimited games.",
-          upgradeRequired: true,
-        });
-      }
-      
       const gameData = insertGameSchema.parse({
         mode: 'blindfold',
         userId,
@@ -1269,13 +1224,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const game = await storage.createGame(gameData);
-      
-      if (!user.isPremium) {
-        await storage.upsertUser({
-          ...user,
-          dailyBlindfoldGamesPlayed: (user.dailyBlindfoldGamesPlayed || 0) + 1,
-        });
-      }
       
       res.json(game);
     } catch (error) {

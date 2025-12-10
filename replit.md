@@ -6,6 +6,9 @@ SimulChess is a professional chess training platform designed to enhance over-th
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Monetization Model
+**Ads-Only Model**: All training modes (OTB, Blindfold, Board Spin, N-Piece Challenge, Knight Tours) are fully free with no daily limits. Revenue comes from advertising only - no premium membership tiers.
+
 ## System Architecture
 
 ### Core Design Principles
