@@ -141,6 +141,7 @@ export default function OTBMode() {
   const handleGameEndRef = useRef<((result: "white_win" | "black_win" | "draw") => void) | null>(null);
   const arbiterTimerRef = useRef<NodeJS.Timeout | null>(null);
   const gameStartTimeRef = useRef<number | null>(null);
+  const legalChessGameRef = useRef<Chess | null>(null);
 
   useEffect(() => {
     gameRef.current = game;
@@ -148,6 +149,11 @@ export default function OTBMode() {
     whiteTimeRef.current = whiteTime;
     blackTimeRef.current = blackTime;
   }, [game, gameId, whiteTime, blackTime]);
+
+  // Keep legalChessGameRef in sync to avoid stale closure issues in executeBotTurn
+  useEffect(() => {
+    legalChessGameRef.current = legalChessGame;
+  }, [legalChessGame]);
 
   const squareToIndices = (square: string): { rank: number; file: number } => {
     const file = FILES.indexOf(square[0]);
@@ -1074,7 +1080,9 @@ export default function OTBMode() {
   };
 
   const executeBotTurn = useCallback(async () => {
-    if (!isBotGame || !selectedBot || !legalChessGame || gameResult) return;
+    // Use ref to get the LATEST legalChessGame state, avoiding stale closure issues
+    const currentLegalGame = legalChessGameRef.current;
+    if (!isBotGame || !selectedBot || !currentLegalGame || gameResult) return;
     
     const botColor = playerColor === "white" ? "black" : "white";
     if (activeColor !== botColor) return;
@@ -1090,7 +1098,9 @@ export default function OTBMode() {
       
       // Validate only the CURRENT move against legalChessGame state
       // Don't replay all moves from scratch - that fails for OTB free movement games
-      const validationChess = new Chess(legalChessGame.fen());
+      // Use the ref value to ensure we have the latest state
+      const validationChess = new Chess(currentLegalGame.fen());
+      console.log('[OTB Bot] Validating move:', lastMove.from, '->', lastMove.to, 'against FEN:', currentLegalGame.fen());
       let isLegal = true;
       
       try {
@@ -1168,8 +1178,8 @@ export default function OTBMode() {
     }
     
     // Use validatedGameState if we just validated a move (it has the updated state)
-    // Otherwise use legalChessGame (for bot's opening move when player is black)
-    const gameStateForBot = validatedGameState || legalChessGame;
+    // Otherwise use currentLegalGame (for bot's opening move when player is black)
+    const gameStateForBot = validatedGameState || currentLegalGame;
     
     // Check if the player's move resulted in checkmate, stalemate, or draw
     // This must happen BEFORE requesting bot move to avoid "No legal moves" error
