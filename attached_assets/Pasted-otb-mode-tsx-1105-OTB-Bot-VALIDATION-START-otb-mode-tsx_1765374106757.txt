@@ -1,0 +1,301 @@
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(0)
+otb-mode.tsx:1108 [OTB Bot] Player move: e2 -> e4 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for e2: e3, e4
+otb-mode.tsx:1122 [OTB Bot] Move VALID: e4
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: g1 -> f3 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for g1: e2, f3, h3
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Nf3
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: rnbqkbnr/ppp2ppp/8/3pp3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: d2 -> d3 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for d2: d3, d4
+otb-mode.tsx:1122 [OTB Bot] Move VALID: d3
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1bqkbnr/ppp2ppp/2n5/3pp3/4P3/3P1N2/PPP2PPP/RNBQKB1R w KQkq - 1 4
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: c1 -> g5 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for c1: d2, e3, f4, g5, h6
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bg5
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1bqkb1r/ppp2ppp/2n2n2/3pp1B1/4P3/3P1N2/PPP2PPP/RN1QKB1R w KQkq - 3 5
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: g2 -> g3 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for g2: g3, g4
+otb-mode.tsx:1122 [OTB Bot] Move VALID: g3
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r2qkb1r/ppp2ppp/2n1bn2/3pp1B1/4P3/3P1NP1/PPP2P1P/RN1QKB1R w KQkq - 1 6
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: f1 -> g2 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for f1: e2, g2, h3
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bg2
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r2qkb1r/ppp2ppp/2n1bn2/4p1B1/4p3/3P1NP1/PPP2PBP/RN1QK2R w KQkq - 0 7
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: d3 -> e4 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for d3: d4, e4
+otb-mode.tsx:1122 [OTB Bot] Move VALID: dxe4
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r2qkb1r/ppp2ppp/4bn2/4p1B1/1n2P3/5NP1/PPP2PBP/RN1QK2R w KQkq - 1 8
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: d1 -> d8 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for d1: d2, d3, d4, d5, d6, d7, d8, e2, c1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Qxd8+
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r2k1b1r/ppp2ppp/4bn2/4p1B1/1n2P3/5NP1/PPP2PBP/RN2K2R w KQ - 0 9
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: b1 -> c3 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for b1: a3, c3, d2
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Nc3
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r2k1b1r/ppp2ppp/5n2/4p1B1/1n2P3/2N2NP1/bPP2PBP/R3K2R w KQ - 0 10
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: g5 -> f6 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for g5: f6, h6, h4, f4, e3, d2, c1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bxf6+
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k2b1r/ppp2ppp/5B2/4p3/1n2P3/2N2NP1/bPP2PBP/R3K2R w KQ - 1 11
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: f6 -> e5 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for f6: e7, d8, g7, g5, h4, e5
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bxe5
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k2b1r/ppp2ppp/8/4B3/4P3/2N2NP1/bPn2PBP/R3K2R w KQ - 0 12
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: e1 -> e2 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for e1: d2, e2, f1, d1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Ke2
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k2b1r/ppp2ppp/8/4B3/4P3/1bN2NP1/1Pn1KPBP/R6R w - - 2 13
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: a1 -> d1 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for a1: a2, a3, a4, a5, a6, a7, b1, c1, d1, e1, f1, g1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Rad1
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k2b1r/ppp2ppp/8/4B3/3nP3/1bN2NP1/1P2KPBP/3R3R w - - 4 14
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: d1 -> d4 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for d1: d4
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Rxd4
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k4r/ppp2ppp/8/2b1B3/3RP3/1bN2NP1/1P2KPBP/7R w - - 1 15
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: e5 -> g7 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for e5: d6, c7, f6, g7, f4
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bxg7
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k4r/ppp2pBp/8/8/3bP3/1bN2NP1/1P2KPBP/7R w - - 0 16
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: g7 -> h8 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for g7: f8, h8, h6, f6, e5, d4
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bxh8
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k4b/ppp2p1p/8/8/4P3/1bN2NP1/1P2KPBP/7R w - - 0 17
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: c3 -> d5 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for c3: a4, b5, d5, d1, b1, a2
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Nd5
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k5/ppp2p1p/8/3N4/4P3/1b3NP1/1b2KPBP/7R w - - 0 18
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h1 -> b1 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h1: g1, f1, e1, d1, c1, b1, a1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Rb1
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k5/ppp2p1p/8/3b4/4P3/5NP1/1b2KPBP/1R6 w - - 0 19
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: b1 -> b2 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for b1: b2, c1, d1, e1, f1, g1, h1, a1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Rxb2
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1rk5/ppp2p1p/8/3b4/4P3/5NP1/1R2KPBP/8 w - - 1 20
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: e4 -> d5 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for e4: e5, d5
+otb-mode.tsx:1122 [OTB Bot] Move VALID: exd5
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k5/ppp2p1p/8/3P4/8/5NP1/1R2KPBP/8 w - - 1 21
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: f3 -> d4 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for f3: d4, e5, g5, h4, g1, e1, d2
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Nd4
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1rk5/ppp2p1p/8/3P4/3N4/6P1/1R2KPBP/8 w - - 3 22
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h2 -> h4 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h2: h3, h4
+otb-mode.tsx:1122 [OTB Bot] Move VALID: h4
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1r6/pppk1p1p/8/3P4/3N3P/6P1/1R2KPB1/8 w - - 1 23
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: g2 -> h3 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for g2: f3, e4, h3, h1, f1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bh3+
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1r6/pppk3p/8/3P1p2/3N3P/6PB/1R2KP2/8 w - - 0 24
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h3 -> f5 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h3: g4, f5, g2, f1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bxf5+
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1r1k4/ppp4p/8/3P1B2/3N3P/6P1/1R2KP2/8 w - - 1 25
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: f5 -> h7 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for f5: e6, d7, c8, g6, h7, g4, h3, e4, d3, c2, b1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bxh7
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1rk5/ppp4B/8/3P4/3N3P/6P1/1R2KP2/8 w - - 1 26
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: b2 -> b3 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for b2: b3, b4, b5, b6, b7, c2, d2, b1, a2
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Rb3
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1r1k4/ppp4B/8/3P4/3N3P/1R4P1/4KP2/8 w - - 3 27
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: b3 -> e3 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for b3: b4, b5, b6, b7, c3, d3, e3, f3, b2, b1, a3
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Re3
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1r1k4/1pp4B/p7/3P4/3N3P/4R1P1/4KP2/8 w - - 0 28
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: d4 -> e6 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for d4: b5, c6, e6, f5, f3, c2, b3
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Ne6+
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1rk5/1pp4B/p3N3/3P4/7P/4R1P1/4KP2/8 w - - 2 29
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: e3 -> f3 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for e3: e4, e5, f3, d3, c3, b3, a3
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Rf3
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 1rk5/1pp4B/4N3/p2P4/7P/5RP1/4KP2/8 w - - 0 30
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h7 -> c2 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h7: g8, g6, f5, e4, d3, c2, b1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Bc2
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r1k5/1pp5/4N3/p2P4/7P/5RP1/2B1KP2/8 w - - 2 31
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: c2 -> a4 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for c2: b3, a4, d3, e4, f5, g6, h7, d1, b1
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Ba4
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: rk6/1pp5/4N3/p2P4/B6P/5RP1/4KP2/8 w - - 4 32
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: f3 -> f8 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for f3: f4, f5, f6, f7, f8, e3, d3, c3, b3, a3
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Rf8+
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: r4R2/kpp5/4N3/p2P4/B6P/6P1/4KP2/8 w - - 6 33
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: f8 -> a8 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for f8: g8, h8, f7, f6, f5, f4, f3, e8, d8, c8, b8, a8
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Rxa8+
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: k7/1pp5/4N3/p2P4/B6P/6P1/4KP2/8 w - - 0 34
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h4 -> h5 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h4: h5
+otb-mode.tsx:1122 [OTB Bot] Move VALID: h5
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 8/kpp5/4N3/p2P3P/B7/6P1/4KP2/8 w - - 1 35
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h5 -> h6 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h5: h6
+otb-mode.tsx:1122 [OTB Bot] Move VALID: h6
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 8/1pp5/k3N2P/p2P4/B7/6P1/4KP2/8 w - - 1 36
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h6 -> h7 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h6: h7
+otb-mode.tsx:1122 [OTB Bot] Move VALID: h7
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 8/1p5P/k1p1N3/p2P4/B7/6P1/4KP2/8 w - - 0 37
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: d5 -> c6 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for d5: d6, c6
+otb-mode.tsx:1122 [OTB Bot] Move VALID: dxc6
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 8/kp5P/2P1N3/p7/B7/6P1/4KP2/8 w - - 1 38
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: c6 -> c7 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for c6: c7, b7
+otb-mode.tsx:1122 [OTB Bot] Move VALID: c7
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: k7/1pP4P/4N3/p7/B7/6P1/4KP2/8 w - - 1 39
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: c7 -> c8 (promote: Q)
+otb-mode.tsx:1109 [OTB Bot] Legal moves for c7: c8, c8, c8, c8
+otb-mode.tsx:1122 [OTB Bot] Move VALID: c8=Q+
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 2Q5/kp5P/4N3/p7/B7/6P1/4KP2/8 w - - 1 40
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h7 -> h8 (promote: Q)
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h7: h8, h8, h8, h8
+otb-mode.tsx:1122 [OTB Bot] Move VALID: h8=Q
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 2Q4Q/k7/1p2N3/p7/B7/6P1/4KP2/8 w - - 0 41
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h8 -> g7 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h8: h7, h6, h5, h4, h3, h2, h1, g7, f6, e5, d4, c3, b2, a1, g8, f8, e8, d8
+otb-mode.tsx:1122 [OTB Bot] Move VALID: Qg7#
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 2Q5/k5Q1/1p2N3/p7/B7/6P1/4KP2/8 b - - 1 41
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h8 -> g7 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h8: NONE
+otb-mode.tsx:1127 [OTB Bot] Move INVALID - Error: Invalid move: {"from":"h8","to":"g7"}
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
+otb-mode.tsx:1105 [OTB Bot] === VALIDATION START ===
+otb-mode.tsx:1106 [OTB Bot] FEN: 2Q5/k5Q1/1p2N3/p7/B7/6P1/4KP2/8 b - - 1 41
+otb-mode.tsx:1107 [OTB Bot] Move history: Array(1)
+otb-mode.tsx:1108 [OTB Bot] Player move: h8 -> h7 
+otb-mode.tsx:1109 [OTB Bot] Legal moves for h8: NONE
+otb-mode.tsx:1127 [OTB Bot] Move INVALID - Error: Invalid move: {"from":"h8","to":"h7"}
+otb-mode.tsx:1129 [OTB Bot] === VALIDATION END ===
