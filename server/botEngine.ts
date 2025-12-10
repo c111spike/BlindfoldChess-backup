@@ -178,7 +178,7 @@ function getSearchDepth(difficulty: BotDifficulty): number {
     novice: 1,
     intermediate: 2,
     club: 2,
-    advanced: 2,
+    advanced: 3,
     expert: 3,
     master: 4,
   };
@@ -188,11 +188,11 @@ function getSearchDepth(difficulty: BotDifficulty): number {
 function getMistakeProbability(difficulty: BotDifficulty): number {
   const probabilityMap: Record<BotDifficulty, number> = {
     beginner: 0.5,
-    novice: 0.25,
-    intermediate: 0.2,
-    club: 0.1,
-    advanced: 0.07,
-    expert: 0.04,
+    novice: 0.1,
+    intermediate: 0.08,
+    club: 0.06,
+    advanced: 0.05,
+    expert: 0.03,
     master: 0.01,
   };
   return probabilityMap[difficulty];
