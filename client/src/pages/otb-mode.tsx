@@ -212,6 +212,54 @@ export default function OTBMode() {
       return;
     }
     
+    // Handle castling moves - use FEN to rebuild board correctly
+    if (data.move === 'O-O' || data.move === 'O-O-O') {
+      // For castling, rebuild board from the received FEN (which has both pieces moved)
+      if (data.fen) {
+        const fenParts = data.fen.split(' ')[0];
+        const rows = fenParts.split('/');
+        const newBoard: (string | null)[][] = [];
+        for (const row of rows) {
+          const boardRow: (string | null)[] = [];
+          for (const char of row) {
+            if (isNaN(parseInt(char))) {
+              boardRow.push(char);
+            } else {
+              for (let i = 0; i < parseInt(char); i++) {
+                boardRow.push(null);
+              }
+            }
+          }
+          newBoard.push(boardRow);
+        }
+        setBoardState(newBoard);
+        
+        // Update legalChessGame from the received FEN
+        setLegalChessGame(new Chess(data.fen));
+      }
+      
+      setMoves(prev => [...prev, {
+        from: data.from || '',
+        to: data.to || '',
+        piece: 'K',
+        notation: data.move,
+        timestamp: Date.now(),
+      }]);
+      
+      if (data.from && data.to) {
+        setLastMoveSquares([data.from, data.to]);
+      }
+      
+      setWhiteTime(data.whiteTime);
+      setBlackTime(data.blackTime);
+      
+      toast({
+        title: "Opponent castled",
+        description: data.move,
+      });
+      return;
+    }
+    
     // Handle regular move
     if (data.from && data.to) {
       const { rank: fromRank, file: fromFile } = squareToIndices(data.from);
@@ -678,7 +726,9 @@ export default function OTBMode() {
     if (!currentGameId) return;
     
     try {
-      const fen = boardToFen(boardState, activeColor);
+      // Use legalChessGame FEN when available for accurate castling rights
+      // Fall back to boardToFen for compatibility
+      const fen = legalChessGameRef.current?.fen() || boardToFen(boardState, activeColor);
       await apiRequest("PATCH", `/api/games/${currentGameId}`, {
         fen,
         moves: moves.map(m => m.notation),
@@ -703,7 +753,8 @@ export default function OTBMode() {
       pendingCheckmateRef.current = null;
     }
 
-    const fen = boardToFen(boardState, activeColor);
+    // Use legalChessGame FEN when available for accurate castling rights
+    const fen = legalChessGameRef.current?.fen() || boardToFen(boardState, activeColor);
     
     // Convert OTB move records to proper SAN notation for analysis
     // OTB stores moves as {from, to, piece, captured, promotion} which we need to convert to SAN
@@ -1466,6 +1517,113 @@ export default function OTBMode() {
       if (movingPieceColor !== activeColor) {
         setSelectedSquare(null);
         setLockedPiece(null);
+        return;
+      }
+      
+      // Block king moving more than 1 square (except via OTB castling)
+      // This MUST come first to prevent any king-2-squares move from reaching completeMove
+      const isKing = movingPiece?.toLowerCase() === 'k';
+      const fileDiff = Math.abs(file - fromFile);
+      const rankDiff = Math.abs(rank - fromRank);
+      
+      if (isKing && (fileDiff > 1 || rankDiff > 1)) {
+        // Check if this is OTB-style castling (king to own rook)
+        const isRook = pieceOnSquare?.toLowerCase() === 'r';
+        const clickedOwnRook = pieceColor === activeColor && isRook;
+        
+        if (clickedOwnRook) {
+          // This is OTB castling - process it
+          const kingFile = fromFile;
+          const rookFile = file;
+          const isKingside = rookFile > kingFile;
+          const isQueenside = rookFile < kingFile;
+          
+          const currentLegalGame = legalChessGameRef.current;
+          if (currentLegalGame) {
+            // Determine target squares for chess.js castling move
+            const kingRank = fromRank;
+            const newKingFile = isKingside ? 6 : 2; // g-file or c-file
+            const newRookFile = isKingside ? 5 : 3; // f-file or d-file
+            const kingToSquare = indicesToSquare(kingRank, newKingFile);
+            const rookToSquare = indicesToSquare(kingRank, newRookFile);
+            
+            // Execute castling on chess.js FIRST (it moves both pieces internally)
+            const newLegalGame = new Chess(currentLegalGame.fen());
+            try {
+              const moveResult = newLegalGame.move({ from: selectedSquare, to: kingToSquare });
+              
+              if (moveResult && (moveResult.flags.includes('k') || moveResult.flags.includes('q'))) {
+                // Castling succeeded - update legalChessGame
+                setLegalChessGame(newLegalGame);
+                
+                // Mirror the result to boardState
+                const newBoard = boardState.map(row => [...row]);
+                newBoard[fromRank][fromFile] = null;
+                newBoard[rank][file] = null;
+                newBoard[kingRank][newKingFile] = movingPiece;
+                newBoard[kingRank][newRookFile] = pieceOnSquare;
+                setBoardState(newBoard);
+                
+                const castlingNotation = isKingside ? 'O-O' : 'O-O-O';
+                const newMove: MoveRecord = {
+                  from: selectedSquare,
+                  to: kingToSquare,
+                  piece: movingPiece!,
+                  notation: castlingNotation,
+                  timestamp: Date.now(),
+                };
+                
+                setMoves(prev => [...prev, newMove]);
+                setSelectedSquare(null);
+                setLockedPiece(null);
+                setTouchedPiece(null);
+                setLastMoveSquares([selectedSquare, kingToSquare, square, rookToSquare]);
+                
+                if (matchId || isBotGame) {
+                  setHasMadeMove(true);
+                }
+                
+                // Use legalChessGame FEN for accurate castling rights
+                const newFen = newLegalGame.fen();
+                
+                if (matchId) {
+                  sendMove(matchId, castlingNotation, newFen, whiteTime, blackTime, {
+                    from: selectedSquare,
+                    to: kingToSquare,
+                    piece: movingPiece!,
+                    playerColor: playerColor,
+                  });
+                }
+                
+                saveGameState();
+                return;
+              }
+            } catch (e) {
+              console.log('[OTB Castling] Move rejected by chess.js:', e);
+            }
+          }
+          
+          // Castling not legal
+          toast({
+            title: "Castling not allowed",
+            description: "Castling is not legal in this position",
+            variant: "destructive",
+          });
+          setSelectedSquare(null);
+          setLockedPiece(null);
+          setTouchedPiece(null);
+          return;
+        }
+        
+        // King moving more than 1 square but not clicking rook - illegal
+        toast({
+          title: "Invalid King Move",
+          description: "In OTB mode, castle by clicking your king then clicking your rook",
+          variant: "destructive",
+        });
+        setSelectedSquare(null);
+        setLockedPiece(null);
+        setTouchedPiece(null);
         return;
       }
       
