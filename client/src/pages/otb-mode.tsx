@@ -563,8 +563,9 @@ export default function OTBMode() {
 
   const updateGameMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (!gameId) return;
-      await apiRequest("PATCH", `/api/games/${gameId}`, data);
+      const currentGameId = gameIdRef.current;
+      if (!currentGameId) return;
+      await apiRequest("PATCH", `/api/games/${currentGameId}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
@@ -741,7 +742,13 @@ export default function OTBMode() {
   }, [boardState, activeColor, moves]);
 
   const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
-    if (!gameId) return;
+    const currentGameId = gameIdRef.current;
+    if (!currentGameId) {
+      console.warn('[OTB] handleGameEnd called but no gameId available');
+      // Still set game result to show the UI
+      setGameResult(result);
+      return;
+    }
 
     if (saveIntervalRef.current) {
       clearInterval(saveIntervalRef.current);
@@ -827,7 +834,7 @@ export default function OTBMode() {
     // Keep board visible by setting gameResult instead of immediately hiding
     setGameResult(result);
     setPendingCheckmate(null);
-  }, [gameId, boardState, activeColor, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast]);
+  }, [boardState, activeColor, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast]);
 
   // Keep ref updated with latest handleGameEnd
   useEffect(() => {
