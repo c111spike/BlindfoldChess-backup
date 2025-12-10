@@ -1693,7 +1693,7 @@ export default function OTBMode() {
         <div className="w-full max-w-2xl space-y-3">
           <div>
             <h1 className="text-2xl font-bold">OTB Tournament Mode</h1>
-            <p className="text-sm text-muted-foreground">Free movement · FIDE-style arbiter disputes</p>
+            <p className="text-sm text-muted-foreground">Free movement · Arbiter resolves disputes</p>
           </div>
 
           {!gameStarted && !gameResult ? (
