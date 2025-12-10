@@ -2210,22 +2210,20 @@ export default function OTBMode() {
                   
                   {/* Call Arbiter button (1x1 tile) at bottom-right corner */}
                   <div className="flex justify-end" style={{ height: '12.5%' }}>
-                    {!isBotGame && (
-                      <button
-                        onClick={handleCallArbiter}
-                        disabled={arbiterPending || moves.length === 0 || clockTurn !== playerColor}
-                        className={`aspect-square h-full rounded-md border-2 transition-all flex items-center justify-center
-                          ${arbiterPending || moves.length === 0 || clockTurn !== playerColor
-                            ? "bg-muted/50 text-muted-foreground border-muted cursor-not-allowed opacity-50"
-                            : "bg-orange-500/10 text-orange-600 border-orange-500 hover:bg-orange-500/20 cursor-pointer active:scale-95"
-                          }
-                        `}
-                        data-testid="button-call-arbiter"
-                        title="Call Arbiter"
-                      >
-                        <Gavel className="w-5 h-5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={handleCallArbiter}
+                      disabled={arbiterPending || moves.length === 0 || clockTurn !== playerColor}
+                      className={`aspect-square h-full rounded-md border-2 transition-all flex items-center justify-center
+                        ${arbiterPending || moves.length === 0 || clockTurn !== playerColor
+                          ? "bg-muted/50 text-muted-foreground border-muted cursor-not-allowed opacity-50"
+                          : "bg-orange-500/10 text-orange-600 border-orange-500 hover:bg-orange-500/20 cursor-pointer active:scale-95"
+                        }
+                      `}
+                      data-testid="button-call-arbiter"
+                      title="Call Arbiter"
+                    >
+                      <Gavel className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
               </div>
