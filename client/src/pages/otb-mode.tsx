@@ -1089,6 +1089,9 @@ export default function OTBMode() {
     // Set botThinking immediately to prevent re-triggers
     setBotThinking(true);
     
+    // Track the validated game state (with player's move applied) for bot use
+    let validatedGameState: Chess | null = null;
+    
     if (moves.length > 0) {
       const lastMove = moves[moves.length - 1];
       
@@ -1168,14 +1171,18 @@ export default function OTBMode() {
       
       // Move was legal - update legalChessGame to the validated state
       setLegalChessGame(validationChess);
+      validatedGameState = validationChess;
     }
     
-    const currentFen = legalChessGame.fen();
-    const moveHistorySAN = legalChessGame.history();
+    // Use validatedGameState if we just validated a move (it has the updated state)
+    // Otherwise use legalChessGame (for bot's opening move when player is black)
+    const gameStateForBot = validatedGameState || legalChessGame;
+    const currentFen = gameStateForBot.fen();
+    const moveHistorySAN = gameStateForBot.history();
     const botMove = await requestBotMove(currentFen, selectedBot.id, moveHistorySAN);
     
     if (botMove && botMove.move) {
-      const newLegalGame = new Chess(legalChessGame.fen());
+      const newLegalGame = new Chess(gameStateForBot.fen());
       const moveResult = newLegalGame.move(botMove.move);
       
       if (moveResult) {
@@ -1303,9 +1310,13 @@ export default function OTBMode() {
       setHasMadeMove(true);
     }
     
-    // Update legalChessGame for bot games so the FEN reflects the correct turn
-    // Derive next turn from the piece that just moved (uppercase = white moved, so black's turn next)
-    if (isBotGame && legalChessGame) {
+    // For bot games: DON'T update legalChessGame here!
+    // executeBotTurn will validate the move against the PRE-move legalChessGame state,
+    // and only update legalChessGame AFTER validation passes.
+    // This prevents the bug where we'd apply the move twice (once here, once in validation).
+    
+    // For multiplayer games: update legalChessGame so the FEN reflects the correct turn
+    if (matchId && legalChessGame) {
       const pieceIsWhite = originalPiece === originalPiece.toUpperCase();
       const nextTurn: "white" | "black" = pieceIsWhite ? "black" : "white";
       
