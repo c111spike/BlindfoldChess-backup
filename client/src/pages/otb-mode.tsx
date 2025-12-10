@@ -1200,15 +1200,21 @@ export default function OTBMode() {
     if (validatedGameState) {
       if (validatedGameState.isCheckmate()) {
         // Player delivered checkmate - player wins!
+        // Set gameResult IMMEDIATELY to prevent race condition where useEffect triggers
+        // executeBotTurn again before handleGameEnd runs
+        const result = playerColor === "white" ? "white_win" : "black_win";
+        setGameResult(result);
         setBotThinking(false);
         setTimeout(() => {
-          handleGameEnd(playerColor === "white" ? "white_win" : "black_win");
+          handleGameEnd(result);
         }, 500);
         return;
       }
       
       if (validatedGameState.isDraw() || validatedGameState.isStalemate()) {
         // Player's move resulted in stalemate or draw
+        // Set gameResult IMMEDIATELY to prevent race condition
+        setGameResult("draw");
         setBotThinking(false);
         setTimeout(() => {
           handleGameEnd("draw");
@@ -1258,14 +1264,19 @@ export default function OTBMode() {
         setLastMoveSquares([moveResult.from, moveResult.to]);
         
         if (newLegalGame.isCheckmate()) {
+          // Set gameResult IMMEDIATELY to prevent race condition
+          const result = botColor === "white" ? "white_win" : "black_win";
+          setGameResult(result);
           setBotThinking(false);
           setTimeout(() => {
-            handleGameEnd(botColor === "white" ? "white_win" : "black_win");
+            handleGameEnd(result);
           }, 500);
           return;
         }
         
         if (newLegalGame.isDraw() || newLegalGame.isStalemate()) {
+          // Set gameResult IMMEDIATELY to prevent race condition
+          setGameResult("draw");
           setBotThinking(false);
           setTimeout(() => {
             handleGameEnd("draw");
