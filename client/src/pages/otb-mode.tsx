@@ -2288,23 +2288,39 @@ export default function OTBMode() {
 
       {gameStarted && (
         <div className="w-72 border-l bg-card flex flex-col">
-          <div className="p-3 border-b">
-            <h3 className="font-semibold text-sm">Move List</h3>
-            <p className="text-xs text-muted-foreground">Free movement - arbiter validates</p>
+          <div className="p-4 border-b">
+            <h3 className="font-semibold">Score Sheet</h3>
           </div>
-          <ScrollArea className="flex-1 p-3">
+          <ScrollArea className="flex-1 p-4">
             {moves.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-3">
+              <p className="text-sm text-muted-foreground text-center py-8">
                 No moves yet
               </p>
             ) : (
-              <div className="space-y-1 font-mono text-sm">
-                {moves.map((move, i) => (
-                  <div key={i} className="flex items-center gap-2" data-testid={`move-${i}`}>
-                    <span className="text-muted-foreground w-6 text-xs">{Math.floor(i / 2) + 1}.</span>
-                    <span className="text-sm">{move.notation}</span>
-                  </div>
-                ))}
+              <div className="font-mono text-sm">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-2 w-12 text-muted-foreground font-medium">#</th>
+                      <th className="text-left py-2 px-2 font-medium">White</th>
+                      <th className="text-left py-2 px-2 font-medium">Black</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: Math.ceil(moves.length / 2) }).map((_, moveNumber) => {
+                      const whiteMove = moves[moveNumber * 2];
+                      const blackMove = moves[moveNumber * 2 + 1];
+                      
+                      return (
+                        <tr key={moveNumber} className="border-b border-border/50" data-testid={`move-row-${moveNumber}`}>
+                          <td className="py-2 px-2 text-muted-foreground">{moveNumber + 1}</td>
+                          <td className="py-2 px-2" data-testid={`move-${moveNumber * 2}`}>{whiteMove?.notation || "-"}</td>
+                          <td className="py-2 px-2" data-testid={`move-${moveNumber * 2 + 1}`}>{blackMove?.notation || "-"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </ScrollArea>
