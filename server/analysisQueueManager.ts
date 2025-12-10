@@ -344,6 +344,33 @@ class AnalysisQueueManager {
       return [];
     }
   }
+
+  // Lightweight cache lookup for bot use - no metric tracking, just fast lookup
+  async getPositionEvalForBot(fen: string): Promise<{ evaluation: number; bestMove: string } | null> {
+    const fenHash = this.hashFen(fen);
+    
+    try {
+      const cached = await db
+        .select({
+          evaluation: positionCache.evaluation,
+          bestMove: positionCache.bestMove,
+        })
+        .from(positionCache)
+        .where(eq(positionCache.fenHash, fenHash))
+        .limit(1);
+      
+      if (cached.length > 0) {
+        return {
+          evaluation: cached[0].evaluation,
+          bestMove: cached[0].bestMove,
+        };
+      }
+      return null;
+    } catch (error) {
+      // Silent fail for bot lookups - just use regular evaluation
+      return null;
+    }
+  }
 }
 
 export const analysisQueueManager = new AnalysisQueueManager();
