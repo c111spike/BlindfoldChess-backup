@@ -1103,13 +1103,12 @@ export default function OTBMode() {
             setBoardState(newBoard);
             
             const pieceChar = move.piece.toUpperCase();
-            const moveNotation = `${pieceChar}${move.from}-${move.to}${captured ? 'x' + captured.toUpperCase() : ''}`;
             setMoves([{
               from: move.from,
               to: move.to,
               piece: piece || (move.color === 'w' ? pieceChar : pieceChar.toLowerCase()),
               captured: captured || undefined,
-              notation: moveNotation,
+              notation: move.san, // Use standard algebraic notation from chess.js
               timestamp: Date.now(),
             }]);
             setLastMoveSquares([move.from, move.to]);
@@ -1298,14 +1297,13 @@ export default function OTBMode() {
             piece;
           
           const pieceChar = moveResult.piece.toUpperCase();
-          const moveNotation = `${pieceChar}${moveResult.from}-${moveResult.to}${captured ? 'x' + captured.toUpperCase() : ''}`;
           setMoves(prevMoves => [...prevMoves, {
             from: moveResult.from,
             to: moveResult.to,
             piece: piece || (moveResult.color === 'w' ? pieceChar : pieceChar.toLowerCase()),
             captured: captured || undefined,
             promotion: moveResult.promotion,
-            notation: moveNotation,
+            notation: moveResult.san, // Use standard algebraic notation from chess.js
             timestamp: Date.now(),
           }]);
           
@@ -1406,8 +1404,49 @@ export default function OTBMode() {
     newBoard[toRank][toFile] = promotedPiece || originalPiece;
     setBoardState(newBoard);
     
-    const promotionSuffix = promotedPiece ? `=${promotedPiece.toUpperCase()}` : '';
-    const moveNotation = `${originalPiece.toUpperCase()}${fromSquare}-${toSquare}${captured ? 'x' + captured.toUpperCase() : ''}${promotionSuffix}`;
+    // Try to get SAN from chess.js, fall back to custom notation
+    let moveNotation: string;
+    let newFenFromChess: string | null = null;
+    
+    const pieceIsWhite = originalPiece === originalPiece.toUpperCase();
+    const nextTurn: "white" | "black" = pieceIsWhite ? "black" : "white";
+    
+    // For multiplayer: try to make the move in chess.js to get SAN
+    if (legalChessGame) {
+      const newLegalGame = new Chess(legalChessGame.fen());
+      try {
+        const sanMoveResult = newLegalGame.move({
+          from: fromSquare,
+          to: toSquare,
+          promotion: promotedPiece ? promotedPiece.toLowerCase() as 'q' | 'r' | 'b' | 'n' : undefined,
+        });
+        if (sanMoveResult) {
+          moveNotation = sanMoveResult.san;
+          newFenFromChess = newLegalGame.fen();
+          if (matchId) {
+            setLegalChessGame(newLegalGame);
+          }
+        } else {
+          // Fallback notation
+          const promotionSuffix = promotedPiece ? `=${promotedPiece.toUpperCase()}` : '';
+          moveNotation = `${originalPiece.toUpperCase()}${fromSquare}-${toSquare}${captured ? 'x' + captured.toUpperCase() : ''}${promotionSuffix}`;
+        }
+      } catch (e) {
+        // Fallback notation for illegal moves in OTB mode
+        const promotionSuffix = promotedPiece ? `=${promotedPiece.toUpperCase()}` : '';
+        moveNotation = `${originalPiece.toUpperCase()}${fromSquare}-${toSquare}${captured ? 'x' + captured.toUpperCase() : ''}${promotionSuffix}`;
+        if (matchId) {
+          const newFenForLegal = boardToFen(newBoard, nextTurn);
+          const freshGame = new Chess(newFenForLegal);
+          setLegalChessGame(freshGame);
+        }
+      }
+    } else {
+      // No legalChessGame - use fallback notation
+      const promotionSuffix = promotedPiece ? `=${promotedPiece.toUpperCase()}` : '';
+      moveNotation = `${originalPiece.toUpperCase()}${fromSquare}-${toSquare}${captured ? 'x' + captured.toUpperCase() : ''}${promotionSuffix}`;
+    }
+    
     const newMove: MoveRecord = {
       from: fromSquare,
       to: toSquare,
@@ -1428,34 +1467,8 @@ export default function OTBMode() {
       setHasMadeMove(true);
     }
     
-    // For bot games: DON'T update legalChessGame here!
-    // executeBotTurn will validate the move against the PRE-move legalChessGame state,
-    // and only update legalChessGame AFTER validation passes.
-    // This prevents the bug where we'd apply the move twice (once here, once in validation).
-    
-    // For multiplayer games: update legalChessGame so the FEN reflects the correct turn
-    if (matchId && legalChessGame) {
-      const pieceIsWhite = originalPiece === originalPiece.toUpperCase();
-      const nextTurn: "white" | "black" = pieceIsWhite ? "black" : "white";
-      
-      const newLegalGame = new Chess(legalChessGame.fen());
-      try {
-        newLegalGame.move({
-          from: fromSquare,
-          to: toSquare,
-          promotion: promotedPiece ? promotedPiece.toLowerCase() as 'q' | 'r' | 'b' | 'n' : undefined,
-        });
-        setLegalChessGame(newLegalGame);
-      } catch (e) {
-        // Move might be illegal in chess.js but allowed in OTB mode (touch-move etc.)
-        // In this case, manually construct a new game from the board position using correct next turn
-        const newFenForLegal = boardToFen(newBoard, nextTurn);
-        const freshGame = new Chess(newFenForLegal);
-        setLegalChessGame(freshGame);
-      }
-    }
-    
-    const newFen = boardToFen(newBoard, activeColor === "white" ? "black" : "white");
+    // Use the FEN from chess.js if we have it, otherwise compute from board
+    const newFen = newFenFromChess || boardToFen(newBoard, nextTurn);
     
     if (matchId) {
       sendMove(matchId, moveNotation, newFen, whiteTime, blackTime, {
