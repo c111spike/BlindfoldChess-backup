@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3, Crown, Shuffle, MessageSquareWarning, Ban, FileText, X } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3, Crown, Shuffle, MessageSquareWarning, Ban, FileText, X, RotateCcw, Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -134,6 +134,11 @@ export default function OTBMode() {
   const [botThinking, setBotThinking] = useState(false);
   const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
   const [selectedBotPersonality, setSelectedBotPersonality] = useState<BotProfile | null>(null);
+  
+  // Rematch state
+  const [rematchRequested, setRematchRequested] = useState(false);
+  const [opponentWantsRematch, setOpponentWantsRematch] = useState(false);
+  const [rematchDeclined, setRematchDeclined] = useState(false);
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -532,7 +537,81 @@ export default function OTBMode() {
     }
   }, [playerColor]);
 
-  const { sendMove, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, joinMatch, isConnected, isAuthenticated } = useWebSocket({
+  // Rematch handlers
+  const handleRematchRequest = useCallback((data: { matchId: string; from: string }) => {
+    if (data.matchId !== matchId) return;
+    console.log('[OTB] Opponent wants rematch');
+    setOpponentWantsRematch(true);
+    toast({
+      title: "Rematch Request",
+      description: "Your opponent wants a rematch!",
+    });
+  }, [matchId, toast]);
+
+  const handleRematchResponse = useCallback((data: { matchId: string; accepted: boolean; newMatchId?: string }) => {
+    console.log('[OTB] Rematch response:', data);
+    if (data.accepted && data.newMatchId) {
+      // Reset game state for rematch
+      setRematchRequested(false);
+      setOpponentWantsRematch(false);
+      setRematchDeclined(false);
+      setGameResult(null);
+      setMatchId(data.newMatchId);
+      
+      const newGame = new Chess();
+      setGame(newGame);
+      setLegalChessGame(new Chess());
+      setBoardState(INITIAL_BOARD.map(row => [...row]));
+      setMoves([]);
+      setLastMoveSquares([]);
+      setActiveColor("white");
+      setClockTurn("white");
+      
+      // Swap colors for rematch
+      const newColor = playerColor === "white" ? "black" : "white";
+      setPlayerColor(newColor);
+      
+      // Reset times
+      const minutes = parseInt(timeControl);
+      const seconds = minutes * 60;
+      setWhiteTime(seconds);
+      setBlackTime(seconds);
+      
+      // Reset all other game state
+      setClockPresses(0);
+      setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+      setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+      setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+      setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+      setMyHandshakeOffered(false);
+      setOpponentHandshakeOffered(false);
+      setHandshakeComplete(false);
+      setShowHandshakeUI(true);
+      setMyHandshakeBeforeFirstMove(false);
+      setOpponentHandshakeBeforeFirstMove(false);
+      setOpponentHandshakeViolation(false);
+      setTouchedPiece(null);
+      setArbiterResult(null);
+      setHasMadeMove(false);
+      setPendingCheckmate(null);
+      setArbiterPending(false);
+      
+      gameStartTimeRef.current = Date.now();
+      
+      toast({
+        title: "Rematch Started!",
+        description: `You are now playing as ${newColor}`,
+      });
+    } else {
+      setRematchDeclined(true);
+      toast({
+        title: "Rematch Declined",
+        description: "Your opponent declined the rematch.",
+      });
+    }
+  }, [playerColor, timeControl, toast]);
+
+  const { sendMove, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, sendRematchRequest, sendRematchResponse, joinMatch, isConnected, isAuthenticated } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
@@ -541,6 +620,8 @@ export default function OTBMode() {
     onGameEnd: handleOpponentGameEnd,
     onHandshakeOffer: handleOpponentHandshake,
     onJoinedMatch: handleJoinedMatch,
+    onRematchRequest: handleRematchRequest,
+    onRematchResponse: handleRematchResponse,
   });
 
   useEffect(() => {
@@ -990,6 +1071,9 @@ export default function OTBMode() {
     setOpponentRating(1200);
     setIsBotGame(false);
     setSelectedBot(null);
+    setRematchRequested(false);
+    setOpponentWantsRematch(false);
+    setRematchDeclined(false);
     
     const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
     
@@ -1069,6 +1153,9 @@ export default function OTBMode() {
     setShowBotSelection(false);
     setSelectedBotDifficulty(null);
     setSelectedBotPersonality(null);
+    setRematchRequested(false);
+    setOpponentWantsRematch(false);
+    setRematchDeclined(false);
     
     const assignedColor = colorChoice === "random" 
       ? (Math.random() < 0.5 ? "white" : "black")
@@ -2359,21 +2446,105 @@ export default function OTBMode() {
               {gameResult && (
                 <Card className="border-primary bg-primary/10">
                   <CardContent className="py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Trophy className="h-6 w-6 text-primary" />
-                        <div>
-                          <p className="font-semibold text-lg">Game Over</p>
-                          <p className="text-sm text-muted-foreground">
-                            {gameResult === "draw" 
-                              ? "Game drawn" 
-                              : gameResult === "white_win" 
-                                ? (playerColor === "white" ? "You win!" : "Opponent wins") 
-                                : (playerColor === "black" ? "You win!" : "Opponent wins")}
-                          </p>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Trophy className="h-6 w-6 text-primary" />
+                          <div>
+                            <p className="font-semibold text-lg">Game Over</p>
+                            <p className="text-sm text-muted-foreground">
+                              {gameResult === "draw" 
+                                ? "Game drawn" 
+                                : gameResult === "white_win" 
+                                  ? (playerColor === "white" ? "You win!" : "Opponent wins") 
+                                  : (playerColor === "black" ? "You win!" : "Opponent wins")}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      
+                      {/* Rematch status for PvP */}
+                      {!isBotGame && matchId && (
+                        <div className="text-sm">
+                          {opponentWantsRematch && !rematchRequested && (
+                            <div className="flex items-center gap-2 text-primary">
+                              <RotateCcw className="h-4 w-4" />
+                              <span>Opponent wants a rematch!</span>
+                            </div>
+                          )}
+                          {rematchRequested && !opponentWantsRematch && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Waiting for opponent...</span>
+                            </div>
+                          )}
+                          {rematchDeclined && (
+                            <div className="text-muted-foreground">
+                              Rematch declined
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-2">
+                        {/* Bot Rematch - instant */}
+                        {isBotGame && selectedBot && (
+                          <Button
+                            variant="default"
+                            onClick={() => {
+                              // Swap colors for rematch
+                              const newColor = playerColor === "white" ? "black" : "white";
+                              handleStartBotGame(selectedBot, newColor);
+                            }}
+                            data-testid="button-rematch-bot"
+                          >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Rematch
+                          </Button>
+                        )}
+                        
+                        {/* PvP Rematch Request */}
+                        {!isBotGame && matchId && !rematchRequested && !opponentWantsRematch && !rematchDeclined && (
+                          <Button
+                            variant="default"
+                            onClick={() => {
+                              setRematchRequested(true);
+                              sendRematchRequest(matchId);
+                            }}
+                            data-testid="button-request-rematch"
+                          >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Request Rematch
+                          </Button>
+                        )}
+                        
+                        {/* PvP Accept/Decline Rematch */}
+                        {!isBotGame && matchId && opponentWantsRematch && !rematchRequested && (
+                          <>
+                            <Button
+                              variant="default"
+                              onClick={() => {
+                                sendRematchResponse(matchId, true);
+                              }}
+                              data-testid="button-accept-rematch"
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Accept Rematch
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                sendRematchResponse(matchId, false);
+                                setOpponentWantsRematch(false);
+                              }}
+                              data-testid="button-decline-rematch"
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Decline
+                            </Button>
+                          </>
+                        )}
+                        
                         <Button 
                           variant="secondary"
                           onClick={() => {
@@ -2388,6 +2559,7 @@ export default function OTBMode() {
                           Analyze
                         </Button>
                         <Button 
+                          variant="outline"
                           onClick={() => {
                             setGameResult(null);
                             setGameStarted(false);
@@ -2418,6 +2590,9 @@ export default function OTBMode() {
                             setBotThinking(false);
                             setLegalChessGame(new Chess());
                             setMobileScoreSheetOpen(false);
+                            setRematchRequested(false);
+                            setOpponentWantsRematch(false);
+                            setRematchDeclined(false);
                           }}
                           data-testid="button-main-menu"
                         >
