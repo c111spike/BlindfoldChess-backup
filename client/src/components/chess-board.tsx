@@ -143,22 +143,23 @@ export function ChessBoard({
     }
     
     if (onMove && internalSelectedSquare && internalSelectedSquare !== square) {
-      const moveResult = onMove(internalSelectedSquare, square);
-      setInternalSelectedSquare(null);
+      const fromSquare = internalSelectedSquare;
+      const moveResult = onMove(fromSquare, square);
       if (moveResult) {
+        setInternalSelectedSquare(null);
         return;
       }
     }
     
     if (piece) {
-      setInternalSelectedSquare(square);
+      if (externalSelectedSquare === null) {
+        setInternalSelectedSquare(square);
+      }
     } else if (internalSelectedSquare) {
       setInternalSelectedSquare(null);
     }
     
-    if (externalSelectedSquare === null) {
-      onSquareClick?.(square);
-    }
+    onSquareClick?.(square);
   };
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -166,7 +167,7 @@ export function ChessBoard({
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!enableArrows) return;
+    if (!enableArrows || interactionMode === "viewOnly") return;
     
     if (e.button === 2 || arrowDrawMode) {
       e.preventDefault();
@@ -212,7 +213,7 @@ export function ChessBoard({
   }, [enableArrows, arrowDrawMode, drawingArrow, isRightMouseDown, arrows, getSquareFromPosition]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!enableArrows || !arrowDrawMode) return;
+    if (!enableArrows || !arrowDrawMode || interactionMode === "viewOnly") return;
     
     const touch = e.touches[0];
     const square = getSquareFromPosition(touch.clientX, touch.clientY);
