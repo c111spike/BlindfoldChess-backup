@@ -826,6 +826,8 @@ export default function StandardMode() {
       whiteTime: seconds,
       blackTime: seconds,
       opponentName: bot.name,
+      blindfoldEnabled: isBlindfold,
+      blindfoldDifficulty: isBlindfold ? (userSettings?.blindfoldDifficulty || 'medium') : undefined,
     });
     
     // Reset peek tracking for new game

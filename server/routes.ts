@@ -3433,6 +3433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
             if (player1Settings?.blindfoldDifficulty) {
               player1GameData.blindfoldDifficulty = player1Settings.blindfoldDifficulty;
+              player1GameData.blindfoldEnabled = true;
             }
             const player1Game = await storage.createGame(player1GameData);
 
@@ -3452,6 +3453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
             if (player2Settings?.blindfoldDifficulty) {
               player2GameData.blindfoldDifficulty = player2Settings.blindfoldDifficulty;
+              player2GameData.blindfoldEnabled = true;
             }
             const player2Game = await storage.createGame(player2GameData);
 
