@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Book, Plus, Search, ChevronRight, Play, Trash2, CheckCircle, XCircle, RotateCcw, ArrowLeft } from "lucide-react";
@@ -213,7 +212,7 @@ export default function RepertoireTrainer() {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 border rounded-md h-[300px]">
+              <div className="border rounded-md h-[300px] overflow-y-auto" data-testid="openings-list-container">
                 <div className="p-2 space-y-1">
                   {openingsLoading ? (
                     <div className="p-4 text-center text-muted-foreground">Loading openings...</div>
@@ -247,7 +246,7 @@ export default function RepertoireTrainer() {
                     ))
                   )}
                 </div>
-              </ScrollArea>
+              </div>
 
               {selectedOpening && (
                 <Card className="bg-muted/50">
