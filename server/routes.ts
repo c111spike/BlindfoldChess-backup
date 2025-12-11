@@ -2938,6 +2938,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check game moves against user's repertoires
+  app.post('/api/repertoires/check-game', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { moves, playerColor } = req.body;
+      
+      if (!moves || !Array.isArray(moves) || !playerColor) {
+        return res.status(400).json({ message: "moves array and playerColor required" });
+      }
+      
+      // Get all user's repertoires for the color they played
+      const repertoires = await storage.getRepertoires(userId);
+      const colorRepertoires = repertoires.filter(r => r.color === playerColor);
+      
+      if (colorRepertoires.length === 0) {
+        return res.json({ 
+          hasRepertoire: false,
+          deviations: [],
+          message: `No ${playerColor} repertoires found`
+        });
+      }
+      
+      // Get all lines from these repertoires
+      const allLines: any[] = [];
+      for (const rep of colorRepertoires) {
+        const lines = await storage.getRepertoireLines(rep.id);
+        allLines.push(...lines.map(l => ({ ...l, repertoireName: rep.name })));
+      }
+      
+      if (allLines.length === 0) {
+        return res.json({
+          hasRepertoire: true,
+          deviations: [],
+          noLines: true,
+          message: "Repertoire has no lines yet"
+        });
+      }
+      
+      // Replay the game and check each position
+      const { Chess } = await import('chess.js');
+      const game = new Chess();
+      const deviations: Array<{
+        moveNumber: number;
+        ply: number;
+        position: string;
+        movePlayed: string;
+        expectedMoves: string[];
+        isPlayerMove: boolean;
+        repertoireName: string;
+        deviationType: 'player_deviation' | 'opponent_deviation';
+      }> = [];
+      
+      let lastKnownRepertoirePosition = true;
+      
+      for (let i = 0; i < moves.length; i++) {
+        const fen = game.fen();
+        const fenPosition = fen.split(' ').slice(0, 4).join(' '); // Position without move counts
+        const isPlayerMove = (playerColor === 'white') === (i % 2 === 0);
+        const moveNumber = Math.floor(i / 2) + 1;
+        
+        // Find repertoire lines that match this position
+        const matchingLines = allLines.filter(l => {
+          const lineFen = l.fen.split(' ').slice(0, 4).join(' ');
+          return lineFen === fenPosition;
+        });
+        
+        if (matchingLines.length > 0) {
+          lastKnownRepertoirePosition = true;
+          const expectedMoves = [...new Set(matchingLines.map(l => l.correctMove))];
+          const movePlayed = moves[i];
+          
+          if (!expectedMoves.includes(movePlayed)) {
+            // This is a deviation
+            deviations.push({
+              moveNumber,
+              ply: i,
+              position: fen,
+              movePlayed,
+              expectedMoves,
+              isPlayerMove,
+              repertoireName: matchingLines[0].repertoireName,
+              deviationType: isPlayerMove ? 'player_deviation' : 'opponent_deviation'
+            });
+            
+            // After a deviation, we're out of repertoire
+            lastKnownRepertoirePosition = false;
+          }
+        } else if (lastKnownRepertoirePosition && i < 20) {
+          // If we were in repertoire but now have no matching lines, 
+          // the game has left the prepared lines (but don't flag as deviation)
+          lastKnownRepertoirePosition = false;
+        }
+        
+        // Advance the game state
+        const moveResult = game.move(moves[i], { sloppy: true });
+        if (!moveResult) {
+          // Invalid move, stop processing
+          console.log(`Invalid move at ply ${i}: ${moves[i]}`);
+          break;
+        }
+      }
+      
+      res.json({
+        hasRepertoire: true,
+        deviations,
+        repertoiresChecked: colorRepertoires.map(r => r.name),
+      });
+    } catch (error) {
+      console.error("Error checking game against repertoire:", error);
+      res.status(500).json({ message: "Failed to check game" });
+    }
+  });
+
   // Lichess Opening Explorer proxy (for realistic bot moves)
   app.get('/api/lichess/explorer', async (req, res) => {
     try {

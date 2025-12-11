@@ -37,6 +37,8 @@ import {
   HelpCircle,
   XCircle,
   CheckCircle,
+  Book,
+  Plus,
 } from 'lucide-react';
 import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase } from '@shared/schema';
 
@@ -772,6 +774,12 @@ function ReviewTab({
         </Card>
       )}
       
+      <RepertoireCheck 
+        game={game} 
+        moves={moves}
+        onNavigateToMove={onNavigateToMove}
+      />
+      
       <PeekStatistics game={game} />
       
       {/* VSS Interactive Training Dialog */}
@@ -788,6 +796,366 @@ function ReviewTab({
         />
       )}
     </div>
+  );
+}
+
+interface RepertoireDeviation {
+  moveNumber: number;
+  ply: number;
+  position: string;
+  movePlayed: string;
+  expectedMoves: string[];
+  isPlayerMove: boolean;
+  repertoireName: string;
+  deviationType: 'player_deviation' | 'opponent_deviation';
+}
+
+interface RepertoireCheckResult {
+  hasRepertoire: boolean;
+  deviations: RepertoireDeviation[];
+  repertoiresChecked?: string[];
+  noLines?: boolean;
+  message?: string;
+}
+
+interface Repertoire {
+  id: string;
+  name: string;
+  color: string;
+}
+
+function RepertoireCheck({ 
+  game,
+  moves,
+  onNavigateToMove 
+}: { 
+  game: Game;
+  moves: MoveAnalysis[];
+  onNavigateToMove?: (moveIndex: number) => void;
+}) {
+  const { toast } = useToast();
+  const [checkResult, setCheckResult] = useState<RepertoireCheckResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [repertoires, setRepertoires] = useState<Repertoire[]>([]);
+  const [addLineDialogOpen, setAddLineDialogOpen] = useState(false);
+  const [selectedDeviation, setSelectedDeviation] = useState<RepertoireDeviation | null>(null);
+  const [selectedRepertoireId, setSelectedRepertoireId] = useState<string>("");
+  const [addingLine, setAddingLine] = useState(false);
+
+  useEffect(() => {
+    const checkRepertoire = async () => {
+      if (!game.playerColor) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        // Extract just the SAN moves from the move analysis
+        const moveSans = moves.map(m => m.move);
+        
+        // Fetch repertoires and check game in parallel
+        const [checkResponse, repResponse] = await Promise.all([
+          fetch('/api/repertoires/check-game', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              moves: moveSans,
+              playerColor: game.playerColor
+            })
+          }),
+          fetch('/api/repertoires', { credentials: 'include' })
+        ]);
+
+        if (!checkResponse.ok) {
+          throw new Error('Failed to check repertoire');
+        }
+
+        const result = await checkResponse.json();
+        setCheckResult(result);
+        
+        if (repResponse.ok) {
+          const reps = await repResponse.json();
+          setRepertoires(reps.filter((r: Repertoire) => r.color === game.playerColor));
+        }
+      } catch (err) {
+        setError('Failed to check game against repertoire');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkRepertoire();
+  }, [game.id, game.playerColor, moves]);
+
+  const handleAddLine = async () => {
+    if (!selectedDeviation || !selectedRepertoireId) return;
+    
+    setAddingLine(true);
+    try {
+      const response = await fetch(`/api/repertoires/${selectedRepertoireId}/lines`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          fen: selectedDeviation.position,
+          correctMove: selectedDeviation.movePlayed,
+          moveSan: selectedDeviation.movePlayed,
+          moveNumber: selectedDeviation.moveNumber,
+          isUserAdded: true,
+          frequency: 100,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add line');
+      }
+
+      toast({
+        title: "Line added",
+        description: `Added ${selectedDeviation.movePlayed} to your repertoire.`,
+      });
+      
+      setAddLineDialogOpen(false);
+      setSelectedDeviation(null);
+      setSelectedRepertoireId("");
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to add line to repertoire",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingLine(false);
+    }
+  };
+
+  const openAddLineDialog = (deviation: RepertoireDeviation) => {
+    setSelectedDeviation(deviation);
+    if (repertoires.length === 1) {
+      setSelectedRepertoireId(repertoires[0].id);
+    }
+    setAddLineDialogOpen(true);
+  };
+
+  if (loading) {
+    return (
+      <Card data-testid="repertoire-check">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Book className="w-4 h-4" />
+            Repertoire Check
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Checking against your repertoire...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !checkResult) {
+    return null;
+  }
+
+  if (!checkResult.hasRepertoire) {
+    return (
+      <Card data-testid="repertoire-check">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Book className="w-4 h-4" />
+            Repertoire Check
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            No {game.playerColor} repertoire found. Create one in the Repertoire Trainer to track your opening preparation.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (checkResult.noLines) {
+    return (
+      <Card data-testid="repertoire-check">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Book className="w-4 h-4" />
+            Repertoire Check
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Your repertoire has no lines yet. Add lines in the Repertoire Trainer to track deviations.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const playerDeviations = checkResult.deviations.filter(d => d.deviationType === 'player_deviation');
+  const opponentDeviations = checkResult.deviations.filter(d => d.deviationType === 'opponent_deviation');
+
+  return (
+    <Card data-testid="repertoire-check">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Book className="w-4 h-4" />
+          Repertoire Check
+        </CardTitle>
+        {checkResult.repertoiresChecked && checkResult.repertoiresChecked.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Checked against: {checkResult.repertoiresChecked.join(', ')}
+          </p>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {checkResult.deviations.length === 0 ? (
+          <div className="flex items-center gap-2 text-green-500">
+            <CheckCircle className="w-5 h-5" />
+            <span>Perfect! You followed your repertoire throughout the opening.</span>
+          </div>
+        ) : (
+          <>
+            {playerDeviations.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-orange-500">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="font-medium">Your Deviations ({playerDeviations.length})</span>
+                </div>
+                <div className="space-y-1">
+                  {playerDeviations.map((dev, i) => (
+                    <div 
+                      key={i}
+                      className="flex items-center justify-between p-2 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
+                      onClick={() => onNavigateToMove?.(dev.ply)}
+                      data-testid={`deviation-player-${dev.ply}`}
+                    >
+                      <div className="flex-1">
+                        <span className="font-medium">Move {dev.moveNumber}: </span>
+                        <span className="text-orange-500">{dev.movePlayed}</span>
+                        <span className="text-muted-foreground"> instead of </span>
+                        <span className="text-green-500">{dev.expectedMoves.join(' or ')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {opponentDeviations.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-blue-500">
+                  <HelpCircle className="w-4 h-4" />
+                  <span className="font-medium">Opponent's Unexpected Moves ({opponentDeviations.length})</span>
+                </div>
+                <div className="space-y-1">
+                  {opponentDeviations.map((dev, i) => (
+                    <div 
+                      key={i}
+                      className="flex items-center justify-between p-2 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
+                      onClick={() => onNavigateToMove?.(dev.ply)}
+                      data-testid={`deviation-opponent-${dev.ply}`}
+                    >
+                      <div className="flex-1">
+                        <span className="font-medium">Move {dev.moveNumber}: </span>
+                        <span className="text-blue-500">{dev.movePlayed}</span>
+                        <span className="text-muted-foreground"> (not in your prep)</span>
+                      </div>
+                      {repertoires.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAddLineDialog(dev);
+                          }}
+                          data-testid={`add-line-${dev.ply}`}
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Line
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+      
+      {/* Add Line Dialog */}
+      <Dialog open={addLineDialogOpen} onOpenChange={setAddLineDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Line to Repertoire</DialogTitle>
+            <DialogDescription>
+              Add this opponent move to your repertoire so you can practice responding to it.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedDeviation && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted">
+                <div className="text-sm">
+                  <span className="font-medium">Move {selectedDeviation.moveNumber}: </span>
+                  <span className="text-blue-500 font-bold">{selectedDeviation.movePlayed}</span>
+                </div>
+              </div>
+              
+              {repertoires.length > 1 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Repertoire</label>
+                  <div className="space-y-2">
+                    {repertoires.map((rep) => (
+                      <div
+                        key={rep.id}
+                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                          selectedRepertoireId === rep.id
+                            ? "border-primary bg-primary/10"
+                            : "hover:bg-muted"
+                        }`}
+                        onClick={() => setSelectedRepertoireId(rep.id)}
+                        data-testid={`select-repertoire-${rep.id}`}
+                      >
+                        <div className="font-medium">{rep.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddLineDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddLine}
+              disabled={addingLine || !selectedRepertoireId}
+              data-testid="button-confirm-add-line"
+            >
+              {addingLine ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add to Repertoire"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
 
