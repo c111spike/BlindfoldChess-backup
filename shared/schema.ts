@@ -1015,9 +1015,11 @@ export const openings = pgTable("openings", {
   pgn: text("pgn").notNull(),
   moves: jsonb("moves").$type<string[]>().default([]),
   fen: text("fen"),
+  color: varchar("color"), // 'white' or 'black' - which side this opening is for
 }, (table) => ({
   ecoIdx: index("openings_eco_idx").on(table.eco),
   nameIdx: index("openings_name_idx").on(table.name),
+  colorIdx: index("openings_color_idx").on(table.color),
 }));
 
 // User's saved repertoires
