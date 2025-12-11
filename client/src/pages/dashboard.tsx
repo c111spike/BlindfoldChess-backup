@@ -81,9 +81,9 @@ export default function Dashboard() {
   const difficultyOptions = [
     { value: "easy", label: "Easy", description: "Unlimited press-and-hold peeks" },
     { value: "medium", label: "Medium", description: "20 press-and-hold peeks" },
-    { value: "hard", label: "Hard", description: "15 press-and-hold peeks" },
-    { value: "expert", label: "Expert", description: "10 press-and-hold peeks" },
-    { value: "master", label: "Master", description: "5 press-and-hold peeks" },
+    { value: "hard", label: "Hard", description: "10 press-and-hold peeks" },
+    { value: "expert", label: "Expert", description: "5 press-and-hold peeks" },
+    { value: "master", label: "Master", description: "2 press-and-hold peeks" },
     { value: "grandmaster", label: "Grandmaster", description: "0 peeks (pure blindfold)" },
   ];
 

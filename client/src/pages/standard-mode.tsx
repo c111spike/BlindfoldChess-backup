@@ -59,9 +59,9 @@ const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classica
 const BLINDFOLD_CONFIG = {
   easy: { maxPeeks: Number.POSITIVE_INFINITY },
   medium: { maxPeeks: 20 },
-  hard: { maxPeeks: 15 },
-  expert: { maxPeeks: 10 },
-  master: { maxPeeks: 5 },
+  hard: { maxPeeks: 10 },
+  expert: { maxPeeks: 5 },
+  master: { maxPeeks: 2 },
   grandmaster: { maxPeeks: 0 },
 };
 
