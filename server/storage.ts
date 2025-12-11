@@ -83,6 +83,17 @@ import {
   type InsertUserAntiCheat,
   type ReviewStatus,
   type ReviewPriority,
+  openings,
+  repertoires,
+  repertoireLines,
+  practiceHistory,
+  type Opening,
+  type Repertoire,
+  type InsertRepertoire,
+  type RepertoireLine,
+  type InsertRepertoireLine,
+  type PracticeHistory,
+  type InsertPracticeHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
@@ -231,6 +242,24 @@ export interface IStorage {
   flagUserForReview(userId: string, reason: string, priority: ReviewPriority): Promise<UserAntiCheat>;
   updateReviewStatus(userId: string, status: ReviewStatus, adminId: string, notes?: string): Promise<UserAntiCheat>;
   issueWarning(userId: string, adminId: string, notes: string): Promise<UserAntiCheat>;
+  
+  // Opening Repertoire Trainer
+  getOpenings(options?: { eco?: string; search?: string; limit?: number; offset?: number }): Promise<Opening[]>;
+  getOpening(id: string): Promise<Opening | undefined>;
+  getRepertoires(userId: string): Promise<Repertoire[]>;
+  getRepertoire(id: string): Promise<Repertoire | undefined>;
+  createRepertoire(repertoire: InsertRepertoire): Promise<Repertoire>;
+  updateRepertoire(id: string, data: Partial<Repertoire>): Promise<Repertoire>;
+  deleteRepertoire(id: string): Promise<void>;
+  getRepertoireLines(repertoireId: string): Promise<RepertoireLine[]>;
+  getRepertoireLineByFen(repertoireId: string, fen: string): Promise<RepertoireLine | undefined>;
+  createRepertoireLine(line: InsertRepertoireLine): Promise<RepertoireLine>;
+  updateRepertoireLine(id: string, data: Partial<RepertoireLine>): Promise<RepertoireLine>;
+  deleteRepertoireLine(id: string): Promise<void>;
+  getPracticeHistory(userId: string, repertoireLineId?: string): Promise<PracticeHistory[]>;
+  getOrCreatePracticeHistory(userId: string, repertoireLineId: string): Promise<PracticeHistory>;
+  updatePracticeHistory(id: string, data: Partial<PracticeHistory>): Promise<PracticeHistory>;
+  getDuePracticeLines(userId: string, repertoireId?: string, limit?: number): Promise<(PracticeHistory & { line: RepertoireLine })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2173,6 +2202,124 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userAntiCheat.userId, userId))
       .returning();
     return updated;
+  }
+
+  // Opening Repertoire Trainer
+  async getOpenings(options?: { eco?: string; search?: string; limit?: number; offset?: number }): Promise<Opening[]> {
+    const limit = options?.limit || 50;
+    const offset = options?.offset || 0;
+    
+    let query = db.select().from(openings);
+    
+    if (options?.eco) {
+      query = query.where(sql`${openings.eco} ILIKE ${options.eco + '%'}`) as any;
+    }
+    
+    if (options?.search) {
+      query = query.where(sql`${openings.name} ILIKE ${'%' + options.search + '%'}`) as any;
+    }
+    
+    return query.orderBy(openings.eco, openings.name).limit(limit).offset(offset);
+  }
+
+  async getOpening(id: string): Promise<Opening | undefined> {
+    const [opening] = await db.select().from(openings).where(eq(openings.id, id));
+    return opening;
+  }
+
+  async getRepertoires(userId: string): Promise<Repertoire[]> {
+    return db.select().from(repertoires).where(eq(repertoires.userId, userId)).orderBy(desc(repertoires.createdAt));
+  }
+
+  async getRepertoire(id: string): Promise<Repertoire | undefined> {
+    const [repertoire] = await db.select().from(repertoires).where(eq(repertoires.id, id));
+    return repertoire;
+  }
+
+  async createRepertoire(repertoire: InsertRepertoire): Promise<Repertoire> {
+    const [created] = await db.insert(repertoires).values(repertoire).returning();
+    return created;
+  }
+
+  async updateRepertoire(id: string, data: Partial<Repertoire>): Promise<Repertoire> {
+    const [updated] = await db.update(repertoires).set({ ...data, updatedAt: new Date() }).where(eq(repertoires.id, id)).returning();
+    return updated;
+  }
+
+  async deleteRepertoire(id: string): Promise<void> {
+    await db.delete(repertoires).where(eq(repertoires.id, id));
+  }
+
+  async getRepertoireLines(repertoireId: string): Promise<RepertoireLine[]> {
+    return db.select().from(repertoireLines).where(eq(repertoireLines.repertoireId, repertoireId)).orderBy(repertoireLines.moveNumber);
+  }
+
+  async getRepertoireLineByFen(repertoireId: string, fen: string): Promise<RepertoireLine | undefined> {
+    const [line] = await db.select().from(repertoireLines).where(and(eq(repertoireLines.repertoireId, repertoireId), eq(repertoireLines.fen, fen)));
+    return line;
+  }
+
+  async createRepertoireLine(line: InsertRepertoireLine): Promise<RepertoireLine> {
+    const [created] = await db.insert(repertoireLines).values(line).returning();
+    return created;
+  }
+
+  async updateRepertoireLine(id: string, data: Partial<RepertoireLine>): Promise<RepertoireLine> {
+    const [updated] = await db.update(repertoireLines).set(data).where(eq(repertoireLines.id, id)).returning();
+    return updated;
+  }
+
+  async deleteRepertoireLine(id: string): Promise<void> {
+    await db.delete(repertoireLines).where(eq(repertoireLines.id, id));
+  }
+
+  async getPracticeHistory(userId: string, repertoireLineId?: string): Promise<PracticeHistory[]> {
+    if (repertoireLineId) {
+      return db.select().from(practiceHistory).where(and(eq(practiceHistory.userId, userId), eq(practiceHistory.repertoireLineId, repertoireLineId)));
+    }
+    return db.select().from(practiceHistory).where(eq(practiceHistory.userId, userId));
+  }
+
+  async getOrCreatePracticeHistory(userId: string, repertoireLineId: string): Promise<PracticeHistory> {
+    const [existing] = await db.select().from(practiceHistory).where(and(eq(practiceHistory.userId, userId), eq(practiceHistory.repertoireLineId, repertoireLineId)));
+    if (existing) return existing;
+    
+    const [created] = await db.insert(practiceHistory).values({ userId, repertoireLineId }).returning();
+    return created;
+  }
+
+  async updatePracticeHistory(id: string, data: Partial<PracticeHistory>): Promise<PracticeHistory> {
+    const [updated] = await db.update(practiceHistory).set(data).where(eq(practiceHistory.id, id)).returning();
+    return updated;
+  }
+
+  async getDuePracticeLines(userId: string, repertoireId?: string, limit?: number): Promise<(PracticeHistory & { line: RepertoireLine })[]> {
+    const now = new Date();
+    
+    const conditions = [
+      eq(practiceHistory.userId, userId),
+      sql`${practiceHistory.nextDue} <= ${now}`
+    ];
+    
+    if (repertoireId) {
+      conditions.push(eq(repertoireLines.repertoireId, repertoireId));
+    }
+    
+    const results = await db
+      .select({
+        practiceHistory: practiceHistory,
+        line: repertoireLines,
+      })
+      .from(practiceHistory)
+      .innerJoin(repertoireLines, eq(practiceHistory.repertoireLineId, repertoireLines.id))
+      .where(and(...conditions))
+      .orderBy(practiceHistory.nextDue)
+      .limit(limit || 20);
+    
+    return results.map(r => ({
+      ...r.practiceHistory,
+      line: r.line,
+    }));
   }
 }
 

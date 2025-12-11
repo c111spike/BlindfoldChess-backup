@@ -27,6 +27,7 @@ import {
   Users,
   Puzzle,
   ShieldCheck,
+  Book,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
@@ -71,6 +72,11 @@ const menuItems = [
     title: "Puzzles",
     url: "/puzzles",
     icon: Puzzle,
+  },
+  {
+    title: "Repertoire Trainer",
+    url: "/repertoire",
+    icon: Book,
   },
   {
     title: "Game History",

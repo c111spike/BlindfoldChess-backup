@@ -2646,6 +2646,322 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ OPENING REPERTOIRE TRAINER ============
+  
+  app.get('/api/openings', async (req, res) => {
+    try {
+      const { eco, search, limit, offset } = req.query;
+      const openings = await storage.getOpenings({
+        eco: eco as string,
+        search: search as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined,
+      });
+      res.json(openings);
+    } catch (error) {
+      console.error("Error fetching openings:", error);
+      res.status(500).json({ message: "Failed to fetch openings" });
+    }
+  });
+
+  app.get('/api/openings/:id', async (req, res) => {
+    try {
+      const opening = await storage.getOpening(req.params.id);
+      if (!opening) {
+        return res.status(404).json({ message: "Opening not found" });
+      }
+      res.json(opening);
+    } catch (error) {
+      console.error("Error fetching opening:", error);
+      res.status(500).json({ message: "Failed to fetch opening" });
+    }
+  });
+
+  app.get('/api/repertoires', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const repertoires = await storage.getRepertoires(userId);
+      res.json(repertoires);
+    } catch (error) {
+      console.error("Error fetching repertoires:", error);
+      res.status(500).json({ message: "Failed to fetch repertoires" });
+    }
+  });
+
+  app.get('/api/repertoires/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const repertoire = await storage.getRepertoire(req.params.id);
+      if (!repertoire) {
+        return res.status(404).json({ message: "Repertoire not found" });
+      }
+      if (repertoire.userId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      res.json(repertoire);
+    } catch (error) {
+      console.error("Error fetching repertoire:", error);
+      res.status(500).json({ message: "Failed to fetch repertoire" });
+    }
+  });
+
+  app.post('/api/repertoires', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { name, color, openingId, description } = req.body;
+      
+      const repertoire = await storage.createRepertoire({
+        userId,
+        name,
+        color,
+        openingId: openingId || null,
+        description: description || null,
+      });
+      
+      // If an opening was selected, automatically create repertoire lines from it
+      if (openingId) {
+        const opening = await storage.getOpening(openingId);
+        if (opening && opening.moves) {
+          const moves = opening.moves as string[];
+          const { Chess } = await import('chess.js');
+          const chess = new Chess();
+          
+          for (let i = 0; i < moves.length; i++) {
+            const isUserMove = (color === 'white' && i % 2 === 0) || (color === 'black' && i % 2 === 1);
+            if (isUserMove) {
+              const fen = chess.fen();
+              const move = moves[i];
+              
+              await storage.createRepertoireLine({
+                repertoireId: repertoire.id,
+                fen,
+                correctMove: move,
+                moveSan: move,
+                moveNumber: Math.floor(i / 2) + 1,
+                isUserAdded: false,
+                frequency: 100,
+                parentFen: i > 0 ? null : null,
+              });
+            }
+            chess.move(moves[i]);
+          }
+        }
+      }
+      
+      res.json(repertoire);
+    } catch (error) {
+      console.error("Error creating repertoire:", error);
+      res.status(500).json({ message: "Failed to create repertoire" });
+    }
+  });
+
+  app.patch('/api/repertoires/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const repertoire = await storage.getRepertoire(req.params.id);
+      if (!repertoire) {
+        return res.status(404).json({ message: "Repertoire not found" });
+      }
+      if (repertoire.userId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const updated = await storage.updateRepertoire(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating repertoire:", error);
+      res.status(500).json({ message: "Failed to update repertoire" });
+    }
+  });
+
+  app.delete('/api/repertoires/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const repertoire = await storage.getRepertoire(req.params.id);
+      if (!repertoire) {
+        return res.status(404).json({ message: "Repertoire not found" });
+      }
+      if (repertoire.userId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      await storage.deleteRepertoire(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting repertoire:", error);
+      res.status(500).json({ message: "Failed to delete repertoire" });
+    }
+  });
+
+  app.get('/api/repertoires/:id/lines', isAuthenticated, async (req: any, res) => {
+    try {
+      const repertoire = await storage.getRepertoire(req.params.id);
+      if (!repertoire) {
+        return res.status(404).json({ message: "Repertoire not found" });
+      }
+      if (repertoire.userId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const lines = await storage.getRepertoireLines(req.params.id);
+      res.json(lines);
+    } catch (error) {
+      console.error("Error fetching repertoire lines:", error);
+      res.status(500).json({ message: "Failed to fetch lines" });
+    }
+  });
+
+  app.post('/api/repertoires/:id/lines', isAuthenticated, async (req: any, res) => {
+    try {
+      const repertoire = await storage.getRepertoire(req.params.id);
+      if (!repertoire) {
+        return res.status(404).json({ message: "Repertoire not found" });
+      }
+      if (repertoire.userId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const { fen, correctMove, moveSan, moveNumber, frequency, parentFen } = req.body;
+      
+      // Check if this line already exists
+      const existingLine = await storage.getRepertoireLineByFen(req.params.id, fen);
+      if (existingLine) {
+        return res.status(400).json({ message: "Line already exists for this position" });
+      }
+      
+      const line = await storage.createRepertoireLine({
+        repertoireId: req.params.id,
+        fen,
+        correctMove,
+        moveSan,
+        moveNumber,
+        isUserAdded: true,
+        frequency: frequency || 100,
+        parentFen: parentFen || null,
+      });
+      
+      res.json(line);
+    } catch (error) {
+      console.error("Error creating repertoire line:", error);
+      res.status(500).json({ message: "Failed to create line" });
+    }
+  });
+
+  app.delete('/api/repertoire-lines/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteRepertoireLine(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting repertoire line:", error);
+      res.status(500).json({ message: "Failed to delete line" });
+    }
+  });
+
+  app.get('/api/repertoires/:id/practice', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const repertoire = await storage.getRepertoire(req.params.id);
+      if (!repertoire) {
+        return res.status(404).json({ message: "Repertoire not found" });
+      }
+      if (repertoire.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 10;
+      const dueLines = await storage.getDuePracticeLines(userId, req.params.id, limit);
+      
+      // If no due lines, get lines that haven't been practiced yet
+      if (dueLines.length === 0) {
+        const allLines = await storage.getRepertoireLines(req.params.id);
+        const histories = await storage.getPracticeHistory(userId);
+        const practicedIds = new Set(histories.map(h => h.repertoireLineId));
+        
+        const unpracticed = allLines.filter(l => !practicedIds.has(l.id));
+        res.json({
+          dueLines: [],
+          newLines: unpracticed.slice(0, limit),
+        });
+        return;
+      }
+      
+      res.json({ dueLines, newLines: [] });
+    } catch (error) {
+      console.error("Error fetching practice lines:", error);
+      res.status(500).json({ message: "Failed to fetch practice" });
+    }
+  });
+
+  app.post('/api/practice/:lineId/result', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { correct } = req.body;
+      
+      const history = await storage.getOrCreatePracticeHistory(userId, req.params.lineId);
+      
+      // SM-2 spaced repetition algorithm
+      let { easeFactor, interval, correctCount, incorrectCount } = history;
+      easeFactor = easeFactor || 2.5;
+      interval = interval || 1;
+      correctCount = correctCount || 0;
+      incorrectCount = incorrectCount || 0;
+      
+      if (correct) {
+        correctCount++;
+        if (interval === 1) {
+          interval = 1;
+        } else if (interval === 2) {
+          interval = 6;
+        } else {
+          interval = Math.round(interval * easeFactor);
+        }
+        easeFactor = easeFactor + (0.1 - (5 - 5) * (0.08 + (5 - 5) * 0.02));
+      } else {
+        incorrectCount++;
+        interval = 1;
+        easeFactor = Math.max(1.3, easeFactor - 0.2);
+      }
+      
+      const nextDue = new Date();
+      nextDue.setDate(nextDue.getDate() + interval);
+      
+      const updated = await storage.updatePracticeHistory(history.id, {
+        correctCount,
+        incorrectCount,
+        easeFactor,
+        interval,
+        lastPracticed: new Date(),
+        nextDue,
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error recording practice result:", error);
+      res.status(500).json({ message: "Failed to record result" });
+    }
+  });
+
+  // Lichess Opening Explorer proxy (for realistic bot moves)
+  app.get('/api/lichess/explorer', async (req, res) => {
+    try {
+      const { fen } = req.query;
+      if (!fen) {
+        return res.status(400).json({ message: "FEN required" });
+      }
+      
+      const response = await fetch(
+        `https://explorer.lichess.ovh/lichess?variant=standard&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500&fen=${encodeURIComponent(fen as string)}`
+      );
+      
+      if (!response.ok) {
+        return res.status(response.status).json({ message: "Lichess API error" });
+      }
+      
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching Lichess explorer:", error);
+      res.status(500).json({ message: "Failed to fetch from Lichess" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
