@@ -310,21 +310,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGameStatistics(): Promise<{ mode: string; count: number }[]> {
-    // Count games that are either completed or have a final result (for legacy data with null status)
+    // Count completed games, grouping by mode category (otb_*, standard_*, etc.)
+    // Include both completed games and legacy games with null status but final result
+    // Cast enum to text for LIKE comparisons
+    const modeCategory = sql`CASE 
+      WHEN ${games.mode}::text LIKE 'otb_%' THEN 'otb'
+      WHEN ${games.mode}::text LIKE 'standard_%' THEN 'standard'
+      WHEN ${games.mode}::text LIKE 'blindfold_%' THEN 'blindfold'
+      ELSE ${games.mode}::text
+    END`;
+    
     const result = await db
       .select({
-        mode: games.mode,
+        mode: modeCategory,
         count: sql<number>`count(*)::int`,
       })
       .from(games)
       .where(or(
+        // Current games with completed status
         eq(games.status, 'completed'),
+        // Legacy games with null status but a final result
         and(
           sql`${games.status} IS NULL`,
           sql`${games.result} IN ('white_win', 'black_win', 'draw')`
         )
       ))
-      .groupBy(games.mode);
+      .groupBy(modeCategory);
     return result;
   }
 
