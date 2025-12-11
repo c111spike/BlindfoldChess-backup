@@ -23,6 +23,8 @@ interface ChessBoardProps {
   selectedSquare?: string | null;
   lockedPiece?: string | null;
   onSquareClick?: (square: string) => void;
+  onMove?: (from: string, to: string) => boolean;
+  interactionMode?: "free" | "viewOnly";
   className?: string;
   noCard?: boolean;
   enableArrows?: boolean;
@@ -53,6 +55,8 @@ export function ChessBoard({
   selectedSquare: externalSelectedSquare = null,
   lockedPiece = null,
   onSquareClick,
+  onMove,
+  interactionMode = "free",
   className = "",
   noCard = false,
   enableArrows = true,
@@ -74,6 +78,10 @@ export function ChessBoard({
   const effectiveLastMoveSquares = lastMove 
     ? [lastMove.from, lastMove.to] 
     : lastMoveSquares;
+
+  useEffect(() => {
+    setInternalSelectedSquare(null);
+  }, [fen]);
 
   const parseFen = (fen: string) => {
     const rows = fen.split(" ")[0].split("/");
@@ -126,14 +134,31 @@ export function ChessBoard({
   const handleSquareClick = (file: string, rank: string, piece: string | null) => {
     const square = `${file}${rank}`;
     
+    if (interactionMode === "viewOnly") {
+      return;
+    }
+    
     if (piece) {
       setArrows([]);
     }
     
-    if (externalSelectedSquare === null) {
-      setInternalSelectedSquare(square);
+    if (onMove && internalSelectedSquare && internalSelectedSquare !== square) {
+      const moveResult = onMove(internalSelectedSquare, square);
+      setInternalSelectedSquare(null);
+      if (moveResult) {
+        return;
+      }
     }
-    onSquareClick?.(square);
+    
+    if (piece) {
+      setInternalSelectedSquare(square);
+    } else if (internalSelectedSquare) {
+      setInternalSelectedSquare(null);
+    }
+    
+    if (externalSelectedSquare === null) {
+      onSquareClick?.(square);
+    }
   };
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
