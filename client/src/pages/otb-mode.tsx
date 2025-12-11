@@ -2610,9 +2610,9 @@ export default function OTBMode() {
           <div className="p-4 border-b">
             <h3 className="font-semibold">Score Sheet</h3>
           </div>
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 min-h-0 p-4">
             {moves.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
+              <p className="text-sm text-muted-foreground text-center py-2">
                 No moves yet
               </p>
             ) : (
@@ -2644,18 +2644,18 @@ export default function OTBMode() {
             )}
           </ScrollArea>
           
-          <div className="p-3 border-t bg-muted/30 shrink-0">
-            <h4 className="text-xs font-semibold mb-2">OTB Rules</h4>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li><span className="font-medium text-foreground">Handshakes</span> - Shake hands with your opponent, unsportsmanlike behavior can lead to forced forfeits.</li>
-              <li><span className="font-medium text-foreground">Castling</span> - Must click King first then Rook.</li>
-              <li><span className="font-medium text-foreground">1 Click 1 Move</span> - If you click a piece you must move it if there is a legal move.</li>
-              <li><span className="font-medium text-foreground">Clock Hand Rule</span> - Recommended to use spacebar with same hand as piece movement to get practice with OTB clock hand rule.</li>
-              <li><span className="font-medium text-foreground">Calling the Arbiter</span> - Press call arbiter button if opponent doesn't shake hands or makes illegal moves.</li>
+          <div className="p-2 border-t bg-muted/30 shrink-0">
+            <h4 className="text-xs font-semibold mb-1">OTB Rules</h4>
+            <ul className="text-xs text-muted-foreground space-y-0.5">
+              <li><span className="font-medium text-foreground">Handshakes</span> - Required, unsportsmanlike = forfeit</li>
+              <li><span className="font-medium text-foreground">Castling</span> - Click King first, then Rook</li>
+              <li><span className="font-medium text-foreground">Touch-Move</span> - Click piece = must move it</li>
+              <li><span className="font-medium text-foreground">Clock</span> - Use spacebar (same hand as piece)</li>
+              <li><span className="font-medium text-foreground">Arbiter</span> - Call for illegal moves/conduct</li>
             </ul>
           </div>
           
-          <div className="p-3 border-t bg-muted/30 shrink-0">
+          <div className="p-2 border-t bg-muted/30 shrink-0">
             <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
             <ul className="text-xs text-muted-foreground space-y-0.5">
               <li>• Illegal move: Caller +2 min</li>
@@ -2687,9 +2687,9 @@ export default function OTBMode() {
                   Score Sheet
                 </SheetTitle>
               </SheetHeader>
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea className="flex-1 min-h-0 p-4">
               {moves.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
+                <p className="text-sm text-muted-foreground text-center py-2">
                   No moves yet
                 </p>
               ) : (
@@ -2721,18 +2721,18 @@ export default function OTBMode() {
               )}
             </ScrollArea>
             
-            <div className="p-3 border-t bg-muted/30 shrink-0">
-              <h4 className="text-xs font-semibold mb-2">OTB Rules</h4>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li><span className="font-medium text-foreground">Handshakes</span> - Shake hands with your opponent, unsportsmanlike behavior can lead to forced forfeits.</li>
-                <li><span className="font-medium text-foreground">Castling</span> - Must click King first then Rook.</li>
-                <li><span className="font-medium text-foreground">1 Click 1 Move</span> - If you click a piece you must move it if there is a legal move.</li>
-                <li><span className="font-medium text-foreground">Clock Hand Rule</span> - Recommended to use spacebar with same hand as piece movement to get practice with OTB clock hand rule.</li>
-                <li><span className="font-medium text-foreground">Calling the Arbiter</span> - Press call arbiter button if opponent doesn't shake hands or makes illegal moves.</li>
+            <div className="p-2 border-t bg-muted/30 shrink-0">
+              <h4 className="text-xs font-semibold mb-1">OTB Rules</h4>
+              <ul className="text-xs text-muted-foreground space-y-0.5">
+                <li><span className="font-medium text-foreground">Handshakes</span> - Required, unsportsmanlike = forfeit</li>
+                <li><span className="font-medium text-foreground">Castling</span> - Click King first, then Rook</li>
+                <li><span className="font-medium text-foreground">Touch-Move</span> - Click piece = must move it</li>
+                <li><span className="font-medium text-foreground">Clock</span> - Use spacebar (same hand as piece)</li>
+                <li><span className="font-medium text-foreground">Arbiter</span> - Call for illegal moves/conduct</li>
               </ul>
             </div>
             
-            <div className="p-3 border-t bg-muted/30 shrink-0">
+            <div className="p-2 border-t bg-muted/30 shrink-0">
               <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
               <ul className="text-xs text-muted-foreground space-y-0.5">
                 <li>• Illegal move: Caller +2 min</li>
