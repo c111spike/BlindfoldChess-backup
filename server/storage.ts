@@ -244,7 +244,7 @@ export interface IStorage {
   issueWarning(userId: string, adminId: string, notes: string): Promise<UserAntiCheat>;
   
   // Opening Repertoire Trainer
-  getOpenings(options?: { eco?: string; search?: string; limit?: number; offset?: number }): Promise<Opening[]>;
+  getOpenings(options?: { eco?: string; search?: string; color?: string; limit?: number; offset?: number }): Promise<Opening[]>;
   getOpening(id: string): Promise<Opening | undefined>;
   getRepertoires(userId: string): Promise<Repertoire[]>;
   getRepertoire(id: string): Promise<Repertoire | undefined>;
@@ -2205,18 +2205,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Opening Repertoire Trainer
-  async getOpenings(options?: { eco?: string; search?: string; limit?: number; offset?: number }): Promise<Opening[]> {
+  async getOpenings(options?: { eco?: string; search?: string; color?: string; limit?: number; offset?: number }): Promise<Opening[]> {
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
     
-    let query = db.select().from(openings);
+    const conditions = [];
     
     if (options?.eco) {
-      query = query.where(sql`${openings.eco} ILIKE ${options.eco + '%'}`) as any;
+      conditions.push(sql`${openings.eco} ILIKE ${options.eco + '%'}`);
     }
     
     if (options?.search) {
-      query = query.where(sql`${openings.name} ILIKE ${'%' + options.search + '%'}`) as any;
+      conditions.push(sql`${openings.name} ILIKE ${'%' + options.search + '%'}`);
+    }
+    
+    if (options?.color) {
+      conditions.push(eq(openings.color, options.color));
+    }
+    
+    let query = db.select().from(openings);
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
     }
     
     return query.orderBy(openings.eco, openings.name).limit(limit).offset(offset);

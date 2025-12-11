@@ -2650,10 +2650,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get('/api/openings', async (req, res) => {
     try {
-      const { eco, search, limit, offset } = req.query;
+      const { eco, search, color, limit, offset } = req.query;
       const openings = await storage.getOpenings({
         eco: eco as string,
         search: search as string,
+        color: color as string,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined,
       });
