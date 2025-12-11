@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History, Users, Gamepad2 } from "lucide-react";
+import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History, Users, Gamepad2, EyeOff } from "lucide-react";
 import type { Rating, Game, UserSettings } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -324,6 +324,22 @@ export default function Dashboard() {
                   {platformStats?.totalGames?.standard || 0}
                 </p>
                 <p className="text-xs text-muted-foreground">Standard Games</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-violet-500/10">
+                <EyeOff className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-mono" data-testid="text-total-blindfold-games">
+                  {platformStats?.totalGames?.blindfold || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">Blindfold Games</p>
               </div>
             </div>
           </CardContent>

@@ -128,7 +128,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get('/api/stats/platform', async (req, res) => {
     try {
-      const gameStats = await storage.getGameStatistics();
+      const [gameStats, blindfoldCount] = await Promise.all([
+        storage.getGameStatistics(),
+        storage.getBlindfoldGameCount()
+      ]);
       
       // Convert array to object with mode as key
       const statsByMode: Record<string, number> = {};
@@ -142,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           simulVsSimul: statsByMode['simul_vs_simul'] || 0,
           otb: statsByMode['otb'] || 0,
           standard: statsByMode['standard'] || 0,
-          blindfold: statsByMode['blindfold'] || 0,
+          blindfold: blindfoldCount,
         }
       });
     } catch (error) {

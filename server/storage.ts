@@ -99,6 +99,7 @@ export interface IStorage {
   getBlindfoldGames(userId: string, limit?: number): Promise<Game[]>;
   updateGame(id: string, data: Partial<Game>): Promise<Game>;
   getGameStatistics(): Promise<{ mode: string; count: number }[]>;
+  getBlindfoldGameCount(): Promise<number>;
   
   getRating(userId: string): Promise<Rating | undefined>;
   createRating(rating: InsertRating): Promise<Rating>;
@@ -316,7 +317,6 @@ export class DatabaseStorage implements IStorage {
     const modeCategory = sql`CASE 
       WHEN ${games.mode}::text LIKE 'otb_%' THEN 'otb'
       WHEN ${games.mode}::text LIKE 'standard_%' THEN 'standard'
-      WHEN ${games.mode}::text LIKE 'blindfold_%' THEN 'blindfold'
       ELSE ${games.mode}::text
     END`;
     
@@ -337,6 +337,26 @@ export class DatabaseStorage implements IStorage {
       ))
       .groupBy(modeCategory);
     return result;
+  }
+
+  async getBlindfoldGameCount(): Promise<number> {
+    // Count games where blindfold was enabled (subset of standard games)
+    const [result] = await db
+      .select({
+        count: sql<number>`count(*)::int`,
+      })
+      .from(games)
+      .where(and(
+        eq(games.blindfoldEnabled, true),
+        or(
+          eq(games.status, 'completed'),
+          and(
+            sql`${games.status} IS NULL`,
+            sql`${games.result} IN ('white_win', 'black_win', 'draw')`
+          )
+        )
+      ));
+    return result?.count || 0;
   }
 
   async getBlindfoldGames(userId: string, limit: number = 20): Promise<Game[]> {
