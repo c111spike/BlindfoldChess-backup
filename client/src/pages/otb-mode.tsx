@@ -969,6 +969,7 @@ export default function OTBMode() {
     setLegalChessGame(new Chess());
     setBoardState(INITIAL_BOARD.map(row => [...row]));
     setMoves([]);
+    setLastMoveSquares([]);
     setActiveColor("white");
     setPlayerColor("white");
     setClockTurn("white");
@@ -1047,6 +1048,7 @@ export default function OTBMode() {
     setLegalChessGame(new Chess());
     setBoardState(INITIAL_BOARD.map(row => [...row]));
     setMoves([]);
+    setLastMoveSquares([]);
     setActiveColor("white");
     setClockTurn("white");
     setClockPresses(0);
