@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History, Users, Gamepad2, EyeOff, RotateCcw, Puzzle, Crown } from "lucide-react";
 import type { Rating, Game, UserSettings } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -62,6 +64,21 @@ export default function Dashboard() {
       toast({
         title: "Settings saved",
         description: "Blindfold difficulty updated",
+      });
+    },
+  });
+
+  const updateBlindfolddCoordinatesMutation = useMutation({
+    mutationFn: async (showCoordinates: boolean) => {
+      return await apiRequest("PATCH", "/api/settings", {
+        blindfoldShowCoordinates: showCoordinates,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      toast({
+        title: "Settings saved",
+        description: "Coordinate labels setting updated",
       });
     },
   });
@@ -227,7 +244,7 @@ export default function Dashboard() {
                 : "Select difficulty level"}
             </CardDescription>
           </CardHeader>
-          <CardContent className="mt-auto">
+          <CardContent className="mt-auto space-y-3">
             <Select
               value={userSettings?.blindfoldDifficulty || "medium"}
               onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
@@ -247,6 +264,18 @@ export default function Dashboard() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex items-center justify-between bg-secondary/50 rounded-md px-3 py-2">
+              <Label htmlFor="show-coordinates" className="text-sm text-primary-foreground cursor-pointer">
+                Show tile names (a1-h8)
+              </Label>
+              <Switch
+                id="show-coordinates"
+                checked={userSettings?.blindfoldShowCoordinates || false}
+                onCheckedChange={(checked) => updateBlindfolddCoordinatesMutation.mutate(checked)}
+                disabled={updateBlindfolddCoordinatesMutation.isPending}
+                data-testid="switch-blindfold-coordinates"
+              />
+            </div>
           </CardContent>
         </Card>
 
