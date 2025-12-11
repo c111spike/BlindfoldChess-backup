@@ -1004,3 +1004,105 @@ export const insertCheatReportSchema = createInsertSchema(cheatReports).omit({
   resolution: true,
   createdAt: true,
 });
+
+// ========== OPENING REPERTOIRE TRAINER ==========
+
+// Pre-loaded openings from Lichess database
+export const openings = pgTable("openings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eco: varchar("eco").notNull(),
+  name: varchar("name").notNull(),
+  pgn: text("pgn").notNull(),
+  moves: jsonb("moves").$type<string[]>().default([]),
+  fen: text("fen"),
+}, (table) => ({
+  ecoIdx: index("openings_eco_idx").on(table.eco),
+  nameIdx: index("openings_name_idx").on(table.name),
+}));
+
+// User's saved repertoires
+export const repertoires = pgTable("repertoires", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: varchar("name").notNull(),
+  color: varchar("color").notNull(), // 'white' or 'black'
+  openingId: varchar("opening_id")
+    .references(() => openings.id, { onDelete: "set null" }),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("repertoires_user_idx").on(table.userId),
+}));
+
+// Lines within a repertoire (includes main line + user-added variations)
+export const repertoireLines = pgTable("repertoire_lines", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  repertoireId: varchar("repertoire_id")
+    .references(() => repertoires.id, { onDelete: "cascade" })
+    .notNull(),
+  fen: text("fen").notNull(), // Position FEN
+  correctMove: varchar("correct_move").notNull(), // The move user should play
+  moveSan: varchar("move_san").notNull(), // SAN notation
+  moveNumber: integer("move_number").notNull(),
+  isUserAdded: boolean("is_user_added").default(false),
+  frequency: integer("frequency").default(100), // Weight for training (1-100)
+  parentFen: text("parent_fen"), // Previous position FEN for tree structure
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  repertoireIdx: index("repertoire_lines_repertoire_idx").on(table.repertoireId),
+  fenIdx: index("repertoire_lines_fen_idx").on(table.fen),
+}));
+
+// Practice history for spaced repetition
+export const practiceHistory = pgTable("practice_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  repertoireLineId: varchar("repertoire_line_id")
+    .references(() => repertoireLines.id, { onDelete: "cascade" })
+    .notNull(),
+  correctCount: integer("correct_count").default(0),
+  incorrectCount: integer("incorrect_count").default(0),
+  lastPracticed: timestamp("last_practiced"),
+  nextDue: timestamp("next_due").defaultNow(),
+  easeFactor: real("ease_factor").default(2.5), // SM-2 algorithm factor
+  interval: integer("interval").default(1), // Days until next review
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("practice_history_user_idx").on(table.userId),
+  dueIdx: index("practice_history_due_idx").on(table.nextDue),
+}));
+
+// Type exports for opening repertoire
+export type Opening = typeof openings.$inferSelect;
+export type InsertOpening = typeof openings.$inferInsert;
+export type Repertoire = typeof repertoires.$inferSelect;
+export type InsertRepertoire = typeof repertoires.$inferInsert;
+export type RepertoireLine = typeof repertoireLines.$inferSelect;
+export type InsertRepertoireLine = typeof repertoireLines.$inferInsert;
+export type PracticeHistory = typeof practiceHistory.$inferSelect;
+export type InsertPracticeHistory = typeof practiceHistory.$inferInsert;
+
+export const insertOpeningSchema = createInsertSchema(openings).omit({
+  id: true,
+});
+
+export const insertRepertoireSchema = createInsertSchema(repertoires).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRepertoireLineSchema = createInsertSchema(repertoireLines).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPracticeHistorySchema = createInsertSchema(practiceHistory).omit({
+  id: true,
+  createdAt: true,
+});
