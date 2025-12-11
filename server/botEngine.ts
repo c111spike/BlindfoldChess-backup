@@ -176,12 +176,12 @@ function minimax(
 function getSearchDepth(difficulty: BotDifficulty): number {
   const depthMap: Record<BotDifficulty, number> = {
     beginner: 1,
-    novice: 1,
+    novice: 2,
     intermediate: 2,
     club: 2,
-    advanced: 3,
-    expert: 3,
-    master: 3,
+    advanced: 2,
+    expert: 2,
+    master: 2,
   };
   return depthMap[difficulty];
 }
