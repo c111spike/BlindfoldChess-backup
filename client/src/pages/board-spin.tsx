@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useNotifications } from "@/hooks/useNotifications";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,7 +30,7 @@ interface GeneratedPosition {
 type GamePhase = 'select' | 'memorize' | 'spinning' | 'recreate' | 'bonus' | 'results';
 
 export default function BoardSpin() {
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const [phase, setPhase] = useState<GamePhase>('select');
   const [difficulty, setDifficulty] = useState<string>('easy');
   const [position, setPosition] = useState<GeneratedPosition | null>(null);

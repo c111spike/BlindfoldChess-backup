@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useNotifications } from "@/hooks/useNotifications";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Clock, RotateCcw, Undo2, Trophy, Target, ArrowLeft, Play, Settings, Home, TrendingUp } from "lucide-react";
 import { useLocation } from "wouter";
@@ -68,7 +68,7 @@ interface KnightsTourProgress {
 }
 
 export default function KnightsTour() {
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const [, setLocation] = useLocation();
   
   // Game configuration

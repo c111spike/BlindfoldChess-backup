@@ -25,7 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/hooks/use-toast";
+import { useNotifications } from "@/hooks/useNotifications";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Play,
@@ -67,7 +67,7 @@ import type { NPieceChallengeProgress, NPieceChallengeSolution } from "@shared/s
 const PIECE_TYPES: PieceType[] = ["rook", "knight", "bishop", "queen", "king"];
 
 export default function NPieceChallenge() {
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const [, setLocation] = useLocation();
   
   // Game configuration

@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Chess } from "chess.js";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
+import { useNotifications } from "@/hooks/useNotifications";
 import { apiRequest } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,7 +57,7 @@ interface MatchPlayer {
 
 export default function SimulVsSimulMode() {
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const [, setLocation] = useLocation();
   
   const [gameStarted, setGameStarted] = useState(false);

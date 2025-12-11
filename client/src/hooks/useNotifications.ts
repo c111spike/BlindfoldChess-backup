@@ -6,15 +6,19 @@ const NOTIFICATIONS_STORAGE_KEY = "simulchess-notifications-enabled";
 export function useNotifications() {
   const { toast: originalToast, ...rest } = useToast();
   
-  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(() => {
+  const [notificationsEnabled, setNotificationsEnabledState] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
     return stored === null ? true : stored === "true";
   });
 
   useEffect(() => {
-    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, String(notificationsEnabled));
-  }, [notificationsEnabled]);
+    const handleChange = (e: CustomEvent<boolean>) => {
+      setNotificationsEnabledState(e.detail);
+    };
+    window.addEventListener("notifications-changed", handleChange as EventListener);
+    return () => window.removeEventListener("notifications-changed", handleChange as EventListener);
+  }, []);
 
   const toast = useCallback(
     (props: Parameters<typeof originalToast>[0]) => {
@@ -27,8 +31,9 @@ export function useNotifications() {
   );
 
   const toggleNotifications = useCallback(() => {
-    setNotificationsEnabled((prev) => !prev);
-  }, []);
+    const newValue = !notificationsEnabled;
+    setNotificationsEnabled(newValue);
+  }, [notificationsEnabled]);
 
   return {
     ...rest,

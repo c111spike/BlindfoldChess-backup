@@ -3,7 +3,7 @@ import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
@@ -59,7 +59,7 @@ interface MoveRecord {
 
 export default function OTBMode() {
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const [, setLocation] = useLocation();
   const [game, setGame] = useState<Chess | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
