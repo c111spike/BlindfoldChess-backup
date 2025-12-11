@@ -181,7 +181,7 @@ function getSearchDepth(difficulty: BotDifficulty): number {
     club: 2,
     advanced: 3,
     expert: 3,
-    master: 4,
+    master: 3,
   };
   return depthMap[difficulty];
 }

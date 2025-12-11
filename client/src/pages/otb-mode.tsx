@@ -2463,6 +2463,7 @@ export default function OTBMode() {
                   selectedSquare={showPieceHighlight ? selectedSquare : null}
                   lockedPiece={showPieceHighlight ? lockedPiece : null}
                   onSquareClick={handleSquareClick}
+                  highlightColor="red"
                 />
                 
                 {/* OTB Control Column - 2 tiles wide, 8 tiles tall */}

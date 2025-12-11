@@ -31,6 +31,7 @@ interface ChessBoardProps {
   premove?: Premove | null;
   onPremove?: (premove: Premove | null) => void;
   arrowDrawMode?: boolean;
+  highlightColor?: "yellow" | "red";
 }
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -60,6 +61,7 @@ export function ChessBoard({
   premove = null,
   onPremove,
   arrowDrawMode = false,
+  highlightColor = "yellow",
 }: ChessBoardProps) {
   const [internalSelectedSquare, setInternalSelectedSquare] = useState<string | null>(null);
   const selectedSquare = externalSelectedSquare !== null ? externalSelectedSquare : internalSelectedSquare;
@@ -332,9 +334,9 @@ export function ChessBoard({
                     relative flex items-center justify-center cursor-pointer
                     ${getSquareColor(fileIndex, rankIndex)}
                     ${isHighlighted ? "ring-2 ring-primary ring-inset" : ""}
-                    ${isSelected && !isLocked ? "ring-4 ring-red-400 ring-inset" : ""}
-                    ${isLocked ? "ring-4 ring-red-500 ring-inset" : ""}
-                    ${isLastMove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-red-400/30" : ""}
+                    ${isSelected && !isLocked ? (highlightColor === "red" ? "ring-4 ring-red-400 ring-inset" : "ring-4 ring-yellow-400 ring-inset") : ""}
+                    ${isLocked ? (highlightColor === "red" ? "ring-4 ring-red-500 ring-inset" : "ring-4 ring-yellow-500 ring-inset") : ""}
+                    ${isLastMove ? (highlightColor === "red" ? "bg-opacity-80 after:absolute after:inset-0 after:bg-red-400/30" : "bg-opacity-80 after:absolute after:inset-0 after:bg-yellow-400/30") : ""}
                     ${isPremove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-blue-500/40" : ""}
                     hover-elevate
                   `}
