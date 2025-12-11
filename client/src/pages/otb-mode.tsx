@@ -2610,7 +2610,7 @@ export default function OTBMode() {
           <div className="p-4 border-b">
             <h3 className="font-semibold">Score Sheet</h3>
           </div>
-          <ScrollArea className="max-h-40 p-4">
+          <ScrollArea className="flex-1 p-4">
             {moves.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No moves yet
@@ -2644,7 +2644,7 @@ export default function OTBMode() {
             )}
           </ScrollArea>
           
-          <div className="p-3 border-t bg-muted/30">
+          <div className="p-3 border-t bg-muted/30 shrink-0">
             <h4 className="text-xs font-semibold mb-2">OTB Rules</h4>
             <ul className="text-xs text-muted-foreground space-y-1">
               <li><span className="font-medium text-foreground">Handshakes</span> - Shake hands with your opponent, unsportsmanlike behavior can lead to forced forfeits.</li>
@@ -2655,7 +2655,7 @@ export default function OTBMode() {
             </ul>
           </div>
           
-          <div className="p-3 border-t bg-muted/30">
+          <div className="p-3 border-t bg-muted/30 shrink-0">
             <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
             <ul className="text-xs text-muted-foreground space-y-0.5">
               <li>• Illegal move: Caller +2 min</li>
@@ -2687,7 +2687,7 @@ export default function OTBMode() {
                   Score Sheet
                 </SheetTitle>
               </SheetHeader>
-              <ScrollArea className="max-h-40 p-4">
+              <ScrollArea className="flex-1 p-4">
               {moves.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No moves yet
@@ -2721,7 +2721,7 @@ export default function OTBMode() {
               )}
             </ScrollArea>
             
-            <div className="p-3 border-t bg-muted/30">
+            <div className="p-3 border-t bg-muted/30 shrink-0">
               <h4 className="text-xs font-semibold mb-2">OTB Rules</h4>
               <ul className="text-xs text-muted-foreground space-y-1">
                 <li><span className="font-medium text-foreground">Handshakes</span> - Shake hands with your opponent, unsportsmanlike behavior can lead to forced forfeits.</li>
@@ -2732,7 +2732,7 @@ export default function OTBMode() {
               </ul>
             </div>
             
-            <div className="p-3 border-t bg-muted/30">
+            <div className="p-3 border-t bg-muted/30 shrink-0">
               <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
               <ul className="text-xs text-muted-foreground space-y-0.5">
                 <li>• Illegal move: Caller +2 min</li>
