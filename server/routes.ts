@@ -2236,6 +2236,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/knights-tour/incomplete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { boardSize, moveCount } = req.body;
+      
+      if (!boardSize || moveCount === undefined) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      const progress = await storage.saveKnightsTourIncomplete(
+        userId,
+        parseInt(boardSize),
+        moveCount
+      );
+      
+      res.json({ progress });
+    } catch (error) {
+      console.error("Error saving Knight's Tour incomplete attempt:", error);
+      res.status(500).json({ message: "Failed to save incomplete attempt" });
+    }
+  });
+
   app.get('/api/bots', async (_req, res) => {
     try {
       res.json(BOTS);

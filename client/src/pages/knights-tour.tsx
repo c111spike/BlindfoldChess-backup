@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Clock, RotateCcw, Undo2, Trophy, Target, ArrowLeft, Play, Settings, Home } from "lucide-react";
+import { Clock, RotateCcw, Undo2, Trophy, Target, ArrowLeft, Play, Settings, Home, TrendingUp } from "lucide-react";
 import { useLocation } from "wouter";
 
 type BoardSize = 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
@@ -62,6 +62,7 @@ interface KnightsTourProgress {
   boardSize: number;
   completedCount: number | null;
   bestTime: number | null;
+  highestMoveCount: number | null;
   lastPlayedAt: string | null;
   createdAt: string | null;
 }
@@ -101,6 +102,17 @@ export default function KnightsTour() {
   const saveCompletionMutation = useMutation({
     mutationFn: async (data: { boardSize: number; completionTime: number }) => {
       const response = await apiRequest("POST", "/api/knights-tour/complete", data);
+      return await response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/knights-tour/progress/${variables.boardSize}`] });
+    },
+  });
+
+  // Save incomplete attempt mutation
+  const saveIncompleteMutation = useMutation({
+    mutationFn: async (data: { boardSize: number; moveCount: number }) => {
+      const response = await apiRequest("POST", "/api/knights-tour/incomplete", data);
       return await response.json();
     },
     onSuccess: (_, variables) => {
@@ -149,6 +161,12 @@ export default function KnightsTour() {
         title: "No Valid Moves!",
         description: `You got stuck after ${moveCount} moves. Try again!`,
         variant: "destructive",
+      });
+      
+      // Save incomplete attempt to track highest move count
+      saveIncompleteMutation.mutate({
+        boardSize,
+        moveCount,
       });
     }
   }, [moveCount, totalSquares, validMoves.length, gameStarted, knightPosition, isComplete, isStuck]);
@@ -397,7 +415,7 @@ export default function KnightsTour() {
                     <Target className="w-4 h-4 text-muted-foreground" />
                     <span>Target: Visit all {boardSize * boardSize} squares</span>
                   </div>
-                  {progress && (progress.completedCount || 0) > 0 && (
+                  {progress && (progress.completedCount || 0) > 0 ? (
                     <>
                       <div className="flex items-center gap-2 text-sm">
                         <Trophy className="w-4 h-4 text-yellow-500" />
@@ -410,7 +428,12 @@ export default function KnightsTour() {
                         </div>
                       )}
                     </>
-                  )}
+                  ) : progress?.highestMoveCount ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <TrendingUp className="w-4 h-4 text-blue-500" />
+                      <span>Best Attempt: {progress.highestMoveCount}/{boardSize * boardSize} squares</span>
+                    </div>
+                  ) : null}
                 </div>
                 
                 {overallProgress.totalCompleted > 0 && (

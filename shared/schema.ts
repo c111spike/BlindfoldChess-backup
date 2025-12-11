@@ -423,6 +423,7 @@ export const knightsTourProgress = pgTable("knights_tour_progress", {
   boardSize: integer("board_size").notNull(), // 5-12
   completedCount: integer("completed_count").default(0),
   bestTime: integer("best_time"), // fastest completion time in milliseconds
+  highestMoveCount: integer("highest_move_count"), // best incomplete attempt (squares visited before getting stuck)
   lastPlayedAt: timestamp("last_played_at"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({

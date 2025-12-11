@@ -172,6 +172,7 @@ export interface IStorage {
   // Knight's Tour
   getKnightsTourProgress(userId: string, boardSize: number): Promise<KnightsTourProgress | undefined>;
   saveKnightsTourCompletion(userId: string, boardSize: number, completionTime: number): Promise<KnightsTourProgress>;
+  saveKnightsTourIncomplete(userId: string, boardSize: number, moveCount: number): Promise<KnightsTourProgress>;
   getKnightsTourOverallProgress(userId: string): Promise<{ totalCompleted: number; boardsCompleted: number }>;
   
   // Game Analysis
@@ -1531,6 +1532,39 @@ export class DatabaseStorage implements IStorage {
         boardSize,
         completedCount: 1,
         bestTime: completionTime,
+        lastPlayedAt: new Date(),
+      })
+      .returning();
+    return progress;
+  }
+
+  async saveKnightsTourIncomplete(userId: string, boardSize: number, moveCount: number): Promise<KnightsTourProgress> {
+    const existing = await this.getKnightsTourProgress(userId, boardSize);
+
+    if (existing) {
+      // Only update if this is a new high score for incomplete attempts
+      const newHighest = !existing.highestMoveCount || moveCount > existing.highestMoveCount
+        ? moveCount
+        : existing.highestMoveCount;
+
+      const [updated] = await db
+        .update(knightsTourProgress)
+        .set({
+          highestMoveCount: newHighest,
+          lastPlayedAt: new Date(),
+        })
+        .where(eq(knightsTourProgress.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    const [progress] = await db
+      .insert(knightsTourProgress)
+      .values({
+        userId,
+        boardSize,
+        completedCount: 0,
+        highestMoveCount: moveCount,
         lastPlayedAt: new Date(),
       })
       .returning();
