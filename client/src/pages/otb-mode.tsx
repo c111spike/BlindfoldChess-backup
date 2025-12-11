@@ -2610,7 +2610,7 @@ export default function OTBMode() {
           <div className="p-4 border-b">
             <h3 className="font-semibold">Score Sheet</h3>
           </div>
-          <ScrollArea className="h-64 p-4">
+          <ScrollArea className="h-80 p-4">
             {moves.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-2">
                 No moves yet
@@ -2687,7 +2687,7 @@ export default function OTBMode() {
                   Score Sheet
                 </SheetTitle>
               </SheetHeader>
-              <ScrollArea className="h-64 p-4">
+              <ScrollArea className="h-80 p-4">
               {moves.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-2">
                   No moves yet
