@@ -245,6 +245,18 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto space-y-3">
+            <div className="flex items-center justify-between bg-secondary/50 rounded-md px-3 py-2">
+              <Label htmlFor="show-coordinates" className="text-sm text-primary-foreground cursor-pointer">
+                Show tile names (a1-h8)
+              </Label>
+              <Switch
+                id="show-coordinates"
+                checked={userSettings?.blindfoldShowCoordinates || false}
+                onCheckedChange={(checked) => updateBlindfolddCoordinatesMutation.mutate(checked)}
+                disabled={updateBlindfolddCoordinatesMutation.isPending}
+                data-testid="switch-blindfold-coordinates"
+              />
+            </div>
             <Select
               value={userSettings?.blindfoldDifficulty || "medium"}
               onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
@@ -264,18 +276,6 @@ export default function Dashboard() {
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex items-center justify-between bg-secondary/50 rounded-md px-3 py-2">
-              <Label htmlFor="show-coordinates" className="text-sm text-primary-foreground cursor-pointer">
-                Show tile names (a1-h8)
-              </Label>
-              <Switch
-                id="show-coordinates"
-                checked={userSettings?.blindfoldShowCoordinates || false}
-                onCheckedChange={(checked) => updateBlindfolddCoordinatesMutation.mutate(checked)}
-                disabled={updateBlindfolddCoordinatesMutation.isPending}
-                data-testid="switch-blindfold-coordinates"
-              />
-            </div>
           </CardContent>
         </Card>
 
