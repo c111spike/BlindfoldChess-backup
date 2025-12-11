@@ -806,8 +806,12 @@ function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: str
   const [error, setError] = useState<string | null>(null);
   const pendingControllerRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentFenRef = useRef<string>(fen);
 
   useEffect(() => {
+    // Track the current FEN to prevent stale updates
+    currentFenRef.current = fen;
+    
     // Cancel any pending debounce timer
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -819,20 +823,24 @@ function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: str
       pendingControllerRef.current = null;
     }
 
-    // Debounce: wait 300ms before fetching to avoid rapid consecutive requests
+    // Clear previous moves immediately when FEN changes to avoid showing stale data
+    setTopMoves([]);
+    setLoading(true);
+
+    // Debounce: wait 150ms before fetching to avoid rapid consecutive requests
     timeoutRef.current = setTimeout(() => {
       const controller = new AbortController();
+      const requestFen = fen; // Capture the FEN for this request
       pendingControllerRef.current = controller;
       
       const fetchTopMoves = async () => {
-        setLoading(true);
         setError(null);
         
         try {
           const response = await fetch('/api/analysis/top-moves', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fen }),
+            body: JSON.stringify({ fen: requestFen }),
             credentials: 'include',
             signal: controller.signal,
           });
@@ -847,13 +855,13 @@ function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: str
             (m: TopMove) => m.move && typeof m.evaluation === 'number'
           );
           
-          // Only update state if this is still the current request
-          if (pendingControllerRef.current === controller) {
+          // Only update state if FEN hasn't changed and this is still the current request
+          if (currentFenRef.current === requestFen && pendingControllerRef.current === controller) {
             setTopMoves(validMoves);
             setLoading(false);
           }
         } catch (err: any) {
-          if (err.name !== 'AbortError' && pendingControllerRef.current === controller) {
+          if (err.name !== 'AbortError' && currentFenRef.current === requestFen && pendingControllerRef.current === controller) {
             setError('Unable to load engine suggestions');
             setTopMoves([]);
             setLoading(false);
@@ -862,24 +870,19 @@ function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: str
       };
 
       fetchTopMoves();
-    }, 300);
+    }, 150);
     
-    // Cleanup on unmount only - don't abort current request on fen change
+    // Cleanup: abort pending request and clear timeout when FEN changes
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-    };
-  }, [fen]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
       if (pendingControllerRef.current) {
         pendingControllerRef.current.abort();
+        pendingControllerRef.current = null;
       }
     };
-  }, []);
+  }, [fen]);
 
   const formatEval = (move: TopMove) => {
     if (move.isMate) {

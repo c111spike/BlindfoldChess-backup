@@ -81,6 +81,7 @@ export default function OTBMode() {
   const [lastMoveSquares, setLastMoveSquares] = useState<string[]>([]);
   const [showLegalMoves, setShowLegalMoves] = useState(false);
   const [highlightLastMove, setHighlightLastMove] = useState(true);
+  const [showPieceHighlight, setShowPieceHighlight] = useState(true);
   
   const [myViolations, setMyViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
   const [opponentViolations, setOpponentViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
@@ -2269,6 +2270,17 @@ export default function OTBMode() {
                             data-testid="switch-show-legal-moves"
                           />
                         </div>
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="show-piece-highlight-pregame" className="text-sm cursor-pointer">
+                            Highlight Selected Piece
+                          </Label>
+                          <Switch
+                            id="show-piece-highlight-pregame"
+                            checked={showPieceHighlight}
+                            onCheckedChange={setShowPieceHighlight}
+                            data-testid="switch-show-piece-highlight"
+                          />
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">Settings cannot be changed during gameplay</p>
                     </div>
@@ -2448,8 +2460,8 @@ export default function OTBMode() {
                   highlightedSquares={[]}
                   legalMoveSquares={legalMoveSquares}
                   lastMoveSquares={highlightLastMove ? lastMoveSquares : []}
-                  selectedSquare={selectedSquare}
-                  lockedPiece={lockedPiece}
+                  selectedSquare={showPieceHighlight ? selectedSquare : null}
+                  lockedPiece={showPieceHighlight ? lockedPiece : null}
                   onSquareClick={handleSquareClick}
                 />
                 

@@ -332,9 +332,9 @@ export function ChessBoard({
                     relative flex items-center justify-center cursor-pointer
                     ${getSquareColor(fileIndex, rankIndex)}
                     ${isHighlighted ? "ring-2 ring-primary ring-inset" : ""}
-                    ${isSelected && !isLocked ? "ring-4 ring-yellow-400 ring-inset" : ""}
+                    ${isSelected && !isLocked ? "ring-4 ring-red-400 ring-inset" : ""}
                     ${isLocked ? "ring-4 ring-red-500 ring-inset" : ""}
-                    ${isLastMove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-yellow-400/30" : ""}
+                    ${isLastMove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-red-400/30" : ""}
                     ${isPremove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-blue-500/40" : ""}
                     hover-elevate
                   `}
