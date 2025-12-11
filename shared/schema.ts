@@ -285,6 +285,7 @@ export const userSettings = pgTable("user_settings", {
   confirmMoves: boolean("confirm_moves").default(false),
   arbiterWarnings: boolean("arbiter_warnings").default(true),
   blindfoldDifficulty: varchar("blindfold_difficulty").default("easy"),
+  blindfoldShowCoordinates: boolean("blindfold_show_coordinates").default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
