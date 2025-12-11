@@ -427,10 +427,23 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
   };
 
   const handleRestart = () => {
-    setCurrentLineIndex(0);
     setSessionStats({ correct: 0, incorrect: 0 });
     setAllLinesCompleted(false);
-    refetchPractice();
+    
+    if (lines.length > 0) {
+      const line = lines[0];
+      setCurrentLine(line);
+      game.reset();
+      game.load('line' in line ? line.line.fen : line.fen);
+      setCurrentFen(game.fen());
+      setIsUserTurn(true);
+      setFeedback(null);
+      setShowSolution(false);
+      setCurrentLineIndex(0);
+    } else {
+      refetchPractice();
+      setCurrentLineIndex(0);
+    }
   };
 
   if (practiceLoading) {
