@@ -123,6 +123,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Track authenticated online players
+  const authenticatedUsers = new Set<string>();
+  
+  app.get('/api/stats/platform', async (req, res) => {
+    try {
+      const gameStats = await storage.getGameStatistics();
+      
+      // Convert array to object with mode as key
+      const statsByMode: Record<string, number> = {};
+      for (const stat of gameStats) {
+        statsByMode[stat.mode] = stat.count;
+      }
+      
+      res.json({
+        onlinePlayers: authenticatedUsers.size,
+        totalGames: {
+          simulVsSimul: statsByMode['simul_vs_simul'] || 0,
+          otb: statsByMode['otb'] || 0,
+          standard: statsByMode['standard'] || 0,
+          blindfold: statsByMode['blindfold'] || 0,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching platform stats:", error);
+      res.status(500).json({ message: "Failed to fetch platform stats" });
+    }
+  });
+
   app.post('/api/games', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -3294,18 +3322,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Received WebSocket message:', data);
         
         if (data.type === 'auth') {
-          ws.userId = data.userId;
-          userConnections.set(data.userId, ws);
+          const userId = data.userId;
+          if (!userId || typeof userId !== 'string') {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid user ID' }));
+            return;
+          }
+          
+          ws.userId = userId;
+          userConnections.set(userId, ws);
+          authenticatedUsers.add(userId);
           
           // Cancel any pending disconnect timer if user reconnects
-          const existingTimer = disconnectTimers.get(data.userId);
+          const existingTimer = disconnectTimers.get(userId);
           if (existingTimer) {
             clearTimeout(existingTimer);
-            disconnectTimers.delete(data.userId);
+            disconnectTimers.delete(userId);
             ws.send(JSON.stringify({ type: 'reconnected' }));
           }
           
-          ws.send(JSON.stringify({ type: 'authenticated', userId: data.userId }));
+          ws.send(JSON.stringify({ type: 'authenticated', userId }));
         } else if (data.type === 'join_queue') {
           const userId = ws.userId;
           if (!userId) {
@@ -4765,6 +4800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[Disconnect] User ${userId} disconnected, matchId: ${matchId}`);
         
         userConnections.delete(userId);
+        authenticatedUsers.delete(userId);
         
         const socketId = (ws as any).socketId;
         if (socketId) {

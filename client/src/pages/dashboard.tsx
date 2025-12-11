@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History } from "lucide-react";
+import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History, Users, Gamepad2 } from "lucide-react";
 import type { Rating, Game, UserSettings } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +31,19 @@ export default function Dashboard() {
     queryKey: ["/api/games/ongoing"],
     refetchOnMount: true,
     staleTime: 0,
+  });
+
+  const { data: platformStats } = useQuery<{
+    onlinePlayers: number;
+    totalGames: {
+      simulVsSimul: number;
+      otb: number;
+      standard: number;
+      blindfold: number;
+    };
+  }>({
+    queryKey: ["/api/stats/platform"],
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   const updateBlindfolddifficultyMutation = useMutation({
@@ -246,6 +259,73 @@ export default function Dashboard() {
             <Button asChild variant="secondary" className="w-full" data-testid="button-mode-standard">
               <Link href="/standard">Play Standard</Link>
             </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Platform Statistics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-mono" data-testid="text-online-players">
+                  {platformStats?.onlinePlayers || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">Online Players</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple-500/10">
+                <Grid3x3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-mono" data-testid="text-total-simul-games">
+                  {platformStats?.totalGames?.simulVsSimul || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">Simul vs Simul Games</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-mono" data-testid="text-total-otb-games">
+                  {platformStats?.totalGames?.otb || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">OTB Mode Games</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-orange-500/10">
+                <Gamepad2 className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-mono" data-testid="text-total-standard-games">
+                  {platformStats?.totalGames?.standard || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">Standard Games</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
