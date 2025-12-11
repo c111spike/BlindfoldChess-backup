@@ -517,7 +517,10 @@ function ReviewTab({
     if (remainingTime && remainingTime >= 60) {
       const fen = getFenAtPly(plyIndex);
       // moveNumber is 1-indexed, plyIndex is 0-indexed
-      const moveAnalysis = moves.find(m => m.moveNumber === Math.floor(plyIndex / 2) + 1);
+      // Even plyIndex = white's move, odd plyIndex = black's move
+      const moveNumber = Math.floor(plyIndex / 2) + 1;
+      const color = plyIndex % 2 === 0 ? 'white' : 'black';
+      const moveAnalysis = moves.find(m => m.moveNumber === moveNumber && m.color === color);
       setSelectedMismatch({
         plyIndex,
         fen,
