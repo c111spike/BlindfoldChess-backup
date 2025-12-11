@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3, Crown, Shuffle, MessageSquareWarning, Ban } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3, Crown, Shuffle, MessageSquareWarning, Ban, FileText, X } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
@@ -99,6 +100,7 @@ export default function OTBMode() {
   
   const [touchedPiece, setTouchedPiece] = useState<string | null>(null);
   const [lockedPiece, setLockedPiece] = useState<string | null>(null); // Touch-move: piece must be moved if it has legal moves
+  const [mobileScoreSheetOpen, setMobileScoreSheetOpen] = useState(false);
   const [arbiterResult, setArbiterResult] = useState<{
     type: "illegal" | "legal" | null;
     message: string;
@@ -154,6 +156,13 @@ export default function OTBMode() {
   useEffect(() => {
     legalChessGameRef.current = legalChessGame;
   }, [legalChessGame]);
+
+  // Close mobile score sheet when game ends
+  useEffect(() => {
+    if (gameResult) {
+      setMobileScoreSheetOpen(false);
+    }
+  }, [gameResult]);
 
   const squareToIndices = (square: string): { rank: number; file: number } => {
     const file = FILES.indexOf(square[0]);
@@ -2394,6 +2403,7 @@ export default function OTBMode() {
                             setSelectedBotDifficulty(null);
                             setBotThinking(false);
                             setLegalChessGame(new Chess());
+                            setMobileScoreSheetOpen(false);
                           }}
                           data-testid="button-main-menu"
                         >
@@ -2581,8 +2591,9 @@ export default function OTBMode() {
         </div>
       </div>
 
+      {/* Desktop Score Sheet - Hidden on mobile */}
       {gameStarted && (
-        <div className="w-72 border-l bg-card flex flex-col">
+        <div className="hidden lg:flex w-72 border-l bg-card flex-col">
           <div className="p-4 border-b">
             <h3 className="font-semibold">Score Sheet</h3>
           </div>
@@ -2629,6 +2640,74 @@ export default function OTBMode() {
               <li>• 2nd false claim: Forfeit</li>
             </ul>
           </div>
+        </div>
+      )}
+
+      {/* Mobile Score Sheet Button - Only visible on mobile when game is started */}
+      {gameStarted && (
+        <div className="lg:hidden fixed bottom-4 right-4 z-50">
+          <Sheet open={mobileScoreSheetOpen} onOpenChange={setMobileScoreSheetOpen}>
+            <SheetTrigger asChild>
+              <Button
+                size="icon"
+                variant="secondary"
+                data-testid="button-mobile-scoresheet"
+              >
+                <FileText className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-80 p-0 flex flex-col">
+              <SheetHeader className="p-4 border-b shrink-0">
+                <SheetTitle className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Score Sheet
+                </SheetTitle>
+              </SheetHeader>
+              <ScrollArea className="flex-1 p-4">
+              {moves.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No moves yet
+                </p>
+              ) : (
+                <div className="font-mono text-sm">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 px-2 w-12 text-muted-foreground font-medium">#</th>
+                        <th className="text-left py-2 px-2 font-medium">White</th>
+                        <th className="text-left py-2 px-2 font-medium">Black</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: Math.ceil(moves.length / 2) }).map((_, moveNumber) => {
+                        const whiteMove = moves[moveNumber * 2];
+                        const blackMove = moves[moveNumber * 2 + 1];
+                        
+                        return (
+                          <tr key={moveNumber} className="border-b border-border/50" data-testid={`mobile-move-row-${moveNumber}`}>
+                            <td className="py-2 px-2 text-muted-foreground" data-testid={`text-mobile-move-number-${moveNumber}`}>{moveNumber + 1}</td>
+                            <td className="py-2 px-2" data-testid={`text-mobile-white-move-${moveNumber}`}>{whiteMove?.notation || "-"}</td>
+                            <td className="py-2 px-2" data-testid={`text-mobile-black-move-${moveNumber}`}>{blackMove?.notation || "-"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </ScrollArea>
+            
+            <div className="p-3 border-t bg-muted/30">
+              <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
+              <ul className="text-xs text-muted-foreground space-y-0.5">
+                <li>• Illegal move: Caller +2 min</li>
+                <li>• 2nd illegal: Forfeit</li>
+                <li>• False claim: Opponent +2 min</li>
+                <li>• 2nd false claim: Forfeit</li>
+              </ul>
+            </div>
+            </SheetContent>
+          </Sheet>
         </div>
       )}
 
