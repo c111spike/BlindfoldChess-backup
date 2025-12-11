@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History, Users, Gamepad2, EyeOff } from "lucide-react";
+import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History, Users, Gamepad2, EyeOff, RotateCcw, Puzzle, Crown } from "lucide-react";
 import type { Rating, Game, UserSettings } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +40,11 @@ export default function Dashboard() {
       otb: number;
       standard: number;
       blindfold: number;
+    };
+    trainingChallenges: {
+      boardSpin: number;
+      nPiece: number;
+      knightsTour: number;
     };
   }>({
     queryKey: ["/api/stats/platform"],
@@ -340,6 +345,54 @@ export default function Dashboard() {
                   {platformStats?.totalGames?.blindfold || 0}
                 </p>
                 <p className="text-xs text-muted-foreground">Blindfold Games</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-cyan-500/10">
+                <RotateCcw className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-mono" data-testid="text-total-board-spin">
+                  {platformStats?.trainingChallenges?.boardSpin || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">Board Spin Games</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <Puzzle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-mono" data-testid="text-total-n-piece">
+                  {platformStats?.trainingChallenges?.nPiece || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">N-Piece Challenges</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-rose-500/10">
+                <Crown className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-mono" data-testid="text-total-knights-tour">
+                  {platformStats?.trainingChallenges?.knightsTour || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">Knight's Tour</p>
               </div>
             </div>
           </CardContent>

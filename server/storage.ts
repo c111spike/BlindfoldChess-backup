@@ -100,6 +100,7 @@ export interface IStorage {
   updateGame(id: string, data: Partial<Game>): Promise<Game>;
   getGameStatistics(): Promise<{ mode: string; count: number }[]>;
   getBlindfoldGameCount(): Promise<number>;
+  getTrainingChallengesCounts(): Promise<{ boardSpin: number; nPiece: number; knightsTour: number }>;
   
   getRating(userId: string): Promise<Rating | undefined>;
   createRating(rating: InsertRating): Promise<Rating>;
@@ -357,6 +358,19 @@ export class DatabaseStorage implements IStorage {
         )
       ));
     return result?.count || 0;
+  }
+
+  async getTrainingChallengesCounts(): Promise<{ boardSpin: number; nPiece: number; knightsTour: number }> {
+    const [[boardSpinResult], [nPieceResult], [knightsTourResult]] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(boardSpinScores),
+      db.select({ count: sql<number>`count(*)::int` }).from(nPieceChallengeProgress),
+      db.select({ count: sql<number>`count(*)::int` }).from(knightsTourProgress),
+    ]);
+    return {
+      boardSpin: boardSpinResult?.count || 0,
+      nPiece: nPieceResult?.count || 0,
+      knightsTour: knightsTourResult?.count || 0,
+    };
   }
 
   async getBlindfoldGames(userId: string, limit: number = 20): Promise<Game[]> {

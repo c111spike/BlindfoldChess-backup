@@ -128,9 +128,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get('/api/stats/platform', async (req, res) => {
     try {
-      const [gameStats, blindfoldCount] = await Promise.all([
+      const [gameStats, blindfoldCount, trainingCounts] = await Promise.all([
         storage.getGameStatistics(),
-        storage.getBlindfoldGameCount()
+        storage.getBlindfoldGameCount(),
+        storage.getTrainingChallengesCounts()
       ]);
       
       // Convert array to object with mode as key
@@ -146,6 +147,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           otb: statsByMode['otb'] || 0,
           standard: statsByMode['standard'] || 0,
           blindfold: blindfoldCount,
+        },
+        trainingChallenges: {
+          boardSpin: trainingCounts.boardSpin,
+          nPiece: trainingCounts.nPiece,
+          knightsTour: trainingCounts.knightsTour,
         }
       });
     } catch (error) {
