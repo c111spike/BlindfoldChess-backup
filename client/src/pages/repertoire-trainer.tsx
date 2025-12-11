@@ -213,7 +213,7 @@ export default function RepertoireTrainer() {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 border rounded-md">
+              <ScrollArea className="flex-1 border rounded-md h-[300px]">
                 <div className="p-2 space-y-1">
                   {openingsLoading ? (
                     <div className="p-4 text-center text-muted-foreground">Loading openings...</div>
