@@ -22,6 +22,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3, Pencil, Crown, Shuffle, Mic, MicOff, Volume2 } from "lucide-react";
 import { voiceRecognition, speak, moveToSpeech } from "@/lib/voice";
 import { PromotionDialog } from "@/components/promotion-dialog";
@@ -1804,10 +1815,28 @@ export default function StandardMode() {
                       <HandshakeIcon className="mr-2 h-4 w-4" />
                       {waitingForDrawResponse ? "Waiting..." : "Offer Draw"}
                     </Button>
-                    <Button variant="destructive" className="flex-1" onClick={handleResign} data-testid="button-resign">
-                      <Flag className="mr-2 h-4 w-4" />
-                      Resign
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="flex-1" data-testid="button-resign">
+                          <Flag className="mr-2 h-4 w-4" />
+                          Resign
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Resign Game?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to resign? This will count as a loss.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel data-testid="button-resign-cancel">Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleResign} data-testid="button-resign-confirm">
+                            Yes, Resign
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t">
                     <div className="flex items-center gap-2">
