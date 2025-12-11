@@ -42,12 +42,13 @@ export default function RepertoireTrainer() {
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
     if (ecoFilter) params.set('eco', ecoFilter);
-    params.set('limit', '50');
+    if (newRepertoireColor) params.set('color', newRepertoireColor);
+    params.set('limit', '100');
     return params.toString();
-  }, [searchQuery, ecoFilter]);
+  }, [searchQuery, ecoFilter, newRepertoireColor]);
 
   const { data: openings, isLoading: openingsLoading } = useQuery<Opening[]>({
-    queryKey: ["/api/openings", searchQuery, ecoFilter],
+    queryKey: ["/api/openings", searchQuery, ecoFilter, newRepertoireColor],
     queryFn: async () => {
       const url = `/api/openings${openingsQueryParams ? `?${openingsQueryParams}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
