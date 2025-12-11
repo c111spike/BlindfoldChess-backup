@@ -1719,6 +1719,30 @@ export default function StandardMode() {
                             />
                           ))}
                         </svg>
+                        {userSettings?.blindfoldShowCoordinates && (
+                          <div className="absolute inset-0 grid grid-cols-8 grid-rows-8">
+                            {Array.from({ length: 64 }).map((_, i) => {
+                              const row = Math.floor(i / 8);
+                              const col = i % 8;
+                              const files = playerColor === "white" 
+                                ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+                                : ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
+                              const ranks = playerColor === "white"
+                                ? ['8', '7', '6', '5', '4', '3', '2', '1']
+                                : ['1', '2', '3', '4', '5', '6', '7', '8'];
+                              const squareName = files[col] + ranks[row];
+                              return (
+                                <div
+                                  key={squareName}
+                                  className="flex items-center justify-center text-white/70 font-mono text-xs md:text-sm"
+                                  data-testid={`tile-label-${squareName}`}
+                                >
+                                  {squareName}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
