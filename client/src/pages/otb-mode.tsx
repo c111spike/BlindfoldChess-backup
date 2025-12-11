@@ -2610,9 +2610,9 @@ export default function OTBMode() {
           <div className="p-4 border-b">
             <h3 className="font-semibold">Score Sheet</h3>
           </div>
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="max-h-40 p-4">
             {moves.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
+              <p className="text-sm text-muted-foreground text-center py-4">
                 No moves yet
               </p>
             ) : (
@@ -2620,9 +2620,9 @@ export default function OTBMode() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 px-2 w-12 text-muted-foreground font-medium">#</th>
-                      <th className="text-left py-2 px-2 font-medium">White</th>
-                      <th className="text-left py-2 px-2 font-medium">Black</th>
+                      <th className="text-left py-1 px-2 w-12 text-muted-foreground font-medium">#</th>
+                      <th className="text-left py-1 px-2 font-medium">White</th>
+                      <th className="text-left py-1 px-2 font-medium">Black</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2632,9 +2632,9 @@ export default function OTBMode() {
                       
                       return (
                         <tr key={moveNumber} className="border-b border-border/50" data-testid={`move-row-${moveNumber}`}>
-                          <td className="py-2 px-2 text-muted-foreground">{moveNumber + 1}</td>
-                          <td className="py-2 px-2" data-testid={`move-${moveNumber * 2}`}>{whiteMove?.notation || "-"}</td>
-                          <td className="py-2 px-2" data-testid={`move-${moveNumber * 2 + 1}`}>{blackMove?.notation || "-"}</td>
+                          <td className="py-1 px-2 text-muted-foreground">{moveNumber + 1}</td>
+                          <td className="py-1 px-2" data-testid={`move-${moveNumber * 2}`}>{whiteMove?.notation || "-"}</td>
+                          <td className="py-1 px-2" data-testid={`move-${moveNumber * 2 + 1}`}>{blackMove?.notation || "-"}</td>
                         </tr>
                       );
                     })}
@@ -2643,6 +2643,17 @@ export default function OTBMode() {
               </div>
             )}
           </ScrollArea>
+          
+          <div className="p-3 border-t bg-muted/30">
+            <h4 className="text-xs font-semibold mb-2">OTB Rules</h4>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li><span className="font-medium text-foreground">Handshakes</span> - Shake hands with your opponent, unsportsmanlike behavior can lead to forced forfeits.</li>
+              <li><span className="font-medium text-foreground">Castling</span> - Must click King first then Rook.</li>
+              <li><span className="font-medium text-foreground">1 Click 1 Move</span> - If you click a piece you must move it if there is a legal move.</li>
+              <li><span className="font-medium text-foreground">Clock Hand Rule</span> - Recommended to use spacebar with same hand as piece movement to get practice with OTB clock hand rule.</li>
+              <li><span className="font-medium text-foreground">Calling the Arbiter</span> - Press call arbiter button if opponent doesn't shake hands or makes illegal moves.</li>
+            </ul>
+          </div>
           
           <div className="p-3 border-t bg-muted/30">
             <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
@@ -2676,9 +2687,9 @@ export default function OTBMode() {
                   Score Sheet
                 </SheetTitle>
               </SheetHeader>
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea className="max-h-40 p-4">
               {moves.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
+                <p className="text-sm text-muted-foreground text-center py-4">
                   No moves yet
                 </p>
               ) : (
@@ -2686,9 +2697,9 @@ export default function OTBMode() {
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-2 px-2 w-12 text-muted-foreground font-medium">#</th>
-                        <th className="text-left py-2 px-2 font-medium">White</th>
-                        <th className="text-left py-2 px-2 font-medium">Black</th>
+                        <th className="text-left py-1 px-2 w-12 text-muted-foreground font-medium">#</th>
+                        <th className="text-left py-1 px-2 font-medium">White</th>
+                        <th className="text-left py-1 px-2 font-medium">Black</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2698,9 +2709,9 @@ export default function OTBMode() {
                         
                         return (
                           <tr key={moveNumber} className="border-b border-border/50" data-testid={`mobile-move-row-${moveNumber}`}>
-                            <td className="py-2 px-2 text-muted-foreground" data-testid={`text-mobile-move-number-${moveNumber}`}>{moveNumber + 1}</td>
-                            <td className="py-2 px-2" data-testid={`text-mobile-white-move-${moveNumber}`}>{whiteMove?.notation || "-"}</td>
-                            <td className="py-2 px-2" data-testid={`text-mobile-black-move-${moveNumber}`}>{blackMove?.notation || "-"}</td>
+                            <td className="py-1 px-2 text-muted-foreground" data-testid={`text-mobile-move-number-${moveNumber}`}>{moveNumber + 1}</td>
+                            <td className="py-1 px-2" data-testid={`text-mobile-white-move-${moveNumber}`}>{whiteMove?.notation || "-"}</td>
+                            <td className="py-1 px-2" data-testid={`text-mobile-black-move-${moveNumber}`}>{blackMove?.notation || "-"}</td>
                           </tr>
                         );
                       })}
@@ -2709,6 +2720,17 @@ export default function OTBMode() {
                 </div>
               )}
             </ScrollArea>
+            
+            <div className="p-3 border-t bg-muted/30">
+              <h4 className="text-xs font-semibold mb-2">OTB Rules</h4>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                <li><span className="font-medium text-foreground">Handshakes</span> - Shake hands with your opponent, unsportsmanlike behavior can lead to forced forfeits.</li>
+                <li><span className="font-medium text-foreground">Castling</span> - Must click King first then Rook.</li>
+                <li><span className="font-medium text-foreground">1 Click 1 Move</span> - If you click a piece you must move it if there is a legal move.</li>
+                <li><span className="font-medium text-foreground">Clock Hand Rule</span> - Recommended to use spacebar with same hand as piece movement to get practice with OTB clock hand rule.</li>
+                <li><span className="font-medium text-foreground">Calling the Arbiter</span> - Press call arbiter button if opponent doesn't shake hands or makes illegal moves.</li>
+              </ul>
+            </div>
             
             <div className="p-3 border-t bg-muted/30">
               <h4 className="text-xs font-semibold mb-1">Arbiter Rules</h4>
