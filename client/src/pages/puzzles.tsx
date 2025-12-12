@@ -906,7 +906,17 @@ function BrowseTab() {
   const [reportDetails, setReportDetails] = useState("");
   
   const { data: puzzles, isLoading } = useQuery<Puzzle[]>({
-    queryKey: ["/api/puzzles", { type: puzzleType !== "all" ? puzzleType : undefined, difficulty: difficulty !== "all" ? difficulty : undefined, sortBy }],
+    queryKey: ["/api/puzzles", puzzleType, difficulty, sortBy],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (puzzleType !== "all") params.set("type", puzzleType);
+      if (difficulty !== "all") params.set("difficulty", difficulty);
+      params.set("sortBy", sortBy);
+      const url = `/api/puzzles${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch puzzles');
+      return res.json();
+    },
   });
   
   const voteMutation = useMutation({
