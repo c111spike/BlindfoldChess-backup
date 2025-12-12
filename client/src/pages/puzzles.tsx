@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -298,6 +298,24 @@ function TrainTab() {
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [moveIndex, setMoveIndex] = useState(0);
   const [showSolution, setShowSolution] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [animationIndex, setAnimationIndex] = useState(0);
+  
+  // Refs to track pending timers so we can cancel them
+  const opponentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Helper to clear all pending puzzle timers
+  const clearPuzzleTimers = () => {
+    if (opponentTimerRef.current) {
+      clearTimeout(opponentTimerRef.current);
+      opponentTimerRef.current = null;
+    }
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  };
 
   const { data: puzzle, isLoading } = useQuery<Puzzle>({
     queryKey: ["/api/puzzles/random"],
@@ -306,17 +324,74 @@ function TrainTab() {
   // Reset state when puzzle changes
   useEffect(() => {
     if (puzzle?.fen) {
+      clearPuzzleTimers();
       setCurrentFen(puzzle.fen);
       setMoveIndex(0);
       setSolved(null);
       setSelectedSquare(null);
       setLegalMoves([]);
       setShowSolution(false);
+      setIsAnimating(false);
+      setAnimationIndex(0);
     }
   }, [puzzle?.id, puzzle?.fen]);
 
+  // Helper to normalize moves (handle both string and array formats, including comma-separated)
+  const normalizeMoves = (moves: string | string[] | null | undefined): string[] => {
+    if (!moves) return [];
+    if (Array.isArray(moves)) return moves.filter(m => m && m.length > 0);
+    if (typeof moves === 'string') {
+      return moves
+        .replace(/,/g, ' ')
+        .split(/\s+/)
+        .filter(m => m.length > 0);
+    }
+    return [];
+  };
+
+  // Get solution moves for display (prefer solution if it has content, otherwise use moves)
+  const rawSolution = normalizeMoves(puzzle?.solution);
+  const rawMoves = normalizeMoves(puzzle?.moves);
+  const solutionMoves = rawSolution.length > 0 ? rawSolution : rawMoves;
+
+  // Animated solution playback - plays each move with 1 second delay
+  useEffect(() => {
+    if (!isAnimating || !puzzle?.fen || solutionMoves.length === 0) return;
+
+    // If we've played all moves, stop animating
+    if (animationIndex >= solutionMoves.length) {
+      setIsAnimating(false);
+      return;
+    }
+
+    // Build the position by replaying all moves up to animationIndex
+    const chess = new Chess(puzzle.fen);
+    for (let i = 0; i < animationIndex; i++) {
+      try {
+        chess.move(solutionMoves[i]);
+      } catch (e) {
+        console.error("Error replaying move:", solutionMoves[i], e);
+      }
+    }
+
+    // Play the next move after 1 second delay
+    const timer = setTimeout(() => {
+      try {
+        chess.move(solutionMoves[animationIndex]);
+        setCurrentFen(chess.fen());
+        setAnimationIndex(prev => prev + 1);
+      } catch (e) {
+        console.error("Error playing animated move:", solutionMoves[animationIndex], e);
+        setIsAnimating(false);
+      }
+    }, animationIndex === 0 ? 0 : 1000); // No delay for first move, 1s for subsequent
+
+    return () => clearTimeout(timer);
+  }, [isAnimating, animationIndex, puzzle?.fen, solutionMoves]);
+
   const handleSquareClick = (square: string) => {
-    if (!currentFen || solved !== null) return;
+    // Disable interaction during animation or when solved
+    if (!currentFen || solved !== null || isAnimating) return;
     
     const chess = new Chess(currentFen);
     
@@ -369,7 +444,7 @@ function TrainTab() {
                 toast({ title: "Correct!", description: "You solved the puzzle!" });
               } else if (solutionMoves.length > moveIndex + 1) {
                 // Make opponent's response after a short delay
-                setTimeout(() => {
+                opponentTimerRef.current = setTimeout(() => {
                   try {
                     const opponentMove = solutionMoves[moveIndex + 1];
                     const chessAfter = new Chess(chess.fen());
@@ -389,7 +464,7 @@ function TrainTab() {
                 description: "That's not the best move. Try again!",
                 variant: "destructive"
               });
-              setTimeout(() => {
+              resetTimerRef.current = setTimeout(() => {
                 setCurrentFen(puzzle?.fen || currentFen);
                 setMoveIndex(0);
                 setSolved(null);
@@ -421,47 +496,45 @@ function TrainTab() {
 
   const handleReset = () => {
     if (puzzle?.fen) {
+      clearPuzzleTimers();
       setCurrentFen(puzzle.fen);
       setMoveIndex(0);
       setSolved(null);
       setSelectedSquare(null);
       setLegalMoves([]);
       setShowSolution(false);
+      setIsAnimating(false);
+      setAnimationIndex(0);
     }
   };
 
   const handleSkip = () => {
+    clearPuzzleTimers();
     setSolved(null);
     setCurrentFen(null);
     setSelectedSquare(null);
     setLegalMoves([]);
     setMoveIndex(0);
     setShowSolution(false);
+    setIsAnimating(false);
+    setAnimationIndex(0);
     queryClient.invalidateQueries({ queryKey: ["/api/puzzles/random"] });
   };
 
   const handleShowSolution = () => {
+    // Cancel any pending timers before starting animation
+    clearPuzzleTimers();
     setShowSolution(true);
+    // Clear any in-progress state before starting animation
+    setSolved(null);
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setMoveIndex(0);
+    // Start animated playback from the original puzzle position
+    setCurrentFen(puzzle?.fen || null);
+    setAnimationIndex(0);
+    setIsAnimating(true);
   };
-
-  // Helper to normalize moves (handle both string and array formats, including comma-separated)
-  const normalizeMoves = (moves: string | string[] | null | undefined): string[] => {
-    if (!moves) return [];
-    if (Array.isArray(moves)) return moves.filter(m => m && m.length > 0);
-    if (typeof moves === 'string') {
-      // Handle comma-separated, space-separated, or mixed formats
-      return moves
-        .replace(/,/g, ' ')
-        .split(/\s+/)
-        .filter(m => m.length > 0);
-    }
-    return [];
-  };
-
-  // Get solution moves for display (prefer solution if it has content, otherwise use moves)
-  const rawSolution = normalizeMoves(puzzle?.solution);
-  const rawMoves = normalizeMoves(puzzle?.moves);
-  const solutionMoves = rawSolution.length > 0 ? rawSolution : rawMoves;
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
@@ -562,9 +635,29 @@ function TrainTab() {
 
                 {showSolution && !solved && (
                   <div className="p-4 rounded-lg border bg-muted/50">
-                    <p className="text-sm font-medium mb-2">Solution:</p>
-                    <p className="font-mono text-sm">
-                      {solutionMoves.join(' ')}
+                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                      Solution:
+                      {isAnimating && (
+                        <span className="text-xs text-muted-foreground animate-pulse">
+                          Playing...
+                        </span>
+                      )}
+                    </p>
+                    <p className="font-mono text-sm flex flex-wrap gap-1">
+                      {solutionMoves.map((move, index) => (
+                        <span
+                          key={index}
+                          className={`px-1.5 py-0.5 rounded transition-all duration-300 ${
+                            index < animationIndex
+                              ? "bg-green-500/20 text-green-600 dark:text-green-400"
+                              : index === animationIndex && isAnimating
+                              ? "bg-primary/20 text-primary font-bold scale-110"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {move}
+                        </span>
+                      ))}
                     </p>
                   </div>
                 )}
