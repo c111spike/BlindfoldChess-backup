@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { Book, Plus, Search, ChevronRight, Play, Trash2, CheckCircle, XCircle, RotateCcw, ArrowLeft } from "lucide-react";
+import { Book, Plus, Search, ChevronRight, Play, Trash2, CheckCircle, XCircle, RotateCcw, ArrowLeft, RefreshCw } from "lucide-react";
 import { ChessBoard } from "@/components/chess-board";
 import { Chess } from "chess.js";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -347,11 +347,21 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
   const [allLinesCompleted, setAllLinesCompleted] = useState(false);
   const sessionLinesRef = useRef<(RepertoireLine | PracticeHistoryWithLine)[]>([]);
 
+  const [forceAllMode, setForceAllMode] = useState(false);
+  
   const { data: practiceData, isLoading: practiceLoading, refetch: refetchPractice } = useQuery<{
     dueLines: PracticeHistoryWithLine[];
     newLines: RepertoireLine[];
   }>({
-    queryKey: ["/api/repertoires", repertoire.id, "practice"],
+    queryKey: ["/api/repertoires", repertoire.id, "practice", forceAllMode ? "all" : "due"],
+    queryFn: async () => {
+      const url = forceAllMode 
+        ? `/api/repertoires/${repertoire.id}/practice?forceAll=true&limit=100`
+        : `/api/repertoires/${repertoire.id}/practice`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch practice data");
+      return res.json();
+    },
     refetchOnWindowFocus: false,
   });
 
@@ -464,6 +474,14 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
     }
   };
 
+  const handlePracticeAllLines = () => {
+    sessionLinesRef.current = [];
+    setSessionStats({ correct: 0, incorrect: 0 });
+    setAllLinesCompleted(false);
+    setCurrentLineIndex(0);
+    setForceAllMode(true);
+  };
+
   if (practiceLoading) {
     return (
       <div className="p-8 flex items-center justify-center">
@@ -512,13 +530,19 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
             </div>
           )}
 
-          <div className="flex gap-2 justify-center">
+          <div className="flex flex-wrap gap-2 justify-center">
             <Button variant="outline" onClick={onBack} data-testid="button-done">
               Done
             </Button>
-            <Button onClick={handleRestart} data-testid="button-restart">
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Practice Again
+            {sessionLinesRef.current.length > 0 && (
+              <Button onClick={handleRestart} data-testid="button-restart">
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Practice Again
+              </Button>
+            )}
+            <Button variant="secondary" onClick={handlePracticeAllLines} data-testid="button-practice-all">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Practice All Lines
             </Button>
           </div>
         </Card>
