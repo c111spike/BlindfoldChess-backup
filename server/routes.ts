@@ -1399,10 +1399,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const stats = await storage.getStatistics(userId);
-      res.json(stats);
+      // Filter out bullet and classical modes
+      const filteredStats = stats.filter(s => 
+        !s.mode.includes('bullet') && !s.mode.includes('classical')
+      );
+      res.json(filteredStats);
     } catch (error) {
       console.error("Error fetching statistics:", error);
       res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
+  app.get('/api/training-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get repertoire training stats
+      const practiceHistory = await storage.getPracticeHistory(userId);
+      const totalCorrect = practiceHistory.reduce((sum: number, h) => sum + (h.correctCount || 0), 0);
+      const totalIncorrect = practiceHistory.reduce((sum: number, h) => sum + (h.incorrectCount || 0), 0);
+      const linesMastered = practiceHistory.filter(h => (h.interval || 0) >= 21).length;
+      const dueForReview = practiceHistory.filter(h => h.nextDue && new Date(h.nextDue) <= new Date()).length;
+      
+      // Get repertoires count
+      const repertoires = await storage.getRepertoires(userId);
+      
+      res.json({
+        repertoire: {
+          totalRepertoires: repertoires.length,
+          linesPracticed: practiceHistory.length,
+          linesMastered,
+          dueForReview,
+          totalCorrect,
+          totalIncorrect,
+          accuracy: totalCorrect + totalIncorrect > 0 
+            ? Math.round((totalCorrect / (totalCorrect + totalIncorrect)) * 100)
+            : 0,
+        },
+        boardSpin: {
+          gamesPlayed: 0,
+          bestScore: 0,
+          avgAccuracy: 0,
+        },
+        nPiece: {
+          challengesAttempted: 0,
+          totalSolutions: 0,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching training stats:", error);
+      res.status(500).json({ message: "Failed to fetch training stats" });
     }
   });
 
