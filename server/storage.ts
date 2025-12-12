@@ -476,7 +476,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRandomPuzzle(): Promise<Puzzle | undefined> {
-    const allPuzzles = await db.select().from(puzzles).limit(100);
+    const allPuzzles = await db.select().from(puzzles).where(eq(puzzles.isRemoved, false)).limit(100);
     if (allPuzzles.length === 0) return undefined;
     const randomIndex = Math.floor(Math.random() * allPuzzles.length);
     return allPuzzles[randomIndex];
