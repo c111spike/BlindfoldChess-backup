@@ -663,7 +663,7 @@ export class DatabaseStorage implements IStorage {
     if (puzzle) {
       await this.updatePuzzle(reportData.puzzleId, {
         reportCount: (puzzle.reportCount || 0) + 1,
-        isFlagged: (puzzle.reportCount || 0) + 1 >= 3,
+        isFlagged: true,
       });
     }
     
