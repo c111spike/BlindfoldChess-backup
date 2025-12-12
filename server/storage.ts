@@ -527,6 +527,7 @@ export class DatabaseStorage implements IStorage {
     const [puzzle] = await db.insert(puzzles).values({
       ...puzzleData,
       shareCode,
+      isVerified: true, // Auto-verify all puzzles on creation
     }).returning();
     return puzzle;
   }

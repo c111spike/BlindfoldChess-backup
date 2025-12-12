@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import { Chess } from "chess.js";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema, insertPuzzleSchema, insertPuzzleVoteSchema, insertPuzzleReportSchema } from "@shared/schema";
@@ -1801,6 +1802,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error unflagging puzzle:", error);
       res.status(500).json({ message: "Failed to unflag puzzle" });
+    }
+  });
+
+  // Admin Stockfish analysis for puzzle verification
+  app.post('/api/admin/puzzles/:id/analyze', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { moveIndex } = req.body;
+      const puzzle = await storage.getPuzzle(req.params.id);
+      
+      if (!puzzle) {
+        return res.status(404).json({ message: "Puzzle not found" });
+      }
+      
+      // Get the solution moves
+      const solutionMoves = puzzle.solution as string[];
+      if (!solutionMoves || solutionMoves.length === 0) {
+        return res.status(400).json({ message: "Puzzle has no solution moves" });
+      }
+      
+      // Determine which move to analyze (default to first)
+      const idx = typeof moveIndex === 'number' ? moveIndex : 0;
+      if (idx < 0 || idx >= solutionMoves.length) {
+        return res.status(400).json({ message: "Invalid move index" });
+      }
+      
+      // Build position at the move index
+      const chess = new Chess(puzzle.fen);
+      for (let i = 0; i < idx; i++) {
+        const move = chess.move(solutionMoves[i]);
+        if (!move) {
+          return res.status(400).json({ message: `Invalid move at index ${i}: ${solutionMoves[i]}` });
+        }
+      }
+      
+      const fenToAnalyze = chess.fen();
+      const moveToCheck = solutionMoves[idx];
+      
+      // Analyze the position with Stockfish
+      const analysis = await stockfishService.analyzePosition(fenToAnalyze, 2000000, true);
+      
+      // Convert the solution move to UCI format for comparison
+      const moveResult = chess.move(moveToCheck);
+      if (!moveResult) {
+        return res.status(400).json({ message: `Invalid solution move: ${moveToCheck}` });
+      }
+      const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
+      chess.undo(); // Undo so position is correct
+      
+      // Compare with Stockfish's best move
+      const isBestMove = analysis.bestMove === uciMove;
+      
+      // Get top 3 moves for more context
+      const topMoves = await stockfishService.getTopMoves(fenToAnalyze, 3, 2000000);
+      
+      // Find where the solution move ranks
+      const moveRank = topMoves.findIndex(m => m.move === uciMove) + 1;
+      
+      // Classify the move
+      let classification = 'Unknown';
+      if (isBestMove) {
+        classification = 'Best';
+      } else if (moveRank === 2) {
+        classification = 'Good';
+      } else if (moveRank === 3) {
+        classification = 'Okay';
+      } else {
+        // Calculate centipawn loss if we can
+        const bestEval = analysis.evaluation;
+        const solutionMoveAnalysis = topMoves.find(m => m.move === uciMove);
+        if (solutionMoveAnalysis) {
+          const cpLoss = Math.abs((bestEval - solutionMoveAnalysis.evaluation) * 100);
+          if (cpLoss <= 20) classification = 'Good';
+          else if (cpLoss <= 50) classification = 'Inaccuracy';
+          else if (cpLoss <= 100) classification = 'Mistake';
+          else classification = 'Blunder';
+        } else {
+          classification = 'Not in top moves';
+        }
+      }
+      
+      res.json({
+        fen: fenToAnalyze,
+        moveIndex: idx,
+        solutionMove: moveToCheck,
+        solutionMoveUci: uciMove,
+        stockfishBestMove: analysis.bestMove,
+        evaluation: analysis.evaluation,
+        isMate: analysis.isMate,
+        mateIn: analysis.mateIn,
+        isBestMove,
+        classification,
+        topMoves: topMoves.map(m => ({
+          move: m.move,
+          evaluation: m.evaluation,
+          isMate: m.isMate,
+          mateIn: m.mateIn,
+        })),
+        principalVariation: analysis.principalVariation,
+      });
+    } catch (error) {
+      console.error("Error analyzing puzzle:", error);
+      res.status(500).json({ message: "Failed to analyze puzzle" });
     }
   });
 

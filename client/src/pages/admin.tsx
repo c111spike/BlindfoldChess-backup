@@ -28,8 +28,17 @@ import {
   Database,
   Gauge,
   Zap,
-  RefreshCw
+  RefreshCw,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Cpu,
+  Play
 } from "lucide-react";
+import { ChessBoard } from "@/components/chess-board";
+import { Chess } from "chess.js";
+import { Input } from "@/components/ui/input";
 import type { User, Puzzle, CheatReport, UserAntiCheat } from "@shared/schema";
 
 interface FlaggedUserWithDetails extends UserAntiCheat {
@@ -62,6 +71,26 @@ interface PerformanceStats {
   gamesAnalyzedToday: number;
 }
 
+interface PuzzleAnalysis {
+  fen: string;
+  moveIndex: number;
+  solutionMove: string;
+  solutionMoveUci: string;
+  stockfishBestMove: string;
+  evaluation: number;
+  isMate: boolean;
+  mateIn?: number;
+  isBestMove: boolean;
+  classification: string;
+  topMoves: Array<{
+    move: string;
+    evaluation: number;
+    isMate: boolean;
+    mateIn?: number;
+  }>;
+  principalVariation: string[];
+}
+
 const PRIORITY_COLORS: Record<string, string> = {
   critical: "bg-red-500 text-white",
   high: "bg-orange-500 text-white",
@@ -85,6 +114,14 @@ export default function AdminPage() {
   const [adminNotes, setAdminNotes] = useState("");
   const [warningNotes, setWarningNotes] = useState("");
   const [reviewStatus, setReviewStatus] = useState("");
+  
+  // Puzzle Review state
+  const [puzzleSearchQuery, setPuzzleSearchQuery] = useState("");
+  const [selectedPuzzle, setSelectedPuzzle] = useState<Puzzle | null>(null);
+  const [reviewMoveIndex, setReviewMoveIndex] = useState(0);
+  const [puzzleAnalysis, setPuzzleAnalysis] = useState<PuzzleAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [reviewFen, setReviewFen] = useState<string | null>(null);
 
   const isAdmin = user?.isAdmin === true;
 
@@ -113,6 +150,77 @@ export default function AdminPage() {
     enabled: isAdmin,
     refetchInterval: 30000,
   });
+
+  // All puzzles for review
+  const { data: allPuzzles, isLoading: allPuzzlesLoading } = useQuery<Puzzle[]>({
+    queryKey: ["/api/puzzles?sortBy=newest&limit=100"],
+    enabled: isAdmin && activeTab === "puzzle-review",
+  });
+
+  // Filter puzzles based on search
+  const filteredPuzzles = allPuzzles?.filter(p => {
+    if (!puzzleSearchQuery) return true;
+    const searchLower = puzzleSearchQuery.toLowerCase();
+    return (
+      p.puzzleType?.toLowerCase().includes(searchLower) ||
+      p.id.toLowerCase().includes(searchLower) ||
+      p.sourceName?.toLowerCase().includes(searchLower)
+    );
+  }) || [];
+
+  // Analyze puzzle move
+  const analyzePuzzleMutation = useMutation({
+    mutationFn: async ({ puzzleId, moveIndex }: { puzzleId: string; moveIndex: number }) => {
+      const res = await apiRequest("POST", `/api/admin/puzzles/${puzzleId}/analyze`, { moveIndex });
+      return res.json();
+    },
+    onSuccess: (data: PuzzleAnalysis) => {
+      setPuzzleAnalysis(data);
+      setIsAnalyzing(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Analysis Failed", description: error.message, variant: "destructive" });
+      setIsAnalyzing(false);
+    },
+  });
+
+  // Helper to navigate through puzzle moves
+  const navigatePuzzleMove = (direction: 'prev' | 'next' | 'reset') => {
+    if (!selectedPuzzle) return;
+    const solution = selectedPuzzle.solution as string[];
+    if (!solution) return;
+
+    let newIndex = reviewMoveIndex;
+    if (direction === 'prev' && reviewMoveIndex > 0) {
+      newIndex = reviewMoveIndex - 1;
+    } else if (direction === 'next' && reviewMoveIndex < solution.length) {
+      newIndex = reviewMoveIndex + 1;
+    } else if (direction === 'reset') {
+      newIndex = 0;
+    }
+
+    setReviewMoveIndex(newIndex);
+    setPuzzleAnalysis(null);
+
+    // Build FEN at this move index
+    try {
+      const chess = new Chess(selectedPuzzle.fen);
+      for (let i = 0; i < newIndex; i++) {
+        chess.move(solution[i]);
+      }
+      setReviewFen(chess.fen());
+    } catch (e) {
+      setReviewFen(selectedPuzzle.fen);
+    }
+  };
+
+  // Select a puzzle for review
+  const selectPuzzleForReview = (puzzle: Puzzle) => {
+    setSelectedPuzzle(puzzle);
+    setReviewMoveIndex(0);
+    setReviewFen(puzzle.fen);
+    setPuzzleAnalysis(null);
+  };
 
   const updateReviewMutation = useMutation({
     mutationFn: async ({ userId, status, notes }: { userId: string; status: string; notes?: string }) => {
@@ -277,6 +385,10 @@ export default function AdminPage() {
           <TabsTrigger value="performance" data-testid="tab-performance">
             <Activity className="h-4 w-4 mr-2" />
             Performance
+          </TabsTrigger>
+          <TabsTrigger value="puzzle-review" data-testid="tab-puzzle-review">
+            <Cpu className="h-4 w-4 mr-2" />
+            Puzzle Review
           </TabsTrigger>
         </TabsList>
 
@@ -571,7 +683,7 @@ export default function AdminPage() {
                   <CardContent className="py-5">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold">{puzzle.title}</p>
+                        <p className="font-semibold">{puzzle.puzzleType || 'Puzzle'}</p>
                         <p className="text-sm text-muted-foreground">
                           Type: {puzzle.puzzleType} | Difficulty: {puzzle.difficulty}
                         </p>
@@ -828,6 +940,265 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="puzzle-review" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Puzzle List */}
+            <Card className="lg:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="h-4 w-4" />
+                  Select Puzzle
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Input
+                  placeholder="Search puzzles..."
+                  value={puzzleSearchQuery}
+                  onChange={(e) => setPuzzleSearchQuery(e.target.value)}
+                  data-testid="input-puzzle-search"
+                />
+                <div className="max-h-[400px] overflow-y-auto space-y-2">
+                  {allPuzzlesLoading ? (
+                    <Skeleton className="h-20" />
+                  ) : filteredPuzzles.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No puzzles found</p>
+                  ) : (
+                    filteredPuzzles.slice(0, 20).map(puzzle => (
+                      <div
+                        key={puzzle.id}
+                        className={`p-3 rounded-lg border cursor-pointer hover-elevate transition-all ${
+                          selectedPuzzle?.id === puzzle.id ? 'border-primary bg-primary/5' : ''
+                        }`}
+                        onClick={() => selectPuzzleForReview(puzzle)}
+                        data-testid={`puzzle-item-${puzzle.id}`}
+                      >
+                        <p className="font-medium text-sm truncate">{puzzle.puzzleType || 'Puzzle'} - {puzzle.difficulty || 'Unknown'}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="text-xs">{puzzle.puzzleType}</Badge>
+                          {puzzle.isFlagged && <Badge variant="destructive" className="text-xs">Flagged</Badge>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Puzzle Review Board */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle>Puzzle Review</CardTitle>
+                <CardDescription>
+                  Step through moves and verify with Stockfish
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!selectedPuzzle ? (
+                  <div className="py-12 text-center">
+                    <Cpu className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">Select a puzzle to review</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Board */}
+                      <div className="flex justify-center">
+                        <ChessBoard
+                          fen={reviewFen || selectedPuzzle.fen}
+                          orientation={selectedPuzzle.whoToMove === 'black' ? 'black' : 'white'}
+                          interactionMode="viewOnly"
+                          className="w-[300px] h-[300px]"
+                        />
+                      </div>
+
+                      {/* Move Info and Controls */}
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Position</p>
+                          <p className="font-medium">
+                            Move {reviewMoveIndex} of {(selectedPuzzle.solution as string[])?.length || 0}
+                          </p>
+                          {reviewMoveIndex > 0 && reviewMoveIndex <= (selectedPuzzle.solution as string[])?.length && (
+                            <p className="text-sm mt-1">
+                              Last move: <span className="font-mono bg-muted px-1 rounded">
+                                {(selectedPuzzle.solution as string[])[reviewMoveIndex - 1]}
+                              </span>
+                            </p>
+                          )}
+                          {reviewMoveIndex < (selectedPuzzle.solution as string[])?.length && (
+                            <p className="text-sm mt-1">
+                              Next move: <span className="font-mono bg-muted px-1 rounded">
+                                {(selectedPuzzle.solution as string[])[reviewMoveIndex]}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Navigation */}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => navigatePuzzleMove('reset')}
+                            disabled={reviewMoveIndex === 0}
+                            data-testid="button-reset-move"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => navigatePuzzleMove('prev')}
+                            disabled={reviewMoveIndex === 0}
+                            data-testid="button-prev-move"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => navigatePuzzleMove('next')}
+                            disabled={reviewMoveIndex >= (selectedPuzzle.solution as string[])?.length}
+                            data-testid="button-next-move"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {/* Analyze Button */}
+                        {reviewMoveIndex < (selectedPuzzle.solution as string[])?.length && (
+                          <Button
+                            onClick={() => {
+                              setIsAnalyzing(true);
+                              setPuzzleAnalysis(null);
+                              analyzePuzzleMutation.mutate({ 
+                                puzzleId: selectedPuzzle.id, 
+                                moveIndex: reviewMoveIndex 
+                              });
+                            }}
+                            disabled={isAnalyzing || analyzePuzzleMutation.isPending}
+                            className="w-full"
+                            data-testid="button-analyze-move"
+                          >
+                            {isAnalyzing || analyzePuzzleMutation.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Analyzing...
+                              </>
+                            ) : (
+                              <>
+                                <Cpu className="h-4 w-4 mr-2" />
+                                Verify with Stockfish
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {/* Analysis Results */}
+                        {puzzleAnalysis && (
+                          <Card className={`border-2 ${
+                            puzzleAnalysis.isBestMove 
+                              ? 'border-green-500 bg-green-500/10' 
+                              : puzzleAnalysis.classification === 'Good'
+                                ? 'border-blue-500 bg-blue-500/10'
+                                : puzzleAnalysis.classification === 'Inaccuracy'
+                                  ? 'border-yellow-500 bg-yellow-500/10'
+                                  : 'border-red-500 bg-red-500/10'
+                          }`}>
+                            <CardContent className="pt-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">Classification:</span>
+                                <Badge className={
+                                  puzzleAnalysis.isBestMove 
+                                    ? 'bg-green-500' 
+                                    : puzzleAnalysis.classification === 'Good'
+                                      ? 'bg-blue-500'
+                                      : puzzleAnalysis.classification === 'Inaccuracy'
+                                        ? 'bg-yellow-500 text-black'
+                                        : 'bg-red-500'
+                                }>
+                                  {puzzleAnalysis.classification}
+                                </Badge>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Solution Move</p>
+                                  <p className="font-mono">{puzzleAnalysis.solutionMove}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Stockfish Best</p>
+                                  <p className="font-mono">{puzzleAnalysis.stockfishBestMove}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Evaluation</p>
+                                  <p className="font-mono">
+                                    {puzzleAnalysis.isMate 
+                                      ? `M${puzzleAnalysis.mateIn}` 
+                                      : puzzleAnalysis.evaluation.toFixed(2)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Is Best Move?</p>
+                                  <p>{puzzleAnalysis.isBestMove ? '✓ Yes' : '✗ No'}</p>
+                                </div>
+                              </div>
+
+                              {puzzleAnalysis.topMoves.length > 0 && (
+                                <div>
+                                  <p className="text-muted-foreground text-sm mb-1">Top Moves:</p>
+                                  <div className="space-y-1">
+                                    {puzzleAnalysis.topMoves.map((m, i) => (
+                                      <div key={i} className="flex items-center justify-between text-sm font-mono bg-muted/50 px-2 py-1 rounded">
+                                        <span>{i + 1}. {m.move}</span>
+                                        <span>{m.isMate ? `M${m.mateIn}` : m.evaluation.toFixed(2)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 pt-4 border-t">
+                      {selectedPuzzle.isFlagged && (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            verifyPuzzleMutation.mutate(selectedPuzzle.id);
+                            setSelectedPuzzle(null);
+                          }}
+                          disabled={verifyPuzzleMutation.isPending}
+                          data-testid="button-approve-puzzle"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Unflag & Approve
+                        </Button>
+                      )}
+                      <Button
+                        variant="destructive"
+                        onClick={() => {
+                          removePuzzleMutation.mutate(selectedPuzzle.id);
+                          setSelectedPuzzle(null);
+                        }}
+                        disabled={removePuzzleMutation.isPending}
+                        data-testid="button-remove-reviewed-puzzle"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Remove Puzzle
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
