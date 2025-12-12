@@ -136,6 +136,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   
   if (isDev && testUserId) {
     const testUsers: Record<string, any> = {
+      'test-admin-1': { sub: 'test-admin-1', email: 'admin@test.com', first_name: 'Admin', last_name: 'User' },
       'test-player-1': { sub: 'test-player-1', email: 'player1@test.local', first_name: 'Test', last_name: 'Player 1' },
       'test-player-2': { sub: 'test-player-2', email: 'player2@test.local', first_name: 'Test', last_name: 'Player 2' },
       'test-player-3': { sub: 'test-player-3', email: 'player3@test.local', first_name: 'Test', last_name: 'Player 3' },
