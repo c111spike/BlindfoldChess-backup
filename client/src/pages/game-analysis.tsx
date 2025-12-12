@@ -39,6 +39,7 @@ import {
   CheckCircle,
   Book,
   Plus,
+  Download,
 } from 'lucide-react';
 import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase } from '@shared/schema';
 
@@ -1943,6 +1944,61 @@ export default function GameAnalysisPage() {
   const { analysis, moves, game } = data!;
   const playerColor = game.playerColor;
 
+  // Generate PGN for download
+  const generatePGN = () => {
+    const chess = new Chess();
+    
+    // Handle both array and string formats for game.moves (same as getFenAtPly)
+    const gameMovesList = Array.isArray(game.moves) 
+      ? game.moves as string[]
+      : (typeof game.moves === 'string' ? (game.moves as string).split(' ').filter(m => m.length > 0) : []);
+    
+    gameMovesList.forEach((move: string) => {
+      try {
+        chess.move(move);
+      } catch (e) {
+        // Skip invalid moves
+      }
+    });
+    
+    // Build PGN headers
+    const date = game.createdAt ? new Date(game.createdAt) : new Date();
+    const dateStr = `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+    
+    const headers: string[] = [
+      `[Event "SimulChess ${game.mode?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Game'}"]`,
+      `[Site "SimulChess"]`,
+      `[Date "${dateStr}"]`,
+      `[White "${playerColor === 'white' ? 'Player' : (game.opponentName || 'Opponent')}"]`,
+      `[Black "${playerColor === 'black' ? 'Player' : (game.opponentName || 'Opponent')}"]`,
+      `[Result "${game.result === 'white_win' ? '1-0' : game.result === 'black_win' ? '0-1' : game.result === 'draw' ? '1/2-1/2' : '*'}"]`,
+    ];
+    
+    if (game.timeControl) {
+      headers.push(`[TimeControl "${game.timeControl}"]`);
+    }
+    
+    // Get the PGN moves from chess.js
+    const pgnMoves = chess.pgn({ maxWidth: 80 }).split('\n').filter(line => !line.startsWith('[')).join('\n').trim();
+    
+    return headers.join('\n') + '\n\n' + pgnMoves;
+  };
+
+  const handleDownloadPGN = () => {
+    const pgn = generatePGN();
+    const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = game.createdAt ? new Date(game.createdAt).toISOString().split('T')[0] : 'game';
+    a.download = `simulchess_${game.mode || 'game'}_${dateStr}.pgn`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: 'PGN Downloaded', description: 'Game exported successfully.' });
+  };
+
   return (
     <div className="container max-w-7xl mx-auto p-4">
       <div className="flex items-center justify-between mb-6">
@@ -1975,17 +2031,27 @@ export default function GameAnalysisPage() {
           </div>
         </div>
         
-        {!isSharedView && analysis.status === 'completed' && (
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => shareAnalysisMutation.mutate()}
-            disabled={shareAnalysisMutation.isPending}
-            data-testid="button-share-analysis"
+            onClick={handleDownloadPGN}
+            data-testid="button-download-pgn"
           >
-            {copied ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2" />}
-            {copied ? 'Copied!' : 'Share'}
+            <Download className="w-4 h-4 mr-2" />
+            Download PGN
           </Button>
-        )}
+          {!isSharedView && analysis.status === 'completed' && (
+            <Button
+              variant="outline"
+              onClick={() => shareAnalysisMutation.mutate()}
+              disabled={shareAnalysisMutation.isPending}
+              data-testid="button-share-analysis"
+            >
+              {copied ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2" />}
+              {copied ? 'Copied!' : 'Share'}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
