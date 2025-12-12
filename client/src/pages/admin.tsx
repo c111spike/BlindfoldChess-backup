@@ -117,10 +117,7 @@ export default function AdminPage() {
   const updateReviewMutation = useMutation({
     mutationFn: async ({ userId, status, notes }: { userId: string; status: string; notes?: string }) => {
       if (!isAdmin) throw new Error("Unauthorized");
-      return apiRequest(`/api/admin/users/${userId}/review`, {
-        method: "POST",
-        body: JSON.stringify({ status, notes }),
-      });
+      return apiRequest("POST", `/api/admin/users/${userId}/review`, { status, notes });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/flagged-users"] });
@@ -137,10 +134,7 @@ export default function AdminPage() {
   const issueWarningMutation = useMutation({
     mutationFn: async ({ userId, notes }: { userId: string; notes: string }) => {
       if (!isAdmin) throw new Error("Unauthorized");
-      return apiRequest(`/api/admin/users/${userId}/warn`, {
-        method: "POST",
-        body: JSON.stringify({ notes }),
-      });
+      return apiRequest("POST", `/api/admin/users/${userId}/warn`, { notes });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/flagged-users"] });
@@ -157,10 +151,7 @@ export default function AdminPage() {
   const resolveReportMutation = useMutation({
     mutationFn: async ({ reportId, resolution }: { reportId: string; resolution: string }) => {
       if (!isAdmin) throw new Error("Unauthorized");
-      return apiRequest(`/api/admin/cheat-reports/${reportId}/resolve`, {
-        method: "POST",
-        body: JSON.stringify({ resolution }),
-      });
+      return apiRequest("POST", `/api/admin/cheat-reports/${reportId}/resolve`, { resolution });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cheat-reports?isResolved=false"] });
@@ -175,9 +166,7 @@ export default function AdminPage() {
   const verifyPuzzleMutation = useMutation({
     mutationFn: async (puzzleId: string) => {
       if (!isAdmin) throw new Error("Unauthorized");
-      return apiRequest(`/api/admin/puzzles/${puzzleId}/verify`, {
-        method: "POST",
-      });
+      return apiRequest("POST", `/api/admin/puzzles/${puzzleId}/verify`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/puzzles/flagged"] });
@@ -191,9 +180,7 @@ export default function AdminPage() {
   const removePuzzleMutation = useMutation({
     mutationFn: async (puzzleId: string) => {
       if (!isAdmin) throw new Error("Unauthorized");
-      return apiRequest(`/api/admin/puzzles/${puzzleId}/remove`, {
-        method: "POST",
-      });
+      return apiRequest("POST", `/api/admin/puzzles/${puzzleId}/remove`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/puzzles/flagged"] });
