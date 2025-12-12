@@ -587,6 +587,7 @@ function TrainTab() {
 
   const handleSkip = () => {
     clearPuzzleTimers();
+    const currentPuzzleId = puzzle?.id;
     setSolved(null);
     setCurrentFen(null);
     setSelectedSquare(null);
@@ -595,10 +596,14 @@ function TrainTab() {
     setShowSolution(false);
     setIsAnimating(false);
     setAnimationIndex(0);
-    if (puzzle?.id) {
-      // Increment counter to force a completely new query (bypasses all caching)
-      setRefetchCounter(c => c + 1);
-      setAfterPuzzleId(puzzle.id);
+    if (currentPuzzleId) {
+      // Set afterPuzzleId FIRST, then increment counter to trigger refetch
+      // This ensures the new puzzle ID is in state before the query runs
+      setAfterPuzzleId(currentPuzzleId);
+      // Use setTimeout to ensure state update is processed before refetch
+      setTimeout(() => {
+        setRefetchCounter(c => c + 1);
+      }, 0);
     }
   };
 
