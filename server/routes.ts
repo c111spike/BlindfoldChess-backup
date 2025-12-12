@@ -1484,6 +1484,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/puzzles/next', isAuthenticated, async (req: any, res) => {
+    try {
+      const afterId = req.query.afterId as string | undefined;
+      const puzzle = await storage.getNextPuzzle(afterId);
+      
+      if (!puzzle) {
+        return res.status(404).json({ message: "No puzzles available" });
+      }
+      
+      res.json(puzzle);
+    } catch (error) {
+      console.error("Error fetching next puzzle:", error);
+      res.status(500).json({ message: "Failed to fetch puzzle" });
+    }
+  });
+
   app.post('/api/puzzles/attempt', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

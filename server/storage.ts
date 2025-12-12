@@ -119,6 +119,8 @@ export interface IStorage {
   updateRating(userId: string, data: Partial<Rating>): Promise<Rating>;
   
   getRandomPuzzle(): Promise<Puzzle | undefined>;
+  getNextPuzzle(afterId?: string): Promise<Puzzle | undefined>;
+  getFirstPuzzle(): Promise<Puzzle | undefined>;
   createPuzzleAttempt(attempt: InsertPuzzleAttempt): Promise<PuzzleAttempt>;
   
   createPuzzle(puzzle: InsertPuzzle): Promise<Puzzle>;
@@ -480,6 +482,39 @@ export class DatabaseStorage implements IStorage {
     if (allPuzzles.length === 0) return undefined;
     const randomIndex = Math.floor(Math.random() * allPuzzles.length);
     return allPuzzles[randomIndex];
+  }
+
+  async getFirstPuzzle(): Promise<Puzzle | undefined> {
+    const [puzzle] = await db.select().from(puzzles)
+      .where(eq(puzzles.isRemoved, false))
+      .orderBy(puzzles.createdAt)
+      .limit(1);
+    return puzzle;
+  }
+
+  async getNextPuzzle(afterId?: string): Promise<Puzzle | undefined> {
+    if (!afterId) {
+      return this.getFirstPuzzle();
+    }
+    
+    const currentPuzzle = await this.getPuzzle(afterId);
+    if (!currentPuzzle) {
+      return this.getFirstPuzzle();
+    }
+    
+    const [nextPuzzle] = await db.select().from(puzzles)
+      .where(and(
+        eq(puzzles.isRemoved, false),
+        sql`${puzzles.createdAt} > ${currentPuzzle.createdAt}`
+      ))
+      .orderBy(puzzles.createdAt)
+      .limit(1);
+    
+    if (nextPuzzle) {
+      return nextPuzzle;
+    }
+    
+    return this.getFirstPuzzle();
   }
 
   async createPuzzleAttempt(attemptData: InsertPuzzleAttempt): Promise<PuzzleAttempt> {

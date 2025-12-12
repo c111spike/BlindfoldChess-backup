@@ -324,6 +324,7 @@ function TrainTab() {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
+  const [afterPuzzleId, setAfterPuzzleId] = useState<string | undefined>(undefined);
   
   // Refs to track pending timers so we can cancel them
   const opponentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -342,7 +343,15 @@ function TrainTab() {
   };
 
   const { data: puzzle, isLoading } = useQuery<Puzzle>({
-    queryKey: ["/api/puzzles/random"],
+    queryKey: ["/api/puzzles/next", afterPuzzleId],
+    queryFn: async () => {
+      const url = afterPuzzleId 
+        ? `/api/puzzles/next?afterId=${afterPuzzleId}` 
+        : '/api/puzzles/next';
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch puzzle');
+      return res.json();
+    },
   });
 
   const reportMutation = useMutation({
@@ -562,7 +571,9 @@ function TrainTab() {
     setShowSolution(false);
     setIsAnimating(false);
     setAnimationIndex(0);
-    queryClient.invalidateQueries({ queryKey: ["/api/puzzles/random"] });
+    if (puzzle?.id) {
+      setAfterPuzzleId(puzzle.id);
+    }
   };
 
   const handleShowSolution = () => {
