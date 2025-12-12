@@ -25,6 +25,11 @@ interface TrainingStats {
     challengesAttempted: number;
     totalSolutions: number;
   };
+  knightsTour: {
+    totalCompleted: number;
+    boardsCompleted: number;
+    bestTime: number | null;
+  };
 }
 
 export default function StatisticsPage() {
@@ -79,7 +84,7 @@ export default function StatisticsPage() {
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="games" data-testid="tab-games">Games</TabsTrigger>
           <TabsTrigger value="repertoire" data-testid="tab-repertoire">Repertoire</TabsTrigger>
-          <TabsTrigger value="training" data-testid="tab-training">Training</TabsTrigger>
+          <TabsTrigger value="challenges" data-testid="tab-challenges">Challenges</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -133,7 +138,7 @@ export default function StatisticsPage() {
             </Card>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -199,6 +204,31 @@ export default function StatisticsPage() {
                   <div>
                     <p className="text-2xl font-bold">{trainingStats?.nPiece.totalSolutions || 0}</p>
                     <p className="text-xs text-muted-foreground">Solutions Found</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Gamepad2 className="h-4 w-4" />
+                  Knight's Tour
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold">{trainingStats?.knightsTour?.totalCompleted || 0}</p>
+                    <p className="text-xs text-muted-foreground">Tours Completed</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {trainingStats?.knightsTour?.bestTime 
+                        ? `${Math.floor(trainingStats.knightsTour.bestTime / 1000)}s`
+                        : '-'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Best Time</p>
                   </div>
                 </div>
               </CardContent>
@@ -349,7 +379,7 @@ export default function StatisticsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="training" className="space-y-6">
+        <TabsContent value="challenges" className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -407,10 +437,25 @@ export default function StatisticsPage() {
                 </CardTitle>
                 <CardDescription>Knight movement mastery</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-center py-4">
-                  Coming soon...
-                </p>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold">{trainingStats?.knightsTour?.totalCompleted || 0}</p>
+                    <p className="text-xs text-muted-foreground">Completed</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{trainingStats?.knightsTour?.boardsCompleted || 0}</p>
+                    <p className="text-xs text-muted-foreground">Board Sizes</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {trainingStats?.knightsTour?.bestTime 
+                        ? `${Math.floor(trainingStats.knightsTour.bestTime / 1000)}s`
+                        : '-'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Best Time</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

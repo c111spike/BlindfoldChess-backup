@@ -1424,6 +1424,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get repertoires count
       const repertoires = await storage.getRepertoires(userId);
       
+      // Get Knight's Tour stats
+      const knightsTourProgress = await storage.getKnightsTourOverallProgress(userId);
+      
+      // Get best time across all board sizes (check each common board size)
+      let bestTime: number | null = null;
+      for (const size of [5, 6, 7, 8]) {
+        const progress = await storage.getKnightsTourProgress(userId, size);
+        if (progress?.bestTime && (bestTime === null || progress.bestTime < bestTime)) {
+          bestTime = progress.bestTime;
+        }
+      }
+      
       res.json({
         repertoire: {
           totalRepertoires: repertoires.length,
@@ -1444,6 +1456,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         nPiece: {
           challengesAttempted: 0,
           totalSolutions: 0,
+        },
+        knightsTour: {
+          totalCompleted: knightsTourProgress.totalCompleted,
+          boardsCompleted: knightsTourProgress.boardsCompleted,
+          bestTime,
         },
       });
     } catch (error) {
