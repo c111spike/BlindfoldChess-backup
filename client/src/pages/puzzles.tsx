@@ -325,7 +325,6 @@ function TrainTab() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [afterPuzzleId, setAfterPuzzleId] = useState<string | undefined>(undefined);
-  const [refetchCounter, setRefetchCounter] = useState(0);
   
   // Refs to track pending timers so we can cancel them
   const opponentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -344,18 +343,22 @@ function TrainTab() {
   };
 
   const { data: puzzle, isLoading } = useQuery<Puzzle>({
-    queryKey: ["/api/puzzles/next", afterPuzzleId, refetchCounter],
+    queryKey: ["/api/puzzles/next", afterPuzzleId],
     queryFn: async ({ queryKey }) => {
       // Extract afterId from queryKey to ensure we use the correct value
       const afterId = queryKey[1] as string | undefined;
+      console.log('[PuzzleTrainer] Fetching puzzle with afterId:', afterId);
       const url = afterId 
         ? `/api/puzzles/next?afterId=${afterId}` 
         : '/api/puzzles/next';
       const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch puzzle');
-      return res.json();
+      const data = await res.json();
+      console.log('[PuzzleTrainer] Received puzzle:', data.id, 'FEN:', data.fen?.substring(0, 30));
+      return data;
     },
     staleTime: 0, // Always consider data stale to force refetch
+    gcTime: 0, // Don't cache results (formerly cacheTime)
   });
 
   const reportMutation = useMutation({
@@ -379,7 +382,7 @@ function TrainTab() {
     },
     onSuccess: (_data, variables) => {
       // Update cache in place without refetching (which would advance puzzle)
-      queryClient.setQueryData(["/api/puzzles/next", afterPuzzleId, refetchCounter], (old: any) => {
+      queryClient.setQueryData(["/api/puzzles/next", afterPuzzleId], (old: any) => {
         if (!old) return old;
         const currentVote = old.userVote;
         // Toggle behavior: clicking same vote removes it, different vote switches it
@@ -588,6 +591,7 @@ function TrainTab() {
   const handleSkip = () => {
     clearPuzzleTimers();
     const currentPuzzleId = puzzle?.id;
+    console.log('[PuzzleTrainer] Skip clicked, current puzzle ID:', currentPuzzleId);
     setSolved(null);
     setCurrentFen(null);
     setSelectedSquare(null);
@@ -597,13 +601,11 @@ function TrainTab() {
     setIsAnimating(false);
     setAnimationIndex(0);
     if (currentPuzzleId) {
-      // Set afterPuzzleId FIRST, then increment counter to trigger refetch
-      // This ensures the new puzzle ID is in state before the query runs
+      // Clear the cache for the current query before changing afterPuzzleId
+      // This ensures TanStack Query fetches fresh data with the new key
+      queryClient.removeQueries({ queryKey: ["/api/puzzles/next"] });
+      // Set afterPuzzleId to trigger a new fetch
       setAfterPuzzleId(currentPuzzleId);
-      // Use setTimeout to ensure state update is processed before refetch
-      setTimeout(() => {
-        setRefetchCounter(c => c + 1);
-      }, 0);
     }
   };
 

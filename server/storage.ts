@@ -495,34 +495,34 @@ export class DatabaseStorage implements IStorage {
 
   async getNextPuzzle(afterId?: string): Promise<Puzzle | undefined> {
     if (!afterId) {
+      console.log('[getNextPuzzle] No afterId, returning first puzzle');
       return this.getFirstPuzzle();
     }
     
     const currentPuzzle = await this.getPuzzle(afterId);
     if (!currentPuzzle) {
+      console.log('[getNextPuzzle] Current puzzle not found, returning first puzzle');
       return this.getFirstPuzzle();
     }
     
-    // Find next puzzle: either newer timestamp, or same timestamp but greater ID
-    // This handles cases where multiple puzzles have identical timestamps
+    console.log('[getNextPuzzle] Looking for puzzle after:', afterId, 'createdAt:', currentPuzzle.createdAt);
+    
+    // Find next puzzle by ID order (simpler and more reliable)
+    // First try puzzles with same timestamp but higher ID
     const [nextPuzzle] = await db.select().from(puzzles)
       .where(and(
         eq(puzzles.isRemoved, false),
-        or(
-          sql`${puzzles.createdAt} > ${currentPuzzle.createdAt}`,
-          and(
-            sql`${puzzles.createdAt} = ${currentPuzzle.createdAt}`,
-            sql`${puzzles.id} > ${currentPuzzle.id}`
-          )
-        )
+        sql`${puzzles.id} > ${afterId}`
       ))
-      .orderBy(puzzles.createdAt, puzzles.id)
+      .orderBy(puzzles.id)
       .limit(1);
     
     if (nextPuzzle) {
+      console.log('[getNextPuzzle] Found next puzzle:', nextPuzzle.id);
       return nextPuzzle;
     }
     
+    console.log('[getNextPuzzle] No next puzzle found, wrapping to first');
     // Wrap to first puzzle when we reach the end
     return this.getFirstPuzzle();
   }
