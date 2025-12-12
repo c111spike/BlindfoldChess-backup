@@ -142,6 +142,34 @@ export function ChessBoard({
       setArrows([]);
     }
     
+    // Helper to check if a piece is white (uppercase) or black (lowercase)
+    const isWhitePiece = (p: string) => p === p.toUpperCase();
+    const isBlackPiece = (p: string) => p === p.toLowerCase();
+    
+    // Get the piece on the currently selected square
+    const getSelectedPiece = (): string | null => {
+      if (!internalSelectedSquare) return null;
+      const selectedFile = internalSelectedSquare[0];
+      const selectedRank = internalSelectedSquare[1];
+      const boardRank = RANKS.indexOf(selectedRank);
+      const boardFile = FILES.indexOf(selectedFile);
+      return board[boardRank]?.[boardFile] || null;
+    };
+    
+    const selectedPiece = getSelectedPiece();
+    
+    // If clicking on a piece of the same color as currently selected, switch selection
+    if (piece && selectedPiece && internalSelectedSquare !== square) {
+      const selectedIsWhite = isWhitePiece(selectedPiece);
+      const clickedIsWhite = isWhitePiece(piece);
+      if (selectedIsWhite === clickedIsWhite) {
+        // Same color - switch selection without trying to move
+        setInternalSelectedSquare(square);
+        onSquareClick?.(square);
+        return;
+      }
+    }
+    
     if (onMove && internalSelectedSquare && internalSelectedSquare !== square) {
       const fromSquare = internalSelectedSquare;
       const moveResult = onMove(fromSquare, square);
