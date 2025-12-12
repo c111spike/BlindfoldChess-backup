@@ -325,6 +325,7 @@ function TrainTab() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [afterPuzzleId, setAfterPuzzleId] = useState<string | undefined>(undefined);
+  const [refetchCounter, setRefetchCounter] = useState(0);
   
   // Refs to track pending timers so we can cancel them
   const opponentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -343,12 +344,13 @@ function TrainTab() {
   };
 
   const { data: puzzle, isLoading } = useQuery<Puzzle>({
-    queryKey: ["/api/puzzles/next", afterPuzzleId],
+    queryKey: ["/api/puzzles/next", afterPuzzleId, refetchCounter],
     queryFn: async () => {
       const url = afterPuzzleId 
         ? `/api/puzzles/next?afterId=${afterPuzzleId}` 
         : '/api/puzzles/next';
-      const res = await fetch(url, { credentials: 'include' });
+      // Use cache: 'no-store' to prevent browser HTTP caching (304 responses)
+      const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch puzzle');
       return res.json();
     },
@@ -375,7 +377,7 @@ function TrainTab() {
     },
     onSuccess: (_data, variables) => {
       // Update cache in place without refetching (which would advance puzzle)
-      queryClient.setQueryData(["/api/puzzles/next", afterPuzzleId], (old: any) => {
+      queryClient.setQueryData(["/api/puzzles/next", afterPuzzleId, refetchCounter], (old: any) => {
         if (!old) return old;
         const currentVote = old.userVote;
         // Toggle behavior: clicking same vote removes it, different vote switches it
@@ -592,8 +594,8 @@ function TrainTab() {
     setIsAnimating(false);
     setAnimationIndex(0);
     if (puzzle?.id) {
-      // Invalidate all puzzle/next queries to force refetch with new afterPuzzleId
-      queryClient.invalidateQueries({ queryKey: ["/api/puzzles/next"] });
+      // Increment counter to force a completely new query (bypasses all caching)
+      setRefetchCounter(c => c + 1);
       setAfterPuzzleId(puzzle.id);
     }
   };
