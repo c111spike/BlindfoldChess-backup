@@ -2867,6 +2867,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const limit = parseInt(req.query.limit as string) || 10;
+      const forceAll = req.query.forceAll === 'true';
+      
+      // If forceAll, return all lines regardless of due date
+      if (forceAll) {
+        const allLines = await storage.getRepertoireLines(req.params.id);
+        res.json({
+          dueLines: [],
+          newLines: allLines.slice(0, limit),
+        });
+        return;
+      }
+      
       const dueLines = await storage.getDuePracticeLines(userId, req.params.id, limit);
       
       // If no due lines, get lines that haven't been practiced yet
