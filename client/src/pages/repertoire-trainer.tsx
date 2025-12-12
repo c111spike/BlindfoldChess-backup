@@ -443,6 +443,16 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
     setCurrentLineIndex(prev => prev + 1);
   };
 
+  const handleTryAgain = () => {
+    if (!currentLine) return;
+    game.reset();
+    game.load('line' in currentLine ? currentLine.line.fen : currentLine.fen);
+    setCurrentFen(game.fen());
+    setFeedback(null);
+    setShowSolution(false);
+    setIsUserTurn(true);
+  };
+
   const handleRestart = () => {
     setSessionStats({ correct: 0, incorrect: 0 });
     setAllLinesCompleted(false);
@@ -612,10 +622,16 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
                       <p className="font-mono font-bold text-lg">{expectedMove}</p>
                     </div>
                   )}
-                  <Button onClick={handleNextLine} className="w-full" data-testid="button-next">
-                    Next Line
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleTryAgain} className="flex-1" data-testid="button-try-again">
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      Try Again
+                    </Button>
+                    <Button onClick={handleNextLine} className="flex-1" data-testid="button-next">
+                      Next Line
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </div>
                 </div>
               )}
 
