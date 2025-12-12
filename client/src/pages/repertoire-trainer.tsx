@@ -381,15 +381,17 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
       sessionLinesRef.current = [...lines];
     }
     
-    if (lines.length > 0 && currentLineIndex < lines.length) {
-      const line = lines[currentLineIndex];
+    const sessionLines = sessionLinesRef.current;
+    
+    if (sessionLines.length > 0 && currentLineIndex < sessionLines.length) {
+      const line = sessionLines[currentLineIndex];
       setCurrentLine(line);
       game.load('line' in line ? line.line.fen : line.fen);
       setCurrentFen(game.fen());
       setIsUserTurn(true);
       setFeedback(null);
       setShowSolution(false);
-    } else if (lines.length > 0 && currentLineIndex >= lines.length) {
+    } else if (sessionLines.length > 0 && currentLineIndex >= sessionLines.length) {
       setAllLinesCompleted(true);
     }
   }, [lines, currentLineIndex, game]);
