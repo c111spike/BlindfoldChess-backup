@@ -1493,7 +1493,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "No puzzles available" });
       }
       
-      res.json(puzzle);
+      const userId = req.user.claims.sub;
+      const userVote = await storage.getUserPuzzleVote(userId, puzzle.id);
+      
+      res.json({ ...puzzle, userVote: userVote?.voteType || null });
     } catch (error) {
       console.error("Error fetching next puzzle:", error);
       res.status(500).json({ message: "Failed to fetch puzzle" });

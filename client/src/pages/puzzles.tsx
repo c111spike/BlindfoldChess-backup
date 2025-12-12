@@ -369,6 +369,26 @@ function TrainTab() {
     },
   });
 
+  const voteMutation = useMutation({
+    mutationFn: async ({ puzzleId, voteType }: { puzzleId: string; voteType: 'up' | 'down' }) => {
+      return apiRequest("POST", `/api/puzzles/${puzzleId}/vote`, { voteType });
+    },
+    onSuccess: (_data, variables) => {
+      // Update cache in place without refetching (which would advance puzzle)
+      queryClient.setQueryData(["/api/puzzles/next", afterPuzzleId], (old: any) => {
+        if (!old) return old;
+        const currentVote = old.userVote;
+        // Toggle behavior: clicking same vote removes it, different vote switches it
+        const newVote = currentVote === variables.voteType ? null : variables.voteType;
+        return { ...old, userVote: newVote };
+      });
+      toast({ title: "Vote Recorded", description: "Thank you for your feedback!" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to record vote. Please try again.", variant: "destructive" });
+    },
+  });
+
   const handleSubmitReport = () => {
     if (!puzzle?.id || !reportReason) return;
     reportMutation.mutate({ puzzleId: puzzle.id, reason: reportReason, details: reportDetails || undefined });
@@ -806,6 +826,41 @@ function TrainTab() {
                         ? "Excellent! You found the winning move." 
                         : "That's not the best move. Try again!"}
                     </p>
+                  </div>
+                )}
+
+                {(solved !== null || showSolution) && puzzle && (
+                  <div className="p-4 rounded-lg border bg-muted/30">
+                    <p className="text-sm font-medium text-muted-foreground mb-3">
+                      Rate this puzzle
+                    </p>
+                    <div className="flex gap-3">
+                      <Button
+                        variant={(puzzle as any).userVote === 'up' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => puzzle?.id && voteMutation.mutate({ puzzleId: puzzle.id, voteType: 'up' })}
+                        disabled={voteMutation.isPending}
+                        data-testid="button-upvote-puzzle"
+                      >
+                        <ThumbsUp className="h-4 w-4 mr-2" />
+                        Good Puzzle
+                      </Button>
+                      <Button
+                        variant={(puzzle as any).userVote === 'down' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => puzzle?.id && voteMutation.mutate({ puzzleId: puzzle.id, voteType: 'down' })}
+                        disabled={voteMutation.isPending}
+                        data-testid="button-downvote-puzzle"
+                      >
+                        <ThumbsDown className="h-4 w-4 mr-2" />
+                        Poor Puzzle
+                      </Button>
+                    </div>
+                    {(puzzle as any).userVote && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        You voted: {(puzzle as any).userVote === 'up' ? 'Good' : 'Poor'} (click again to remove)
+                      </p>
+                    )}
                   </div>
                 )}
               </>
