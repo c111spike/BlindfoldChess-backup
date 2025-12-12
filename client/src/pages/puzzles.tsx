@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Brain, 
@@ -29,9 +32,18 @@ import {
   Share2,
   Puzzle as PuzzleIcon,
   Eye,
-  RotateCcw
+  RotateCcw,
+  Flag
 } from "lucide-react";
 import type { Puzzle } from "@shared/schema";
+
+const REPORT_REASONS = [
+  { value: "incorrect_solution", label: "Incorrect Solution" },
+  { value: "invalid_position", label: "Invalid Position" },
+  { value: "duplicate", label: "Duplicate Puzzle" },
+  { value: "inappropriate", label: "Inappropriate Content" },
+  { value: "other", label: "Other" },
+];
 
 const PUZZLE_TYPES = [
   { value: "all", label: "All Types" },
@@ -126,7 +138,7 @@ function MiniChessboard({ fen, size = 120 }: { fen: string; size?: number }) {
   );
 }
 
-function PuzzleCard({ puzzle, onVote }: { puzzle: Puzzle & { userVote?: string | null }; onVote: (type: string) => void }) {
+function PuzzleCard({ puzzle, onVote, onReport }: { puzzle: Puzzle & { userVote?: string | null }; onVote: (type: string) => void; onReport: (puzzleId: string) => void }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -224,6 +236,15 @@ function PuzzleCard({ puzzle, onVote }: { puzzle: Puzzle & { userVote?: string |
             >
               <Share2 className="h-4 w-4" />
             </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => { e.stopPropagation(); onReport(puzzle.id); }}
+              data-testid={`button-report-${puzzle.id}`}
+              className="h-8 w-8"
+            >
+              <Flag className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </CardContent>
@@ -300,6 +321,9 @@ function TrainTab() {
   const [showSolution, setShowSolution] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [animationIndex, setAnimationIndex] = useState(0);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
   
   // Refs to track pending timers so we can cancel them
   const opponentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -320,6 +344,26 @@ function TrainTab() {
   const { data: puzzle, isLoading } = useQuery<Puzzle>({
     queryKey: ["/api/puzzles/random"],
   });
+
+  const reportMutation = useMutation({
+    mutationFn: async ({ puzzleId, reason, details }: { puzzleId: string; reason: string; details?: string }) => {
+      return apiRequest("POST", `/api/puzzles/${puzzleId}/report`, { reason, details });
+    },
+    onSuccess: () => {
+      toast({ title: "Report Submitted", description: "Thank you for helping improve our puzzles!" });
+      setReportDialogOpen(false);
+      setReportReason("");
+      setReportDetails("");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to submit report. Please try again.", variant: "destructive" });
+    },
+  });
+
+  const handleSubmitReport = () => {
+    if (!puzzle?.id || !reportReason) return;
+    reportMutation.mutate({ puzzleId: puzzle.id, reason: reportReason, details: reportDetails || undefined });
+  };
 
   // Reset state when puzzle changes
   useEffect(() => {
@@ -580,6 +624,67 @@ function TrainTab() {
             <SkipForward className="mr-2 h-4 w-4" />
             {solved === true ? "Next Puzzle" : "Skip"}
           </Button>
+          <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                data-testid="button-report-puzzle"
+              >
+                <Flag className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Report Puzzle</DialogTitle>
+                <DialogDescription>
+                  Help us improve by reporting puzzles with issues.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="report-reason">Reason</Label>
+                  <Select value={reportReason} onValueChange={setReportReason}>
+                    <SelectTrigger id="report-reason" data-testid="select-report-reason">
+                      <SelectValue placeholder="Select a reason" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REPORT_REASONS.map(reason => (
+                        <SelectItem key={reason.value} value={reason.value}>
+                          {reason.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="report-details">Details (optional)</Label>
+                  <Textarea
+                    id="report-details"
+                    placeholder="Describe the issue..."
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                    data-testid="textarea-report-details"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setReportDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmitReport}
+                  disabled={!reportReason || reportMutation.isPending}
+                  data-testid="button-submit-report"
+                >
+                  {reportMutation.isPending ? "Submitting..." : "Submit Report"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -729,6 +834,10 @@ function BrowseTab() {
   const [puzzleType, setPuzzleType] = useState("all");
   const [difficulty, setDifficulty] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportPuzzleId, setReportPuzzleId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
   
   const { data: puzzles, isLoading } = useQuery<Puzzle[]>({
     queryKey: ["/api/puzzles", { type: puzzleType !== "all" ? puzzleType : undefined, difficulty: difficulty !== "all" ? difficulty : undefined, sortBy }],
@@ -749,9 +858,35 @@ function BrowseTab() {
       });
     },
   });
+
+  const reportMutation = useMutation({
+    mutationFn: async ({ puzzleId, reason, details }: { puzzleId: string; reason: string; details?: string }) => {
+      return apiRequest("POST", `/api/puzzles/${puzzleId}/report`, { reason, details });
+    },
+    onSuccess: () => {
+      toast({ title: "Report Submitted", description: "Thank you for helping improve our puzzles!" });
+      setReportDialogOpen(false);
+      setReportPuzzleId(null);
+      setReportReason("");
+      setReportDetails("");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to submit report. Please try again.", variant: "destructive" });
+    },
+  });
   
   const handleVote = (puzzleId: string, voteType: string) => {
     voteMutation.mutate({ puzzleId, voteType });
+  };
+
+  const handleReport = (puzzleId: string) => {
+    setReportPuzzleId(puzzleId);
+    setReportDialogOpen(true);
+  };
+
+  const handleSubmitReport = () => {
+    if (!reportPuzzleId || !reportReason) return;
+    reportMutation.mutate({ puzzleId: reportPuzzleId, reason: reportReason, details: reportDetails || undefined });
   };
 
   return (
@@ -826,6 +961,7 @@ function BrowseTab() {
                 key={puzzle.id}
                 puzzle={puzzle as Puzzle & { userVote?: string | null }}
                 onVote={(type) => handleVote(puzzle.id, type)}
+                onReport={handleReport}
               />
             ))}
           </div>
@@ -861,12 +997,64 @@ function BrowseTab() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report Puzzle</DialogTitle>
+            <DialogDescription>
+              Help us improve by reporting puzzles with issues.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="browse-report-reason">Reason</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger id="browse-report-reason">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REPORT_REASONS.map(reason => (
+                    <SelectItem key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="browse-report-details">Details (optional)</Label>
+              <Textarea
+                id="browse-report-details"
+                placeholder="Describe the issue..."
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitReport}
+              disabled={!reportReason || reportMutation.isPending}
+            >
+              {reportMutation.isPending ? "Submitting..." : "Submit Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function MyPuzzlesTab() {
   const { toast } = useToast();
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportPuzzleId, setReportPuzzleId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
   
   const { data: myPuzzles, isLoading } = useQuery<Puzzle[]>({
     queryKey: ["/api/puzzles/my-puzzles"],
@@ -887,9 +1075,35 @@ function MyPuzzlesTab() {
       });
     },
   });
+
+  const reportMutation = useMutation({
+    mutationFn: async ({ puzzleId, reason, details }: { puzzleId: string; reason: string; details?: string }) => {
+      return apiRequest("POST", `/api/puzzles/${puzzleId}/report`, { reason, details });
+    },
+    onSuccess: () => {
+      toast({ title: "Report Submitted", description: "Thank you for helping improve our puzzles!" });
+      setReportDialogOpen(false);
+      setReportPuzzleId(null);
+      setReportReason("");
+      setReportDetails("");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to submit report. Please try again.", variant: "destructive" });
+    },
+  });
   
   const handleVote = (puzzleId: string, voteType: string) => {
     voteMutation.mutate({ puzzleId, voteType });
+  };
+
+  const handleReport = (puzzleId: string) => {
+    setReportPuzzleId(puzzleId);
+    setReportDialogOpen(true);
+  };
+
+  const handleSubmitReport = () => {
+    if (!reportPuzzleId || !reportReason) return;
+    reportMutation.mutate({ puzzleId: reportPuzzleId, reason: reportReason, details: reportDetails || undefined });
   };
 
   if (isLoading) {
@@ -929,15 +1143,66 @@ function MyPuzzlesTab() {
   }
 
   return (
-    <div className="space-y-4">
-      {myPuzzles.map((puzzle) => (
-        <PuzzleCard
-          key={puzzle.id}
-          puzzle={puzzle as Puzzle & { userVote?: string | null }}
-          onVote={(type) => handleVote(puzzle.id, type)}
-        />
-      ))}
-    </div>
+    <>
+      <div className="space-y-4">
+        {myPuzzles.map((puzzle) => (
+          <PuzzleCard
+            key={puzzle.id}
+            puzzle={puzzle as Puzzle & { userVote?: string | null }}
+            onVote={(type) => handleVote(puzzle.id, type)}
+            onReport={handleReport}
+          />
+        ))}
+      </div>
+
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report Puzzle</DialogTitle>
+            <DialogDescription>
+              Help us improve by reporting puzzles with issues.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="mypuzzles-report-reason">Reason</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger id="mypuzzles-report-reason">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REPORT_REASONS.map(reason => (
+                    <SelectItem key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mypuzzles-report-details">Details (optional)</Label>
+              <Textarea
+                id="mypuzzles-report-details"
+                placeholder="Describe the issue..."
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitReport}
+              disabled={!reportReason || reportMutation.isPending}
+            >
+              {reportMutation.isPending ? "Submitting..." : "Submit Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
