@@ -592,6 +592,8 @@ function TrainTab() {
     setIsAnimating(false);
     setAnimationIndex(0);
     if (puzzle?.id) {
+      // Invalidate all puzzle/next queries to force refetch with new afterPuzzleId
+      queryClient.invalidateQueries({ queryKey: ["/api/puzzles/next"] });
       setAfterPuzzleId(puzzle.id);
     }
   };
