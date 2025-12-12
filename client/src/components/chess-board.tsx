@@ -149,6 +149,12 @@ export function ChessBoard({
         setInternalSelectedSquare(null);
         return;
       }
+      // Move failed - if clicked square has a piece, select it instead
+      if (piece && externalSelectedSquare === null) {
+        setInternalSelectedSquare(square);
+        onSquareClick?.(square);
+        return;
+      }
     }
     
     if (piece) {
