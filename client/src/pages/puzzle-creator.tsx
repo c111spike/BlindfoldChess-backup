@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { Chess } from "chess.js";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
@@ -24,8 +26,22 @@ import {
   PenLine,
   HelpCircle,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Sparkles
 } from "lucide-react";
+
+interface MoveVerification {
+  classification: string;
+  isBestMove: boolean;
+  stockfishBestMove: string;
+  evaluation: number;
+  isMate: boolean;
+  mateIn?: number;
+  fromCache: boolean;
+}
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
@@ -138,6 +154,10 @@ export default function PuzzleCreator() {
   const [sourceName, setSourceName] = useState("");
   const [hasPermission, setHasPermission] = useState(false);
   
+  // Stockfish verification state
+  const [moveVerifications, setMoveVerifications] = useState<Record<number, MoveVerification>>({});
+  const [verifyingMoveIndex, setVerifyingMoveIndex] = useState<number | null>(null);
+  
   const displayRanks = orientation === "white" ? RANKS : [...RANKS].reverse();
   const displayFiles = orientation === "white" ? FILES : [...FILES].reverse();
 
@@ -178,12 +198,93 @@ export default function PuzzleCreator() {
     const newMoves = [...solutionMoves];
     newMoves[index] = value;
     setSolutionMoves(newMoves);
+    // Clear verification for this move and all subsequent moves when changed
+    const newVerifications = { ...moveVerifications };
+    for (let i = index; i < solutionMoves.length; i++) {
+      delete newVerifications[i];
+    }
+    setMoveVerifications(newVerifications);
   };
 
   const removeSolutionMove = (index: number) => {
     if (solutionMoves.length > 1) {
       setSolutionMoves(solutionMoves.filter((_, i) => i !== index));
+      // Clear verifications for removed and subsequent moves
+      const newVerifications = { ...moveVerifications };
+      for (let i = index; i < solutionMoves.length; i++) {
+        delete newVerifications[i];
+      }
+      setMoveVerifications(newVerifications);
     }
+  };
+
+  // Stockfish verification mutation
+  const verifyMoveMutation = useMutation({
+    mutationFn: async ({ fen, move, moveIndex }: { fen: string; move: string; moveIndex: number }) => {
+      const res = await apiRequest("POST", "/api/puzzles/verify-move", { fen, move });
+      return { ...(await res.json()), moveIndex };
+    },
+    onMutate: ({ moveIndex }) => {
+      setVerifyingMoveIndex(moveIndex);
+    },
+    onSuccess: (data) => {
+      setMoveVerifications(prev => ({
+        ...prev,
+        [data.moveIndex]: {
+          classification: data.classification,
+          isBestMove: data.isBestMove,
+          stockfishBestMove: data.stockfishBestMove,
+          evaluation: data.evaluation,
+          isMate: data.isMate,
+          mateIn: data.mateIn,
+          fromCache: data.fromCache,
+        },
+      }));
+      setVerifyingMoveIndex(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
+      setVerifyingMoveIndex(null);
+    },
+  });
+
+  // Build FEN at a given move index (position after moves 0..index-1)
+  const getFenAtMoveIndex = (moveIndex: number): string | null => {
+    const baseFen = boardToFen(board, whoToMove);
+    if (moveIndex === 0) return baseFen;
+    
+    try {
+      const chess = new Chess(baseFen);
+      for (let i = 0; i < moveIndex; i++) {
+        const move = solutionMoves[i]?.trim();
+        if (!move) return null;
+        const result = chess.move(move);
+        if (!result) return null;
+      }
+      return chess.fen();
+    } catch {
+      return null;
+    }
+  };
+
+  const verifyMove = (moveIndex: number) => {
+    const move = solutionMoves[moveIndex]?.trim();
+    if (!move) {
+      toast({ title: "No Move", description: "Enter a move first", variant: "destructive" });
+      return;
+    }
+    
+    const fen = getFenAtMoveIndex(moveIndex);
+    if (!fen) {
+      toast({ 
+        title: "Invalid Position", 
+        description: moveIndex > 0 ? "Previous moves are invalid" : "Set up a valid position first", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    verifyMoveMutation.mutate({ fen, move, moveIndex });
   };
 
   const addHint = () => {
@@ -499,32 +600,91 @@ export default function PuzzleCreator() {
                 <div className="space-y-2">
                   <Label>Solution Moves</Label>
                   <p className="text-sm text-muted-foreground mb-2">
-                    Enter moves in algebraic notation (e.g., Qxf7+, Nf3, e4)
+                    Enter moves in algebraic notation (e.g., Qxf7+, Nf3, e4). Verify with Stockfish to check quality.
                   </p>
-                  <div className="space-y-2">
-                    {solutionMoves.map((move, index) => (
-                      <div key={index} className="flex gap-2">
-                        <span className="w-8 h-9 flex items-center justify-center text-sm text-muted-foreground">
-                          {index + 1}.
-                        </span>
-                        <Input
-                          value={move}
-                          onChange={(e) => updateSolutionMove(index, e.target.value)}
-                          placeholder={`Move ${index + 1}`}
-                          data-testid={`input-solution-move-${index}`}
-                        />
-                        {solutionMoves.length > 1 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeSolutionMove(index)}
-                            data-testid={`button-remove-move-${index}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
+                  <div className="space-y-3">
+                    {solutionMoves.map((move, index) => {
+                      const verification = moveVerifications[index];
+                      const isVerifying = verifyingMoveIndex === index;
+                      
+                      return (
+                        <div key={index} className="space-y-1">
+                          <div className="flex gap-2 items-center">
+                            <span className="w-8 h-9 flex items-center justify-center text-sm text-muted-foreground">
+                              {index + 1}.
+                            </span>
+                            <Input
+                              value={move}
+                              onChange={(e) => updateSolutionMove(index, e.target.value)}
+                              placeholder={`Move ${index + 1}`}
+                              data-testid={`input-solution-move-${index}`}
+                              className={verification ? (
+                                verification.isBestMove ? 'border-green-500' : 
+                                verification.classification === 'Good' || verification.classification === 'Okay' ? 'border-blue-500' :
+                                'border-orange-500'
+                              ) : ''}
+                            />
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => verifyMove(index)}
+                                  disabled={isVerifying || !move.trim()}
+                                  data-testid={`button-verify-move-${index}`}
+                                >
+                                  {isVerifying ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : verification ? (
+                                    verification.isBestMove ? (
+                                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    ) : (
+                                      <Sparkles className="h-4 w-4 text-blue-500" />
+                                    )
+                                  ) : (
+                                    <Sparkles className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {verification ? 'Re-verify with Stockfish' : 'Verify with Stockfish'}
+                              </TooltipContent>
+                            </Tooltip>
+                            {solutionMoves.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeSolutionMove(index)}
+                                data-testid={`button-remove-move-${index}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          {verification && (
+                            <div className="ml-10 flex items-center gap-2 text-sm">
+                              <Badge 
+                                variant={verification.isBestMove ? "default" : "secondary"}
+                                className={verification.isBestMove ? 'bg-green-600' : ''}
+                              >
+                                {verification.classification}
+                              </Badge>
+                              {!verification.isBestMove && (
+                                <span className="text-muted-foreground">
+                                  Best: {verification.stockfishBestMove}
+                                </span>
+                              )}
+                              <span className="text-muted-foreground">
+                                Eval: {verification.isMate ? `M${verification.mateIn}` : verification.evaluation.toFixed(2)}
+                              </span>
+                              {verification.fromCache && (
+                                <Badge variant="outline" className="text-xs">cached</Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <Button 
                     variant="outline" 

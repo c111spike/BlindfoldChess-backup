@@ -1918,6 +1918,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Puzzle creator Stockfish verification with caching
+  // This endpoint is for puzzle creators to verify their puzzle moves and cache the results
+  app.post('/api/puzzles/verify-move', isAuthenticated, async (req: any, res) => {
+    try {
+      const { fen, move } = req.body;
+      
+      if (!fen || !move) {
+        return res.status(400).json({ message: "FEN and move are required" });
+      }
+      
+      // Validate FEN
+      let chess: any;
+      try {
+        chess = new Chess(fen);
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid FEN position" });
+      }
+      
+      // Convert move to UCI format
+      const moveResult = chess.move(move);
+      if (!moveResult) {
+        return res.status(400).json({ message: `Invalid move: ${move}` });
+      }
+      const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
+      chess.undo();
+      
+      const nodes = 2000000;
+      
+      // Check cache first
+      let cached = await analysisQueueManager.getCachedPosition(fen, nodes);
+      let analysis: { evaluation: number; bestMove: string; isMate: boolean; mateIn?: number; principalVariation?: string[]; depth: number };
+      let fromCache = false;
+      
+      if (cached) {
+        analysis = {
+          evaluation: cached.evaluation,
+          bestMove: cached.bestMove,
+          isMate: cached.isMate,
+          mateIn: cached.mateIn,
+          principalVariation: cached.principalVariation,
+          depth: cached.depth,
+        };
+        fromCache = true;
+      } else {
+        // Analyze with Stockfish
+        const stockfishResult = await stockfishService.analyzePosition(fen, nodes, true);
+        analysis = {
+          evaluation: stockfishResult.evaluation,
+          bestMove: stockfishResult.bestMove,
+          isMate: stockfishResult.isMate,
+          mateIn: stockfishResult.mateIn,
+          principalVariation: stockfishResult.principalVariation,
+          depth: stockfishResult.depth,
+        };
+        
+        // Get best move evaluation for caching
+        const bestMoveEval = stockfishResult.evaluation;
+        
+        // Cache the result
+        await analysisQueueManager.cachePosition(fen, nodes, {
+          evaluation: stockfishResult.evaluation,
+          bestMove: stockfishResult.bestMove,
+          bestMoveEval: bestMoveEval,
+          principalVariation: stockfishResult.principalVariation || [],
+          depth: stockfishResult.depth,
+          isMate: stockfishResult.isMate,
+          mateIn: stockfishResult.mateIn,
+        });
+      }
+      
+      // Compare with submitted move
+      const isBestMove = analysis.bestMove === uciMove;
+      
+      // Get top moves for context (also cached separately would be ideal, but for now just get them)
+      const topMoves = await stockfishService.getTopMoves(fen, 3, nodes);
+      
+      // Find where the submitted move ranks
+      const moveRank = topMoves.findIndex(m => m.move === uciMove) + 1;
+      
+      // Classify the move
+      let classification = 'Unknown';
+      if (isBestMove) {
+        classification = 'Best';
+      } else if (moveRank === 2) {
+        classification = 'Good';
+      } else if (moveRank === 3) {
+        classification = 'Okay';
+      } else {
+        const solutionMoveAnalysis = topMoves.find(m => m.move === uciMove);
+        if (solutionMoveAnalysis) {
+          const cpLoss = Math.abs((analysis.evaluation - solutionMoveAnalysis.evaluation) * 100);
+          if (cpLoss <= 20) classification = 'Good';
+          else if (cpLoss <= 50) classification = 'Inaccuracy';
+          else if (cpLoss <= 100) classification = 'Mistake';
+          else classification = 'Blunder';
+        } else {
+          classification = 'Not in top moves';
+        }
+      }
+      
+      res.json({
+        fen,
+        move,
+        moveUci: uciMove,
+        stockfishBestMove: analysis.bestMove,
+        evaluation: analysis.evaluation,
+        isMate: analysis.isMate,
+        mateIn: analysis.mateIn,
+        isBestMove,
+        classification,
+        fromCache,
+        topMoves: topMoves.map(m => ({
+          move: m.move,
+          evaluation: m.evaluation,
+          isMate: m.isMate,
+          mateIn: m.mateIn,
+        })),
+      });
+    } catch (error) {
+      console.error("Error verifying puzzle move:", error);
+      res.status(500).json({ message: "Failed to verify move" });
+    }
+  });
+
   // ========== ANTI-CHEAT SYSTEM ==========
   
   // Submit a cheat report (authenticated users)
