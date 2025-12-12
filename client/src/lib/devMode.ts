@@ -1,6 +1,7 @@
 export const isDevelopment = import.meta.env.DEV;
 
 export const TEST_USERS = [
+  { id: 'test-admin-1', name: 'Test Admin', email: 'admin@test.com' },
   { id: 'test-player-1', name: 'Test Player 1', email: 'player1@test.local' },
   { id: 'test-player-2', name: 'Test Player 2', email: 'player2@test.local' },
   { id: 'test-player-3', name: 'Test Player 3', email: 'player3@test.local' },
