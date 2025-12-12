@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -345,6 +345,7 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
   const [showSolution, setShowSolution] = useState(false);
   const [currentLine, setCurrentLine] = useState<RepertoireLine | PracticeHistoryWithLine | null>(null);
   const [allLinesCompleted, setAllLinesCompleted] = useState(false);
+  const sessionLinesRef = useRef<(RepertoireLine | PracticeHistoryWithLine)[]>([]);
 
   const { data: practiceData, isLoading: practiceLoading, refetch: refetchPractice } = useQuery<{
     dueLines: PracticeHistoryWithLine[];
@@ -376,6 +377,10 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
   }, [practiceData]);
 
   useEffect(() => {
+    if (lines.length > 0 && sessionLinesRef.current.length === 0) {
+      sessionLinesRef.current = [...lines];
+    }
+    
     if (lines.length > 0 && currentLineIndex < lines.length) {
       const line = lines[currentLineIndex];
       setCurrentLine(line);
@@ -430,7 +435,18 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
     setSessionStats({ correct: 0, incorrect: 0 });
     setAllLinesCompleted(false);
     
-    if (lines.length > 0) {
+    const sessionLines = sessionLinesRef.current;
+    if (sessionLines.length > 0) {
+      const line = sessionLines[0];
+      setCurrentLine(line);
+      game.reset();
+      game.load('line' in line ? line.line.fen : line.fen);
+      setCurrentFen(game.fen());
+      setIsUserTurn(true);
+      setFeedback(null);
+      setShowSolution(false);
+      setCurrentLineIndex(0);
+    } else if (lines.length > 0) {
       const line = lines[0];
       setCurrentLine(line);
       game.reset();
@@ -457,7 +473,9 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
     );
   }
 
-  if (allLinesCompleted || lines.length === 0) {
+  const totalSessionLines = sessionLinesRef.current.length || lines.length;
+  
+  if (allLinesCompleted || (lines.length === 0 && sessionLinesRef.current.length === 0)) {
     return (
       <div className="p-8">
         <Button variant="ghost" onClick={onBack} className="mb-4" data-testid="button-back">
@@ -469,9 +487,9 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
           <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-4" />
           <h2 className="text-2xl font-bold mb-2">Training Complete!</h2>
           <p className="text-muted-foreground mb-6">
-            {lines.length === 0 
+            {totalSessionLines === 0 
               ? "No lines available for practice. Add more lines to your repertoire."
-              : `You've completed all ${lines.length} lines in this session.`}
+              : `You've completed all ${totalSessionLines} lines in this session.`}
           </p>
 
           {sessionStats.correct + sessionStats.incorrect > 0 && (
@@ -518,7 +536,7 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
         <div className="text-center">
           <h2 className="font-semibold">{repertoire.name}</h2>
           <p className="text-sm text-muted-foreground">
-            Line {currentLineIndex + 1} of {lines.length}
+            Line {currentLineIndex + 1} of {totalSessionLines}
           </p>
         </div>
         <div className="flex items-center gap-4 text-sm">
