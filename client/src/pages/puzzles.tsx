@@ -345,15 +345,17 @@ function TrainTab() {
 
   const { data: puzzle, isLoading } = useQuery<Puzzle>({
     queryKey: ["/api/puzzles/next", afterPuzzleId, refetchCounter],
-    queryFn: async () => {
-      const url = afterPuzzleId 
-        ? `/api/puzzles/next?afterId=${afterPuzzleId}` 
+    queryFn: async ({ queryKey }) => {
+      // Extract afterId from queryKey to ensure we use the correct value
+      const afterId = queryKey[1] as string | undefined;
+      const url = afterId 
+        ? `/api/puzzles/next?afterId=${afterId}` 
         : '/api/puzzles/next';
-      // Use cache: 'no-store' to prevent browser HTTP caching (304 responses)
       const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch puzzle');
       return res.json();
     },
+    staleTime: 0, // Always consider data stale to force refetch
   });
 
   const reportMutation = useMutation({

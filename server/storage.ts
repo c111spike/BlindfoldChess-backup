@@ -487,7 +487,7 @@ export class DatabaseStorage implements IStorage {
   async getFirstPuzzle(): Promise<Puzzle | undefined> {
     const [puzzle] = await db.select().from(puzzles)
       .where(eq(puzzles.isRemoved, false))
-      .orderBy(puzzles.createdAt)
+      .orderBy(puzzles.createdAt, puzzles.id)
       .limit(1);
     return puzzle;
   }
@@ -502,18 +502,27 @@ export class DatabaseStorage implements IStorage {
       return this.getFirstPuzzle();
     }
     
+    // Find next puzzle: either newer timestamp, or same timestamp but greater ID
+    // This handles cases where multiple puzzles have identical timestamps
     const [nextPuzzle] = await db.select().from(puzzles)
       .where(and(
         eq(puzzles.isRemoved, false),
-        sql`${puzzles.createdAt} > ${currentPuzzle.createdAt}`
+        or(
+          sql`${puzzles.createdAt} > ${currentPuzzle.createdAt}`,
+          and(
+            sql`${puzzles.createdAt} = ${currentPuzzle.createdAt}`,
+            sql`${puzzles.id} > ${currentPuzzle.id}`
+          )
+        )
       ))
-      .orderBy(puzzles.createdAt)
+      .orderBy(puzzles.createdAt, puzzles.id)
       .limit(1);
     
     if (nextPuzzle) {
       return nextPuzzle;
     }
     
+    // Wrap to first puzzle when we reach the end
     return this.getFirstPuzzle();
   }
 
