@@ -142,6 +142,7 @@ export interface IStorage {
   resolvePuzzleReport(id: string, resolvedById: string): Promise<PuzzleReport>;
   
   getFlaggedPuzzles(): Promise<Puzzle[]>;
+  getFlaggedPuzzlesWithReports(): Promise<(Puzzle & { reports: PuzzleReport[] })[]>;
   getPuzzleOfTheDay(): Promise<Puzzle | undefined>;
   updateUserPuzzleReputation(userId: string, change: number): Promise<void>;
   updateUserPuzzleSolveStreak(userId: string, solved: boolean): Promise<number>;
@@ -737,6 +738,35 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(puzzles)
       .where(and(eq(puzzles.isFlagged, true), eq(puzzles.isRemoved, false)))
       .orderBy(desc(puzzles.reportCount));
+  }
+
+  async getFlaggedPuzzlesWithReports(): Promise<(Puzzle & { reports: PuzzleReport[] })[]> {
+    const flaggedPuzzlesList = await db.select().from(puzzles)
+      .where(and(eq(puzzles.isFlagged, true), eq(puzzles.isRemoved, false)))
+      .orderBy(desc(puzzles.reportCount));
+    
+    if (flaggedPuzzlesList.length === 0) return [];
+    
+    const puzzleIds = flaggedPuzzlesList.map(p => p.id);
+    const allReports = await db.select().from(puzzleReports)
+      .where(and(
+        inArray(puzzleReports.puzzleId, puzzleIds),
+        eq(puzzleReports.isResolved, false)
+      ))
+      .orderBy(desc(puzzleReports.createdAt));
+    
+    const reportsByPuzzle = new Map<string, PuzzleReport[]>();
+    for (const report of allReports) {
+      if (!reportsByPuzzle.has(report.puzzleId)) {
+        reportsByPuzzle.set(report.puzzleId, []);
+      }
+      reportsByPuzzle.get(report.puzzleId)!.push(report);
+    }
+    
+    return flaggedPuzzlesList.map(puzzle => ({
+      ...puzzle,
+      reports: reportsByPuzzle.get(puzzle.id) || [],
+    }));
   }
 
   async getPuzzleOfTheDay(): Promise<Puzzle | undefined> {

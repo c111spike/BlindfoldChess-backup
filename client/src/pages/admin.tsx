@@ -32,14 +32,22 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   RotateCcw,
   Cpu,
-  Play
+  Play,
+  ExternalLink
 } from "lucide-react";
 import { ChessBoard } from "@/components/chess-board";
 import { Chess } from "chess.js";
 import { Input } from "@/components/ui/input";
-import type { User, Puzzle, CheatReport, UserAntiCheat } from "@shared/schema";
+import type { User, Puzzle, CheatReport, UserAntiCheat, PuzzleReport } from "@shared/schema";
+import { Link } from "wouter";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+interface FlaggedPuzzleWithReports extends Puzzle {
+  reports: PuzzleReport[];
+}
 
 interface FlaggedUserWithDetails extends UserAntiCheat {
   user: User;
@@ -140,7 +148,7 @@ export default function AdminPage() {
     enabled: isAdmin,
   });
 
-  const { data: flaggedPuzzles, isLoading: puzzlesLoading } = useQuery<Puzzle[]>({
+  const { data: flaggedPuzzles, isLoading: puzzlesLoading } = useQuery<FlaggedPuzzleWithReports[]>({
     queryKey: ["/api/admin/puzzles/flagged"],
     enabled: isAdmin,
   });
@@ -702,6 +710,16 @@ export default function AdminPage() {
                       </div>
                       
                       <div className="flex items-center gap-2">
+                        <Link href={`/puzzle/${puzzle.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            data-testid={`button-view-puzzle-${puzzle.id}`}
+                          >
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            View Puzzle
+                          </Button>
+                        </Link>
                         <Button
                           variant="outline"
                           size="sm"
@@ -724,6 +742,41 @@ export default function AdminPage() {
                         </Button>
                       </div>
                     </div>
+                    
+                    {puzzle.reports && puzzle.reports.length > 0 && (
+                      <Collapsible className="mt-4">
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="w-full justify-between" data-testid={`button-toggle-reports-${puzzle.id}`}>
+                            <span className="flex items-center gap-2">
+                              <MessageSquare className="h-4 w-4" />
+                              View {puzzle.reports.length} Report{puzzle.reports.length > 1 ? 's' : ''}
+                            </span>
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2 space-y-2">
+                          {puzzle.reports.map((report) => (
+                            <div 
+                              key={report.id} 
+                              className="p-3 bg-muted rounded-lg border-l-4 border-orange-500"
+                              data-testid={`report-${report.id}`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {report.reason}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : 'Unknown date'}
+                                </span>
+                              </div>
+                              {report.details && (
+                                <p className="text-sm text-muted-foreground mt-1">{report.details}</p>
+                              )}
+                            </div>
+                          ))}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
                   </CardContent>
                 </Card>
               ))}

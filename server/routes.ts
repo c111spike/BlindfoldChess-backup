@@ -1753,7 +1753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/puzzles/flagged', isAuthenticated, isAdmin, async (_req, res) => {
     try {
-      const puzzles = await storage.getFlaggedPuzzles();
+      const puzzles = await storage.getFlaggedPuzzlesWithReports();
       res.json(puzzles);
     } catch (error) {
       console.error("Error fetching flagged puzzles:", error);
