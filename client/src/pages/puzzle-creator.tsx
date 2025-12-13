@@ -788,9 +788,6 @@ export default function PuzzleCreator() {
                               <span className="text-muted-foreground">
                                 Eval: {verification.isMate ? `M${verification.mateIn}` : verification.evaluation.toFixed(2)}
                               </span>
-                              {verification.fromCache && (
-                                <Badge variant="outline" className="text-xs">cached</Badge>
-                              )}
                             </div>
                           )}
                         </div>
