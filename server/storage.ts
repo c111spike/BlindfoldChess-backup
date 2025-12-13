@@ -87,6 +87,7 @@ import {
   repertoires,
   repertoireLines,
   practiceHistory,
+  puzzleSessionProgress,
   type Opening,
   type Repertoire,
   type InsertRepertoire,
@@ -94,6 +95,7 @@ import {
   type InsertRepertoireLine,
   type PracticeHistory,
   type InsertPracticeHistory,
+  type PuzzleSessionProgress,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
@@ -120,8 +122,13 @@ export interface IStorage {
   
   getRandomPuzzle(): Promise<Puzzle | undefined>;
   getNextPuzzle(afterId?: string): Promise<Puzzle | undefined>;
+  getNextPuzzleForUser(userId: string): Promise<Puzzle | undefined>;
   getFirstPuzzle(): Promise<Puzzle | undefined>;
   createPuzzleAttempt(attempt: InsertPuzzleAttempt): Promise<PuzzleAttempt>;
+  
+  getPuzzleSessionProgress(userId: string): Promise<PuzzleSessionProgress | undefined>;
+  markPuzzleSeen(userId: string, puzzleId: string): Promise<PuzzleSessionProgress>;
+  resetPuzzleProgress(userId: string): Promise<void>;
   
   createPuzzle(puzzle: InsertPuzzle): Promise<Puzzle>;
   getPuzzle(id: string): Promise<Puzzle | undefined>;
@@ -530,6 +537,100 @@ export class DatabaseStorage implements IStorage {
   async createPuzzleAttempt(attemptData: InsertPuzzleAttempt): Promise<PuzzleAttempt> {
     const [attempt] = await db.insert(puzzleAttempts).values(attemptData).returning();
     return attempt;
+  }
+
+  async getPuzzleSessionProgress(userId: string): Promise<PuzzleSessionProgress | undefined> {
+    const [progress] = await db.select().from(puzzleSessionProgress)
+      .where(eq(puzzleSessionProgress.userId, userId));
+    return progress;
+  }
+
+  async getNextPuzzleForUser(userId: string): Promise<Puzzle | undefined> {
+    // Get or create session progress for this user
+    let progress = await this.getPuzzleSessionProgress(userId);
+    
+    // Get all available puzzle IDs
+    const allPuzzles = await db.select({ id: puzzles.id }).from(puzzles)
+      .where(eq(puzzles.isRemoved, false))
+      .orderBy(puzzles.id);
+    
+    if (allPuzzles.length === 0) {
+      return undefined;
+    }
+    
+    const allPuzzleIds = allPuzzles.map(p => p.id);
+    const seenIds = progress?.seenPuzzleIds || [];
+    
+    // Find puzzles not yet seen
+    const unseenIds = allPuzzleIds.filter(id => !seenIds.includes(id));
+    
+    // If all puzzles have been seen, reset the cycle
+    if (unseenIds.length === 0) {
+      console.log('[getNextPuzzleForUser] All puzzles seen, starting new cycle');
+      const newCycleCount = (progress?.cycleCount || 0) + 1;
+      
+      // Reset progress and start fresh
+      if (progress) {
+        await db.update(puzzleSessionProgress)
+          .set({ 
+            seenPuzzleIds: [], 
+            cycleCount: newCycleCount,
+            lastPuzzleId: null,
+            updatedAt: new Date() 
+          })
+          .where(eq(puzzleSessionProgress.userId, userId));
+      }
+      
+      // Return first puzzle
+      return this.getFirstPuzzle();
+    }
+    
+    // Get the first unseen puzzle
+    const nextPuzzleId = unseenIds[0];
+    const [puzzle] = await db.select().from(puzzles).where(eq(puzzles.id, nextPuzzleId));
+    
+    console.log('[getNextPuzzleForUser] Returning unseen puzzle:', nextPuzzleId, 
+      'seen:', seenIds.length, 'remaining:', unseenIds.length);
+    
+    return puzzle;
+  }
+
+  async markPuzzleSeen(userId: string, puzzleId: string): Promise<PuzzleSessionProgress> {
+    let progress = await this.getPuzzleSessionProgress(userId);
+    
+    if (!progress) {
+      // Create new progress record
+      const [newProgress] = await db.insert(puzzleSessionProgress)
+        .values({
+          userId,
+          seenPuzzleIds: [puzzleId],
+          lastPuzzleId: puzzleId,
+          cycleCount: 0,
+        })
+        .returning();
+      return newProgress;
+    }
+    
+    // Update existing progress - add puzzle to seen list if not already there
+    const currentSeen = progress.seenPuzzleIds || [];
+    if (!currentSeen.includes(puzzleId)) {
+      const [updated] = await db.update(puzzleSessionProgress)
+        .set({
+          seenPuzzleIds: [...currentSeen, puzzleId],
+          lastPuzzleId: puzzleId,
+          updatedAt: new Date(),
+        })
+        .where(eq(puzzleSessionProgress.userId, userId))
+        .returning();
+      return updated;
+    }
+    
+    return progress;
+  }
+
+  async resetPuzzleProgress(userId: string): Promise<void> {
+    await db.delete(puzzleSessionProgress)
+      .where(eq(puzzleSessionProgress.userId, userId));
   }
 
   async createPuzzle(puzzleData: InsertPuzzle): Promise<Puzzle> {

@@ -1487,20 +1487,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/puzzles/next', isAuthenticated, async (req: any, res) => {
     try {
-      const afterId = req.query.afterId as string | undefined;
-      const puzzle = await storage.getNextPuzzle(afterId);
+      const userId = req.user.claims.sub;
+      
+      // Use rotation-aware puzzle fetching
+      const puzzle = await storage.getNextPuzzleForUser(userId);
       
       if (!puzzle) {
         return res.status(404).json({ message: "No puzzles available" });
       }
       
-      const userId = req.user.claims.sub;
+      // Mark puzzle as seen immediately
+      await storage.markPuzzleSeen(userId, puzzle.id);
+      
       const userVote = await storage.getUserPuzzleVote(userId, puzzle.id);
       
       res.json({ ...puzzle, userVote: userVote?.voteType || null });
     } catch (error) {
       console.error("Error fetching next puzzle:", error);
       res.status(500).json({ message: "Failed to fetch puzzle" });
+    }
+  });
+
+  app.post('/api/puzzles/reset-progress', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await storage.resetPuzzleProgress(userId);
+      res.json({ success: true, message: "Puzzle progress reset" });
+    } catch (error) {
+      console.error("Error resetting puzzle progress:", error);
+      res.status(500).json({ message: "Failed to reset progress" });
     }
   });
 

@@ -1079,6 +1079,23 @@ export const practiceHistory = pgTable("practice_history", {
   dueIdx: index("practice_history_due_idx").on(table.nextDue),
 }));
 
+// Puzzle training session progress - tracks which puzzles user has seen in current rotation
+export const puzzleSessionProgress = pgTable("puzzle_session_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  seenPuzzleIds: jsonb("seen_puzzle_ids").$type<string[]>().default([]),
+  cycleCount: integer("cycle_count").default(0),
+  lastPuzzleId: varchar("last_puzzle_id"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("puzzle_session_progress_user_idx").on(table.userId),
+}));
+
+export type PuzzleSessionProgress = typeof puzzleSessionProgress.$inferSelect;
+export type InsertPuzzleSessionProgress = typeof puzzleSessionProgress.$inferInsert;
+
 // Type exports for opening repertoire
 export type Opening = typeof openings.$inferSelect;
 export type InsertOpening = typeof openings.$inferInsert;

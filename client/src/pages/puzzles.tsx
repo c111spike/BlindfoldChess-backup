@@ -590,8 +590,7 @@ function TrainTab() {
 
   const handleSkip = () => {
     clearPuzzleTimers();
-    const currentPuzzleId = puzzle?.id;
-    console.log('[PuzzleTrainer] Skip clicked, current puzzle ID:', currentPuzzleId);
+    console.log('[PuzzleTrainer] Skip clicked, fetching next unseen puzzle');
     setSolved(null);
     setCurrentFen(null);
     setSelectedSquare(null);
@@ -600,14 +599,24 @@ function TrainTab() {
     setShowSolution(false);
     setIsAnimating(false);
     setAnimationIndex(0);
-    if (currentPuzzleId) {
-      // Clear the cache for the current query before changing afterPuzzleId
-      // This ensures TanStack Query fetches fresh data with the new key
-      queryClient.removeQueries({ queryKey: ["/api/puzzles/next"] });
-      // Set afterPuzzleId to trigger a new fetch
-      setAfterPuzzleId(currentPuzzleId);
-    }
+    // Clear cache and refetch - the server now handles rotation
+    queryClient.removeQueries({ queryKey: ["/api/puzzles/next"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/puzzles/next"] });
   };
+
+  const resetProgressMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/puzzles/reset-progress", {});
+    },
+    onSuccess: () => {
+      toast({ title: "Progress Reset", description: "Starting fresh puzzle cycle!" });
+      queryClient.removeQueries({ queryKey: ["/api/puzzles/next"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/puzzles/next"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reset progress.", variant: "destructive" });
+    },
+  });
 
   const handleShowSolution = () => {
     // Cancel any pending timers before starting animation
@@ -667,6 +676,16 @@ function TrainTab() {
           >
             <SkipForward className="mr-2 h-4 w-4" />
             {solved === true ? "Next Puzzle" : "Skip"}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => resetProgressMutation.mutate()}
+            disabled={resetProgressMutation.isPending}
+            data-testid="button-reset-progress"
+            title="Start fresh puzzle cycle"
+          >
+            <RotateCcw className="h-4 w-4" />
           </Button>
           <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
             <DialogTrigger asChild>
