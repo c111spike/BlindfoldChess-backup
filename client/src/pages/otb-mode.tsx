@@ -354,6 +354,7 @@ export default function OTBMode() {
     timeAdjustment: { white: number; black: number };
     forfeit?: boolean;
     forfeitReason?: string;
+    previousFen?: string;
   }) => {
     if (data.matchId !== matchId) return;
     
@@ -382,22 +383,40 @@ export default function OTBMode() {
     
     if (data.ruling === "illegal") {
       // Reset the board for BOTH players when a move is ruled illegal
-      if (moves.length > 0) {
-        const lastMove = moves[moves.length - 1];
-        const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
-        const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
+      // Use the previousFen from the message to restore complete board state
+      // This ensures both players have identical positions including castling/en-passant rights
+      if (data.previousFen) {
+        // Rebuild board from FEN
+        const fenParts = data.previousFen.split(' ')[0];
+        const rows = fenParts.split('/');
+        const newBoard: (string | null)[][] = [];
+        for (const row of rows) {
+          const boardRow: (string | null)[] = [];
+          for (const char of row) {
+            if (isNaN(parseInt(char))) {
+              boardRow.push(char);
+            } else {
+              for (let i = 0; i < parseInt(char); i++) {
+                boardRow.push(null);
+              }
+            }
+          }
+          newBoard.push(boardRow);
+        }
+        setBoardState(newBoard);
         
-        setBoardState(prev => {
-          const newBoard = prev.map(row => [...row]);
-          newBoard[fromRank][fromFile] = lastMove.piece;
-          newBoard[toRank][toFile] = lastMove.captured || null;
-          return newBoard;
-        });
+        // Update legalChessGame with the authoritative FEN
+        setLegalChessGame(new Chess(data.previousFen));
         
+        // Determine whose turn it is from FEN
+        const turnChar = data.previousFen.split(' ')[1];
+        const newActiveColor = turnChar === 'w' ? 'white' : 'black';
+        setActiveColor(newActiveColor);
+        setClockTurn(newActiveColor);
+        
+        // Only slice moves if we have the FEN (guards against double-slice)
         setMoves(prev => prev.slice(0, -1));
         setLastMoveSquares([]);
-        setActiveColor(prev => prev === "white" ? "black" : "white");
-        setClockTurn(prev => prev === "white" ? "black" : "white");
         setHasMadeMove(false);
       }
       
@@ -409,17 +428,20 @@ export default function OTBMode() {
         setArbiterResult({ type: "illegal", message: "Opponent's move was illegal! You gain 2 minutes." });
       }
     } else {
+      // For "legal" rulings (false claims), violatorId is the person who made the false claim
       if (data.violatorId === user?.id) {
+        // I made the false claim, so increment MY false claims
+        setMyFalseClaims(prev => ({ ...prev, illegal: prev.illegal + 1 }));
+        setArbiterResult({ type: "legal", message: "Move was legal! Your claim was false - opponent gains 2 minutes." });
+      } else {
+        // Opponent made a false claim against me
         setOpponentFalseClaims(prev => ({ ...prev, illegal: prev.illegal + 1 }));
         setArbiterResult({ type: "legal", message: "Move was legal! Opponent made a false claim. You gain 2 minutes." });
-      } else {
-        setMyFalseClaims(prev => ({ ...prev, illegal: prev.illegal + 1 }));
-        setArbiterResult({ type: "legal", message: "Move was legal! False claim - opponent gains 2 minutes." });
       }
     }
     
     setTimeout(() => setArbiterResult(null), 4000);
-  }, [matchId, user?.id, playerColor, moves, toast]);
+  }, [matchId, user?.id, playerColor, toast]);
 
   const handleOpponentGameEnd = useCallback((data: { result: string; reason: string }) => {
     console.log('[OTB] Opponent ended game:', data);
@@ -2024,21 +2046,67 @@ export default function OTBMode() {
       
       setArbiterResult({ type: "illegal", message: messages[claimType] });
       
-      if (claimType === "illegal" && moves.length > 0) {
-        const lastMove = moves[moves.length - 1];
-        const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
-        const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
+      // Get previousFen from legalChessGame (state before illegal move) for FEN-based restoration
+      // legalChessGame tracks the legal game state, so its FEN is what we need to restore to
+      // Fallback: compute FEN by replaying all moves except the last one if legalChessGame is not available
+      let previousFen: string | undefined;
+      if (claimType === "illegal") {
+        if (legalChessGame) {
+          previousFen = legalChessGame.fen();
+        } else if (moves.length > 0) {
+          // Fallback: rebuild FEN from move history minus the last move
+          const tempChess = new Chess();
+          try {
+            for (let i = 0; i < moves.length - 1; i++) {
+              const move = moves[i];
+              tempChess.move({ from: move.from, to: move.to, promotion: move.promotion as any });
+            }
+            previousFen = tempChess.fen();
+          } catch {
+            previousFen = new Chess().fen(); // Ultimate fallback: starting position
+          }
+        }
+      }
+      
+      if (claimType === "illegal" && previousFen) {
+        // Rebuild board from FEN for complete state restoration (including castling/en-passant rights)
+        const fenParts = previousFen.split(' ')[0];
+        const fenRows = fenParts.split('/');
+        const newBoard: (string | null)[][] = [];
+        for (const row of fenRows) {
+          const boardRow: (string | null)[] = [];
+          for (const char of row) {
+            if (isNaN(parseInt(char))) {
+              boardRow.push(char);
+            } else {
+              for (let i = 0; i < parseInt(char); i++) {
+                boardRow.push(null);
+              }
+            }
+          }
+          newBoard.push(boardRow);
+        }
+        setBoardState(newBoard);
         
-        setBoardState(prev => {
-          const newBoard = prev.map(row => [...row]);
-          newBoard[fromRank][fromFile] = lastMove.piece;
-          newBoard[toRank][toFile] = lastMove.captured || null;
-          return newBoard;
-        });
+        // Determine whose turn it is from FEN
+        const turnChar = previousFen.split(' ')[1];
+        const newActiveColor = turnChar === 'w' ? 'white' : 'black';
+        setActiveColor(newActiveColor);
+        setClockTurn(newActiveColor);
         
         setMoves(prev => prev.slice(0, -1));
-        setActiveColor(prev => prev === "white" ? "black" : "white");
+        setLastMoveSquares([]);
+        setHasMadeMove(false);
         setPendingCheckmate(null);
+      }
+      
+      // Send arbiter ruling to opponent via WebSocket
+      // Time adjustment: claimant (me) gains time when claim is valid
+      if (matchId && opponentId) {
+        const timeAdj = playerColor === "white" 
+          ? { white: 120, black: 0 } 
+          : { white: 0, black: 120 };
+        sendArbiterRuling(matchId, "illegal", opponentId, timeAdj, false, undefined, previousFen);
       }
     } else {
       const newFalseClaimCount = myFalseClaims[claimType] + 1;
@@ -2068,6 +2136,14 @@ export default function OTBMode() {
       }
       
       setArbiterResult({ type: "legal", message: `False ${claimType} claim! Opponent gains 2 minutes.` });
+      
+      // Send false claim ruling to opponent via WebSocket
+      if (matchId && user?.id) {
+        const timeAdj = playerColor === "white" 
+          ? { white: 0, black: 120 } 
+          : { white: 120, black: 0 };
+        sendArbiterRuling(matchId, "legal", user.id, timeAdj);
+      }
     }
     
     setTimeout(() => {

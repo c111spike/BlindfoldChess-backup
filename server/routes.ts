@@ -4471,6 +4471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Send arbiter ruling to ALL players in the match (including sender)
           // Both players need to see the ruling to update their boards, times, and violation counters
+          // Include previousFen so both clients can restore to identical board state
           const roomUsers = matchRooms.get(matchId);
           if (roomUsers) {
             roomUsers.forEach((roomUserId) => {
@@ -4484,6 +4485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   timeAdjustment: data.timeAdjustment,
                   forfeit: data.forfeit,
                   forfeitReason: data.forfeitReason,
+                  previousFen: data.previousFen,
                 }));
               }
             });

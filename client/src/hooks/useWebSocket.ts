@@ -42,6 +42,7 @@ interface ArbiterRulingData {
   timeAdjustment: { white: number; black: number };
   forfeit?: boolean;
   forfeitReason?: string;
+  previousFen?: string;
 }
 
 interface HandshakeStateData {
@@ -281,6 +282,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
                 timeAdjustment: message.timeAdjustment,
                 forfeit: message.forfeit,
                 forfeitReason: message.forfeitReason,
+                previousFen: message.previousFen,
               });
             }
             break;
@@ -401,7 +403,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
     violatorId: string,
     timeAdjustment: { white: number; black: number },
     forfeit?: boolean,
-    forfeitReason?: string
+    forfeitReason?: string,
+    previousFen?: string
   ) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ 
@@ -412,6 +415,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
         timeAdjustment,
         forfeit,
         forfeitReason,
+        previousFen,
       }));
     }
   }, []);
