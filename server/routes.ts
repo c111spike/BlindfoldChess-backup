@@ -1959,7 +1959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
       chess.undo();
       
-      const nodes = 2000000;
+      const nodes = 500000; // Reduced from 2M for faster puzzle verification
       
       // Check cache first
       let cached = await analysisQueueManager.getCachedPosition(fen, nodes);
