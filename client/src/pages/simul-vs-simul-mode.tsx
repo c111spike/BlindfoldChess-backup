@@ -1218,19 +1218,6 @@ export default function SimulVsSimulMode() {
                 lastMoveSquares={activeGame.lastMove ? [activeGame.lastMove.from, activeGame.lastMove.to] : []}
               />
             </div>
-            {activeGame.result === 'ongoing' && (
-              <div className="flex items-center justify-center gap-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowResignDialog('board')}
-                  data-testid="button-resign-board"
-                >
-                  <Flag className="h-4 w-4 mr-2" />
-                  Resign Board
-                </Button>
-              </div>
-            )}
             {activeGame.result !== 'ongoing' && (
               <div className="flex items-center justify-center gap-4">
                 <Badge
@@ -1278,6 +1265,33 @@ export default function SimulVsSimulMode() {
                 {getScoreSummary().wins}W · {getScoreSummary().losses}L · {getScoreSummary().draws}D
               </div>
             </div>
+            {/* Resign buttons at top for visibility */}
+            {!matchComplete && boards.some(b => b.result === 'ongoing') && (
+              <div className="flex gap-2 pt-2">
+                {activeGame?.result === 'ongoing' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setShowResignDialog('board')}
+                    data-testid="button-resign-board-sidebar"
+                  >
+                    <Flag className="h-4 w-4 mr-2" />
+                    Resign Board
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setShowResignDialog('all')}
+                  data-testid="button-resign-all-top"
+                >
+                  <Flag className="h-4 w-4 mr-2" />
+                  Resign All
+                </Button>
+              </div>
+            )}
           </div>
           <ScrollArea className="flex-1">
             <div className="p-2 space-y-2">
@@ -1359,19 +1373,6 @@ export default function SimulVsSimulMode() {
               })}
             </div>
           </ScrollArea>
-          {!matchComplete && boards.some(b => b.result === 'ongoing') && (
-            <div className="p-4 border-t">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setShowResignDialog('all')}
-                data-testid="button-resign-all"
-              >
-                <Flag className="h-4 w-4 mr-2" />
-                Resign All Boards
-              </Button>
-            </div>
-          )}
           {matchComplete && (
             <div className="p-4 border-t">
               <Button
