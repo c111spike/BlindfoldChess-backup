@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -12,12 +12,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Settings as SettingsIcon, LogOut } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { User, Settings as SettingsIcon, LogOut, AlertTriangle } from "lucide-react";
 import type { UserSettings } from "@shared/schema";
+
+// Detect Safari/iOS browsers which don't support Web Speech API for voice input
+// SSR-safe: only runs in browser environment
+function isSafariOrIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return isSafari || isIOS;
+}
 
 export default function Settings() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const isVoiceInputUnsupported = useMemo(() => isSafariOrIOS(), []);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -291,9 +303,18 @@ export default function Settings() {
                   id="voice-input"
                   checked={settings?.voiceInputEnabled ?? false}
                   onCheckedChange={(checked) => handleSettingChange("voiceInputEnabled", checked)}
+                  disabled={isVoiceInputUnsupported}
                   data-testid="switch-voice-input"
                 />
               </div>
+              {isVoiceInputUnsupported && (
+                <Alert variant="default" className="bg-amber-500/10 border-amber-500/20" data-testid="alert-voice-unsupported">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertDescription className="text-amber-600 dark:text-amber-400">
+                    Voice input is not supported on Safari or iOS devices. Please use Chrome, Edge, or Firefox for voice commands.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

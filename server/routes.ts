@@ -4115,6 +4115,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ws.send(JSON.stringify({ type: 'reconnected' }));
           }
           
+          // Check for stale Simul vs Simul matches and auto-resign them
+          // This handles cases where user closed browser and returns later
+          try {
+            const staleMatch = await storage.getActiveSimulVsSimulMatchForUser(userId);
+            if (staleMatch) {
+              console.log(`[StaleSimul] User ${userId} has stale simul match ${staleMatch.id}, auto-resigning all boards`);
+              
+              const playerGames = await storage.getSimulVsSimulPlayerGames(staleMatch.id, userId);
+              const matchPlayers = await storage.getSimulVsSimulMatchPlayers(staleMatch.id);
+              
+              for (const pairing of playerGames) {
+                if (pairing.result !== 'ongoing') continue;
+                
+                console.log(`[StaleSimul] Auto-resigning pairing ${pairing.id}`);
+                
+                // Disconnected player loses
+                const playerColor = pairing.whitePlayerId === userId ? 'white' : 'black';
+                const result = playerColor === 'white' ? 'black_win' : 'white_win';
+                
+                // Get opponent info
+                const opponentId = playerColor === 'white' ? pairing.blackPlayerId : pairing.whitePlayerId;
+                const opponentIsBot = playerColor === 'white' ? pairing.blackIsBot : pairing.whiteIsBot;
+                const opponentBotId = playerColor === 'white' ? pairing.blackBotId : pairing.whiteBotId;
+                
+                // Create game records
+                const playerInfo = matchPlayers.find(mp => mp.odId === userId);
+                const opponentInfo = opponentId ? matchPlayers.find(mp => mp.odId === opponentId) : null;
+                
+                const playerGame = await storage.createGame({
+                  userId: userId,
+                  whitePlayerId: pairing.whitePlayerId,
+                  blackPlayerId: pairing.blackPlayerId,
+                  mode: 'simul_vs_simul',
+                  status: 'completed',
+                  result: result as 'white_win' | 'black_win' | 'draw' | 'ongoing',
+                  opponentName: opponentIsBot ? `Bot ${opponentBotId}` : (opponentInfo?.username || 'Unknown'),
+                  playerColor: playerColor,
+                  timeControl: 30,
+                  fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                  moves: pairing.moves || [],
+                  thinkingTimes: [],
+                });
+                
+                let opponentGameId: string | null = null;
+                if (!opponentIsBot && opponentId) {
+                  const opponentGame = await storage.createGame({
+                    userId: opponentId,
+                    whitePlayerId: pairing.whitePlayerId,
+                    blackPlayerId: pairing.blackPlayerId,
+                    mode: 'simul_vs_simul',
+                    status: 'completed',
+                    result: result as 'white_win' | 'black_win' | 'draw' | 'ongoing',
+                    opponentName: playerInfo?.username || 'Unknown',
+                    playerColor: playerColor === 'white' ? 'black' : 'white',
+                    timeControl: 30,
+                    fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                    moves: pairing.moves || [],
+                    thinkingTimes: [],
+                  });
+                  opponentGameId = opponentGame.id;
+                }
+                
+                await storage.updateSimulVsSimulPairing(pairing.id, {
+                  result,
+                  completedAt: new Date(),
+                  gameId: playerGame.id || opponentGameId,
+                });
+                
+                // Stop timer if active
+                const timer = simulTimers.get(pairing.id);
+                if (timer) {
+                  timer.isPaused = true;
+                  timer.deadline = null;
+                }
+              }
+              
+              // Check if match is now complete
+              const allPairings = await storage.getAllSimulVsSimulPairings(staleMatch.id);
+              const allComplete = allPairings.every(p => p.result !== 'ongoing');
+              
+              if (allComplete) {
+                console.log(`[StaleSimul] All games complete, finalizing match ${staleMatch.id}`);
+                
+                await storage.updateSimulVsSimulMatch(staleMatch.id, {
+                  status: 'completed',
+                  completedAt: new Date(),
+                });
+                
+                const ratingChanges = await calculateSimulEloChanges(staleMatch.id, allPairings, matchPlayers);
+                await applySimulEloChanges(ratingChanges);
+                
+                cleanupSimulMatch(staleMatch.id, allPairings.map(p => p.id));
+              }
+              
+              ws.send(JSON.stringify({ 
+                type: 'stale_match_cleaned', 
+                matchId: staleMatch.id,
+                message: 'Previous incomplete match has been resolved as losses' 
+              }));
+            }
+          } catch (error) {
+            console.error('[StaleSimul] Error cleaning up stale match:', error);
+          }
+          
           ws.send(JSON.stringify({ type: 'authenticated', userId }));
         } else if (data.type === 'join_queue') {
           const userId = ws.userId;
@@ -5966,19 +6070,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const [simulMatchId, matchRoom] of simulMatchRooms.entries()) {
           if (matchRoom.has(userId)) {
             console.log(`[SimulDisconnect] Cleaning up player ${userId} from simul match ${simulMatchId}`);
-            cleanupSimulPlayer(userId, simulMatchId);
             
-            // Check if match should be cleaned up (all games done)
+            // Auto-resign all ongoing games for the disconnected player
             try {
+              const playerGames = await storage.getSimulVsSimulPlayerGames(simulMatchId, userId);
+              const matchPlayers = await storage.getSimulVsSimulMatchPlayers(simulMatchId);
+              
+              for (const pairing of playerGames) {
+                if (pairing.result !== 'ongoing') continue;
+                
+                console.log(`[SimulDisconnect] Auto-resigning pairing ${pairing.id} for disconnected player ${userId}`);
+                
+                // Determine result: disconnected player loses
+                const playerColor = pairing.whitePlayerId === userId ? 'white' : 'black';
+                const result = playerColor === 'white' ? 'black_win' : 'white_win';
+                
+                // Get opponent info for game record
+                const opponentId = playerColor === 'white' ? pairing.blackPlayerId : pairing.whitePlayerId;
+                const opponentIsBot = playerColor === 'white' ? pairing.blackIsBot : pairing.whiteIsBot;
+                const opponentBotId = playerColor === 'white' ? pairing.blackBotId : pairing.whiteBotId;
+                
+                // Create game records for analysis
+                let playerGameId: string | null = null;
+                let opponentGameId: string | null = null;
+                
+                // Create game for the disconnected player (if human)
+                const playerInfo = matchPlayers.find(mp => mp.odId === userId);
+                const opponentInfo = opponentId ? matchPlayers.find(mp => mp.odId === opponentId) : null;
+                
+                const disconnectedPlayerGame = await storage.createGame({
+                  userId: userId,
+                  whitePlayerId: pairing.whitePlayerId,
+                  blackPlayerId: pairing.blackPlayerId,
+                  mode: 'simul_vs_simul',
+                  status: 'completed',
+                  result: result as 'white_win' | 'black_win' | 'draw' | 'ongoing',
+                  opponentName: opponentIsBot ? `Bot ${opponentBotId}` : (opponentInfo?.username || 'Unknown'),
+                  playerColor: playerColor,
+                  timeControl: 30,
+                  fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                  moves: pairing.moves || [],
+                  thinkingTimes: [],
+                });
+                playerGameId = disconnectedPlayerGame.id;
+                
+                // Create game for opponent (if human)
+                if (!opponentIsBot && opponentId) {
+                  const opponentGame = await storage.createGame({
+                    userId: opponentId,
+                    whitePlayerId: pairing.whitePlayerId,
+                    blackPlayerId: pairing.blackPlayerId,
+                    mode: 'simul_vs_simul',
+                    status: 'completed',
+                    result: result as 'white_win' | 'black_win' | 'draw' | 'ongoing',
+                    opponentName: playerInfo?.username || 'Unknown',
+                    playerColor: playerColor === 'white' ? 'black' : 'white',
+                    timeControl: 30,
+                    fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                    moves: pairing.moves || [],
+                    thinkingTimes: [],
+                  });
+                  opponentGameId = opponentGame.id;
+                }
+                
+                // Update pairing result
+                await storage.updateSimulVsSimulPairing(pairing.id, {
+                  result,
+                  completedAt: new Date(),
+                  gameId: playerGameId || opponentGameId,
+                });
+                
+                // Stop timer for this pairing
+                const timer = simulTimers.get(pairing.id);
+                if (timer) {
+                  timer.isPaused = true;
+                  timer.deadline = null;
+                }
+                
+                // Notify opponent of game end
+                if (!opponentIsBot && opponentId) {
+                  const opponentWs = userConnections.get(opponentId);
+                  if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                    opponentWs.send(JSON.stringify({
+                      type: 'simul_game_end',
+                      pairingId: pairing.id,
+                      result,
+                      reason: 'opponent_disconnected',
+                      gameId: opponentGameId,
+                    }));
+                  }
+                }
+              }
+              
+              // Now clean up player from rooms
+              cleanupSimulPlayer(userId, simulMatchId);
+              
+              // Check if match is complete
               const allPairings = await storage.getAllSimulVsSimulPairings(simulMatchId);
               const allComplete = allPairings.every(p => p.result !== 'ongoing');
               
               if (allComplete) {
-                console.log(`[SimulDisconnect] All games complete, cleaning up match ${simulMatchId}`);
+                console.log(`[SimulDisconnect] All games complete, finalizing match ${simulMatchId}`);
+                
+                // Mark match as completed
+                await storage.updateSimulVsSimulMatch(simulMatchId, {
+                  status: 'completed',
+                  completedAt: new Date(),
+                });
+                
+                // Calculate and apply Simul ELO changes
+                const ratingChanges = await calculateSimulEloChanges(simulMatchId, allPairings, matchPlayers);
+                await applySimulEloChanges(ratingChanges);
+                
+                // Notify remaining connected players
+                const remainingRoom = simulMatchRooms.get(simulMatchId);
+                if (remainingRoom) {
+                  remainingRoom.forEach((roomUserId) => {
+                    const playerWs = userConnections.get(roomUserId);
+                    if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                      const playerStats = ratingChanges.get(roomUserId);
+                      playerWs.send(JSON.stringify({
+                        type: 'simul_match_complete',
+                        matchId: simulMatchId,
+                        ratingChange: playerStats?.ratingChange || 0,
+                        humanGamesPlayed: playerStats?.humanGamesPlayed || 0,
+                        wins: playerStats?.wins || 0,
+                        losses: playerStats?.losses || 0,
+                        draws: playerStats?.draws || 0,
+                      }));
+                    }
+                  });
+                }
+                
+                // Clean up match resources
                 cleanupSimulMatch(simulMatchId, allPairings.map(p => p.id));
               }
             } catch (error) {
-              console.error('[SimulDisconnect] Error checking match status:', error);
+              console.error('[SimulDisconnect] Error auto-resigning games:', error);
+              // Still clean up player from rooms even if auto-resign fails
+              cleanupSimulPlayer(userId, simulMatchId);
             }
             break; // A player should only be in one simul match at a time
           }
