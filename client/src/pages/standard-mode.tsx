@@ -305,6 +305,11 @@ export default function StandardMode() {
     setBotThinking(false);
     setShowBotSelection(false);
     setThinkingTimes([]);
+    setShowRematchDialog(false);
+    setWaitingForRematchResponse(false);
+    setRematchDenied(false);
+    rematchExitIntentRef.current = false;
+    didSendRematchRequestRef.current = false;
     gameRef.current = null;
     gameIdRef.current = null;
     matchIdRef.current = null;

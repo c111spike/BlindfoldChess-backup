@@ -1493,17 +1493,9 @@ export class DatabaseStorage implements IStorage {
           continue;
         }
 
-        // Determine game result based on match result and player color
-        let gameResult: string;
-        if (result === 'draw') {
-          gameResult = 'draw';
-        } else if (result === 'white_win') {
-          gameResult = game.playerColor === 'white' ? 'white_win' : 'black_win';
-        } else if (result === 'black_win') {
-          gameResult = game.playerColor === 'black' ? 'black_win' : 'white_win';
-        } else {
-          throw new Error(`Invalid result: ${result}`);
-        }
+        // Game result is the same as match result - represents who won the game
+        // The isWin calculation below determines if this player won based on their color
+        const gameResult = result;
 
         // Update game record
         const [updatedGame] = await tx
