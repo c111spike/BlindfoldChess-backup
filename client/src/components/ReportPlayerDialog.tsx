@@ -31,12 +31,8 @@ interface ReportPlayerDialogProps {
 }
 
 const REPORT_REASONS = [
-  { value: "engine_use", label: "Using a Chess Engine" },
-  { value: "sandbagging", label: "Sandbagging (Intentionally Losing)" },
-  { value: "stalling", label: "Stalling / Running Down Clock" },
-  { value: "abandonment", label: "Repeatedly Abandoning Games" },
-  { value: "harassment", label: "Harassment or Inappropriate Behavior" },
-  { value: "other", label: "Other" },
+  { value: "possible_cheating", label: "Possible Cheating", disabled: false },
+  { value: "harassment", label: "Harassment (Chat not available yet)", disabled: true },
 ];
 
 export function ReportPlayerDialog({
@@ -123,7 +119,12 @@ export function ReportPlayerDialog({
               </SelectTrigger>
               <SelectContent>
                 {REPORT_REASONS.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>
+                  <SelectItem 
+                    key={r.value} 
+                    value={r.value}
+                    disabled={r.disabled}
+                    className={r.disabled ? "opacity-50" : ""}
+                  >
                     {r.label}
                   </SelectItem>
                 ))}
