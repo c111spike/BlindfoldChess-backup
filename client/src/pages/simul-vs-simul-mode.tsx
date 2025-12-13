@@ -1454,17 +1454,38 @@ export default function SimulVsSimulMode() {
                           {board.color}
                         </Badge>
                       </div>
+                      {/* Result badge and Analyze button - positioned between header and move count */}
+                      {board.result !== 'ongoing' && (
+                        <div className="flex items-center gap-2">
+                          {resultDisplay && (
+                            <Badge
+                              variant={resultDisplay.variant}
+                              className="text-xs"
+                              data-testid={`badge-result-${index}`}
+                            >
+                              {resultDisplay.text}
+                            </Badge>
+                          )}
+                          {board.gameId && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLocation(`/analysis/${board.gameId}${matchId ? `?matchId=${matchId}` : ''}`);
+                              }}
+                              data-testid={`button-analyze-${index}`}
+                            >
+                              <BarChart3 className="h-3 w-3 mr-1" />
+                              Analyze
+                            </Button>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">{board.moveCount} moves</span>
-                        {resultDisplay ? (
-                          <Badge
-                            variant={resultDisplay.variant}
-                            className="text-xs"
-                            data-testid={`badge-result-${index}`}
-                          >
-                            {resultDisplay.text}
-                          </Badge>
-                        ) : (
+                        {board.result === 'ongoing' && (
                           <div className="flex items-center gap-1">
                             {isPlayerTurn ? (
                               <Badge variant="default" className="text-xs animate-pulse">
@@ -1481,21 +1502,6 @@ export default function SimulVsSimulMode() {
                           <Clock className="h-3 w-3" />
                           <span>{board.timeRemaining}s</span>
                         </div>
-                      )}
-                      {board.result !== 'ongoing' && board.gameId && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full mt-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLocation(`/analysis/${board.gameId}${matchId ? `?matchId=${matchId}` : ''}`);
-                          }}
-                          data-testid={`button-analyze-${index}`}
-                        >
-                          <BarChart3 className="h-3 w-3 mr-1" />
-                          Analyze
-                        </Button>
                       )}
                     </CardContent>
                   </Card>
