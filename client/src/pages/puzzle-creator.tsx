@@ -670,11 +670,10 @@ export default function PuzzleCreator() {
         )}
 
         {step === 2 && (
-          <div className="grid lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Puzzle Details</CardTitle>
-                <CardDescription>Define the puzzle type, difficulty, and solution</CardDescription>
+          <div className="grid lg:grid-cols-[300px_1fr] gap-6">
+            <Card className="h-fit">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Puzzle Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
@@ -810,65 +809,25 @@ export default function PuzzleCreator() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="h-5 w-5" /> Hints (Optional)
-                </CardTitle>
-                <CardDescription>Add hints to help solvers if they get stuck</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    value={hintInput}
-                    onChange={(e) => setHintInput(e.target.value)}
-                    placeholder="Enter a hint..."
-                    onKeyDown={(e) => e.key === "Enter" && addHint()}
-                    data-testid="input-hint"
-                  />
-                  <Button onClick={addHint} data-testid="button-add-hint">Add</Button>
-                </div>
-                
-                {hints.length > 0 && (
-                  <div className="space-y-2">
-                    {hints.map((hint, index) => (
-                      <div key={index} className="flex items-start gap-2 p-2 bg-muted rounded">
-                        <Badge variant="secondary" className="shrink-0">
-                          Hint {index + 1}
-                        </Badge>
-                        <p className="text-sm flex-1">{hint}</p>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => removeHint(index)}
-                          data-testid={`button-remove-hint-${index}`}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="pt-4 border-t">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <MousePointerClick className="h-4 w-4" />
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <MousePointerClick className="h-5 w-5" />
                       Interactive Board
-                    </h4>
+                    </CardTitle>
                     <div className="flex gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-7 w-7"
                             onClick={undoLastSolutionMove}
                             disabled={solutionMoves.filter(m => m.trim()).length === 0}
                             data-testid="button-undo-solution-move"
                           >
-                            <Undo2 className="h-3 w-3" />
+                            <Undo2 className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Undo last move</TooltipContent>
@@ -878,22 +837,21 @@ export default function PuzzleCreator() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-7 w-7"
                             onClick={clearAllSolutionMoves}
                             disabled={solutionMoves.filter(m => m.trim()).length === 0}
                             data-testid="button-clear-solution-moves"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Clear all moves</TooltipContent>
                       </Tooltip>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Click pieces to make moves and build your solution
-                  </p>
-                  <div className="aspect-square max-w-[250px] mx-auto border-2 border-foreground/20 rounded overflow-visible">
+                  <CardDescription>Click pieces to make moves and build your solution</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="aspect-square max-w-[450px] mx-auto border-2 border-foreground/20 rounded overflow-visible">
                     <div className="grid grid-cols-8 grid-rows-8 gap-0 w-full h-full">
                       {RANKS.map((rank, rankIdx) =>
                         FILES.map((file, fileIdx) => {
@@ -917,14 +875,14 @@ export default function PuzzleCreator() {
                               `}
                             >
                               {piece && (
-                                <span className={`text-sm select-none ${
-                                  piece === piece.toUpperCase() ? "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]" : "text-black"
+                                <span className={`text-2xl select-none ${
+                                  piece === piece.toUpperCase() ? "text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]" : "text-black"
                                 }`}>
                                   {PIECE_SYMBOLS[piece]}
                                 </span>
                               )}
                               {isLegalTarget && !piece && (
-                                <div className="w-2 h-2 rounded-full bg-green-500/60" />
+                                <div className="w-3 h-3 rounded-full bg-green-500/60" />
                               )}
                             </div>
                           );
@@ -932,7 +890,7 @@ export default function PuzzleCreator() {
                       )}
                     </div>
                   </div>
-                  <div className="text-center mt-2 space-y-1">
+                  <div className="text-center mt-3 space-y-1">
                     <p className="text-sm text-muted-foreground">
                       {(() => {
                         try {
@@ -944,14 +902,56 @@ export default function PuzzleCreator() {
                       })()} to move
                     </p>
                     {solutionMoves.filter(m => m.trim()).length > 0 && (
-                      <p className="text-xs text-primary">
+                      <p className="text-sm font-medium text-primary">
                         {solutionMoves.filter(m => m.trim()).length} move{solutionMoves.filter(m => m.trim()).length !== 1 ? 's' : ''} in solution
                       </p>
                     )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4" /> Hints (Optional)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      value={hintInput}
+                      onChange={(e) => setHintInput(e.target.value)}
+                      placeholder="Enter a hint..."
+                      onKeyDown={(e) => e.key === "Enter" && addHint()}
+                      data-testid="input-hint"
+                    />
+                    <Button onClick={addHint} data-testid="button-add-hint">Add</Button>
+                  </div>
+                  
+                  {hints.length > 0 && (
+                    <div className="space-y-2">
+                      {hints.map((hint, index) => (
+                        <div key={index} className="flex items-start gap-2 p-2 bg-muted rounded">
+                          <Badge variant="secondary" className="shrink-0">
+                            Hint {index + 1}
+                          </Badge>
+                          <p className="text-sm flex-1">{hint}</p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => removeHint(index)}
+                            data-testid={`button-remove-hint-${index}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
             <div className="lg:col-span-2 flex gap-4 justify-between">
               <Button variant="outline" onClick={() => setStep(1)} data-testid="button-back-step-2">
