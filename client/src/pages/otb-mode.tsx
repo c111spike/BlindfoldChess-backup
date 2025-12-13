@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PromotionDialog } from "@/components/promotion-dialog";
+import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
 import type { Game } from "@shared/schema";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
 import { 
@@ -112,6 +113,7 @@ export default function OTBMode() {
   } | null>(null);
   const [legalChessGame, setLegalChessGame] = useState<Chess | null>(null);
   const [opponentName, setOpponentName] = useState<string>("Opponent");
+  const [opponentId, setOpponentId] = useState<string | null>(null);
   const [opponentRating, setOpponentRating] = useState<number>(1200);
   const [playerRating, setPlayerRating] = useState<number>(1200);
   const [clockTurn, setClockTurn] = useState<"white" | "black">("white");
@@ -770,6 +772,7 @@ export default function OTBMode() {
           
           if (response.opponent) {
             setOpponentName(response.opponent.name || "Opponent");
+            setOpponentId(response.opponent.id || null);
             setOpponentRating(response.opponent.rating || 1200);
           }
           if (response.playerRating) {
@@ -2593,11 +2596,20 @@ export default function OTBMode() {
                             setRematchRequested(false);
                             setOpponentWantsRematch(false);
                             setRematchDeclined(false);
+                            setOpponentId(null);
                           }}
                           data-testid="button-main-menu"
                         >
                           Main Menu
                         </Button>
+                        {!isBotGame && opponentId && (
+                          <ReportPlayerDialog
+                            reportedUserId={opponentId}
+                            reportedUserName={opponentName}
+                            gameId={gameId || undefined}
+                            trigger={<span className="text-xs text-muted-foreground cursor-pointer hover:underline" data-testid="link-report-player-otb">Report player</span>}
+                          />
+                        )}
                       </div>
                     </div>
                   </CardContent>

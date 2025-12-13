@@ -36,6 +36,7 @@ import {
 import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3, Pencil, Crown, Shuffle, Mic, MicOff, Volume2 } from "lucide-react";
 import { voiceRecognition, speak, moveToSpeech } from "@/lib/voice";
 import { PromotionDialog } from "@/components/promotion-dialog";
+import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
 import type { Game, Rating } from "@shared/schema";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
 import { 
@@ -100,6 +101,7 @@ export default function StandardMode() {
   const [playerColor, setPlayerColor] = useState<"white" | "black">("white");
   const [increment, setIncrement] = useState(0);
   const [opponentName, setOpponentName] = useState<string>("");
+  const [opponentId, setOpponentId] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState<string>("");
   const [opponentRating, setOpponentRating] = useState<number>(1200);
   const [timeControl, setTimeControl] = useState<number>(180);
@@ -299,6 +301,7 @@ export default function StandardMode() {
     setActiveBlindfoldDifficulty(null);
     setIsBotGame(false);
     setSelectedBot(null);
+    setOpponentId(null);
     setBotThinking(false);
     setShowBotSelection(false);
     setThinkingTimes([]);
@@ -497,6 +500,8 @@ export default function StandardMode() {
       setIncrement(gameData.increment || 0);
       setOpponentName(matchData.opponent.name);
       setOpponentRating(matchData.opponent.rating);
+      const computedOpponentId = matchData.color === 'white' ? gameData.blackPlayerId : gameData.whitePlayerId;
+      setOpponentId(computedOpponentId || null);
       setPlayerName(`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'You');
       
       const tcValue = parseInt(matchData.timeControl) || 180;
@@ -2167,6 +2172,23 @@ export default function StandardMode() {
               <BarChart3 className="w-4 h-4 mr-2" />
               Analyze Game
             </Button>
+            {!isBotGame && opponentId && (
+              <div className="mt-2 text-center">
+                <ReportPlayerDialog
+                  reportedUserId={opponentId}
+                  reportedUserName={opponentName}
+                  gameId={gameId || undefined}
+                  trigger={
+                    <span 
+                      className="text-xs text-muted-foreground cursor-pointer hover:underline"
+                      data-testid="link-report-player"
+                    >
+                      Report player
+                    </span>
+                  }
+                />
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

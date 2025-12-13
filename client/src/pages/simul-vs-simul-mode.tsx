@@ -20,6 +20,7 @@ import {
 import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
+import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
 import type { UserSettings } from "@shared/schema";
 
 interface SimulVsSimulBoard {
@@ -1364,6 +1365,14 @@ export default function SimulVsSimulMode() {
                       <span className="text-sm text-muted-foreground">vs {board.opponentName}</span>
                       {board.isOpponentBot && (
                         <Badge variant="outline" className="text-xs">Bot</Badge>
+                      )}
+                      {!board.isOpponentBot && board.opponentId && (
+                        <ReportPlayerDialog
+                          reportedUserId={board.opponentId}
+                          reportedUserName={board.opponentName}
+                          gameId={board.gameId}
+                          trigger={<span className="text-xs text-muted-foreground cursor-pointer hover:underline" data-testid={`link-report-player-simul-${index}`}>Report</span>}
+                        />
                       )}
                     </div>
                     <div className="flex items-center gap-2">
