@@ -5241,6 +5241,253 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error('[SimulWS] Error processing game result:', error);
           }
           
+        } else if (data.type === 'simul_offer_draw') {
+          const userId = ws.userId;
+          const { pairingId } = data;
+          
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
+            return;
+          }
+          
+          console.log(`[SimulWS] Draw offer from ${userId} for pairing ${pairingId}`);
+          
+          try {
+            const pairing = await storage.getSimulVsSimulPairing(pairingId);
+            if (!pairing || pairing.result !== 'ongoing') {
+              ws.send(JSON.stringify({ type: 'error', message: 'Game not found or already complete' }));
+              return;
+            }
+            
+            // Determine opponent
+            const isWhitePlayer = pairing.whitePlayerId === userId;
+            const opponentId = isWhitePlayer ? pairing.blackPlayerId : pairing.whitePlayerId;
+            const opponentIsBot = isWhitePlayer ? pairing.blackIsBot : pairing.whiteIsBot;
+            
+            // If opponent is a bot, auto-decline the draw
+            if (opponentIsBot) {
+              ws.send(JSON.stringify({
+                type: 'simul_draw_response',
+                pairingId,
+                accepted: false,
+              }));
+              return;
+            }
+            
+            // Send draw offer to opponent
+            if (opponentId) {
+              const opponentWs = userConnections.get(opponentId);
+              if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                opponentWs.send(JSON.stringify({
+                  type: 'simul_draw_offer',
+                  pairingId,
+                  from: userId,
+                }));
+              }
+            }
+          } catch (error) {
+            console.error('[SimulWS] Error processing draw offer:', error);
+          }
+          
+        } else if (data.type === 'simul_respond_draw') {
+          const userId = ws.userId;
+          const { pairingId, accepted } = data;
+          
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
+            return;
+          }
+          
+          console.log(`[SimulWS] Draw response from ${userId} for pairing ${pairingId}: ${accepted ? 'accepted' : 'declined'}`);
+          
+          try {
+            const pairing = await storage.getSimulVsSimulPairing(pairingId);
+            if (!pairing || pairing.result !== 'ongoing') {
+              ws.send(JSON.stringify({ type: 'error', message: 'Game not found or already complete' }));
+              return;
+            }
+            
+            // Find the opponent who made the offer
+            const isWhitePlayer = pairing.whitePlayerId === userId;
+            const opponentId = isWhitePlayer ? pairing.blackPlayerId : pairing.whitePlayerId;
+            
+            // Notify opponent of the response
+            if (opponentId) {
+              const opponentWs = userConnections.get(opponentId);
+              if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                opponentWs.send(JSON.stringify({
+                  type: 'simul_draw_response',
+                  pairingId,
+                  accepted,
+                }));
+              }
+            }
+            
+            // Also send to the responder for confirmation
+            ws.send(JSON.stringify({
+              type: 'simul_draw_response',
+              pairingId,
+              accepted,
+            }));
+            
+            // If accepted, end the game as a draw
+            if (accepted) {
+              // Get player names for the game record
+              const matchPlayers = await storage.getSimulVsSimulMatchPlayers(pairing.matchId);
+              const whitePlayerInfo = !pairing.whiteIsBot && pairing.whitePlayerId 
+                ? matchPlayers.find(mp => mp.odId === pairing.whitePlayerId) 
+                : null;
+              const blackPlayerInfo = !pairing.blackIsBot && pairing.blackPlayerId 
+                ? matchPlayers.find(mp => mp.odId === pairing.blackPlayerId) 
+                : null;
+              
+              // Create game records for both players
+              let whiteGameId: string | null = null;
+              let blackGameId: string | null = null;
+              
+              if (!pairing.whiteIsBot && pairing.whitePlayerId) {
+                const opponentName = blackPlayerInfo?.username || (pairing.blackIsBot ? `Bot ${pairing.blackBotId}` : 'Unknown');
+                const whiteGame = await storage.createGame({
+                  userId: pairing.whitePlayerId,
+                  whitePlayerId: pairing.whitePlayerId,
+                  blackPlayerId: pairing.blackPlayerId,
+                  mode: 'simul_vs_simul',
+                  status: 'completed',
+                  result: 'draw',
+                  opponentName,
+                  playerColor: 'white',
+                  timeControl: 30,
+                  fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                  moves: pairing.moves || [],
+                  thinkingTimes: [],
+                });
+                whiteGameId = whiteGame.id;
+              }
+              
+              if (!pairing.blackIsBot && pairing.blackPlayerId) {
+                const opponentName = whitePlayerInfo?.username || (pairing.whiteIsBot ? `Bot ${pairing.whiteBotId}` : 'Unknown');
+                const blackGame = await storage.createGame({
+                  userId: pairing.blackPlayerId,
+                  whitePlayerId: pairing.whitePlayerId,
+                  blackPlayerId: pairing.blackPlayerId,
+                  mode: 'simul_vs_simul',
+                  status: 'completed',
+                  result: 'draw',
+                  opponentName,
+                  playerColor: 'black',
+                  timeControl: 30,
+                  fen: pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                  moves: pairing.moves || [],
+                  thinkingTimes: [],
+                });
+                blackGameId = blackGame.id;
+              }
+              
+              await storage.updateSimulVsSimulPairing(pairingId, {
+                result: 'draw',
+                completedAt: new Date(),
+                gameId: whiteGameId || blackGameId,
+              });
+              
+              // Stop timer
+              const timer = simulTimers.get(pairingId);
+              if (timer) {
+                timer.isPaused = true;
+                timer.deadline = null;
+              }
+              
+              // Notify both players of game end
+              const room = simulPairingRooms.get(pairingId);
+              if (room) {
+                room.forEach((roomUserId) => {
+                  const playerWs = userConnections.get(roomUserId);
+                  if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                    let playerGameId: string | null = null;
+                    if (pairing.whitePlayerId && roomUserId === pairing.whitePlayerId) {
+                      playerGameId = whiteGameId;
+                    } else if (pairing.blackPlayerId && roomUserId === pairing.blackPlayerId) {
+                      playerGameId = blackGameId;
+                    }
+                    playerWs.send(JSON.stringify({
+                      type: 'simul_game_end',
+                      pairingId,
+                      result: 'draw',
+                      reason: 'agreement',
+                      gameId: playerGameId,
+                    }));
+                  }
+                });
+              }
+              
+              // Check if match is complete
+              const matchId = pairing.matchId;
+              const allPairings = await storage.getAllSimulVsSimulPairings(matchId);
+              const allComplete = allPairings.every(p => p.result !== 'ongoing');
+              
+              if (allComplete) {
+                await storage.updateSimulVsSimulMatch(matchId, {
+                  status: 'completed',
+                  completedAt: new Date(),
+                });
+                
+                // Calculate and apply Simul ELO changes
+                const ratingChanges = await calculateSimulEloChanges(matchId, allPairings, matchPlayers);
+                await applySimulEloChanges(ratingChanges);
+                
+                // Notify all players
+                const matchRoom = simulMatchRooms.get(matchId);
+                if (matchRoom) {
+                  matchRoom.forEach((roomUserId) => {
+                    const playerWs = userConnections.get(roomUserId);
+                    if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                      const playerStats = ratingChanges.get(roomUserId);
+                      playerWs.send(JSON.stringify({
+                        type: 'simul_match_complete',
+                        matchId,
+                        ratingChange: playerStats?.ratingChange || 0,
+                        humanGamesPlayed: playerStats?.humanGamesPlayed || 0,
+                        wins: playerStats?.wins || 0,
+                        losses: playerStats?.losses || 0,
+                        draws: playerStats?.draws || 0,
+                      }));
+                    }
+                  });
+                }
+                
+                // Clean up match resources
+                cleanupSimulMatch(matchId, allPairings.map(p => p.id));
+              } else {
+                // Trigger auto-switch for players who were watching this game
+                const matchFocus = simulPlayerFocus.get(pairing.matchId);
+                if (matchFocus) {
+                  for (const [playerId, focus] of matchFocus.entries()) {
+                    if (focus.activePairingId === pairingId) {
+                      const playerGames = await storage.getSimulVsSimulPlayerGames(pairing.matchId, playerId);
+                      const pairingsForSwitch = playerGames.map(p => ({
+                        id: p.id,
+                        boardNumber: p.whitePlayerId === playerId ? p.boardNumberWhite : p.boardNumberBlack,
+                        moveCount: p.moveCount,
+                        activeColor: p.activeColor as 'white' | 'black',
+                        playerColor: (p.whitePlayerId === playerId ? 'white' : 'black') as 'white' | 'black',
+                        result: p.id === pairingId ? 'draw' : p.result,
+                      }));
+                      
+                      const nextBoard = computeAutoSwitchTarget(playerId, pairingsForSwitch, pairingId);
+                      if (nextBoard && nextBoard !== pairingId) {
+                        focus.activePairingId = nextBoard;
+                        focus.pendingAck = true;
+                        focus.pendingAckTimestamp = Date.now();
+                        sendSimulFocusUpdate(playerId, pairing.matchId, nextBoard, 'auto_switch');
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[SimulWS] Error processing draw response:', error);
+          }
+          
         // ============ END SIMUL VS SIMUL WEBSOCKET HANDLERS ============
           
         } else if (data.type === 'request_rematch') {

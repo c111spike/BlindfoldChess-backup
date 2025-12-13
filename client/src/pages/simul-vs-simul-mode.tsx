@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic, Flag } from "lucide-react";
+import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic, Flag, Handshake, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
@@ -87,6 +87,8 @@ export default function SimulVsSimulMode() {
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [voiceTurnKey, setVoiceTurnKey] = useState<string | null>(null);
   const [showResignDialog, setShowResignDialog] = useState<'board' | 'all' | null>(null);
+  const [pendingDrawOffers, setPendingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with sent draw offers
+  const [incomingDrawOffers, setIncomingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with received draw offers
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
   const activeBoardRef = useRef(0);
@@ -596,6 +598,43 @@ export default function SimulVsSimulMode() {
         });
         break;
         
+      case 'simul_draw_offer':
+        {
+          const { pairingId } = data;
+          setIncomingDrawOffers(prev => new Set([...prev, pairingId]));
+          const board = boardsRef.current.find(b => b.pairingId === pairingId);
+          toast({
+            title: "Draw offer received",
+            description: `${board?.opponentName || 'Opponent'} offers a draw on Board #${board?.boardNumber || '?'}`,
+          });
+        }
+        break;
+        
+      case 'simul_draw_response':
+        {
+          const { pairingId, accepted } = data;
+          // Clear pending states
+          setPendingDrawOffers(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(pairingId);
+            return newSet;
+          });
+          setIncomingDrawOffers(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(pairingId);
+            return newSet;
+          });
+          const board = boardsRef.current.find(b => b.pairingId === pairingId);
+          if (!accepted) {
+            toast({
+              title: "Draw declined",
+              description: `Draw offer on Board #${board?.boardNumber || '?'} was declined`,
+              variant: "destructive",
+            });
+          }
+        }
+        break;
+        
       case 'simul_move_confirmed':
         break;
         
@@ -811,6 +850,52 @@ export default function SimulVsSimulMode() {
       description: `You resigned on ${ongoingBoards.length} board(s)`,
     });
   }, [handleResignBoard, toast, matchComplete]);
+  
+  // Handle draw offers
+  const handleOfferDraw = useCallback((pairingId: string) => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      toast({
+        title: "Connection error",
+        description: "Unable to send draw offer. Please check your connection.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    wsRef.current.send(JSON.stringify({
+      type: 'simul_offer_draw',
+      pairingId,
+    }));
+    
+    setPendingDrawOffers(prev => new Set([...prev, pairingId]));
+    toast({
+      title: "Draw offered",
+      description: "Waiting for opponent's response",
+    });
+  }, [toast]);
+  
+  const handleRespondDraw = useCallback((pairingId: string, accepted: boolean) => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      toast({
+        title: "Connection error",
+        description: "Unable to respond to draw offer. Please check your connection.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    wsRef.current.send(JSON.stringify({
+      type: 'simul_respond_draw',
+      pairingId,
+      accepted,
+    }));
+    
+    setIncomingDrawOffers(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(pairingId);
+      return newSet;
+    });
+  }, [toast]);
   
   // Check if a move is a pawn promotion
   const isPromotionMove = (chess: Chess, from: string, to: string): boolean => {
@@ -1265,30 +1350,75 @@ export default function SimulVsSimulMode() {
                 {getScoreSummary().wins}W · {getScoreSummary().losses}L · {getScoreSummary().draws}D
               </div>
             </div>
-            {/* Resign buttons at top for visibility */}
+            {/* Draw offer and Resign buttons at top for visibility */}
             {!matchComplete && boards.some(b => b.result === 'ongoing') && (
-              <div className="flex gap-2 pt-2">
-                {activeGame?.result === 'ongoing' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setShowResignDialog('board')}
-                    data-testid="button-resign-board-sidebar"
-                  >
-                    <Flag className="h-4 w-4 mr-2" />
-                    Resign Board
-                  </Button>
+              <div className="space-y-2 pt-2">
+                {/* Incoming draw offer - accept/decline UI */}
+                {activeGame?.result === 'ongoing' && incomingDrawOffers.has(activeGame.pairingId) && (
+                  <div className="flex items-center gap-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-md">
+                    <Handshake className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                    <span className="text-sm flex-1">Draw offered</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => handleRespondDraw(activeGame.pairingId, true)}
+                      data-testid="button-accept-draw"
+                    >
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => handleRespondDraw(activeGame.pairingId, false)}
+                      data-testid="button-decline-draw"
+                    >
+                      <X className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
                 )}
+                <div className="flex gap-2">
+                  {activeGame?.result === 'ongoing' && !activeGame.isOpponentBot && !pendingDrawOffers.has(activeGame.pairingId) && !incomingDrawOffers.has(activeGame.pairingId) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleOfferDraw(activeGame.pairingId)}
+                      data-testid="button-offer-draw"
+                    >
+                      <Handshake className="h-4 w-4 mr-2" />
+                      Offer Draw
+                    </Button>
+                  )}
+                  {activeGame?.result === 'ongoing' && pendingDrawOffers.has(activeGame.pairingId) && (
+                    <Badge variant="secondary" className="flex-1 justify-center py-1.5">
+                      <Handshake className="h-4 w-4 mr-2" />
+                      Draw pending...
+                    </Badge>
+                  )}
+                  {activeGame?.result === 'ongoing' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setShowResignDialog('board')}
+                      data-testid="button-resign-board-sidebar"
+                    >
+                      <Flag className="h-4 w-4 mr-2" />
+                      Resign
+                    </Button>
+                  )}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1"
+                  className="w-full"
                   onClick={() => setShowResignDialog('all')}
                   data-testid="button-resign-all-top"
                 >
                   <Flag className="h-4 w-4 mr-2" />
-                  Resign All
+                  Resign All Boards
                 </Button>
               </div>
             )}
