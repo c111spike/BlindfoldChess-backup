@@ -1071,6 +1071,7 @@ export default function OTBMode() {
     setOpponentHandshakeViolation(false);
     setTouchedPiece(null);
     setOpponentName("Practice Partner");
+    setOpponentId(null);
     setOpponentRating(1200);
     setIsBotGame(false);
     setSelectedBot(null);
@@ -1166,6 +1167,7 @@ export default function OTBMode() {
     setPlayerColor(assignedColor);
     
     setOpponentName(bot.name);
+    setOpponentId(null);
     setOpponentRating(bot.elo);
     
     const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
