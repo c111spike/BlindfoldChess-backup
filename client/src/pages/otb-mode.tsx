@@ -142,6 +142,10 @@ export default function OTBMode() {
   const [opponentWantsRematch, setOpponentWantsRematch] = useState(false);
   const [rematchDeclined, setRematchDeclined] = useState(false);
   
+  // Draw offer state
+  const [drawOffered, setDrawOffered] = useState(false);
+  const [opponentOfferedDraw, setOpponentOfferedDraw] = useState(false);
+  
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
   const whiteTimeRef = useRef(180);
@@ -597,6 +601,8 @@ export default function OTBMode() {
       setHasMadeMove(false);
       setPendingCheckmate(null);
       setArbiterPending(false);
+      setDrawOffered(false);
+      setOpponentOfferedDraw(false);
       
       gameStartTimeRef.current = Date.now();
       
@@ -613,7 +619,40 @@ export default function OTBMode() {
     }
   }, [playerColor, timeControl, toast]);
 
-  const { sendMove, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, sendRematchRequest, sendRematchResponse, joinMatch, isConnected, isAuthenticated } = useWebSocket({
+  // Draw offer handlers
+  const handleDrawOfferReceived = useCallback((data: { matchId: string; from: string }) => {
+    if (data.matchId !== matchId) return;
+    console.log('[OTB] Opponent offered draw');
+    setOpponentOfferedDraw(true);
+    toast({
+      title: "Draw Offer",
+      description: "Your opponent offers a draw. Accept or decline.",
+    });
+  }, [matchId, toast]);
+
+  const handleDrawResponse = useCallback((data: { matchId: string; accepted: boolean }) => {
+    if (data.matchId !== matchId) return;
+    console.log('[OTB] Draw response:', data.accepted);
+    setDrawOffered(false);
+    
+    if (data.accepted) {
+      // Draw was accepted - end the game
+      if (handleGameEndRef.current) {
+        handleGameEndRef.current("draw");
+      }
+      toast({
+        title: "Draw Accepted",
+        description: "The game is a draw by agreement.",
+      });
+    } else {
+      toast({
+        title: "Draw Declined",
+        description: "Your opponent declined the draw offer.",
+      });
+    }
+  }, [matchId, toast]);
+
+  const { sendMove, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, sendRematchRequest, sendRematchResponse, sendDrawOffer, sendDrawResponse, joinMatch, isConnected, isAuthenticated } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
@@ -624,6 +663,8 @@ export default function OTBMode() {
     onJoinedMatch: handleJoinedMatch,
     onRematchRequest: handleRematchRequest,
     onRematchResponse: handleRematchResponse,
+    onDrawOffer: handleDrawOfferReceived,
+    onDrawResponse: handleDrawResponse,
   });
 
   useEffect(() => {
@@ -2046,11 +2087,41 @@ export default function OTBMode() {
   };
 
   const handleOfferDraw = () => {
-    handleGameEnd("draw");
+    // For bot games, accept the draw immediately
+    if (isBotGame) {
+      handleGameEnd("draw");
+      return;
+    }
     
-    // Notify opponent via WebSocket
+    // For multiplayer, send a draw offer and wait for response
     if (matchId) {
-      sendGameEnd(matchId, "draw", "Game drawn by agreement");
+      setDrawOffered(true);
+      sendDrawOffer(matchId);
+      toast({
+        title: "Draw Offered",
+        description: "Waiting for opponent's response...",
+      });
+    }
+  };
+
+  // Handle accepting draw offer from opponent
+  const handleAcceptDraw = () => {
+    if (matchId) {
+      sendDrawResponse(matchId, true);
+      setOpponentOfferedDraw(false);
+      handleGameEnd("draw");
+    }
+  };
+
+  // Handle declining draw offer from opponent
+  const handleDeclineDraw = () => {
+    if (matchId) {
+      sendDrawResponse(matchId, false);
+      setOpponentOfferedDraw(false);
+      toast({
+        title: "Draw Declined",
+        description: "You declined the draw offer.",
+      });
     }
   };
 
@@ -2780,10 +2851,29 @@ export default function OTBMode() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleOfferDraw} data-testid="button-offer-draw">
-                    <HandshakeIcon className="mr-1 h-3 w-3" />
-                    Draw
-                  </Button>
+                  {opponentOfferedDraw ? (
+                    <>
+                      <Button variant="default" size="sm" onClick={handleAcceptDraw} data-testid="button-accept-draw">
+                        <CheckCircle className="mr-1 h-3 w-3" />
+                        Accept Draw
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleDeclineDraw} data-testid="button-decline-draw">
+                        <XCircle className="mr-1 h-3 w-3" />
+                        Decline
+                      </Button>
+                    </>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleOfferDraw} 
+                      disabled={drawOffered}
+                      data-testid="button-offer-draw"
+                    >
+                      <HandshakeIcon className="mr-1 h-3 w-3" />
+                      {drawOffered ? "Draw Offered..." : "Draw"}
+                    </Button>
+                  )}
                   <Button variant="destructive" size="sm" onClick={handleResign} data-testid="button-resign">
                     <Flag className="mr-1 h-3 w-3" />
                     Resign

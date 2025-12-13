@@ -4469,22 +4469,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (!matchId || !userId) return;
           
+          // Send arbiter ruling to ALL players in the match (including sender)
+          // Both players need to see the ruling to update their boards, times, and violation counters
           const roomUsers = matchRooms.get(matchId);
           if (roomUsers) {
             roomUsers.forEach((roomUserId) => {
-              if (roomUserId !== userId) {
-                const opponentWs = userConnections.get(roomUserId);
-                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
-                  opponentWs.send(JSON.stringify({
-                    type: 'arbiter_ruling',
-                    matchId: matchId,
-                    ruling: data.ruling,
-                    violatorId: data.violatorId,
-                    timeAdjustment: data.timeAdjustment,
-                    forfeit: data.forfeit,
-                    forfeitReason: data.forfeitReason,
-                  }));
-                }
+              const playerWs = userConnections.get(roomUserId);
+              if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                playerWs.send(JSON.stringify({
+                  type: 'arbiter_ruling',
+                  matchId: matchId,
+                  ruling: data.ruling,
+                  violatorId: data.violatorId,
+                  timeAdjustment: data.timeAdjustment,
+                  forfeit: data.forfeit,
+                  forfeitReason: data.forfeitReason,
+                }));
               }
             });
           }
