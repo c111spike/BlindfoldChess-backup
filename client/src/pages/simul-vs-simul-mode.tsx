@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic } from "lucide-react";
+import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
@@ -86,6 +86,7 @@ export default function SimulVsSimulMode() {
   const [isVoiceListening, setIsVoiceListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [voiceTurnKey, setVoiceTurnKey] = useState<string | null>(null);
+  const [showResignDialog, setShowResignDialog] = useState<'board' | 'all' | null>(null);
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
   const activeBoardRef = useRef(0);
@@ -761,6 +762,56 @@ export default function SimulVsSimulMode() {
     setLegalMoves([]);
   };
   
+  const handleResignBoard = useCallback((boardIndex: number, showToast: boolean = true) => {
+    const board = boardsRef.current[boardIndex];
+    if (!board || board.result !== 'ongoing') return;
+    if (matchComplete || promotionPendingRef.current) return;
+    
+    const result = board.color === 'white' ? 'black_win' : 'white_win';
+    
+    updateBoardsFn(prev => {
+      const newBoards = [...prev];
+      newBoards[boardIndex] = { ...newBoards[boardIndex], result };
+      return newBoards;
+    });
+    
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'simul_game_result',
+        pairingId: board.pairingId,
+        result,
+        reason: 'resignation',
+        thinkingTimes: board.thinkingTimes,
+      }));
+    }
+    
+    if (showToast) {
+      toast({
+        title: "Board Resigned",
+        description: `You resigned on Board #${board.boardNumber}`,
+      });
+    }
+  }, [updateBoardsFn, toast, matchComplete]);
+  
+  const handleResignAllBoards = useCallback(() => {
+    if (matchComplete || promotionPendingRef.current) return;
+    
+    const ongoingBoards = boardsRef.current.filter(b => b.result === 'ongoing');
+    if (ongoingBoards.length === 0) return;
+    
+    ongoingBoards.forEach((board) => {
+      const boardIndex = boardsRef.current.findIndex(b => b.pairingId === board.pairingId);
+      if (boardIndex >= 0) {
+        handleResignBoard(boardIndex, false);
+      }
+    });
+    
+    toast({
+      title: "All Boards Resigned",
+      description: `You resigned on ${ongoingBoards.length} board(s)`,
+    });
+  }, [handleResignBoard, toast, matchComplete]);
+  
   // Check if a move is a pawn promotion
   const isPromotionMove = (chess: Chess, from: string, to: string): boolean => {
     const piece = chess.get(from as any);
@@ -1167,6 +1218,19 @@ export default function SimulVsSimulMode() {
                 lastMoveSquares={activeGame.lastMove ? [activeGame.lastMove.from, activeGame.lastMove.to] : []}
               />
             </div>
+            {activeGame.result === 'ongoing' && (
+              <div className="flex items-center justify-center gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowResignDialog('board')}
+                  data-testid="button-resign-board"
+                >
+                  <Flag className="h-4 w-4 mr-2" />
+                  Resign Board
+                </Button>
+              </div>
+            )}
             {activeGame.result !== 'ongoing' && (
               <div className="flex items-center justify-center gap-4">
                 <Badge
@@ -1295,6 +1359,19 @@ export default function SimulVsSimulMode() {
               })}
             </div>
           </ScrollArea>
+          {!matchComplete && boards.some(b => b.result === 'ongoing') && (
+            <div className="p-4 border-t">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowResignDialog('all')}
+                data-testid="button-resign-all"
+              >
+                <Flag className="h-4 w-4 mr-2" />
+                Resign All Boards
+              </Button>
+            </div>
+          )}
           {matchComplete && (
             <div className="p-4 border-t">
               <Button
@@ -1474,6 +1551,47 @@ export default function SimulVsSimulMode() {
             >
               <span className="text-4xl" aria-hidden="true">{pendingPromotion && boards[pendingPromotion.boardIndex]?.color === 'white' ? '♘' : '♞'}</span>
               <span className="text-xs mt-1">Knight</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Resign Confirmation Dialog */}
+      <Dialog open={showResignDialog !== null} onOpenChange={(open) => !open && setShowResignDialog(null)}>
+        <DialogContent data-testid="dialog-resign-confirm">
+          <DialogHeader>
+            <DialogTitle>
+              {showResignDialog === 'all' ? 'Resign All Boards?' : 'Resign This Board?'}
+            </DialogTitle>
+            <DialogDescription>
+              {showResignDialog === 'all' 
+                ? `You are about to resign all ${boards.filter(b => b.result === 'ongoing').length} ongoing game(s). This action cannot be undone.`
+                : `You are about to resign on Board #${boards[activeBoard]?.boardNumber || '?'} against ${boards[activeBoard]?.opponentName || 'opponent'}. This action cannot be undone.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowResignDialog(null)}
+              data-testid="button-resign-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (showResignDialog === 'all') {
+                  handleResignAllBoards();
+                } else if (showResignDialog === 'board') {
+                  handleResignBoard(activeBoard);
+                }
+                setShowResignDialog(null);
+              }}
+              data-testid="button-resign-confirm"
+            >
+              <Flag className="h-4 w-4 mr-2" />
+              {showResignDialog === 'all' ? 'Resign All' : 'Resign'}
             </Button>
           </div>
         </DialogContent>
