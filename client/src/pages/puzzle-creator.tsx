@@ -30,7 +30,9 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  Sparkles
+  Sparkles,
+  Undo2,
+  MousePointerClick
 } from "lucide-react";
 
 interface MoveVerification {
@@ -158,8 +160,118 @@ export default function PuzzleCreator() {
   const [moveVerifications, setMoveVerifications] = useState<Record<number, MoveVerification>>({});
   const [verifyingMoveIndex, setVerifyingMoveIndex] = useState<number | null>(null);
   
+  // Interactive solution board state
+  const [selectedSolutionSquare, setSelectedSolutionSquare] = useState<string | null>(null);
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  
   const displayRanks = orientation === "white" ? RANKS : [...RANKS].reverse();
   const displayFiles = orientation === "white" ? FILES : [...FILES].reverse();
+  
+  // Compute the current working position (after all valid solution moves)
+  const getWorkingPosition = useCallback(() => {
+    const baseFen = boardToFen(board, whoToMove);
+    const validMoves = solutionMoves.filter(m => m.trim());
+    
+    if (validMoves.length === 0) {
+      return { fen: baseFen, board: board };
+    }
+    
+    try {
+      const chess = new Chess(baseFen);
+      for (const move of validMoves) {
+        const result = chess.move(move);
+        if (!result) {
+          return { fen: baseFen, board: board };
+        }
+      }
+      return { fen: chess.fen(), board: fenToBoard(chess.fen()) };
+    } catch {
+      return { fen: baseFen, board: board };
+    }
+  }, [board, whoToMove, solutionMoves]);
+  
+  const workingPosition = getWorkingPosition();
+  
+  // Handle click on the solution preview board
+  const handleSolutionSquareClick = useCallback((square: string) => {
+    const workingFen = workingPosition.fen;
+    
+    try {
+      const chess = new Chess(workingFen);
+      const piece = chess.get(square as any);
+      
+      if (selectedSolutionSquare) {
+        // Try to make a move
+        try {
+          const move = chess.move({
+            from: selectedSolutionSquare as any,
+            to: square as any,
+            promotion: 'q' // Auto-promote to queen for simplicity
+          });
+          
+          if (move) {
+            // Get current valid moves (non-empty)
+            const currentValidMoves = solutionMoves.filter(m => m.trim());
+            // Insert the new move and keep an empty placeholder at end for manual entry
+            const newMoves = [...currentValidMoves, move.san, ''];
+            setSolutionMoves(newMoves);
+            toast({ title: "Move Added", description: `${move.san} added to solution` });
+          }
+        } catch {
+          // Invalid move, check if clicking on own piece to re-select
+          if (piece && ((chess.turn() === 'w' && piece.color === 'w') || (chess.turn() === 'b' && piece.color === 'b'))) {
+            setSelectedSolutionSquare(square);
+            const moves = chess.moves({ square: square as any, verbose: true });
+            setLegalMoves(moves.map(m => m.to));
+            return;
+          }
+        }
+        setSelectedSolutionSquare(null);
+        setLegalMoves([]);
+      } else {
+        // First click - select a piece if it belongs to the side to move
+        if (piece && ((chess.turn() === 'w' && piece.color === 'w') || (chess.turn() === 'b' && piece.color === 'b'))) {
+          setSelectedSolutionSquare(square);
+          const moves = chess.moves({ square: square as any, verbose: true });
+          setLegalMoves(moves.map(m => m.to));
+        } else {
+          // Clicking on empty square or opponent piece - clear selection
+          setSelectedSolutionSquare(null);
+          setLegalMoves([]);
+        }
+      }
+    } catch (e) {
+      console.error("Error handling solution square click:", e);
+      setSelectedSolutionSquare(null);
+      setLegalMoves([]);
+    }
+  }, [selectedSolutionSquare, workingPosition.fen, solutionMoves, toast]);
+  
+  // Undo last solution move
+  const undoLastSolutionMove = useCallback(() => {
+    const validMoves = solutionMoves.filter(m => m.trim());
+    if (validMoves.length > 0) {
+      const newMoves = validMoves.slice(0, -1);
+      // Always keep an empty placeholder at the end for manual entry
+      setSolutionMoves(newMoves.length > 0 ? [...newMoves, ''] : ['']);
+      // Clear verification for removed move
+      const newVerifications = { ...moveVerifications };
+      delete newVerifications[validMoves.length - 1];
+      setMoveVerifications(newVerifications);
+      setSelectedSolutionSquare(null);
+      setLegalMoves([]);
+      toast({ title: "Move Undone", description: "Last solution move removed" });
+    }
+  }, [solutionMoves, moveVerifications, toast]);
+  
+  // Clear all solution moves
+  const clearAllSolutionMoves = useCallback(() => {
+    setSolutionMoves(['']);
+    setMoveVerifications({});
+    setSelectedSolutionSquare(null);
+    setLegalMoves([]);
+    toast({ title: "Cleared", description: "All solution moves cleared" });
+  }, [toast]);
 
   const handleSquareClick = useCallback((rankIdx: number, fileIdx: number) => {
     const actualRank = displayRanks[rankIdx];
@@ -740,23 +852,79 @@ export default function PuzzleCreator() {
                 )}
 
                 <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-2">Position Preview</h4>
-                  <div className="aspect-square max-w-[200px] mx-auto border rounded overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <MousePointerClick className="h-4 w-4" />
+                      Interactive Board
+                    </h4>
+                    <div className="flex gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={undoLastSolutionMove}
+                            disabled={solutionMoves.filter(m => m.trim()).length === 0}
+                            data-testid="button-undo-solution-move"
+                          >
+                            <Undo2 className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Undo last move</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={clearAllSolutionMoves}
+                            disabled={solutionMoves.filter(m => m.trim()).length === 0}
+                            data-testid="button-clear-solution-moves"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Clear all moves</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Click pieces to make moves and build your solution
+                  </p>
+                  <div className="aspect-square max-w-[250px] mx-auto border-2 border-foreground/20 rounded overflow-visible">
                     <div className="grid grid-cols-8 grid-rows-8 gap-0 w-full h-full">
                       {RANKS.map((rank, rankIdx) =>
                         FILES.map((file, fileIdx) => {
-                          const piece = board[rankIdx]?.[fileIdx];
+                          const square = `${file}${rank}`;
+                          const workingBoard = workingPosition.board;
+                          const piece = workingBoard[rankIdx]?.[fileIdx];
+                          const isSelected = selectedSolutionSquare === square;
+                          const isLegalTarget = legalMoves.includes(square);
+                          
                           return (
                             <div
-                              key={`${file}${rank}`}
-                              className={`flex items-center justify-center ${getSquareColor(fileIdx, rankIdx)}`}
+                              key={square}
+                              data-testid={`solution-square-${square}`}
+                              onClick={() => handleSolutionSquareClick(square)}
+                              className={`
+                                relative flex items-center justify-center cursor-pointer transition-all
+                                ${getSquareColor(fileIdx, rankIdx)}
+                                ${isSelected ? "ring-2 ring-primary ring-inset" : ""}
+                                ${isLegalTarget ? "ring-2 ring-green-500 ring-inset" : ""}
+                                hover:brightness-110
+                              `}
                             >
                               {piece && (
-                                <span className={`text-xs select-none ${
+                                <span className={`text-sm select-none ${
                                   piece === piece.toUpperCase() ? "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]" : "text-black"
                                 }`}>
                                   {PIECE_SYMBOLS[piece]}
                                 </span>
+                              )}
+                              {isLegalTarget && !piece && (
+                                <div className="w-2 h-2 rounded-full bg-green-500/60" />
                               )}
                             </div>
                           );
@@ -764,9 +932,23 @@ export default function PuzzleCreator() {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-center text-muted-foreground mt-2">
-                    {whoToMove === "white" ? "White" : "Black"} to move
-                  </p>
+                  <div className="text-center mt-2 space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      {(() => {
+                        try {
+                          const chess = new Chess(workingPosition.fen);
+                          return chess.turn() === 'w' ? "White" : "Black";
+                        } catch {
+                          return whoToMove === "white" ? "White" : "Black";
+                        }
+                      })()} to move
+                    </p>
+                    {solutionMoves.filter(m => m.trim()).length > 0 && (
+                      <p className="text-xs text-primary">
+                        {solutionMoves.filter(m => m.trim()).length} move{solutionMoves.filter(m => m.trim()).length !== 1 ? 's' : ''} in solution
+                      </p>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
