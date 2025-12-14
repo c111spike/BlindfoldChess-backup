@@ -980,7 +980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           game: !isSimul && userGames.length > 0 ? userGames[0] : undefined,
           boardCount: isSimul ? userGames.length : undefined,
           opponentId,
-          opponent: { name: opponentName, rating: opponentRating },
+          opponent: { id: opponentId, name: opponentName, rating: opponentRating },
           playerRating,
         });
       }
@@ -1099,7 +1099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           games: userGames,
           boardCount,
           opponentId,
-          opponent: { name: opponentName, rating: opponentRating },
+          opponent: { id: opponentId, name: opponentName, rating: opponentRating },
           playerRating,
         });
       } else {
@@ -1111,7 +1111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             playerColor: userGames[0].playerColor || "white"
           }, 
           opponentId,
-          opponent: { name: opponentName, rating: opponentRating },
+          opponent: { id: opponentId, name: opponentName, rating: opponentRating },
           playerRating,
         });
       }
