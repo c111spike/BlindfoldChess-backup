@@ -150,6 +150,7 @@ export default function OTBMode() {
   
   const gameRef = useRef<Chess | null>(null);
   const gameIdRef = useRef<string | null>(null);
+  const matchIdRef = useRef<string | null>(null);
   const whiteTimeRef = useRef(180);
   const blackTimeRef = useRef(180);
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -162,9 +163,10 @@ export default function OTBMode() {
   useEffect(() => {
     gameRef.current = game;
     gameIdRef.current = gameId;
+    matchIdRef.current = matchId;
     whiteTimeRef.current = whiteTime;
     blackTimeRef.current = blackTime;
-  }, [game, gameId, whiteTime, blackTime]);
+  }, [game, gameId, matchId, whiteTime, blackTime]);
 
   // Keep legalChessGameRef in sync to avoid stale closure issues in executeBotTurn
   useEffect(() => {
@@ -219,7 +221,8 @@ export default function OTBMode() {
   };
 
   const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number; from?: string; to?: string; piece?: string; captured?: string; promotion?: string }) => {
-    if (data.matchId !== matchId) return;
+    // Use ref to get the latest matchId value and avoid stale closure issues
+    if (data.matchId !== matchIdRef.current) return;
     
     console.log('[OTB] Received opponent message:', data.move);
     
@@ -340,7 +343,8 @@ export default function OTBMode() {
   }, [matchId, toast, playerColor]);
 
   const handleArbiterCall = useCallback((data: { matchId: string; callerId: string; moveIndex: number }) => {
-    if (data.matchId !== matchId) return;
+    // Use ref to get the latest matchId value and avoid stale closure issues
+    if (data.matchId !== matchIdRef.current) return;
     
     setArbiterPending(true);
     toast({
@@ -359,15 +363,18 @@ export default function OTBMode() {
     previousFen?: string;
     claimType?: "unsportsmanlike" | "illegal" | "distraction";
   }) => {
+    // Use ref to get the latest matchId value and avoid stale closure issues
+    const currentMatchId = matchIdRef.current;
+    
     console.log('[OTB Arbiter RECV] handleArbiterRuling called');
     console.log('[OTB Arbiter RECV] Full data:', JSON.stringify(data));
-    console.log('[OTB Arbiter RECV] Current matchId state:', matchId);
+    console.log('[OTB Arbiter RECV] Current matchId (from ref):', currentMatchId);
     console.log('[OTB Arbiter RECV] Current user.id:', user?.id);
     console.log('[OTB Arbiter RECV] Am I violator?', data.violatorId === user?.id);
     console.log('[OTB Arbiter RECV] previousFen present?', !!data.previousFen);
     
-    if (data.matchId !== matchId) {
-      console.log('[OTB Arbiter RECV] REJECTING - matchId mismatch:', data.matchId, '!==', matchId);
+    if (data.matchId !== currentMatchId) {
+      console.log('[OTB Arbiter RECV] REJECTING - matchId mismatch:', data.matchId, '!==', currentMatchId);
       return;
     }
     
@@ -504,7 +511,8 @@ export default function OTBMode() {
   }, [toast]);
 
   const handleOpponentHandshake = useCallback((data: { matchId: string }) => {
-    if (data.matchId !== matchId) return;
+    // Use ref to get the latest matchId value and avoid stale closure issues
+    if (data.matchId !== matchIdRef.current) return;
     console.log('[OTB] Opponent offered handshake');
     
     // Track if opponent offered handshake before their first move
@@ -597,7 +605,8 @@ export default function OTBMode() {
 
   // Rematch handlers
   const handleRematchRequest = useCallback((data: { matchId: string; from: string }) => {
-    if (data.matchId !== matchId) return;
+    // Use ref to get the latest matchId value and avoid stale closure issues
+    if (data.matchId !== matchIdRef.current) return;
     console.log('[OTB] Opponent wants rematch');
     setOpponentWantsRematch(true);
     toast({
@@ -615,6 +624,7 @@ export default function OTBMode() {
       setRematchDeclined(false);
       setGameResult(null);
       setMatchId(data.newMatchId);
+      matchIdRef.current = data.newMatchId; // Sync ref immediately to avoid stale closure issues
       
       const newGame = new Chess();
       setGame(newGame);
@@ -673,7 +683,8 @@ export default function OTBMode() {
 
   // Draw offer handlers
   const handleDrawOfferReceived = useCallback((data: { matchId: string; from: string }) => {
-    if (data.matchId !== matchId) return;
+    // Use ref to get the latest matchId value and avoid stale closure issues
+    if (data.matchId !== matchIdRef.current) return;
     console.log('[OTB] Opponent offered draw');
     setOpponentOfferedDraw(true);
     toast({
@@ -683,7 +694,8 @@ export default function OTBMode() {
   }, [matchId, toast]);
 
   const handleDrawResponse = useCallback((data: { matchId: string; accepted: boolean }) => {
-    if (data.matchId !== matchId) return;
+    // Use ref to get the latest matchId value and avoid stale closure issues
+    if (data.matchId !== matchIdRef.current) return;
     console.log('[OTB] Draw response:', data.accepted);
     setDrawOffered(false);
     
@@ -850,6 +862,7 @@ export default function OTBMode() {
           
           setGameId(response.game.id);
           setMatchId(response.matchId);
+          matchIdRef.current = response.matchId; // Sync ref immediately to avoid stale closure issues
           
           const chess = new Chess();
           setGame(chess);
@@ -2798,6 +2811,7 @@ export default function OTBMode() {
                             setGameStarted(false);
                             setGameId(null);
                             setMatchId(null);
+                            matchIdRef.current = null; // Sync ref immediately to avoid stale closure issues
                             setMoves([]);
                             setBoardState(INITIAL_BOARD.map(row => [...row]));
                             setSelectedSquare(null);
