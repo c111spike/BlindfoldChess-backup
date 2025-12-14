@@ -275,6 +275,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
             }
             break;
           case 'arbiter_ruling':
+            console.log('[useWebSocket] Received arbiter_ruling:', JSON.stringify(message));
+            console.log('[useWebSocket] previousFen present?', !!message.previousFen, 'value:', message.previousFen);
+            console.log('[useWebSocket] claimType:', message.claimType, 'ruling:', message.ruling);
             if (onArbiterRulingRef.current) {
               onArbiterRulingRef.current({
                 matchId: message.matchId,
