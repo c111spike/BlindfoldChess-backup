@@ -359,15 +359,19 @@ export default function OTBMode() {
     previousFen?: string;
     claimType?: "unsportsmanlike" | "illegal" | "distraction";
   }) => {
-    console.log('[OTB] handleArbiterRuling called with:', data);
-    console.log('[OTB] Current matchId:', matchId, 'Data matchId:', data.matchId);
+    console.log('[OTB Arbiter RECV] handleArbiterRuling called');
+    console.log('[OTB Arbiter RECV] Full data:', JSON.stringify(data));
+    console.log('[OTB Arbiter RECV] Current matchId state:', matchId);
+    console.log('[OTB Arbiter RECV] Current user.id:', user?.id);
+    console.log('[OTB Arbiter RECV] Am I violator?', data.violatorId === user?.id);
+    console.log('[OTB Arbiter RECV] previousFen present?', !!data.previousFen);
     
     if (data.matchId !== matchId) {
-      console.log('[OTB] handleArbiterRuling: matchId mismatch, ignoring');
+      console.log('[OTB Arbiter RECV] REJECTING - matchId mismatch:', data.matchId, '!==', matchId);
       return;
     }
     
-    console.log('[OTB] handleArbiterRuling: Processing ruling...');
+    console.log('[OTB Arbiter RECV] ACCEPTING - Processing ruling for claimType:', data.claimType);
     setArbiterPending(false);
     
     if (data.forfeit) {
@@ -409,7 +413,9 @@ export default function OTBMode() {
       // Reset the board for BOTH players when a move is ruled illegal (only for illegal move claims)
       // Use the previousFen from the message to restore complete board state
       // This ensures both players have identical positions including castling/en-passant rights
+      console.log('[OTB Arbiter RECV] Ruling is illegal, checking for board reset. claimType:', claimType, 'previousFen present:', !!data.previousFen);
       if (claimType === "illegal" && data.previousFen) {
+        console.log('[OTB Arbiter RECV] RESETTING BOARD to previousFen:', data.previousFen);
         // Rebuild board from FEN
         const fenParts = data.previousFen.split(' ')[0];
         const rows = fenParts.split('/');
@@ -2130,6 +2136,14 @@ export default function OTBMode() {
       if (matchId && opponentId) {
         // Multiplayer: send WebSocket message - broadcast will apply changes for both players
         // Pass claimType so both players get claim-type specific messages
+        console.log('[OTB Arbiter SEND] Sending arbiter ruling:', {
+          matchId,
+          ruling: "illegal",
+          violatorId: opponentId,
+          timeAdj,
+          previousFen: previousFen ? previousFen.substring(0, 50) + '...' : 'undefined',
+          claimType,
+        });
         sendArbiterRuling(matchId, "illegal", opponentId, timeAdj, false, undefined, previousFen, claimType);
       } else {
         // Bot game or no matchId: apply changes locally
