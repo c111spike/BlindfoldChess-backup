@@ -357,9 +357,17 @@ export default function OTBMode() {
     forfeit?: boolean;
     forfeitReason?: string;
     previousFen?: string;
+    claimType?: "unsportsmanlike" | "illegal" | "distraction";
   }) => {
-    if (data.matchId !== matchId) return;
+    console.log('[OTB] handleArbiterRuling called with:', data);
+    console.log('[OTB] Current matchId:', matchId, 'Data matchId:', data.matchId);
     
+    if (data.matchId !== matchId) {
+      console.log('[OTB] handleArbiterRuling: matchId mismatch, ignoring');
+      return;
+    }
+    
+    console.log('[OTB] handleArbiterRuling: Processing ruling...');
     setArbiterPending(false);
     
     if (data.forfeit) {
@@ -383,11 +391,25 @@ export default function OTBMode() {
     setWhiteTime(prev => prev + data.timeAdjustment.white);
     setBlackTime(prev => prev + data.timeAdjustment.black);
     
+    // Claim-type specific messages for valid claims
+    const validClaimMessagesYou: Record<string, string> = {
+      unsportsmanlike: "You failed to offer handshake! Opponent gains 2 minutes.",
+      illegal: "Your move was illegal! Opponent gains 2 minutes.",
+      distraction: "You were distracting opponent! Opponent gains 2 minutes.",
+    };
+    const validClaimMessagesOpponent: Record<string, string> = {
+      unsportsmanlike: "Opponent failed to offer handshake! You gain 2 minutes.",
+      illegal: "Opponent's move was illegal! You gain 2 minutes.",
+      distraction: "Opponent was distracting you! You gain 2 minutes.",
+    };
+    
+    const claimType = data.claimType || "illegal";
+    
     if (data.ruling === "illegal") {
-      // Reset the board for BOTH players when a move is ruled illegal
+      // Reset the board for BOTH players when a move is ruled illegal (only for illegal move claims)
       // Use the previousFen from the message to restore complete board state
       // This ensures both players have identical positions including castling/en-passant rights
-      if (data.previousFen) {
+      if (claimType === "illegal" && data.previousFen) {
         // Rebuild board from FEN
         const fenParts = data.previousFen.split(' ')[0];
         const rows = fenParts.split('/');
@@ -423,21 +445,21 @@ export default function OTBMode() {
       }
       
       if (data.violatorId === user?.id) {
-        setMyViolations(prev => ({ ...prev, illegal: prev.illegal + 1 }));
-        setArbiterResult({ type: "illegal", message: "Your move was illegal! Opponent gains 2 minutes." });
+        setMyViolations(prev => ({ ...prev, [claimType]: prev[claimType] + 1 }));
+        setArbiterResult({ type: "illegal", message: validClaimMessagesYou[claimType] });
       } else {
-        setOpponentViolations(prev => ({ ...prev, illegal: prev.illegal + 1 }));
-        setArbiterResult({ type: "illegal", message: "Opponent's move was illegal! You gain 2 minutes." });
+        setOpponentViolations(prev => ({ ...prev, [claimType]: prev[claimType] + 1 }));
+        setArbiterResult({ type: "illegal", message: validClaimMessagesOpponent[claimType] });
       }
     } else {
       // For "legal" rulings (false claims), violatorId is the person who made the false claim
       if (data.violatorId === user?.id) {
         // I made the false claim, so increment MY false claims
-        setMyFalseClaims(prev => ({ ...prev, illegal: prev.illegal + 1 }));
+        setMyFalseClaims(prev => ({ ...prev, [claimType]: prev[claimType] + 1 }));
         setArbiterResult({ type: "legal", message: "Move was legal! Your claim was false - opponent gains 2 minutes." });
       } else {
         // Opponent made a false claim against me
-        setOpponentFalseClaims(prev => ({ ...prev, illegal: prev.illegal + 1 }));
+        setOpponentFalseClaims(prev => ({ ...prev, [claimType]: prev[claimType] + 1 }));
         setArbiterResult({ type: "legal", message: "Move was legal! Opponent made a false claim. You gain 2 minutes." });
       }
     }
@@ -2092,15 +2114,63 @@ export default function OTBMode() {
         }
       }
       
-      // Send arbiter ruling to opponent via WebSocket - DON'T apply changes locally!
-      // handleArbiterRuling will apply time/board changes uniformly for BOTH players
-      // when the WebSocket message is broadcast back (including to the caller)
-      // Time adjustment: claimant (me) gains time when claim is valid
+      // For multiplayer games, send arbiter ruling via WebSocket - handleArbiterRuling will apply changes
+      // For bot games (no matchId), apply changes locally immediately
+      const timeAdj = playerColor === "white" 
+        ? { white: 120, black: 0 } 
+        : { white: 0, black: 120 };
+      
+      // Generate claim-type specific messages
+      const claimMessages: Record<string, string> = {
+        unsportsmanlike: "Opponent failed to offer handshake! You gain 2 minutes.",
+        illegal: "Opponent's move was illegal! You gain 2 minutes.",
+        distraction: "Opponent was distracting you! You gain 2 minutes.",
+      };
+      
       if (matchId && opponentId) {
-        const timeAdj = playerColor === "white" 
-          ? { white: 120, black: 0 } 
-          : { white: 0, black: 120 };
-        sendArbiterRuling(matchId, "illegal", opponentId, timeAdj, false, undefined, previousFen);
+        // Multiplayer: send WebSocket message - broadcast will apply changes for both players
+        // Pass claimType so both players get claim-type specific messages
+        sendArbiterRuling(matchId, "illegal", opponentId, timeAdj, false, undefined, previousFen, claimType);
+      } else {
+        // Bot game or no matchId: apply changes locally
+        setWhiteTime(prev => prev + timeAdj.white);
+        setBlackTime(prev => prev + timeAdj.black);
+        setOpponentViolations(prev => ({ ...prev, [claimType]: prev[claimType] + 1 }));
+        
+        // For illegal move claims only, reset the board
+        if (claimType === "illegal" && previousFen) {
+          const fenParts = previousFen.split(' ')[0];
+          const rows = fenParts.split('/');
+          const newBoard: (string | null)[][] = [];
+          for (const row of rows) {
+            const boardRow: (string | null)[] = [];
+            for (const char of row) {
+              if (isNaN(parseInt(char))) {
+                boardRow.push(char);
+              } else {
+                for (let i = 0; i < parseInt(char); i++) {
+                  boardRow.push(null);
+                }
+              }
+            }
+            newBoard.push(boardRow);
+          }
+          setBoardState(newBoard);
+          // Use full FEN for proper Chess state including castling/en-passant rights
+          setLegalChessGame(new Chess(previousFen));
+          
+          const turnChar = previousFen.split(' ')[1];
+          const newActiveColor = turnChar === 'w' ? 'white' : 'black';
+          setActiveColor(newActiveColor);
+          setClockTurn(newActiveColor);
+          setMoves(prev => prev.slice(0, -1));
+          setLastMoveSquares([]);
+          setHasMadeMove(false);
+        }
+        
+        // Use claim-type specific message
+        setArbiterResult({ type: "illegal", message: claimMessages[claimType] });
+        setTimeout(() => setArbiterResult(null), 4000);
       }
     } else {
       const newFalseClaimCount = myFalseClaims[claimType] + 1;
@@ -2121,13 +2191,23 @@ export default function OTBMode() {
         variant: "destructive",
       });
       
-      // Send false claim ruling via WebSocket - DON'T apply changes locally!
-      // handleArbiterRuling will apply time/violation changes uniformly for BOTH players
+      // For multiplayer games, send ruling via WebSocket - handleArbiterRuling will apply changes
+      // For bot games (no matchId), apply changes locally immediately
+      const timeAdj = playerColor === "white" 
+        ? { white: 0, black: 120 } 
+        : { white: 120, black: 0 };
+      
       if (matchId && user?.id) {
-        const timeAdj = playerColor === "white" 
-          ? { white: 0, black: 120 } 
-          : { white: 120, black: 0 };
-        sendArbiterRuling(matchId, "legal", user.id, timeAdj);
+        // Multiplayer: send WebSocket message - broadcast will apply changes for both players
+        // Pass claimType so both players track the correct false claim type
+        sendArbiterRuling(matchId, "legal", user.id, timeAdj, false, undefined, undefined, claimType);
+      } else {
+        // Bot game or no matchId: apply changes locally
+        setWhiteTime(prev => prev + timeAdj.white);
+        setBlackTime(prev => prev + timeAdj.black);
+        setMyFalseClaims(prev => ({ ...prev, [claimType]: prev[claimType] + 1 }));
+        setArbiterResult({ type: "legal", message: "Move was legal! Your claim was false - opponent gains 2 minutes." });
+        setTimeout(() => setArbiterResult(null), 4000);
       }
     }
     

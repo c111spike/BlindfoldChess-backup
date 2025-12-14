@@ -4467,15 +4467,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const matchId = ws.matchId;
           const userId = ws.userId;
           
-          if (!matchId || !userId) return;
+          console.log(`[WS Arbiter] Received arbiter_ruling from ${userId} in match ${matchId || 'NONE'}`);
+          console.log(`[WS Arbiter] Data:`, JSON.stringify(data));
+          
+          if (!matchId || !userId) {
+            console.log(`[WS Arbiter] EARLY RETURN - matchId: ${matchId}, userId: ${userId}`);
+            return;
+          }
           
           // Send arbiter ruling to ALL players in the match (including sender)
           // Both players need to see the ruling to update their boards, times, and violation counters
           // Include previousFen so both clients can restore to identical board state
           const roomUsers = matchRooms.get(matchId);
+          console.log(`[WS Arbiter] Match room users: ${roomUsers ? Array.from(roomUsers).join(', ') : 'NONE'}`);
+          
           if (roomUsers) {
             roomUsers.forEach((roomUserId) => {
               const playerWs = userConnections.get(roomUserId);
+              console.log(`[WS Arbiter] Broadcasting to ${roomUserId}: ws=${playerWs ? 'exists' : 'null'}, readyState=${playerWs?.readyState}`);
               if (playerWs && playerWs.readyState === WebSocket.OPEN) {
                 playerWs.send(JSON.stringify({
                   type: 'arbiter_ruling',
@@ -4486,9 +4495,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   forfeit: data.forfeit,
                   forfeitReason: data.forfeitReason,
                   previousFen: data.previousFen,
+                  claimType: data.claimType,
                 }));
+                console.log(`[WS Arbiter] Sent arbiter_ruling to ${roomUserId}`);
               }
             });
+          } else {
+            console.log(`[WS Arbiter] No room users found for match ${matchId}`);
           }
         } else if (data.type === 'clock_update') {
           const matchId = ws.matchId;

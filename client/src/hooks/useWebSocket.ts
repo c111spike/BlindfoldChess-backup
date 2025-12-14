@@ -43,6 +43,7 @@ interface ArbiterRulingData {
   forfeit?: boolean;
   forfeitReason?: string;
   previousFen?: string;
+  claimType?: "unsportsmanlike" | "illegal" | "distraction";
 }
 
 interface HandshakeStateData {
@@ -283,6 +284,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
                 forfeit: message.forfeit,
                 forfeitReason: message.forfeitReason,
                 previousFen: message.previousFen,
+                claimType: message.claimType,
               });
             }
             break;
@@ -404,7 +406,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
     timeAdjustment: { white: number; black: number },
     forfeit?: boolean,
     forfeitReason?: string,
-    previousFen?: string
+    previousFen?: string,
+    claimType?: "unsportsmanlike" | "illegal" | "distraction"
   ) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ 
@@ -416,6 +419,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
         forfeit,
         forfeitReason,
         previousFen,
+        claimType,
       }));
     }
   }, []);
