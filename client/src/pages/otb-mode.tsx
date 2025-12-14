@@ -2030,21 +2030,16 @@ export default function OTBMode() {
         return;
       }
       
-      setOpponentViolations(prev => ({ ...prev, [claimType]: newViolationCount }));
-      
-      if (playerColor === "white") {
-        setWhiteTime(prev => prev + 120);
-      } else {
-        setBlackTime(prev => prev + 120);
-      }
-      
       const messages: Record<string, string> = {
         unsportsmanlike: "Opponent failed to offer handshake! You gain 2 minutes.",
         illegal: "Opponent's move was illegal! You gain 2 minutes.",
         distraction: "Opponent was distracting you! You gain 2 minutes.",
       };
       
-      setArbiterResult({ type: "illegal", message: messages[claimType] });
+      toast({
+        title: "Arbiter Ruling",
+        description: messages[claimType],
+      });
       
       // Get previousFen from legalChessGame (state before illegal move) for FEN-based restoration
       // legalChessGame tracks the legal game state, so its FEN is what we need to restore to
@@ -2068,39 +2063,9 @@ export default function OTBMode() {
         }
       }
       
-      if (claimType === "illegal" && previousFen) {
-        // Rebuild board from FEN for complete state restoration (including castling/en-passant rights)
-        const fenParts = previousFen.split(' ')[0];
-        const fenRows = fenParts.split('/');
-        const newBoard: (string | null)[][] = [];
-        for (const row of fenRows) {
-          const boardRow: (string | null)[] = [];
-          for (const char of row) {
-            if (isNaN(parseInt(char))) {
-              boardRow.push(char);
-            } else {
-              for (let i = 0; i < parseInt(char); i++) {
-                boardRow.push(null);
-              }
-            }
-          }
-          newBoard.push(boardRow);
-        }
-        setBoardState(newBoard);
-        
-        // Determine whose turn it is from FEN
-        const turnChar = previousFen.split(' ')[1];
-        const newActiveColor = turnChar === 'w' ? 'white' : 'black';
-        setActiveColor(newActiveColor);
-        setClockTurn(newActiveColor);
-        
-        setMoves(prev => prev.slice(0, -1));
-        setLastMoveSquares([]);
-        setHasMadeMove(false);
-        setPendingCheckmate(null);
-      }
-      
-      // Send arbiter ruling to opponent via WebSocket
+      // Send arbiter ruling to opponent via WebSocket - DON'T apply changes locally!
+      // handleArbiterRuling will apply time/board changes uniformly for BOTH players
+      // when the WebSocket message is broadcast back (including to the caller)
       // Time adjustment: claimant (me) gains time when claim is valid
       if (matchId && opponentId) {
         const timeAdj = playerColor === "white" 
@@ -2121,23 +2086,14 @@ export default function OTBMode() {
         return;
       }
       
-      setMyFalseClaims(prev => ({ ...prev, [claimType]: newFalseClaimCount }));
-      
       toast({
         title: "False Claim Warning",
         description: `Your ${claimType} claim was invalid! Opponent gains 2 minutes. One more false ${claimType} claim and you forfeit.`,
         variant: "destructive",
       });
       
-      if (playerColor === "white") {
-        setBlackTime(prev => prev + 120);
-      } else {
-        setWhiteTime(prev => prev + 120);
-      }
-      
-      setArbiterResult({ type: "legal", message: `False ${claimType} claim! Opponent gains 2 minutes.` });
-      
-      // Send false claim ruling to opponent via WebSocket
+      // Send false claim ruling via WebSocket - DON'T apply changes locally!
+      // handleArbiterRuling will apply time/violation changes uniformly for BOTH players
       if (matchId && user?.id) {
         const timeAdj = playerColor === "white" 
           ? { white: 0, black: 120 } 
@@ -2146,10 +2102,7 @@ export default function OTBMode() {
       }
     }
     
-    setTimeout(() => {
-      setArbiterResult(null);
-      setArbiterPending(false);
-    }, 3000);
+    setArbiterPending(false);
   };
 
   const handleResign = () => {
