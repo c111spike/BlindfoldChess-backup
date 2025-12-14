@@ -112,6 +112,8 @@ export default function StandardMode() {
   const [waitingForDrawResponse, setWaitingForDrawResponse] = useState(false);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
   const [rematchDenied, setRematchDenied] = useState(false);
+  const [initialPlayerRating, setInitialPlayerRating] = useState<number | null>(null);
+  const [ratingChange, setRatingChange] = useState<number | null>(null);
   
   const [remainingPeeks, setRemainingPeeks] = useState<number>(Number.POSITIVE_INFINITY);
   const [isPeeking, setIsPeeking] = useState(false);
@@ -533,6 +535,12 @@ export default function StandardMode() {
       setGameStarted(true);
       setInQueue(false);
       
+      // Store initial rating for change calculation later
+      const ratingCategory = getRatingCategory(tcValue);
+      const currentRating = playerRatings?.[ratingCategory] || 1200;
+      setInitialPlayerRating(currentRating);
+      setRatingChange(null);
+      
       toast({
         title: "Match found!",
         description: `Playing as ${matchData.color} against ${matchData.opponent.name}`,
@@ -547,7 +555,7 @@ export default function StandardMode() {
         variant: "destructive",
       });
     }
-  }, [toast, isBlindfold, userSettings, user]);
+  }, [toast, isBlindfold, userSettings, user, playerRatings]);
 
   const handleDrawOffer = useCallback((data: { matchId: string; from: string }) => {
     if (data.matchId === matchIdRef.current) {
@@ -680,6 +688,16 @@ export default function StandardMode() {
       joinMatch(matchId);
     }
   }, [matchId, isConnected, joinMatch]);
+
+  // Calculate rating change when game ends (for PvP games only)
+  useEffect(() => {
+    if (gameResult && !isBotGame && playerRatings && initialPlayerRating !== null) {
+      const ratingCategory = getRatingCategory(timeControl);
+      const newRating = playerRatings[ratingCategory] || 1200;
+      const change = newRating - initialPlayerRating;
+      setRatingChange(change);
+    }
+  }, [gameResult, isBotGame, playerRatings, initialPlayerRating, timeControl]);
 
   const createGameMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -2127,6 +2145,11 @@ export default function StandardMode() {
                 : gameResult === "white_win"
                 ? "White wins!"
                 : "Black wins!"}
+              {ratingChange !== null && !isBotGame && (
+                <span className={`block mt-1 font-medium ${ratingChange >= 0 ? 'text-green-500' : 'text-red-500'}`} data-testid="text-rating-change">
+                  {ratingChange >= 0 ? '+' : ''}{ratingChange} rating
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">

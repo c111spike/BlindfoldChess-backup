@@ -116,6 +116,8 @@ export default function OTBMode() {
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [opponentRating, setOpponentRating] = useState<number>(1200);
   const [playerRating, setPlayerRating] = useState<number>(1200);
+  const [initialPlayerRating, setInitialPlayerRating] = useState<number | null>(null);
+  const [ratingChange, setRatingChange] = useState<number | null>(null);
   const [clockTurn, setClockTurn] = useState<"white" | "black">("white");
   const [hasMadeMove, setHasMadeMove] = useState(false);
   const [pendingPromotion, setPendingPromotion] = useState<{
@@ -736,6 +738,31 @@ export default function OTBMode() {
     enabled: !restoredGame && !gameStarted && !inQueue,
   });
 
+  // Fetch ratings to calculate rating change after game ends
+  const { data: ratingsData } = useQuery({
+    queryKey: ["/api/ratings"],
+    enabled: !!user,
+  });
+
+  // Calculate rating change when game ends (for PvP games only)
+  useEffect(() => {
+    if (gameResult && !isBotGame && ratingsData && initialPlayerRating !== null) {
+      // Determine which rating pool was used based on time control
+      const minutes = parseInt(timeControl);
+      let newRating: number;
+      if (minutes <= 3) {
+        newRating = ratingsData.otbBullet || 1000;
+      } else if (minutes <= 10) {
+        newRating = ratingsData.otbBlitz || 1000;
+      } else {
+        newRating = ratingsData.otbRapid || 1000;
+      }
+      
+      const change = newRating - initialPlayerRating;
+      setRatingChange(change);
+    }
+  }, [gameResult, isBotGame, ratingsData, initialPlayerRating, timeControl]);
+
   const joinQueueMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/queue/join", data);
@@ -840,7 +867,9 @@ export default function OTBMode() {
           }
           if (response.playerRating) {
             setPlayerRating(response.playerRating);
+            setInitialPlayerRating(response.playerRating);
           }
+          setRatingChange(null);
 
           toast({
             title: "Match found!",
@@ -2564,6 +2593,11 @@ export default function OTBMode() {
                                   ? (playerColor === "white" ? "You win!" : "Opponent wins") 
                                   : (playerColor === "black" ? "You win!" : "Opponent wins")}
                             </p>
+                            {ratingChange !== null && !isBotGame && (
+                              <p className={`text-sm font-medium ${ratingChange >= 0 ? 'text-green-500' : 'text-red-500'}`} data-testid="text-rating-change">
+                                {ratingChange >= 0 ? '+' : ''}{ratingChange} rating
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
