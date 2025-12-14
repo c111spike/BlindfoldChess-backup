@@ -104,6 +104,7 @@ export default function StandardMode() {
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState<string>("");
   const [opponentRating, setOpponentRating] = useState<number>(1200);
+  const [playerRating, setPlayerRating] = useState<number>(1200);
   const [timeControl, setTimeControl] = useState<number>(180);
   const [showDrawOfferDialog, setShowDrawOfferDialog] = useState(false);
   const [showRematchDialog, setShowRematchDialog] = useState(false);
@@ -465,7 +466,7 @@ export default function StandardMode() {
     }
   }, [toast, completeGame]);
 
-  const handleMatchFound = useCallback((matchData: { matchId: string; game: any; timeControl: string; color: string; opponent: { name: string; rating: number } }) => {
+  const handleMatchFound = useCallback((matchData: { matchId: string; game: any; timeControl: string; color: string; opponent: { name: string; rating: number }; playerRating?: number }) => {
     try {
       console.log('[handleMatchFound] Received match data:', matchData);
       console.log('[handleMatchFound] PLAYER COLOR RECEIVED:', matchData.color);
@@ -507,12 +508,17 @@ export default function StandardMode() {
       setIncrement(gameData.increment || 0);
       setOpponentName(matchData.opponent.name);
       setOpponentRating(matchData.opponent.rating);
+      if (matchData.playerRating) {
+        setPlayerRating(matchData.playerRating);
+        setInitialPlayerRating(matchData.playerRating);
+      }
       const computedOpponentId = matchData.color === 'white' ? gameData.blackPlayerId : gameData.whitePlayerId;
       setOpponentId(computedOpponentId || null);
       setPlayerName(`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'You');
       
-      const tcValue = parseInt(matchData.timeControl) || 180;
-      setTimeControl(tcValue);
+      const tcMinutes = parseInt(matchData.timeControl) || 3;
+      const tcSeconds = tcMinutes * 60;
+      setTimeControl(tcSeconds);
       
       // Lock blindfold difficulty at game start
       if (isBlindfold && userSettings?.blindfoldDifficulty) {
@@ -535,10 +541,13 @@ export default function StandardMode() {
       setGameStarted(true);
       setInQueue(false);
       
-      // Store initial rating for change calculation later
-      const ratingCategory = getRatingCategory(tcValue);
-      const currentRating = playerRatings?.[ratingCategory] || 1200;
-      setInitialPlayerRating(currentRating);
+      // Store initial rating for change calculation later (only if not already set from server)
+      if (!matchData.playerRating) {
+        const ratingCategory = getRatingCategory(tcSeconds);
+        const currentRating = playerRatings?.[ratingCategory] || 1200;
+        setPlayerRating(currentRating);
+        setInitialPlayerRating(currentRating);
+      }
       setRatingChange(null);
       
       toast({
@@ -842,6 +851,11 @@ export default function StandardMode() {
     setOpponentRating(bot.elo);
     setPlayerName(user.firstName || "Player");
     
+    // Set player rating for display using correct category
+    const botRatingCategory = botTimeControl === "blitz" ? "blitz" : "rapid";
+    const currentPlayerRating = playerRatings?.[botRatingCategory] || 1200;
+    setPlayerRating(currentPlayerRating);
+    
     const mode = botTimeControl === "blitz" ? "standard_blitz" : "standard_rapid";
     
     createGameMutation.mutate({
@@ -923,6 +937,17 @@ export default function StandardMode() {
           setBlackTime(ongoingGame.blackTime || 180);
           setIncrement(ongoingGame.increment || 0);
           
+          // Normalize timeControl to seconds (server stores in minutes)
+          const storedTc = ongoingGame.timeControl || 3;
+          const tcInSeconds = storedTc < 60 ? storedTc * 60 : storedTc;
+          setTimeControl(tcInSeconds);
+          
+          // Set player rating from ratings query using normalized time control
+          const ratingCategory = getRatingCategory(tcInSeconds);
+          const restoredPlayerRating = playerRatings?.[ratingCategory] || 1200;
+          setPlayerRating(restoredPlayerRating);
+          setInitialPlayerRating(restoredPlayerRating);
+          
           // Restore blindfold difficulty if it was saved with the game
           if ((ongoingGame as any).blindfoldDifficulty) {
             setActiveBlindfoldDifficulty((ongoingGame as any).blindfoldDifficulty);
@@ -956,7 +981,7 @@ export default function StandardMode() {
       
       restoreGame();
     }
-  }, [ongoingGame, restoredGame, gameStarted, toast]);
+  }, [ongoingGame, restoredGame, gameStarted, toast, playerRatings]);
 
   const saveGameState = useCallback(async () => {
     const currentGame = gameRef.current;
@@ -1843,7 +1868,7 @@ export default function StandardMode() {
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-white border border-gray-400" : "bg-black"}`} />
                         <span className="font-medium text-sm" data-testid="text-player-name">{playerName}</span>
-                        <span className="text-xs text-muted-foreground" data-testid="text-player-rating">({playerRatings?.[getRatingCategory(timeControl)] || 1200})</span>
+                        <span className="text-xs text-muted-foreground" data-testid="text-player-rating">({playerRating})</span>
                         <Badge variant="outline" className="text-xs py-0">You</Badge>
                       </div>
                       <div className={`text-2xl font-mono font-bold ${
