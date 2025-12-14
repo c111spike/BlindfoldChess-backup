@@ -1548,13 +1548,21 @@ export class DatabaseStorage implements IStorage {
           throw new Error(`No rating found for user ${game.userId}`);
         }
 
-        // Determine rating field based on time control
-        let ratingField: 'bullet' | 'blitz' | 'rapid' | 'classical';
+        // Determine rating field based on game mode and time control
+        // OTB games use otb* pools, standard games use regular pools
+        const isOtbGame = game.mode?.startsWith('otb_');
         const tc = game.timeControl || 0;
-        if (tc <= 180) ratingField = 'bullet';
-        else if (tc <= 600) ratingField = 'blitz';
-        else if (tc <= 1200) ratingField = 'rapid';
-        else ratingField = 'classical';
+        
+        let baseTimeControl: 'Bullet' | 'Blitz' | 'Rapid' | 'Classical';
+        if (tc <= 180) baseTimeControl = 'Bullet';
+        else if (tc <= 600) baseTimeControl = 'Blitz';
+        else if (tc <= 1200) baseTimeControl = 'Rapid';
+        else baseTimeControl = 'Classical';
+        
+        type RatingField = 'bullet' | 'blitz' | 'rapid' | 'classical' | 'otbBullet' | 'otbBlitz' | 'otbRapid' | 'otbClassical';
+        const ratingField: RatingField = isOtbGame 
+          ? `otb${baseTimeControl}` as RatingField
+          : baseTimeControl.toLowerCase() as RatingField;
 
         const currentRating = userRating[ratingField] || 1200;
 
