@@ -297,6 +297,24 @@ export default function OTBMode() {
         newBoard[fromRank][fromFile] = null;
         // If there's a promotion piece, use that instead of the original pawn
         newBoard[toRank][toFile] = data.promotion || piece;
+        
+        // Handle en passant capture - pawn moves diagonally to empty square
+        const isPawn = piece?.toLowerCase() === 'p';
+        const isDiagonalMove = Math.abs(toFile - fromFile) === 1;
+        const destinationWasEmpty = !data.captured;
+        
+        if (isPawn && isDiagonalMove && destinationWasEmpty) {
+          // This is en passant - remove the captured pawn from its actual position
+          const capturedPawnRank = fromRank;
+          const capturedPawnFile = toFile;
+          const capturedPawn = newBoard[capturedPawnRank][capturedPawnFile];
+          
+          if (capturedPawn?.toLowerCase() === 'p') {
+            newBoard[capturedPawnRank][capturedPawnFile] = null;
+            console.log('[OTB] Opponent en passant: removed pawn from', String.fromCharCode(97 + capturedPawnFile) + (8 - capturedPawnRank));
+          }
+        }
+        
         return newBoard;
       });
       
@@ -1708,6 +1726,25 @@ export default function OTBMode() {
     const newBoard = boardState.map(row => [...row]);
     newBoard[fromRank][fromFile] = null;
     newBoard[toRank][toFile] = promotedPiece || originalPiece;
+    
+    // Handle en passant capture - pawn moves diagonally to empty square
+    const isPawn = originalPiece?.toLowerCase() === 'p';
+    const isDiagonalMove = Math.abs(toFile - fromFile) === 1;
+    const destinationWasEmpty = !captured;
+    
+    if (isPawn && isDiagonalMove && destinationWasEmpty) {
+      // This is en passant - remove the captured pawn from its actual position
+      // The captured pawn is on the same file as destination, but same rank as origin
+      const capturedPawnRank = fromRank;
+      const capturedPawnFile = toFile;
+      const capturedPawn = newBoard[capturedPawnRank][capturedPawnFile];
+      
+      if (capturedPawn?.toLowerCase() === 'p') {
+        newBoard[capturedPawnRank][capturedPawnFile] = null;
+        console.log('[OTB] En passant capture: removed pawn from', String.fromCharCode(97 + capturedPawnFile) + (8 - capturedPawnRank));
+      }
+    }
+    
     setBoardState(newBoard);
     
     // Try to get SAN from chess.js, fall back to custom notation
