@@ -675,7 +675,7 @@ export default function StandardMode() {
     // Don't set gameStarted to false - keep board visible until user clicks Main Menu
   }, []);
 
-  const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus, joinMatch, sendDrawOffer, sendDrawResponse, sendRematchRequest, sendRematchResponse } = useWebSocket({
+  const { sendMove, isConnected, joinQueue, leaveQueue: wsLeaveQueue, queueStatus, joinMatch, sendDrawOffer, sendDrawResponse, sendRematchRequest, sendRematchResponse, sendPlayerAway, sendPlayerBack } = useWebSocket({
     userId: user?.id,
     onMove: handleOpponentMove,
     onMatchFound: handleMatchFound,
@@ -720,13 +720,18 @@ export default function StandardMode() {
     };
 
     const handleVisibilityChange = () => {
-      // Show warning toast when player switches tabs during active PvP game
-      if (document.visibilityState === 'hidden' && gameStarted && !gameResult && !isBotGame) {
-        toast({
-          title: "Warning",
-          description: "Switching tabs during a game may result in forfeit if you don't return within 30 seconds.",
-          variant: "destructive",
-        });
+      // Notify server when player switches tabs during active PvP game
+      if (gameStarted && !gameResult && !isBotGame && matchId) {
+        if (document.visibilityState === 'hidden') {
+          sendPlayerAway(matchId);
+          toast({
+            title: "Warning",
+            description: "You switched tabs. Return within 30 seconds or forfeit.",
+            variant: "destructive",
+          });
+        } else if (document.visibilityState === 'visible') {
+          sendPlayerBack(matchId);
+        }
       }
     };
 
@@ -736,7 +741,7 @@ export default function StandardMode() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [gameStarted, gameResult, isBotGame, toast]);
+  }, [gameStarted, gameResult, isBotGame, matchId, sendPlayerAway, sendPlayerBack, toast]);
 
   const createGameMutation = useMutation({
     mutationFn: async (data: any) => {

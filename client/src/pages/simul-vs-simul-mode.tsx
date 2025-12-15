@@ -147,13 +147,24 @@ export default function SimulVsSimulMode() {
     };
 
     const handleVisibilityChange = () => {
-      // Show warning toast when player switches tabs during active match
-      if (document.visibilityState === 'hidden' && gameStarted && !matchComplete && boards.some(b => b.result === 'ongoing')) {
-        toast({
-          title: "Warning",
-          description: "Switching tabs during a match may result in forfeit if you don't return within 30 seconds.",
-          variant: "destructive",
-        });
+      // Notify server when player switches tabs during active match
+      if (gameStarted && !matchComplete && boards.some(b => b.result === 'ongoing') && matchId) {
+        if (document.visibilityState === 'hidden') {
+          // Send player_away to server
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'player_away', matchId }));
+          }
+          toast({
+            title: "Warning",
+            description: "You switched tabs. Return within 30 seconds or forfeit.",
+            variant: "destructive",
+          });
+        } else if (document.visibilityState === 'visible') {
+          // Send player_back to server
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'player_back', matchId }));
+          }
+        }
       }
     };
 
@@ -163,7 +174,7 @@ export default function SimulVsSimulMode() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [gameStarted, matchComplete, boards, toast]);
+  }, [gameStarted, matchComplete, boards, matchId, toast]);
   
   useEffect(() => {
     return () => {

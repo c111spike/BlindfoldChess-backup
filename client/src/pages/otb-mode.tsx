@@ -716,7 +716,7 @@ export default function OTBMode() {
     }
   }, [matchId, toast]);
 
-  const { sendMove, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, sendRematchRequest, sendRematchResponse, sendDrawOffer, sendDrawResponse, joinMatch, isConnected, isAuthenticated } = useWebSocket({
+  const { sendMove, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, sendRematchRequest, sendRematchResponse, sendDrawOffer, sendDrawResponse, joinMatch, isConnected, isAuthenticated, sendPlayerAway, sendPlayerBack } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
@@ -815,13 +815,18 @@ export default function OTBMode() {
     };
 
     const handleVisibilityChange = () => {
-      // Show warning toast when player switches tabs during active PvP game
-      if (document.visibilityState === 'hidden' && gameStarted && !gameResult && !isBotGame) {
-        toast({
-          title: "Warning",
-          description: "Switching tabs during a game may result in forfeit if you don't return within 30 seconds.",
-          variant: "destructive",
-        });
+      // Notify server when player switches tabs during active PvP game
+      if (gameStarted && !gameResult && !isBotGame && matchId) {
+        if (document.visibilityState === 'hidden') {
+          sendPlayerAway(matchId);
+          toast({
+            title: "Warning",
+            description: "You switched tabs. Return within 30 seconds or forfeit.",
+            variant: "destructive",
+          });
+        } else if (document.visibilityState === 'visible') {
+          sendPlayerBack(matchId);
+        }
       }
     };
 
@@ -831,7 +836,7 @@ export default function OTBMode() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [gameStarted, gameResult, isBotGame, toast]);
+  }, [gameStarted, gameResult, isBotGame, matchId, sendPlayerAway, sendPlayerBack, toast]);
 
   const joinQueueMutation = useMutation({
     mutationFn: async (data: any) => {

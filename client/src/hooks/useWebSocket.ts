@@ -473,6 +473,24 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
+  const sendPlayerAway = useCallback((matchId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'player_away', 
+        matchId,
+      }));
+    }
+  }, []);
+
+  const sendPlayerBack = useCallback((matchId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'player_back', 
+        matchId,
+      }));
+    }
+  }, []);
+
   useEffect(() => {
     if (userId) {
       connect();
@@ -505,5 +523,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     sendArbiterRuling,
     sendGameEnd,
     sendHandshakeOffer,
+    sendPlayerAway,
+    sendPlayerBack,
   };
 }

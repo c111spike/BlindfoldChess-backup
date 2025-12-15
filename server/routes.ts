@@ -5823,6 +5823,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } else {
             console.log(`[WS game_end] Opponent ${opponentId} not connected`);
           }
+        } else if (data.type === 'player_away') {
+          // Player switched tabs or minimized window - start grace period
+          const matchId = data.matchId || ws.matchId;
+          const userId = ws.userId;
+          
+          console.log(`[WS player_away] User ${userId} went away from match ${matchId}`);
+          
+          if (!matchId || !userId) {
+            console.log('[WS player_away] Missing matchId or userId');
+            return;
+          }
+          
+          // Check if there's already a timer running
+          if (disconnectTimers.has(userId)) {
+            console.log(`[WS player_away] Timer already exists for ${userId}`);
+            return;
+          }
+          
+          // Get match to find opponent and verify game is active
+          const match = await storage.getMatch(matchId);
+          if (!match || match.status === 'completed') {
+            console.log('[WS player_away] Match not found or already completed:', matchId);
+            return;
+          }
+          
+          const games = await storage.getGamesByMatchId(matchId);
+          const userGame = games.find(g => g.userId === userId);
+          
+          if (!userGame || userGame.status !== 'active') {
+            console.log('[WS player_away] No active game for user');
+            return;
+          }
+          
+          // Notify opponent that player went away
+          const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+          const opponentWs = userConnections.get(opponentId);
+          
+          if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+            opponentWs.send(JSON.stringify({
+              type: 'opponent_disconnected',
+              matchId,
+              gracePeriod: DISCONNECT_GRACE_PERIOD,
+            }));
+          }
+          
+          // Start 30-second grace period timer
+          const timer = setTimeout(async () => {
+            console.log(`[WS player_away] Timer fired for user ${userId}`);
+            try {
+              // Check if player came back (timer was cancelled)
+              if (!disconnectTimers.has(userId)) {
+                console.log(`[WS player_away] Timer was cancelled for ${userId}`);
+                return;
+              }
+              
+              // Get current match and game status
+              const currentMatch = await storage.getMatch(matchId);
+              if (!currentMatch || currentMatch.status === 'completed') {
+                console.log('[WS player_away] Match already completed');
+                disconnectTimers.delete(userId);
+                return;
+              }
+              
+              const currentGames = await storage.getGamesByMatchId(matchId);
+              const currentUserGame = currentGames.find(g => g.userId === userId);
+              
+              if (!currentUserGame || currentUserGame.status !== 'active') {
+                console.log('[WS player_away] Game no longer active');
+                disconnectTimers.delete(userId);
+                return;
+              }
+              
+              // Player didn't come back - auto-resign
+              const whiteMoves = currentUserGame.whiteMoveCount || 0;
+              const blackMoves = currentUserGame.blackMoveCount || 0;
+              const noMovesYet = whiteMoves === 0 && blackMoves === 0;
+              
+              const opponentUserId = currentGames.find(g => g.userId !== userId)?.userId;
+              
+              if (noMovesYet) {
+                // Auto-abort
+                console.log(`[WS player_away] Auto-aborting game ${currentUserGame.id}`);
+                for (const game of currentGames) {
+                  await storage.updateGame(game.id, {
+                    status: 'completed',
+                    result: 'aborted',
+                    completedAt: new Date(),
+                  });
+                }
+                await storage.updateMatch(matchId, { status: 'completed', result: 'aborted' });
+                
+                if (opponentUserId) {
+                  const oppWs = userConnections.get(opponentUserId);
+                  if (oppWs && oppWs.readyState === WebSocket.OPEN) {
+                    oppWs.send(JSON.stringify({
+                      type: 'game_end',
+                      result: 'aborted',
+                      reason: 'opponent_abandoned',
+                    }));
+                  }
+                }
+              } else {
+                // Auto-resign
+                const isWhite = currentUserGame.playerColor === 'white';
+                const result = isWhite ? 'black_win' : 'white_win';
+                
+                console.log(`[WS player_away] Auto-resigning game ${currentUserGame.id} - ${result}`);
+                await storage.completeMatch(matchId, result);
+                
+                if (opponentUserId) {
+                  const oppWs = userConnections.get(opponentUserId);
+                  if (oppWs && oppWs.readyState === WebSocket.OPEN) {
+                    oppWs.send(JSON.stringify({
+                      type: 'game_end',
+                      result: result,
+                      reason: 'opponent_abandoned',
+                    }));
+                  }
+                }
+              }
+              
+              matchRooms.delete(matchId);
+              disconnectTimers.delete(userId);
+            } catch (error) {
+              console.error('[WS player_away] Error handling timeout:', error);
+              disconnectTimers.delete(userId);
+            }
+          }, DISCONNECT_GRACE_PERIOD);
+          
+          disconnectTimers.set(userId, timer);
+          console.log(`[WS player_away] Started ${DISCONNECT_GRACE_PERIOD}ms timer for user ${userId}`);
+          
+        } else if (data.type === 'player_back') {
+          // Player returned to tab - cancel grace period
+          const matchId = data.matchId || ws.matchId;
+          const userId = ws.userId;
+          
+          console.log(`[WS player_back] User ${userId} returned to match ${matchId}`);
+          
+          if (!userId) {
+            console.log('[WS player_back] Missing userId');
+            return;
+          }
+          
+          // Cancel any existing timer
+          if (disconnectTimers.has(userId)) {
+            clearTimeout(disconnectTimers.get(userId)!);
+            disconnectTimers.delete(userId);
+            console.log(`[WS player_back] Cancelled timer for user ${userId}`);
+          }
+          
+          // Notify opponent that player is back
+          if (matchId) {
+            const match = await storage.getMatch(matchId);
+            if (match) {
+              const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+              const opponentWs = userConnections.get(opponentId);
+              
+              if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                opponentWs.send(JSON.stringify({
+                  type: 'opponent_reconnected',
+                  matchId,
+                }));
+              }
+            }
+          }
         }
       } catch (error) {
         console.error('WebSocket error:', error);
