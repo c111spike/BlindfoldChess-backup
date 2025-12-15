@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
-import type { Game } from "@shared/schema";
+import type { Game, Rating } from "@shared/schema";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
 import { 
   ALL_DIFFICULTIES, 
@@ -498,7 +498,7 @@ export default function OTBMode() {
     setTimeout(() => setArbiterResult(null), 4000);
   }, [matchId, user?.id, playerColor, toast]);
 
-  const handleOpponentGameEnd = useCallback((data: { result: string; reason: string }) => {
+  const handleOpponentGameEnd = useCallback(async (data: { result: string; reason: string }) => {
     console.log('[OTB] Opponent ended game:', data);
     
     if (saveIntervalRef.current) {
@@ -521,12 +521,36 @@ export default function OTBMode() {
     setGameResult(resultValue);
     setPendingCheckmate(null);
     
-    // Invalidate queries to refresh data
-    queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
+    // Refetch ratings and calculate change for non-bot games
+    if (!isBotGame) {
+      try {
+        await queryClient.refetchQueries({ queryKey: ["/api/ratings"] });
+        const freshRatings = queryClient.getQueryData<Rating>(["/api/ratings"]);
+        if (freshRatings && initialPlayerRating !== null) {
+          // Determine which rating pool was used based on time control
+          const minutes = parseInt(timeControl);
+          let newRating: number;
+          if (minutes <= 3) {
+            newRating = freshRatings.otbBullet || 1000;
+          } else if (minutes <= 10) {
+            newRating = freshRatings.otbBlitz || 1000;
+          } else {
+            newRating = freshRatings.otbRapid || 1000;
+          }
+          const change = newRating - initialPlayerRating;
+          console.log('[OTB] Rating change calculated (opponent ended):', change, '(new:', newRating, 'old:', initialPlayerRating, ')');
+          setRatingChange(change);
+        }
+      } catch (refetchError) {
+        console.error('[OTB] Error refetching ratings:', refetchError);
+      }
+    }
+    
+    // Invalidate other queries to refresh data
     queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
     queryClient.invalidateQueries({ queryKey: ["/api/games/history"] });
     queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-  }, [toast]);
+  }, [toast, isBotGame, timeControl, initialPlayerRating]);
 
   const handleOpponentHandshake = useCallback((data: { matchId: string }) => {
     // Use ref to get the latest matchId value and avoid stale closure issues
@@ -797,14 +821,15 @@ export default function OTBMode() {
   });
 
   // Fetch ratings to calculate rating change after game ends
-  const { data: ratingsData } = useQuery({
+  const { data: ratingsData } = useQuery<Rating>({
     queryKey: ["/api/ratings"],
     enabled: !!user,
   });
 
-  // Calculate rating change when game ends (for PvP games only)
+  // Fallback: Calculate rating change when ratingsData updates (in case callbacks didn't set it)
+  // This runs when ratingsData is refetched and ratingChange hasn't been set yet
   useEffect(() => {
-    if (gameResult && !isBotGame && ratingsData && initialPlayerRating !== null) {
+    if (gameResult && !isBotGame && ratingsData && initialPlayerRating !== null && ratingChange === null) {
       // Determine which rating pool was used based on time control
       const minutes = parseInt(timeControl);
       let newRating: number;
@@ -817,9 +842,12 @@ export default function OTBMode() {
       }
       
       const change = newRating - initialPlayerRating;
-      setRatingChange(change);
+      if (change !== 0) {
+        console.log('[OTB] Rating change calculated (fallback):', change);
+        setRatingChange(change);
+      }
     }
-  }, [gameResult, isBotGame, ratingsData, initialPlayerRating, timeControl]);
+  }, [gameResult, isBotGame, ratingsData, initialPlayerRating, timeControl, ratingChange]);
 
   // Warn player when trying to leave during an active game
   useEffect(() => {
@@ -1106,6 +1134,41 @@ export default function OTBMode() {
       manualClockPresses: clockPresses,
     });
 
+    // For multiplayer games, call match complete API to notify both players
+    // Then refetch ratings and calculate change
+    const currentMatchId = matchIdRef.current;
+    if (currentMatchId) {
+      apiRequest("POST", `/api/matches/${currentMatchId}/complete`, { result })
+        .then(async () => {
+          console.log('[OTB] Match complete API called successfully');
+          // Wait for ratings to be refetched before calculating change
+          try {
+            await queryClient.refetchQueries({ queryKey: ["/api/ratings"] });
+            const freshRatings = queryClient.getQueryData<Rating>(["/api/ratings"]);
+            if (freshRatings && initialPlayerRating !== null) {
+              // Determine which rating pool was used based on time control
+              const minutes = parseInt(timeControl);
+              let newRating: number;
+              if (minutes <= 3) {
+                newRating = freshRatings.otbBullet || 1000;
+              } else if (minutes <= 10) {
+                newRating = freshRatings.otbBlitz || 1000;
+              } else {
+                newRating = freshRatings.otbRapid || 1000;
+              }
+              const change = newRating - initialPlayerRating;
+              console.log('[OTB] Rating change calculated:', change, '(new:', newRating, 'old:', initialPlayerRating, ')');
+              setRatingChange(change);
+            }
+          } catch (refetchError) {
+            console.error('[OTB] Error refetching ratings:', refetchError);
+          }
+        })
+        .catch((error) => {
+          console.error('[OTB] Error calling match complete API:', error);
+        });
+    }
+
     toast({
       title: "Game Over",
       description: result === "draw" ? "Game drawn" : result === "white_win" ? "White wins!" : "Black wins!",
@@ -1114,7 +1177,7 @@ export default function OTBMode() {
     // Keep board visible by setting gameResult instead of immediately hiding
     setGameResult(result);
     setPendingCheckmate(null);
-  }, [boardState, activeColor, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast]);
+  }, [boardState, activeColor, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast, timeControl, initialPlayerRating]);
 
   // Keep ref updated with latest handleGameEnd
   useEffect(() => {
