@@ -221,9 +221,9 @@ export default function KnightsTour() {
     setIsStuck(false);
   };
   
-  // Go to main training menu
+  // Go to main dashboard
   const handleMainMenu = () => {
-    setLocation("/training");
+    setLocation("/");
   };
   
   // Handle square click
