@@ -1200,7 +1200,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[POST /api/matches/:id/complete] Completing match:', matchId, 'result:', result);
 
       // Complete match atomically (updates match, games, ratings, stats)
-      const { match: completedMatch, games: completedGames } = await storage.completeMatch(matchId, result);
+      // storage.completeMatch handles idempotency - returns existing data if already completed
+      const { match: completedMatch, games: completedGames, alreadyCompleted } = await storage.completeMatch(matchId, result);
+      
+      if (alreadyCompleted) {
+        console.log('[POST /api/matches/:id/complete] Match was already completed, returning existing data');
+      }
 
       console.log('[POST /api/matches/:id/complete] Match completed successfully');
 
@@ -1232,7 +1237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       queueManager.leave(match.player1Id);
       queueManager.leave(match.player2Id);
 
-      res.json({ match: completedMatch, games: completedGames });
+      res.json({ match: completedMatch, games: completedGames, alreadyCompleted: !!alreadyCompleted });
     } catch (error) {
       console.error("Error completing match:", error);
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to complete match" });

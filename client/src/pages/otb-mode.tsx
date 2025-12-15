@@ -1164,8 +1164,30 @@ export default function OTBMode() {
             console.error('[OTB] Error refetching ratings:', refetchError);
           }
         })
-        .catch((error) => {
+        .catch(async (error) => {
           console.error('[OTB] Error calling match complete API:', error);
+          // Even if API fails (e.g., match already completed by other player), 
+          // still refetch ratings since they may have been updated
+          try {
+            await queryClient.refetchQueries({ queryKey: ["/api/ratings"] });
+            const freshRatings = queryClient.getQueryData<Rating>(["/api/ratings"]);
+            if (freshRatings && initialPlayerRating !== null) {
+              const minutes = parseInt(timeControl);
+              let newRating: number;
+              if (minutes <= 3) {
+                newRating = freshRatings.otbBullet || 1000;
+              } else if (minutes <= 10) {
+                newRating = freshRatings.otbBlitz || 1000;
+              } else {
+                newRating = freshRatings.otbRapid || 1000;
+              }
+              const change = newRating - initialPlayerRating;
+              console.log('[OTB] Rating change calculated (after API error):', change);
+              setRatingChange(change);
+            }
+          } catch (refetchError) {
+            console.error('[OTB] Error refetching ratings after API error:', refetchError);
+          }
         });
     }
 

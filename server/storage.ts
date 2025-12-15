@@ -178,7 +178,7 @@ export interface IStorage {
   updateMatchStatus(id: string, status: string): Promise<Match>;
   updateMatch(id: string, data: Partial<Match>): Promise<Match>;
   getGamesByMatchId(matchId: string): Promise<Game[]>;
-  completeMatch(matchId: string, result: string): Promise<{ match: Match; games: Game[] }>;
+  completeMatch(matchId: string, result: string): Promise<{ match: Match; games: Game[]; alreadyCompleted?: boolean }>;
   
   saveBoardSpinScore(score: InsertBoardSpinScore): Promise<BoardSpinScore>;
   getBoardSpinLeaderboard(difficulty?: string, limit?: number): Promise<(BoardSpinScore & { user: User })[]>;
@@ -1425,15 +1425,26 @@ export class DatabaseStorage implements IStorage {
       .orderBy(games.createdAt);
   }
 
-  async completeMatch(matchId: string, result: string): Promise<{ match: Match; games: Game[] }> {
+  async completeMatch(matchId: string, result: string): Promise<{ match: Match; games: Game[]; alreadyCompleted?: boolean }> {
     return await db.transaction(async (tx) => {
-      // Load match and validate
-      const [match] = await tx.select().from(matches).where(eq(matches.id, matchId));
+      // Load match with row-level lock to prevent race conditions
+      // FOR UPDATE ensures only one transaction can process completion at a time
+      // Neon serverless driver returns QueryResult with rows array
+      const lockResult = await tx.execute(
+        sql`SELECT * FROM matches WHERE id = ${matchId} FOR UPDATE`
+      );
+      const match = (lockResult as { rows: Match[] }).rows[0];
+      
       if (!match) {
         throw new Error(`Match ${matchId} not found`);
       }
+      
+      // If match is already completed, return existing data (idempotent handling)
+      // The FOR UPDATE lock ensures we see the authoritative state
       if (match.status === 'completed') {
-        throw new Error(`Match ${matchId} is already completed`);
+        console.log(`[storage.completeMatch] Match ${matchId} already completed, returning existing data`);
+        const existingGames = await tx.select().from(games).where(eq(games.matchId, matchId)).orderBy(games.createdAt);
+        return { match, games: existingGames, alreadyCompleted: true };
       }
 
       // Load both games
