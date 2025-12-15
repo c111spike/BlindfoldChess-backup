@@ -231,9 +231,9 @@ export default function NPieceChallenge() {
     setViewingSolution(null);
   };
   
-  // Go to main training menu
+  // Go to main dashboard
   const handleMainMenu = () => {
-    setLocation("/training");
+    setLocation("/");
   };
   
   // Add to history
