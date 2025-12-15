@@ -1981,7 +1981,10 @@ export default function GameAnalysisPage() {
     // Get the PGN moves from chess.js
     const pgnMoves = chess.pgn({ maxWidth: 80 }).split('\n').filter(line => !line.startsWith('[')).join('\n').trim();
     
-    return headers.join('\n') + '\n\n' + pgnMoves;
+    // Get the final position FEN
+    const finalFen = chess.fen();
+    
+    return headers.join('\n') + '\n\n' + pgnMoves + '\n\n{ Final position FEN: ' + finalFen + ' }';
   };
 
   const handleDownloadPGN = () => {
