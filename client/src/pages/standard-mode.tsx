@@ -708,6 +708,36 @@ export default function StandardMode() {
     }
   }, [gameResult, isBotGame, playerRatings, initialPlayerRating, timeControl]);
 
+  // Warn player when trying to leave during an active game
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only warn if game is active and not already finished
+      if (gameStarted && !gameResult && !isBotGame) {
+        e.preventDefault();
+        e.returnValue = 'You have an active game. Leaving will count as a forfeit.';
+        return e.returnValue;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      // Show warning toast when player switches tabs during active PvP game
+      if (document.visibilityState === 'hidden' && gameStarted && !gameResult && !isBotGame) {
+        toast({
+          title: "Warning",
+          description: "Switching tabs during a game may result in forfeit if you don't return within 30 seconds.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [gameStarted, gameResult, isBotGame, toast]);
+
   const createGameMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/games", data);

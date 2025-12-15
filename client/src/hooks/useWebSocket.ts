@@ -76,6 +76,8 @@ interface UseWebSocketOptions {
   onArbiterCall?: (data: ArbiterCallData) => void;
   onArbiterRuling?: (data: ArbiterRulingData) => void;
   onHandshakeOffer?: (data: { matchId: string }) => void;
+  onOpponentDisconnected?: (data: { matchId: string; gracePeriod: number }) => void;
+  onOpponentReconnected?: (data: { matchId: string }) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions) {
@@ -95,6 +97,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onArbiterCall,
     onArbiterRuling,
     onHandshakeOffer,
+    onOpponentDisconnected,
+    onOpponentReconnected,
   } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -115,6 +119,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const onArbiterCallRef = useRef(onArbiterCall);
   const onArbiterRulingRef = useRef(onArbiterRuling);
   const onHandshakeOfferRef = useRef(onHandshakeOffer);
+  const onOpponentDisconnectedRef = useRef(onOpponentDisconnected);
+  const onOpponentReconnectedRef = useRef(onOpponentReconnected);
   
   // Keep refs updated with latest callbacks
   useEffect(() => {
@@ -131,6 +137,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onArbiterCallRef.current = onArbiterCall;
     onArbiterRulingRef.current = onArbiterRuling;
     onHandshakeOfferRef.current = onHandshakeOffer;
+    onOpponentDisconnectedRef.current = onOpponentDisconnected;
+    onOpponentReconnectedRef.current = onOpponentReconnected;
   });
 
   const connect = useCallback(() => {
@@ -294,6 +302,23 @@ export function useWebSocket(options: UseWebSocketOptions) {
           case 'handshake_offer':
             if (onHandshakeOfferRef.current) {
               onHandshakeOfferRef.current({
+                matchId: message.matchId,
+              });
+            }
+            break;
+          case 'opponent_disconnected':
+            console.log('[useWebSocket] Opponent disconnected, grace period:', message.gracePeriod);
+            if (onOpponentDisconnectedRef.current) {
+              onOpponentDisconnectedRef.current({
+                matchId: message.matchId,
+                gracePeriod: message.gracePeriod,
+              });
+            }
+            break;
+          case 'opponent_reconnected':
+            console.log('[useWebSocket] Opponent reconnected');
+            if (onOpponentReconnectedRef.current) {
+              onOpponentReconnectedRef.current({
                 matchId: message.matchId,
               });
             }

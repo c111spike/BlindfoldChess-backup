@@ -134,6 +134,36 @@ export default function SimulVsSimulMode() {
   useEffect(() => {
     matchIdRef.current = matchId;
   }, [matchId]);
+
+  // Warn player when trying to leave during an active match
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only warn if match is active and not already complete
+      if (gameStarted && !matchComplete && boards.some(b => b.result === 'ongoing')) {
+        e.preventDefault();
+        e.returnValue = 'You have ongoing games. Leaving will count as a forfeit on all boards.';
+        return e.returnValue;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      // Show warning toast when player switches tabs during active match
+      if (document.visibilityState === 'hidden' && gameStarted && !matchComplete && boards.some(b => b.result === 'ongoing')) {
+        toast({
+          title: "Warning",
+          description: "Switching tabs during a match may result in forfeit if you don't return within 30 seconds.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [gameStarted, matchComplete, boards, toast]);
   
   useEffect(() => {
     return () => {
