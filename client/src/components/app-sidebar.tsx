@@ -219,6 +219,19 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
+          <div className="px-3 py-2 text-xs text-muted-foreground/70" data-testid="text-stockfish-credit">
+            Analysis powered by{" "}
+            <a 
+              href="https://stockfishchess.org/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="underline hover:text-muted-foreground"
+              data-testid="link-stockfish"
+            >
+              Stockfish
+            </a>
+            {" "}(GPLv3)
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
