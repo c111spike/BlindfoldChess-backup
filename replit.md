@@ -96,7 +96,33 @@ ELO change calculated per-board, aggregated, and adjusted by a K-factor (K = 32 
 Uses a 30-second per-move server-authoritative timer with client-side countdown and focus-based synchronization.
 
 ### Infrastructure
-- **Cloudflare Waiting Room Strategy**: Activates Cloudflare waiting room based on CPU load via a `/health-status` endpoint.
+
+#### Cloudflare CDN Configuration (Free Tier)
+When deploying with a custom domain through Cloudflare, use these recommended settings:
+
+**Speed > Optimization:**
+- Brotli Compression: ON
+- Auto Minify: HTML, CSS, JS all enabled
+- Rocket Loader: Test before enabling (may conflict with React)
+
+**Caching > Configuration:**
+- Browser Cache TTL: 8 hours (or longer for static assets)
+- Caching Level: Standard
+- Always Online: ON
+
+**SSL/TLS:**
+- Mode: Full (strict)
+
+**Page Rules (3 free):**
+1. `yourdomain.com/api/*` → Cache Level: Bypass
+2. `yourdomain.com/ws/*` → Cache Level: Bypass
+3. `yourdomain.com/assets/*` → Cache Level: Cache Everything, Edge TTL: 1 month
+
+**Server-side Headers:**
+API routes automatically include `Cache-Control: no-store` headers to prevent Cloudflare from caching dynamic content.
+
+**Future (Paid Features):**
+- **Cloudflare Waiting Room Strategy**: Activates Cloudflare waiting room based on CPU load via a `/health-status` endpoint (requires Business plan).
 
 ### Stockfish Scaling Infrastructure
 Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueueManager.ts`, with adaptive scaling (2M nodes per position, adaptive to 1M under load), PostgreSQL caching, and performance monitoring via an Admin Performance Dashboard.
