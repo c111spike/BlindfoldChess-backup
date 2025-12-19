@@ -101,9 +101,9 @@ Uses a 30-second per-move server-authoritative timer with client-side countdown 
 When deploying with a custom domain through Cloudflare, use these recommended settings:
 
 **Speed > Optimization:**
-- Brotli Compression: ON
-- Auto Minify: HTML, CSS, JS all enabled
-- Rocket Loader: Test before enabling (may conflict with React)
+- Brotli Compression: Enabled by default (no toggle needed as of 2024)
+- Auto Minify: Removed in 2024 (Vite handles this during build)
+- Rocket Loader: Leave OFF (conflicts with React)
 
 **Caching > Configuration:**
 - Browser Cache TTL: 8 hours (or longer for static assets)
