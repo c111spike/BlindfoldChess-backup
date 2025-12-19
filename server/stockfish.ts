@@ -67,7 +67,8 @@ class StockfishService {
   private outputBuffer: string = '';
   private resolveQueue: Array<(value: string) => void> = [];
   private requestQueue: Promise<any> = Promise.resolve();
-  private requestLock: boolean = false;
+  private pendingRejects: Array<(error: Error) => void> = [];
+  private readonly REQUEST_TIMEOUT = 30000; // 30 second timeout
 
   async init(): Promise<void> {
     if (this.process) return;
@@ -95,6 +96,14 @@ class StockfishService {
         console.log('[Stockfish] Process exited with code:', code);
         this.process = null;
         this.isReady = false;
+        // Reject all pending requests when the process dies
+        const error = new Error('Stockfish process terminated unexpectedly');
+        for (const reject of this.pendingRejects) {
+          reject(error);
+        }
+        this.pendingRejects = [];
+        // Reset the queue so new requests can start fresh
+        this.requestQueue = Promise.resolve();
       });
 
       this.sendCommand('uci');
@@ -161,25 +170,57 @@ class StockfishService {
   }
 
   async getBestMove(fen: string, depth: number = 15): Promise<StockfishResult> {
-    // Queue this request to prevent race conditions
-    // Each request waits for previous requests to complete
-    const executeRequest = async (): Promise<StockfishResult> => {
-      if (!this.isReady) {
-        await this.init();
-      }
+    // Create a new promise for this request with timeout handling
+    const executeRequest = (): Promise<StockfishResult> => {
+      return new Promise(async (resolve, reject) => {
+        // Register this reject so it can be called if process dies
+        this.pendingRejects.push(reject);
+        
+        // Set up timeout
+        const timeoutId = setTimeout(() => {
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          reject(new Error('Stockfish request timed out'));
+        }, this.REQUEST_TIMEOUT);
 
-      console.log(`[Stockfish] getBestMove starting for FEN: ${fen}`);
-      this.sendCommand(`position fen ${fen}`);
-      this.sendCommand(`go depth ${depth}`);
+        try {
+          if (!this.isReady) {
+            await this.init();
+          }
 
-      const result = await this.waitForBestMove();
-      console.log(`[Stockfish] getBestMove result for FEN ${fen.substring(0, 30)}...: ${result.bestMove}`);
-      return result;
+          console.log(`[Stockfish] getBestMove starting for FEN: ${fen}`);
+          this.sendCommand(`position fen ${fen}`);
+          this.sendCommand(`go depth ${depth}`);
+
+          const result = await this.waitForBestMove();
+          clearTimeout(timeoutId);
+          
+          // Remove from pending rejects on success
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          
+          console.log(`[Stockfish] getBestMove result for FEN ${fen.substring(0, 30)}...: ${result.bestMove}`);
+          resolve(result);
+        } catch (error) {
+          clearTimeout(timeoutId);
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          reject(error);
+        }
+      });
     };
 
     // Chain this request to the queue
-    this.requestQueue = this.requestQueue.then(executeRequest, executeRequest);
-    return this.requestQueue;
+    // Use .then(fn, fn) pattern to ensure forward progress even after errors
+    // The queue always resolves (never stays rejected) so next request can proceed
+    const thisRequest = this.requestQueue.then(executeRequest, executeRequest);
+    
+    // Update queue to always resolve so future requests can chain
+    this.requestQueue = thisRequest.catch(() => {
+      // Swallow error for queue continuity - the caller gets the error via thisRequest
+    });
+    
+    return thisRequest;
   }
 
   private waitForBestMove(): Promise<StockfishResult> {
