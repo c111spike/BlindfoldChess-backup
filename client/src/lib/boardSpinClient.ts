@@ -146,6 +146,120 @@ function generateValidRandomPosition(targetPieces: number, maxAttempts: number =
   return '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1';
 }
 
+const MINOR_PIECES = ['N', 'B'];
+const MAJOR_PIECES = ['R', 'Q'];
+
+// Generate a 4-piece position avoiding minor-piece-only draws (K+B vs K+B, K+N vs K+N, K+B vs K+N)
+function generateDecisive4PiecePosition(maxAttempts: number = 20): string {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const board: (string | null)[][] = Array(8).fill(null).map(() => Array(8).fill(null));
+    
+    // Place white king (bottom half)
+    const whiteKingFile = getRandomInt(0, 7);
+    const whiteKingRank = getRandomInt(0, 3);
+    board[whiteKingRank][whiteKingFile] = 'K';
+    
+    // Place black king (top half, at least 2 squares away)
+    let blackKingFile: number, blackKingRank: number;
+    do {
+      blackKingFile = getRandomInt(0, 7);
+      blackKingRank = getRandomInt(4, 7);
+    } while (Math.abs(blackKingFile - whiteKingFile) < 2 && Math.abs(blackKingRank - whiteKingRank) < 2);
+    board[blackKingRank][blackKingFile] = 'k';
+    
+    // Pick two additional pieces (excluding pawns for simplicity on edge ranks)
+    const piece1 = getRandomElement([...MINOR_PIECES, ...MAJOR_PIECES]);
+    const piece2 = getRandomElement([...MINOR_PIECES, ...MAJOR_PIECES]);
+    
+    // Check if both pieces are minor pieces (would be a draw if split)
+    const bothMinor = MINOR_PIECES.includes(piece1) && MINOR_PIECES.includes(piece2);
+    
+    let piece1IsWhite: boolean;
+    let piece2IsWhite: boolean;
+    
+    if (bothMinor) {
+      // Both minor pieces must go to the same side to avoid draws
+      const sameColor = Math.random() > 0.5;
+      piece1IsWhite = sameColor;
+      piece2IsWhite = sameColor;
+    } else {
+      // At least one major piece - safe to split
+      piece1IsWhite = Math.random() > 0.5;
+      piece2IsWhite = Math.random() > 0.5;
+    }
+    
+    // Place piece 1
+    let p1File: number, p1Rank: number;
+    do {
+      p1File = getRandomInt(0, 7);
+      p1Rank = getRandomInt(0, 7);
+    } while (
+      (p1File === whiteKingFile && p1Rank === whiteKingRank) ||
+      (p1File === blackKingFile && p1Rank === blackKingRank)
+    );
+    board[p1Rank][p1File] = piece1IsWhite ? piece1 : piece1.toLowerCase();
+    
+    // Place piece 2
+    let p2File: number, p2Rank: number;
+    do {
+      p2File = getRandomInt(0, 7);
+      p2Rank = getRandomInt(0, 7);
+    } while (
+      (p2File === whiteKingFile && p2Rank === whiteKingRank) ||
+      (p2File === blackKingFile && p2Rank === blackKingRank) ||
+      (p2File === p1File && p2Rank === p1Rank)
+    );
+    board[p2Rank][p2File] = piece2IsWhite ? piece2 : piece2.toLowerCase();
+    
+    // Convert board to FEN
+    let fen = '';
+    for (let rank = 7; rank >= 0; rank--) {
+      let emptyCount = 0;
+      for (let file = 0; file < 8; file++) {
+        const p = board[rank][file];
+        if (p) {
+          if (emptyCount > 0) {
+            fen += emptyCount;
+            emptyCount = 0;
+          }
+          fen += p;
+        } else {
+          emptyCount++;
+        }
+      }
+      if (emptyCount > 0) {
+        fen += emptyCount;
+      }
+      if (rank > 0) fen += '/';
+    }
+    
+    // Determine who moves - prefer the side with more/stronger material
+    const whiteHasMajor = (piece1IsWhite && MAJOR_PIECES.includes(piece1)) || 
+                          (piece2IsWhite && MAJOR_PIECES.includes(piece2));
+    const blackHasMajor = (!piece1IsWhite && MAJOR_PIECES.includes(piece1)) || 
+                          (!piece2IsWhite && MAJOR_PIECES.includes(piece2));
+    
+    let turn: string;
+    if (whiteHasMajor && !blackHasMajor) {
+      turn = 'w';
+    } else if (blackHasMajor && !whiteHasMajor) {
+      turn = 'b';
+    } else {
+      // Both have equal material, random turn
+      turn = Math.random() > 0.5 ? 'w' : 'b';
+    }
+    
+    fen += ` ${turn} - - 0 1`;
+    
+    if (isValidPosition(fen)) {
+      return fen;
+    }
+  }
+  
+  // Fallback: K+R+N vs K position (always decisive)
+  return '4k3/8/8/8/8/8/8/R3K1N1 w - - 0 1';
+}
+
 // Generate a 3-piece position with both kings + rook or queen (avoids draw positions)
 function generateDecisive3PiecePosition(maxAttempts: number = 20): string {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -277,11 +391,21 @@ export function generatePositionClient(difficulty: string): GeneratedPosition {
   
   const targetPieces = getRandomInt(config.minPieces, config.maxPieces);
   
-  // For beginner with exactly 3 pieces, use special decisive position generator
-  // (both kings + rook or queen to avoid draw positions)
-  const fen = (difficulty === 'beginner' && targetPieces === 3)
-    ? generateDecisive3PiecePosition()
-    : generateValidRandomPosition(targetPieces);
+  // For beginner difficulty, use special decisive position generators to avoid draws
+  // 3-piece: both kings + rook or queen
+  // 4-piece: ensure minor pieces (B/N) aren't split between sides
+  let fen: string;
+  if (difficulty === 'beginner') {
+    if (targetPieces === 3) {
+      fen = generateDecisive3PiecePosition();
+    } else if (targetPieces === 4) {
+      fen = generateDecisive4PiecePosition();
+    } else {
+      fen = generateValidRandomPosition(targetPieces);
+    }
+  } else {
+    fen = generateValidRandomPosition(targetPieces);
+  }
   
   const board = fenToBoard(fen);
   const rotation = getRandomRotation(config);
