@@ -1884,139 +1884,145 @@ export default function StandardMode() {
                   </CardContent>
                 </Card>
                 
-                <Card className="aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2">
-                  <div className="relative w-full h-full">
-                    <ChessBoard 
-                      fen={fen}
-                      orientation={playerColor}
-                      showCoordinates={true}
-                      highlightedSquares={legalMoves}
-                      lastMove={lastMove || undefined}
-                      onSquareClick={handleSquareClick}
-                      enableArrows={true}
-                      enablePremoves={!isBotGame}
-                      isPlayerTurn={game ? ((game.turn() === "w" && playerColor === "white") || (game.turn() === "b" && playerColor === "black")) : true}
-                      premove={premove}
-                      onPremove={setPremove}
-                      arrowDrawMode={arrowDrawMode}
-                      noCard={true}
-                    />
-                    
-                    {isBlindfold && !isPeeking && (
-                      <div className="absolute inset-0 bg-black pointer-events-none overflow-visible">
-                        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 8 8" preserveAspectRatio="none">
-                          {Array.from({ length: 9 }).map((_, i) => (
-                            <line
-                              key={`h-${i}`}
-                              x1="0"
-                              y1={i}
-                              x2="8"
-                              y2={i}
-                              stroke="white"
-                              strokeWidth="0.02"
-                            />
-                          ))}
-                          {Array.from({ length: 9 }).map((_, i) => (
-                            <line
-                              key={`v-${i}`}
-                              x1={i}
-                              y1="0"
-                              x2={i}
-                              y2="8"
-                              stroke="white"
-                              strokeWidth="0.02"
-                            />
-                          ))}
-                        </svg>
-                        {userSettings?.blindfoldShowCoordinates && (
-                          <div className="absolute inset-0 grid grid-cols-8 grid-rows-8">
-                            {Array.from({ length: 64 }).map((_, i) => {
-                              const row = Math.floor(i / 8);
-                              const col = i % 8;
-                              const files = playerColor === "white" 
-                                ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
-                                : ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
-                              const ranks = playerColor === "white"
-                                ? ['8', '7', '6', '5', '4', '3', '2', '1']
-                                : ['1', '2', '3', '4', '5', '6', '7', '8'];
-                              const squareName = files[col] + ranks[row];
-                              return (
-                                <div
-                                  key={squareName}
-                                  className="flex items-center justify-center text-white/70 font-mono text-xs md:text-sm"
-                                  data-testid={`tile-label-${squareName}`}
-                                >
-                                  {squareName}
-                                </div>
-                              );
-                            })}
+                <div className="flex flex-col lg:flex-row gap-3">
+                  <Card className="aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2">
+                    <div className="relative w-full h-full">
+                      <ChessBoard 
+                        fen={fen}
+                        orientation={playerColor}
+                        showCoordinates={true}
+                        highlightedSquares={legalMoves}
+                        lastMove={lastMove || undefined}
+                        onSquareClick={handleSquareClick}
+                        enableArrows={true}
+                        enablePremoves={!isBotGame}
+                        isPlayerTurn={game ? ((game.turn() === "w" && playerColor === "white") || (game.turn() === "b" && playerColor === "black")) : true}
+                        premove={premove}
+                        onPremove={setPremove}
+                        arrowDrawMode={arrowDrawMode}
+                        noCard={true}
+                      />
+                      
+                      {isBlindfold && !isPeeking && (
+                        <div className="absolute inset-0 bg-black pointer-events-none overflow-visible">
+                          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 8 8" preserveAspectRatio="none">
+                            {Array.from({ length: 9 }).map((_, i) => (
+                              <line
+                                key={`h-${i}`}
+                                x1="0"
+                                y1={i}
+                                x2="8"
+                                y2={i}
+                                stroke="white"
+                                strokeWidth="0.02"
+                              />
+                            ))}
+                            {Array.from({ length: 9 }).map((_, i) => (
+                              <line
+                                key={`v-${i}`}
+                                x1={i}
+                                y1="0"
+                                x2={i}
+                                y2="8"
+                                stroke="white"
+                                strokeWidth="0.02"
+                              />
+                            ))}
+                          </svg>
+                          {userSettings?.blindfoldShowCoordinates && (
+                            <div className="absolute inset-0 grid grid-cols-8 grid-rows-8">
+                              {Array.from({ length: 64 }).map((_, i) => {
+                                const row = Math.floor(i / 8);
+                                const col = i % 8;
+                                const files = playerColor === "white" 
+                                  ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+                                  : ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
+                                const ranks = playerColor === "white"
+                                  ? ['8', '7', '6', '5', '4', '3', '2', '1']
+                                  : ['1', '2', '3', '4', '5', '6', '7', '8'];
+                                const squareName = files[col] + ranks[row];
+                                return (
+                                  <div
+                                    key={squareName}
+                                    className="flex items-center justify-center text-white/70 font-mono text-xs md:text-sm"
+                                    data-testid={`tile-label-${squareName}`}
+                                  >
+                                    {squareName}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                  
+                  {isBlindfold && (
+                    <div className="flex flex-col justify-center gap-4">
+                      {(userSettings?.blindfoldDifficulty !== 'grandmaster') && (
+                        <div className="flex flex-col items-center gap-2">
+                          <div
+                            ref={peekButtonRef}
+                            role="button"
+                            tabIndex={remainingPeeks === 0 ? -1 : 0}
+                            onMouseDown={handlePeekStart}
+                            onMouseUp={handlePeekEnd}
+                            onMouseLeave={handlePeekEnd}
+                            onTouchStart={handlePeekStart}
+                            onTouchEnd={handlePeekEnd}
+                            onTouchCancel={handlePeekEnd}
+                            onKeyDown={handlePeekKeyDown}
+                            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-10 px-6 select-none cursor-pointer ${
+                              remainingPeeks === 0 
+                                ? "pointer-events-none opacity-50 border border-input bg-background" 
+                                : isPeeking 
+                                  ? "bg-primary text-primary-foreground shadow hover:bg-primary/90" 
+                                  : "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
+                            }`}
+                            aria-disabled={remainingPeeks === 0}
+                            data-testid="button-peek"
+                          >
+                            <Eye className="mr-2 h-5 w-5" />
+                            {isPeeking ? "Peeking..." : "Hold to Peek"}
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-                
-                {isBlindfold && (userSettings?.blindfoldDifficulty !== 'grandmaster') && (
-                  <div className="flex flex-col items-center gap-2 py-2">
-                    <div
-                      ref={peekButtonRef}
-                      role="button"
-                      tabIndex={remainingPeeks === 0 ? -1 : 0}
-                      onMouseDown={handlePeekStart}
-                      onMouseUp={handlePeekEnd}
-                      onMouseLeave={handlePeekEnd}
-                      onTouchStart={handlePeekStart}
-                      onTouchEnd={handlePeekEnd}
-                      onTouchCancel={handlePeekEnd}
-                      onKeyDown={handlePeekKeyDown}
-                      className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-10 px-8 select-none cursor-pointer ${
-                        remainingPeeks === 0 
-                          ? "pointer-events-none opacity-50 border border-input bg-background" 
-                          : isPeeking 
-                            ? "bg-primary text-primary-foreground shadow hover:bg-primary/90" 
-                            : "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
-                      }`}
-                      aria-disabled={remainingPeeks === 0}
-                      data-testid="button-peek"
-                    >
-                      <Eye className="mr-2 h-5 w-5" />
-                      {isPeeking ? "Peeking..." : "Hold to Peek"}
-                    </div>
-                    <div className="text-sm text-muted-foreground" data-testid="text-remaining-peeks">
-                      {!isFinite(remainingPeeks) ? (
-                        <span className="flex items-center gap-1">
-                          <InfinityIcon className="h-4 w-4" /> peeks left
-                        </span>
-                      ) : (
-                        <span>{remainingPeeks} peeks left</span>
+                          <div className="text-sm text-muted-foreground text-center" data-testid="text-remaining-peeks">
+                            {!isFinite(remainingPeeks) ? (
+                              <span className="flex items-center gap-1">
+                                <InfinityIcon className="h-4 w-4" /> peeks left
+                              </span>
+                            ) : (
+                              <span>{remainingPeeks} peeks left</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {userSettings?.voiceInputEnabled && (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${isVoiceListening ? 'bg-primary/10 border border-primary' : 'bg-muted'}`} data-testid="voice-status">
+                            {isVoiceListening ? (
+                              <>
+                                <Mic className="h-5 w-5 text-primary animate-pulse" />
+                                <span className="text-sm font-medium">Listening...</span>
+                              </>
+                            ) : (
+                              <>
+                                <MicOff className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Voice off</span>
+                              </>
+                            )}
+                          </div>
+                          {voiceTranscript && (
+                            <div className="text-sm text-muted-foreground italic text-center">
+                              "{voiceTranscript}"
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
-                  </div>
-                )}
-                
-                {isBlindfold && userSettings?.voiceInputEnabled && (
-                  <div className="flex items-center justify-center gap-2 py-2">
-                    <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${isVoiceListening ? 'bg-primary/10 border border-primary' : 'bg-muted'}`} data-testid="voice-status">
-                      {isVoiceListening ? (
-                        <>
-                          <Mic className="h-5 w-5 text-primary animate-pulse" />
-                          <span className="text-sm font-medium">Listening...</span>
-                        </>
-                      ) : (
-                        <>
-                          <MicOff className="h-5 w-5 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Voice off</span>
-                        </>
-                      )}
-                    </div>
-                    {voiceTranscript && (
-                      <div className="text-sm text-muted-foreground italic">
-                        "{voiceTranscript}"
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
                 
                 <Card className={`${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-primary" : ""}`}>
                   <CardContent className="py-2 px-4">
