@@ -907,15 +907,15 @@ export default function BoardSpin() {
               </div>
             </div>
             
-            {bonusResult !== null && position && (
+            {bonusResult !== null && (
               <div className={`p-4 rounded-lg text-center ${bonusResult ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
                 {bonusResult ? (
                   <p className="text-green-700 dark:text-green-300">
-                    Correct! Best move was {transformMove(bestMove || '', position.rotation)}. Score doubled!
+                    Correct! Best move was {bestMove}. Score doubled!
                   </p>
                 ) : (
                   <p className="text-red-700 dark:text-red-300">
-                    The best move was {transformMove(bestMove || '', position.rotation)}. No bonus this time.
+                    The best move was {bestMove}. No bonus this time.
                   </p>
                 )}
               </div>

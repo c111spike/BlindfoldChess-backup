@@ -66,6 +66,8 @@ class StockfishService {
   private isReady: boolean = false;
   private outputBuffer: string = '';
   private resolveQueue: Array<(value: string) => void> = [];
+  private requestQueue: Promise<any> = Promise.resolve();
+  private requestLock: boolean = false;
 
   async init(): Promise<void> {
     if (this.process) return;
@@ -159,15 +161,25 @@ class StockfishService {
   }
 
   async getBestMove(fen: string, depth: number = 15): Promise<StockfishResult> {
-    if (!this.isReady) {
-      await this.init();
-    }
+    // Queue this request to prevent race conditions
+    // Each request waits for previous requests to complete
+    const executeRequest = async (): Promise<StockfishResult> => {
+      if (!this.isReady) {
+        await this.init();
+      }
 
-    this.sendCommand(`position fen ${fen}`);
-    this.sendCommand(`go depth ${depth}`);
+      console.log(`[Stockfish] getBestMove starting for FEN: ${fen}`);
+      this.sendCommand(`position fen ${fen}`);
+      this.sendCommand(`go depth ${depth}`);
 
-    const result = await this.waitForBestMove();
-    return result;
+      const result = await this.waitForBestMove();
+      console.log(`[Stockfish] getBestMove result for FEN ${fen.substring(0, 30)}...: ${result.bestMove}`);
+      return result;
+    };
+
+    // Chain this request to the queue
+    this.requestQueue = this.requestQueue.then(executeRequest, executeRequest);
+    return this.requestQueue;
   }
 
   private waitForBestMove(): Promise<StockfishResult> {
