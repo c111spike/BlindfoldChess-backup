@@ -1033,6 +1033,7 @@ export const repertoires = pgTable("repertoires", {
   openingId: varchar("opening_id")
     .references(() => openings.id, { onDelete: "set null" }),
   description: text("description"),
+  includeInReview: boolean("include_in_review").default(true), // Whether to check this opening in game review
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
