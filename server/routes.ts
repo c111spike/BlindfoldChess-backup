@@ -3336,9 +3336,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "moves array and playerColor required" });
       }
       
-      // Get all user's repertoires for the color they played
+      // Get all user's repertoires for the color they played (only those included in review)
       const repertoires = await storage.getRepertoires(userId);
-      const colorRepertoires = repertoires.filter(r => r.color === playerColor);
+      const colorRepertoires = repertoires.filter(r => r.color === playerColor && r.includeInReview !== false);
       
       if (colorRepertoires.length === 0) {
         return res.json({ 

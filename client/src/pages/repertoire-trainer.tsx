@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Book, Plus, Search, ChevronRight, Play, Trash2, CheckCircle, XCircle, RotateCcw, ArrowLeft, RefreshCw } from "lucide-react";
 import { ChessBoard } from "@/components/chess-board";
 import { Chess } from "chess.js";
@@ -91,6 +93,15 @@ export default function RepertoireTrainer() {
         title: "Repertoire deleted",
         description: "The repertoire has been removed.",
       });
+    },
+  });
+
+  const toggleReviewMutation = useMutation({
+    mutationFn: async ({ id, includeInReview }: { id: string; includeInReview: boolean }) => {
+      return await apiRequest("PATCH", `/api/repertoires/${id}`, { includeInReview });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/repertoires"] });
     },
   });
 
@@ -294,14 +305,36 @@ export default function RepertoireTrainer() {
                       </Badge>
                     </CardDescription>
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => deleteRepertoireMutation.mutate(repertoire.id)}
-                    data-testid={`button-delete-${repertoire.id}`}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center">
+                          <Checkbox
+                            id={`review-${repertoire.id}`}
+                            checked={repertoire.includeInReview !== false}
+                            onCheckedChange={(checked) => {
+                              toggleReviewMutation.mutate({
+                                id: repertoire.id,
+                                includeInReview: checked === true,
+                              });
+                            }}
+                            data-testid={`checkbox-review-${repertoire.id}`}
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Include in game review</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => deleteRepertoireMutation.mutate(repertoire.id)}
+                      data-testid={`button-delete-${repertoire.id}`}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
