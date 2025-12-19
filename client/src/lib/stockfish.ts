@@ -68,20 +68,21 @@ class ClientStockfish {
 
         this.sendCommand('uci');
 
-        const uciHandler = (line: string) => {
+        let receivedUciOk = false;
+        const initHandler = (line: string) => {
           if (line === 'uciok') {
-            this.removeHandler(uciHandler);
+            receivedUciOk = true;
             this.sendCommand('isready');
           }
-          if (line === 'readyok') {
-            this.removeHandler(uciHandler);
+          if (line === 'readyok' && receivedUciOk) {
+            this.removeHandler(initHandler);
             this.isReady = true;
             console.log('[ClientStockfish] Engine ready');
             resolve();
           }
         };
 
-        this.addHandler(uciHandler);
+        this.addHandler(initHandler);
 
         setTimeout(() => {
           if (!this.isReady) {
