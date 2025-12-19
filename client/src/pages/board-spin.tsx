@@ -631,12 +631,113 @@ export default function BoardSpin() {
             <CardContent className="flex flex-col items-center gap-4 py-8">
               <h2 className="text-2xl font-bold animate-pulse">Spinning...</h2>
               
-              <div className="relative">
-                {renderBoard(
-                  Array(8).fill(null).map(() => Array(8).fill(null)), 
-                  spinRotation, 
-                  false
-                )}
+              <div className="relative w-full max-w-[400px] aspect-square">
+                {/* Spinning board (empty) */}
+                <motion.div 
+                  className="absolute inset-0"
+                  style={{ 
+                    transformOrigin: 'center center',
+                  }}
+                  animate={{ rotate: spinRotation }}
+                  transition={{ duration: 0.05, ease: "linear" }}
+                >
+                  <div className="grid grid-cols-8 gap-0 border-2 border-border rounded-md overflow-hidden w-full h-full">
+                    {Array(8).fill(null).map((_, rankIdx) => (
+                      Array(8).fill(null).map((_, fileIdx) => {
+                        const isLight = (rankIdx + fileIdx) % 2 === 0;
+                        const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+                        const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+                        const file = files[fileIdx];
+                        const rank = ranks[rankIdx];
+                        const isA1 = file === 'a' && rank === '1';
+                        const isH8 = file === 'h' && rank === '8';
+                        
+                        return (
+                          <div
+                            key={`${file}${rank}`}
+                            className={`aspect-square flex items-center justify-center relative
+                              ${isLight ? 'bg-amber-100 dark:bg-amber-200' : 'bg-amber-700 dark:bg-amber-800'}
+                            `}
+                          >
+                            {isA1 && (
+                              <span 
+                                className="absolute bottom-0.5 left-0.5 text-[10px] font-bold text-red-600 dark:text-red-500 bg-white/70 dark:bg-black/50 px-0.5 rounded" 
+                                style={{ transform: `rotate(${-spinRotation}deg)` }}
+                              >
+                                a1
+                              </span>
+                            )}
+                            {isH8 && (
+                              <span 
+                                className="absolute top-0.5 right-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-white/70 dark:bg-black/50 px-0.5 rounded"
+                                style={{ transform: `rotate(${-spinRotation}deg)` }}
+                              >
+                                h8
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })
+                    ))}
+                  </div>
+                </motion.div>
+                
+                {/* Flying pieces - animate outward from board center */}
+                <AnimatePresence>
+                  {flyingPieces.map((fp) => {
+                    // Calculate outward direction from center (50%, 50%)
+                    const centerX = 50;
+                    const centerY = 50;
+                    const pieceX = fp.x + 6.25; // Center of square
+                    const pieceY = fp.y + 6.25;
+                    
+                    // Direction vector from center
+                    const dirX = pieceX - centerX;
+                    const dirY = pieceY - centerY;
+                    
+                    // Normalize and scale for fly-off distance
+                    const magnitude = Math.sqrt(dirX * dirX + dirY * dirY) || 1;
+                    const flyDistance = 150; // How far pieces fly off (in %)
+                    const finalX = pieceX + (dirX / magnitude) * flyDistance;
+                    const finalY = pieceY + (dirY / magnitude) * flyDistance;
+                    
+                    return (
+                      <motion.div
+                        key={fp.id}
+                        className="absolute text-3xl sm:text-4xl pointer-events-none"
+                        style={{
+                          left: `${fp.x}%`,
+                          top: `${fp.y}%`,
+                          width: '12.5%',
+                          height: '12.5%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        initial={{ 
+                          left: `${fp.x}%`,
+                          top: `${fp.y}%`,
+                          opacity: 1,
+                          scale: 1,
+                          rotate: 0,
+                        }}
+                        animate={{ 
+                          left: `${finalX}%`,
+                          top: `${finalY}%`,
+                          opacity: 0,
+                          scale: 0.5,
+                          rotate: spinRotation + (fp.id % 2 === 0 ? 180 : -180),
+                        }}
+                        transition={{ 
+                          duration: 1.5,
+                          ease: "easeOut",
+                        }}
+                      >
+                        {PIECE_UNICODE[fp.piece]}
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
               </div>
             </CardContent>
           </Card>
