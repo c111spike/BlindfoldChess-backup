@@ -31,6 +31,7 @@ import AdminPage from "@/pages/admin";
 import RepertoireTrainer from "@/pages/repertoire-trainer";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
+import Help from "@/pages/help";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -65,6 +66,7 @@ function Router() {
       <Route path="/repertoire" component={RepertoireTrainer} />
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
+      <Route path="/help" component={Help} />
       <Route component={NotFound} />
     </Switch>
   );
