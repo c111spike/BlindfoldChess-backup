@@ -1452,6 +1452,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Get Board Spin stats (uses efficient SQL aggregation)
+      const boardSpinStats = await storage.getUserBoardSpinStats(userId);
+      
+      // Get N-Piece Challenge stats
+      const nPieceProgress = await storage.getNPieceOverallProgress(userId);
+      
       res.json({
         repertoire: {
           totalRepertoires: repertoires.length,
@@ -1465,13 +1471,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             : 0,
         },
         boardSpin: {
-          gamesPlayed: 0,
-          bestScore: 0,
-          avgAccuracy: 0,
+          gamesPlayed: boardSpinStats.gamesPlayed,
+          bestScore: boardSpinStats.bestScore,
+          avgAccuracy: boardSpinStats.avgAccuracy,
         },
         nPiece: {
-          challengesAttempted: 0,
-          totalSolutions: 0,
+          challengesAttempted: nPieceProgress.total,
+          totalSolutions: nPieceProgress.found,
         },
         knightsTour: {
           totalCompleted: knightsTourProgress.totalCompleted,

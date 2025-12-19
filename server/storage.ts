@@ -184,6 +184,7 @@ export interface IStorage {
   getBoardSpinLeaderboard(difficulty?: string, limit?: number): Promise<(BoardSpinScore & { user: User })[]>;
   getUserBoardSpinScores(userId: string, limit?: number): Promise<BoardSpinScore[]>;
   getUserBoardSpinHighScore(userId: string, difficulty?: string): Promise<BoardSpinScore | undefined>;
+  getUserBoardSpinStats(userId: string): Promise<{ gamesPlayed: number; bestScore: number; avgAccuracy: number }>;
   
   // N-Piece Challenge
   getNPieceProgress(userId: string, pieceType: NPieceType, boardSize: number): Promise<NPieceChallengeProgress | undefined>;
@@ -1655,6 +1656,23 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
 
     return highScore;
+  }
+
+  async getUserBoardSpinStats(userId: string): Promise<{ gamesPlayed: number; bestScore: number; avgAccuracy: number }> {
+    const [result] = await db
+      .select({
+        gamesPlayed: sql<number>`count(*)::int`,
+        bestScore: sql<number>`coalesce(max(${boardSpinScores.score}), 0)::int`,
+        avgAccuracy: sql<number>`coalesce(round(avg(${boardSpinScores.accuracy})), 0)::int`,
+      })
+      .from(boardSpinScores)
+      .where(eq(boardSpinScores.userId, userId));
+
+    return {
+      gamesPlayed: result?.gamesPlayed || 0,
+      bestScore: result?.bestScore || 0,
+      avgAccuracy: result?.avgAccuracy || 0,
+    };
   }
 
   // N-Piece Challenge Methods
