@@ -2388,8 +2388,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const result = await stockfishService.getBestMove(fen, 15);
       
+      // In drawn/equal positions, Stockfish may not prioritize captures since all moves
+      // lead to the same drawn result. For Board Spin, we want the "human sensible" best
+      // move which is to capture material when possible.
+      let finalBestMove = result.bestMove;
+      const evaluation = result.evaluation ?? 0;
+      
+      // Check if position is drawn/nearly equal (evaluation within ±0.5 pawns)
+      if (Math.abs(evaluation) <= 0.5) {
+        try {
+          const chess = new Chess(fen);
+          const moves = chess.moves({ verbose: true });
+          
+          // Find captures - these are objectively "better" moves for human intuition
+          const captures = moves.filter(m => m.captured);
+          
+          if (captures.length > 0) {
+            // Sort captures by value of captured piece (Q > R > B/N > P)
+            const pieceValues: Record<string, number> = { q: 9, r: 5, b: 3, n: 3, p: 1 };
+            captures.sort((a, b) => {
+              const aVal = pieceValues[a.captured!] || 0;
+              const bVal = pieceValues[b.captured!] || 0;
+              return bVal - aVal;
+            });
+            
+            // Use the highest-value capture as the best move
+            const bestCapture = captures[0];
+            const captureMoveUci = bestCapture.from + bestCapture.to + (bestCapture.promotion || '');
+            
+            // Only override if Stockfish's move is NOT a capture
+            const stockfishMoveIsCapture = moves.some(m => 
+              m.from + m.to === result.bestMove.substring(0, 4) && m.captured
+            );
+            
+            if (!stockfishMoveIsCapture) {
+              console.log(`[BoardSpin] Position is drawn (eval: ${evaluation}), overriding Stockfish move ${result.bestMove} with capture ${captureMoveUci}`);
+              finalBestMove = captureMoveUci;
+            }
+          }
+        } catch (chessError) {
+          console.error('[BoardSpin] Error checking for captures:', chessError);
+          // Fall back to Stockfish's move
+        }
+      }
+      
       // Validate that the best move is for the correct color
-      const fromSquare = result.bestMove.substring(0, 2);
+      const fromSquare = finalBestMove.substring(0, 2);
       const fromFile = fromSquare.charCodeAt(0) - 'a'.charCodeAt(0);
       const fromRank = 8 - parseInt(fromSquare[1]);
       
@@ -2412,13 +2456,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pieceIsWhite = pieceOnFromSquare === pieceOnFromSquare.toUpperCase();
       const turnIsWhite = turn === 'w';
       
-      console.log(`[BoardSpin] Best move: ${result.bestMove}, Piece: ${pieceOnFromSquare}, PieceIsWhite: ${pieceIsWhite}, TurnIsWhite: ${turnIsWhite}`);
+      console.log(`[BoardSpin] Best move: ${finalBestMove}, Piece: ${pieceOnFromSquare}, PieceIsWhite: ${pieceIsWhite}, TurnIsWhite: ${turnIsWhite}`);
       
       if (pieceIsWhite !== turnIsWhite) {
         console.error(`[BoardSpin] MISMATCH: Turn is ${turn} but piece ${pieceOnFromSquare} is ${pieceIsWhite ? 'white' : 'black'}`);
       }
       
-      res.json({ ...result, turn });
+      res.json({ ...result, bestMove: finalBestMove, turn });
     } catch (error) {
       console.error("Error getting best move:", error);
       res.status(500).json({ message: "Failed to get best move" });
