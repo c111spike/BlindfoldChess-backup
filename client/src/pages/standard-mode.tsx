@@ -1680,7 +1680,7 @@ export default function StandardMode() {
                             data-testid="button-bot-rapid"
                           >
                             <Clock className="mr-1 h-3 w-3" />
-                            Rapid (15+10)
+                            Rapid (15+0)
                           </Button>
                         </div>
                         
