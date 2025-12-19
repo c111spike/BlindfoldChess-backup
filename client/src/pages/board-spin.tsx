@@ -68,12 +68,12 @@ export default function BoardSpin() {
   });
 
   const difficulties = [
-    { value: 'beginner', label: 'Beginner (3-5 pieces)', multiplier: '1.0x' },
-    { value: 'easy', label: 'Easy (6-10 pieces)', multiplier: '1.5x' },
-    { value: 'intermediate', label: 'Intermediate (11-17 pieces)', multiplier: '2.0x' },
-    { value: 'advanced', label: 'Advanced (18-24 pieces)', multiplier: '2.5x' },
-    { value: 'expert', label: 'Expert (25-31 pieces)', multiplier: '3.0x' },
-    { value: 'master', label: 'Master (32 pieces)', multiplier: '4.0x' },
+    { value: 'beginner', label: 'Beginner (2-4 pieces)', multiplier: '1.0x' },
+    { value: 'easy', label: 'Easy (5-7 pieces)', multiplier: '1.5x' },
+    { value: 'intermediate', label: 'Intermediate (8-11 pieces)', multiplier: '2.0x' },
+    { value: 'advanced', label: 'Advanced (12-14 pieces)', multiplier: '2.5x' },
+    { value: 'expert', label: 'Expert (15-17 pieces)', multiplier: '3.0x' },
+    { value: 'master', label: 'Master (18-20 pieces)', multiplier: '4.0x' },
   ];
 
   const generateNewPosition = async () => {

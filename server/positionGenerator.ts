@@ -22,43 +22,43 @@ function isValidPosition(fen: string): boolean {
 
 const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
   'beginner': {
-    minPieces: 3,
-    maxPieces: 5,
+    minPieces: 2,
+    maxPieces: 4,
     rotationInterval: 120,
     excludedAngles: [0],
     multiplier: 1.0
   },
   'easy': {
-    minPieces: 6,
-    maxPieces: 10,
+    minPieces: 5,
+    maxPieces: 7,
     rotationInterval: 90,
     excludedAngles: [0],
     multiplier: 1.5
   },
   'intermediate': {
-    minPieces: 11,
-    maxPieces: 17,
+    minPieces: 8,
+    maxPieces: 11,
     rotationInterval: 60,
     excludedAngles: [0],
     multiplier: 2.0
   },
   'advanced': {
-    minPieces: 18,
-    maxPieces: 24,
+    minPieces: 12,
+    maxPieces: 14,
     rotationInterval: 45,
     excludedAngles: [0],
     multiplier: 2.5
   },
   'expert': {
-    minPieces: 25,
-    maxPieces: 31,
+    minPieces: 15,
+    maxPieces: 17,
     rotationInterval: 30,
     excludedAngles: [0, 30, 330],
     multiplier: 3.0
   },
   'master': {
-    minPieces: 32,
-    maxPieces: 32,
+    minPieces: 18,
+    maxPieces: 20,
     rotationInterval: 15,
     excludedAngles: [0, 15, 30, 330, 345],
     multiplier: 4.0
