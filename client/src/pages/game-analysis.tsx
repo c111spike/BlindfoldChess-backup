@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useClientAnalysis } from '@/hooks/useClientAnalysis';
 import {
   ChevronLeft,
   ChevronRight,
@@ -1737,6 +1738,9 @@ export default function GameAnalysisPage() {
 
   const isSharedView = !!shareCode;
   const [autoStarted, setAutoStarted] = useState(false);
+  const [useClientSide, setUseClientSide] = useState(false);
+  
+  const clientAnalysis = useClientAnalysis();
 
   const { data, isLoading, error, refetch } = useQuery<AnalysisData>({
     queryKey: isSharedView ? ['/api/analysis/shared', shareCode] : ['/api/analysis', gameId],
@@ -1905,31 +1909,74 @@ export default function GameAnalysisPage() {
       <div className="container max-w-6xl mx-auto p-4">
         <Card>
           <CardContent className="p-8 text-center">
-            {autoStarted || startAnalysisMutation.isPending ? (
+            {clientAnalysis.analyzing ? (
+              <>
+                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+                <h2 className="text-xl font-bold mb-2">Analyzing Locally</h2>
+                <p className="text-muted-foreground mb-2">
+                  Using your device to analyze the game...
+                </p>
+                <Progress 
+                  value={(clientAnalysis.progress / clientAnalysis.totalMoves) * 100} 
+                  className="w-64 mx-auto mb-2"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Move {clientAnalysis.progress} of {clientAnalysis.totalMoves}
+                </p>
+              </>
+            ) : autoStarted || startAnalysisMutation.isPending ? (
               <>
                 <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
                 <h2 className="text-xl font-bold mb-2">Analyzing Your Game</h2>
                 <p className="text-muted-foreground mb-4">
                   Stockfish is evaluating each move. This usually takes 15-30 seconds...
                 </p>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setUseClientSide(true);
+                    clientAnalysis.startAnalysis(gameMoves);
+                  }}
+                  disabled={gameMoves.length === 0}
+                  className="mt-2"
+                  data-testid="button-analyze-locally"
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  Analyze Locally Instead
+                </Button>
               </>
             ) : (
               <>
                 <h2 className="text-xl font-bold mb-4">Analysis Not Found</h2>
-                {!isSharedView && gameId && (
-                  <Button 
-                    onClick={() => startAnalysisMutation.mutate()}
-                    disabled={startAnalysisMutation.isPending}
-                    data-testid="button-start-analysis"
-                  >
-                    Start Analysis
-                  </Button>
-                )}
+                <div className="flex flex-col gap-2 items-center">
+                  {!isSharedView && gameId && (
+                    <Button 
+                      onClick={() => startAnalysisMutation.mutate()}
+                      disabled={startAnalysisMutation.isPending}
+                      data-testid="button-start-analysis"
+                    >
+                      Start Server Analysis
+                    </Button>
+                  )}
+                  {gameMoves.length > 0 && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setUseClientSide(true);
+                        clientAnalysis.startAnalysis(gameMoves);
+                      }}
+                      data-testid="button-analyze-locally-alt"
+                    >
+                      <Zap className="w-4 h-4 mr-2" />
+                      Analyze Locally (Faster)
+                    </Button>
+                  )}
+                </div>
               </>
             )}
             <Button 
               variant="outline" 
-              className="ml-2"
+              className="mt-4"
               onClick={() => setLocation('/history')}
               data-testid="button-back-history"
             >
