@@ -9,12 +9,12 @@ export type BotPersonality =
 
 export type BotDifficulty = 
   | "beginner"    // ~400 Elo
-  | "novice"      // ~600 Elo
-  | "intermediate" // ~900 Elo
-  | "club"        // ~1200 Elo
-  | "advanced"    // ~1500 Elo
-  | "expert"      // ~1800 Elo
-  | "master";     // ~2000 Elo
+  | "novice"      // ~450 Elo
+  | "intermediate" // ~500 Elo
+  | "club"        // ~550 Elo
+  | "advanced"    // ~600 Elo
+  | "expert"      // ~650 Elo
+  | "master";     // ~700 Elo
 
 export interface BotProfile {
   id: string;
@@ -28,12 +28,12 @@ export interface BotProfile {
 
 export const BOT_DIFFICULTY_ELO: Record<BotDifficulty, number> = {
   beginner: 400,
-  novice: 600,
-  intermediate: 900,
-  club: 1200,
-  advanced: 1500,
-  expert: 1800,
-  master: 2000,
+  novice: 450,
+  intermediate: 500,
+  club: 550,
+  advanced: 600,
+  expert: 650,
+  master: 700,
 };
 
 export const BOT_DIFFICULTY_NAMES: Record<BotDifficulty, string> = {
