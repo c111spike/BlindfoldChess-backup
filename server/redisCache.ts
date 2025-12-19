@@ -28,37 +28,18 @@ class RedisCache {
     
     this.connectionAttempted = true;
     
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-    
-    console.log('[RedisCache] URL starts with:', url?.substring(0, 20));
-    console.log('[RedisCache] Token starts with:', token?.substring(0, 10));
+    let url = process.env.UPSTASH_REDIS_REST_URL;
+    let token = process.env.UPSTASH_REDIS_REST_TOKEN;
     
     if (!url || !token) {
       console.log('[RedisCache] No Upstash credentials found, using PostgreSQL fallback');
       return false;
     }
     
-    if (!url.startsWith('https://')) {
-      console.error('[RedisCache] URL and Token appear swapped! URL should start with https://');
-      console.log('[RedisCache] Attempting to auto-swap...');
-      if (token.startsWith('https://')) {
-        const tempUrl = token;
-        const tempToken = url;
-        try {
-          this.redis = new Redis({
-            url: tempUrl,
-            token: tempToken,
-          });
-          await this.redis.ping();
-          this.isConnected = true;
-          console.log('[RedisCache] Connected to Upstash Redis (values were swapped)');
-          return true;
-        } catch (swapError) {
-          console.error('[RedisCache] Swap attempt also failed:', swapError);
-        }
-      }
-      return false;
+    if (!url.startsWith('https://') && token?.startsWith('https://')) {
+      const temp = url;
+      url = token;
+      token = temp;
     }
     
     try {
@@ -97,7 +78,6 @@ class RedisCache {
       const data = await this.redis.get<CachedPosition>(key);
       
       if (data && data.nodes >= minNodes) {
-        await this.redis.hincrby(`${key}:meta`, 'hitCount', 1);
         return data;
       }
       

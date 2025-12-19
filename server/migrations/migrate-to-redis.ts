@@ -22,12 +22,19 @@ function hashFen(fen: string): string {
 async function migrateToRedis() {
   console.log('[Migration] Starting PostgreSQL → Redis migration...');
   
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  let url = process.env.UPSTASH_REDIS_REST_URL;
+  let token = process.env.UPSTASH_REDIS_REST_TOKEN;
   
   if (!url || !token) {
     console.error('[Migration] Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN');
     process.exit(1);
+  }
+  
+  if (!url.startsWith('https://') && token.startsWith('https://')) {
+    console.log('[Migration] Detected swapped credentials, auto-correcting...');
+    const temp = url;
+    url = token;
+    token = temp;
   }
   
   const redis = new Redis({ url, token });
