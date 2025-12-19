@@ -8,6 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCw, Clock, Target, Trophy, Play, Sparkles } from "lucide-react";
+import { generatePositionClient, getBestMoveClient, calculateScoreClient } from "@/lib/boardSpinClient";
 
 const PIECE_UNICODE: Record<string, string> = {
   'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
@@ -120,8 +121,7 @@ export default function BoardSpin() {
 
   const generateNewPosition = async () => {
     try {
-      const response = await apiRequest('POST', '/api/boardspin/generate', { difficulty });
-      const result = await response.json() as GeneratedPosition;
+      const result = generatePositionClient(difficulty);
       setPosition(result);
       setPhase('memorize');
     } catch (error) {
@@ -242,28 +242,30 @@ export default function BoardSpin() {
     if (!position) return;
     
     try {
-      const checkResponse = await apiRequest('POST', '/api/boardspin/check', {
-        originalBoard: position.board,
+      const result = calculateScoreClient(
+        position.board,
         playerBoard,
-        rotation: position.rotation,
-        multiplier: position.multiplier,
-      });
-      const result = await checkResponse.json() as { score: number; accuracy: number; correctPieces: number; totalPieces: number };
+        position.rotation,
+        position.multiplier,
+        false
+      );
       
       setScore(result.score);
       setAccuracy(result.accuracy);
       
-      // If 100% accuracy, go to bonus phase
       if (result.accuracy === 100) {
-        // Get best move from Stockfish
-        const bestMoveResponse = await apiRequest('POST', '/api/boardspin/bestmove', { fen: position.fen });
-        const bestMoveResult = await bestMoveResponse.json() as { bestMove: string; turn?: string };
-        console.log(`[BoardSpin Frontend] Best move: ${bestMoveResult.bestMove}, Turn from API: ${bestMoveResult.turn}`);
-        console.log(`[BoardSpin Frontend] FEN turn: ${position.fen.split(' ')[1]}`);
-        setBestMove(bestMoveResult.bestMove);
-        setPhase('bonus');
+        try {
+          const bestMoveResult = await getBestMoveClient(position.fen);
+          console.log(`[BoardSpin Client] Best move: ${bestMoveResult.bestMove}, Turn: ${bestMoveResult.turn}`);
+          console.log(`[BoardSpin Client] FEN turn: ${position.fen.split(' ')[1]}`);
+          setBestMove(bestMoveResult.bestMove);
+          setPhase('bonus');
+        } catch (stockfishError) {
+          console.error('[BoardSpin] Stockfish error, skipping bonus:', stockfishError);
+          await saveScore(result.score, result.accuracy, false);
+          setPhase('results');
+        }
       } else {
-        // Save score and go to results
         await saveScore(result.score, result.accuracy, false);
         setPhase('results');
       }
