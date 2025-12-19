@@ -278,19 +278,48 @@ class StockfishWorker {
   }
 
   async validateMove(fen: string, move: string): Promise<boolean> {
-    if (!this.isReady) {
-      await this.init();
-    }
+    const executeRequest = (): Promise<boolean> => {
+      return new Promise(async (resolve, reject) => {
+        this.pendingRejects.push(reject);
+        
+        const timeoutId = setTimeout(() => {
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          // Restore default handler on timeout
+          this.process?.stdout?.removeAllListeners('data');
+          this.process?.stdout?.on('data', (d: Buffer) => {
+            this.outputBuffer += d.toString();
+            this.processOutput();
+          });
+          resolve(false); // Treat timeout as invalid move
+        }, REQUEST_TIMEOUT);
 
-    try {
-      this.sendCommand(`position fen ${fen} moves ${move}`);
-      this.sendCommand('d');
-      
-      const response = await this.waitForResponse('Checkers:');
-      return !response.includes('Illegal');
-    } catch {
-      return false;
-    }
+        try {
+          if (!this.isReady) {
+            await this.init();
+          }
+
+          this.sendCommand(`position fen ${fen} moves ${move}`);
+          this.sendCommand('d');
+          
+          const response = await this.waitForResponse('Checkers:');
+          clearTimeout(timeoutId);
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          
+          resolve(!response.includes('Illegal'));
+        } catch (error) {
+          clearTimeout(timeoutId);
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          resolve(false); // Treat errors as invalid move
+        }
+      });
+    };
+
+    const thisRequest = this.requestQueue.then(executeRequest, executeRequest);
+    this.requestQueue = thisRequest.catch(() => {});
+    return thisRequest;
   }
 
   shutdown(): void {
@@ -302,6 +331,7 @@ class StockfishWorker {
   }
 
   async analyzePosition(fen: string, nodes: number = 2000000, useCache: boolean = true): Promise<PositionAnalysis> {
+    // Check cache before queuing (cache check is safe to do outside queue)
     if (useCache) {
       const cached = await analysisQueueManager.getCachedPosition(fen, nodes);
       if (cached) {
@@ -309,182 +339,228 @@ class StockfishWorker {
       }
     }
 
-    if (!this.isReady) {
-      await this.init();
-    }
+    const executeRequest = (): Promise<PositionAnalysis> => {
+      return new Promise(async (resolve, reject) => {
+        this.pendingRejects.push(reject);
+        
+        const timeoutId = setTimeout(() => {
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          reject(new Error('Stockfish analyzePosition timed out'));
+        }, REQUEST_TIMEOUT * 2); // Longer timeout for analysis
 
-    this.sendCommand('ucinewgame');
-    this.sendCommand(`position fen ${fen}`);
-    this.sendCommand(`go nodes ${nodes}`);
-
-    return new Promise((resolve) => {
-      let evaluation = 0;
-      let currentDepth = 0;
-      let bestMove = '';
-      let pv: string[] = [];
-      let isMate = false;
-      let mateIn: number | undefined;
-      let collectedOutput = '';
-
-      const handler = (data: Buffer) => {
-        collectedOutput += data.toString();
-        const lines = collectedOutput.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('info depth') && line.includes(' pv ')) {
-            const depthMatch = line.match(/depth (\d+)/);
-            const scoreMatch = line.match(/score cp (-?\d+)/);
-            const mateMatch = line.match(/score mate (-?\d+)/);
-            const pvMatch = line.match(/ pv (.+)/);
-
-            if (depthMatch) currentDepth = parseInt(depthMatch[1]);
-            if (scoreMatch) {
-              evaluation = parseInt(scoreMatch[1]) / 100;
-              isMate = false;
-              mateIn = undefined;
-            }
-            if (mateMatch) {
-              const mateValue = parseInt(mateMatch[1]);
-              evaluation = mateValue > 0 ? 999 : -999;
-              isMate = true;
-              mateIn = Math.abs(mateValue);
-            }
-            if (pvMatch) {
-              pv = pvMatch[1].trim().split(' ');
-            }
+        try {
+          if (!this.isReady) {
+            await this.init();
           }
 
-          if (line.startsWith('bestmove')) {
-            const moveMatch = line.match(/bestmove (\S+)/);
-            if (moveMatch) {
-              bestMove = moveMatch[1];
-              this.process?.stdout?.removeListener('data', handler);
-              this.process?.stdout?.on('data', (d: Buffer) => {
-                this.outputBuffer += d.toString();
-                this.processOutput();
-              });
-              const result: PositionAnalysis = {
-                evaluation,
-                bestMove,
-                bestMoveEval: evaluation,
-                principalVariation: pv,
-                depth: currentDepth,
-                isMate,
-                mateIn
-              };
-              
-              if (useCache) {
-                analysisQueueManager.cachePosition(fen, nodes, result).catch(err => {
-                  console.error('[Stockfish] Failed to cache position:', err);
-                });
+          this.sendCommand('ucinewgame');
+          this.sendCommand(`position fen ${fen}`);
+          this.sendCommand(`go nodes ${nodes}`);
+
+          let evaluation = 0;
+          let currentDepth = 0;
+          let bestMove = '';
+          let pv: string[] = [];
+          let isMate = false;
+          let mateIn: number | undefined;
+          let collectedOutput = '';
+
+          const handler = (data: Buffer) => {
+            collectedOutput += data.toString();
+            const lines = collectedOutput.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('info depth') && line.includes(' pv ')) {
+                const depthMatch = line.match(/depth (\d+)/);
+                const scoreMatch = line.match(/score cp (-?\d+)/);
+                const mateMatch = line.match(/score mate (-?\d+)/);
+                const pvMatch = line.match(/ pv (.+)/);
+
+                if (depthMatch) currentDepth = parseInt(depthMatch[1]);
+                if (scoreMatch) {
+                  evaluation = parseInt(scoreMatch[1]) / 100;
+                  isMate = false;
+                  mateIn = undefined;
+                }
+                if (mateMatch) {
+                  const mateValue = parseInt(mateMatch[1]);
+                  evaluation = mateValue > 0 ? 999 : -999;
+                  isMate = true;
+                  mateIn = Math.abs(mateValue);
+                }
+                if (pvMatch) {
+                  pv = pvMatch[1].trim().split(' ');
+                }
               }
-              
-              resolve(result);
-              return;
-            }
-          }
-        }
-      };
 
-      this.process?.stdout?.removeAllListeners('data');
-      this.process?.stdout?.on('data', handler);
-    });
+              if (line.startsWith('bestmove')) {
+                const moveMatch = line.match(/bestmove (\S+)/);
+                if (moveMatch) {
+                  bestMove = moveMatch[1];
+                  clearTimeout(timeoutId);
+                  const index = this.pendingRejects.indexOf(reject);
+                  if (index > -1) this.pendingRejects.splice(index, 1);
+                  
+                  this.process?.stdout?.removeListener('data', handler);
+                  this.process?.stdout?.on('data', (d: Buffer) => {
+                    this.outputBuffer += d.toString();
+                    this.processOutput();
+                  });
+                  
+                  const result: PositionAnalysis = {
+                    evaluation,
+                    bestMove,
+                    bestMoveEval: evaluation,
+                    principalVariation: pv,
+                    depth: currentDepth,
+                    isMate,
+                    mateIn
+                  };
+                  
+                  if (useCache) {
+                    analysisQueueManager.cachePosition(fen, nodes, result).catch(err => {
+                      console.error('[Stockfish] Failed to cache position:', err);
+                    });
+                  }
+                  
+                  resolve(result);
+                  return;
+                }
+              }
+            }
+          };
+
+          this.process?.stdout?.removeAllListeners('data');
+          this.process?.stdout?.on('data', handler);
+        } catch (error) {
+          clearTimeout(timeoutId);
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          reject(error);
+        }
+      });
+    };
+
+    const thisRequest = this.requestQueue.then(executeRequest, executeRequest);
+    this.requestQueue = thisRequest.catch(() => {});
+    return thisRequest;
   }
 
   async getTopMoves(fen: string, numMoves: number = 3, nodes: number = 2000000): Promise<TopMoveResult[]> {
-    if (!this.isReady) {
-      await this.init();
-    }
+    const executeRequest = (): Promise<TopMoveResult[]> => {
+      return new Promise(async (resolve, reject) => {
+        this.pendingRejects.push(reject);
+        
+        const timeoutId = setTimeout(() => {
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          this.sendCommand('stop');
+          this.process?.stdout?.removeAllListeners('data');
+          this.process?.stdout?.on('data', (d: Buffer) => {
+            this.outputBuffer += d.toString();
+            this.processOutput();
+          });
+          this.sendCommand('setoption name MultiPV value 1');
+          resolve([]);
+        }, REQUEST_TIMEOUT);
 
-    this.sendCommand('stop');
-    this.sendCommand('ucinewgame');
-    this.sendCommand(`setoption name MultiPV value ${numMoves}`);
-    this.sendCommand(`position fen ${fen}`);
-    this.sendCommand(`go nodes ${nodes}`);
-
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        this.sendCommand('stop');
-        this.process?.stdout?.removeAllListeners('data');
-        this.process?.stdout?.on('data', (d: Buffer) => {
-          this.outputBuffer += d.toString();
-          this.processOutput();
-        });
-        this.sendCommand('setoption name MultiPV value 1');
-        resolve([]);
-      }, 15000);
-      
-      const results: Map<number, TopMoveResult> = new Map();
-      let collectedOutput = '';
-
-      const handler = (data: Buffer) => {
-        collectedOutput += data.toString();
-        const lines = collectedOutput.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('info depth') && line.includes(' pv ')) {
-            const multipvMatch = line.match(/multipv (\d+)/);
-            const scoreMatch = line.match(/score cp (-?\d+)/);
-            const mateMatch = line.match(/score mate (-?\d+)/);
-            const pvMatch = line.match(/ pv (.+)/);
-
-            const pvIndex = multipvMatch ? parseInt(multipvMatch[1]) : 1;
-
-            if (pvMatch) {
-              const pv = pvMatch[1].trim().split(' ');
-              const move = pv[0];
-              
-              let evaluation = 0;
-              let isMate = false;
-              let mateIn: number | undefined;
-
-              if (scoreMatch) {
-                evaluation = parseInt(scoreMatch[1]) / 100;
-              }
-              if (mateMatch) {
-                const mateValue = parseInt(mateMatch[1]);
-                evaluation = mateValue > 0 ? 999 : -999;
-                isMate = true;
-                mateIn = Math.abs(mateValue);
-              }
-
-              results.set(pvIndex, {
-                move,
-                evaluation,
-                isMate,
-                mateIn,
-                principalVariation: pv,
-              });
-            }
+        try {
+          if (!this.isReady) {
+            await this.init();
           }
 
-          if (line.startsWith('bestmove')) {
-            clearTimeout(timeoutId);
-            this.process?.stdout?.removeListener('data', handler);
-            this.process?.stdout?.on('data', (d: Buffer) => {
-              this.outputBuffer += d.toString();
-              this.processOutput();
-            });
+          this.sendCommand('stop');
+          this.sendCommand('ucinewgame');
+          this.sendCommand(`setoption name MultiPV value ${numMoves}`);
+          this.sendCommand(`position fen ${fen}`);
+          this.sendCommand(`go nodes ${nodes}`);
 
-            this.sendCommand('setoption name MultiPV value 1');
+          const results: Map<number, TopMoveResult> = new Map();
+          let collectedOutput = '';
 
-            const topMoves: TopMoveResult[] = [];
-            for (let i = 1; i <= numMoves; i++) {
-              const result = results.get(i);
-              if (result) {
-                topMoves.push(result);
+          const handler = (data: Buffer) => {
+            collectedOutput += data.toString();
+            const lines = collectedOutput.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('info depth') && line.includes(' pv ')) {
+                const multipvMatch = line.match(/multipv (\d+)/);
+                const scoreMatch = line.match(/score cp (-?\d+)/);
+                const mateMatch = line.match(/score mate (-?\d+)/);
+                const pvMatch = line.match(/ pv (.+)/);
+
+                const pvIndex = multipvMatch ? parseInt(multipvMatch[1]) : 1;
+
+                if (pvMatch) {
+                  const pv = pvMatch[1].trim().split(' ');
+                  const move = pv[0];
+                  
+                  let evaluation = 0;
+                  let isMate = false;
+                  let mateIn: number | undefined;
+
+                  if (scoreMatch) {
+                    evaluation = parseInt(scoreMatch[1]) / 100;
+                  }
+                  if (mateMatch) {
+                    const mateValue = parseInt(mateMatch[1]);
+                    evaluation = mateValue > 0 ? 999 : -999;
+                    isMate = true;
+                    mateIn = Math.abs(mateValue);
+                  }
+
+                  results.set(pvIndex, {
+                    move,
+                    evaluation,
+                    isMate,
+                    mateIn,
+                    principalVariation: pv,
+                  });
+                }
+              }
+
+              if (line.startsWith('bestmove')) {
+                clearTimeout(timeoutId);
+                const index = this.pendingRejects.indexOf(reject);
+                if (index > -1) this.pendingRejects.splice(index, 1);
+                
+                this.process?.stdout?.removeListener('data', handler);
+                this.process?.stdout?.on('data', (d: Buffer) => {
+                  this.outputBuffer += d.toString();
+                  this.processOutput();
+                });
+
+                this.sendCommand('setoption name MultiPV value 1');
+
+                const topMoves: TopMoveResult[] = [];
+                for (let i = 1; i <= numMoves; i++) {
+                  const result = results.get(i);
+                  if (result) {
+                    topMoves.push(result);
+                  }
+                }
+
+                resolve(topMoves);
+                return;
               }
             }
+          };
 
-            resolve(topMoves);
-            return;
-          }
+          this.process?.stdout?.removeAllListeners('data');
+          this.process?.stdout?.on('data', handler);
+        } catch (error) {
+          clearTimeout(timeoutId);
+          const index = this.pendingRejects.indexOf(reject);
+          if (index > -1) this.pendingRejects.splice(index, 1);
+          reject(error);
         }
-      };
+      });
+    };
 
-      this.process?.stdout?.removeAllListeners('data');
-      this.process?.stdout?.on('data', handler);
-    });
+    const thisRequest = this.requestQueue.then(executeRequest, executeRequest);
+    this.requestQueue = thisRequest.catch(() => {});
+    return thisRequest;
   }
 }
 
