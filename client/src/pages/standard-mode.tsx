@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
@@ -789,6 +790,54 @@ export default function StandardMode() {
     enabled: !restoredGame && !gameStarted && !inQueue,
   });
 
+  // Settings mutations for blindfold and voice options with optimistic updates
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (settings: Record<string, any>) => {
+      const response = await apiRequest("PATCH", "/api/settings", settings);
+      return response.json();
+    },
+    onMutate: async (newSettings) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/settings"] });
+      
+      // Snapshot the previous value
+      const previousSettings = queryClient.getQueryData(["/api/settings"]);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData(["/api/settings"], (old: any) => ({
+        ...old,
+        ...newSettings,
+      }));
+      
+      // Return context with the previous value
+      return { previousSettings };
+    },
+    onError: (err, newSettings, context) => {
+      // Rollback to previous value on error
+      if (context?.previousSettings) {
+        queryClient.setQueryData(["/api/settings"], context.previousSettings);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to save setting",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      // Refetch to ensure server state is synced
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+    },
+  });
+
+  const blindfoldDifficultyOptions = [
+    { value: "easy", label: "Easy", description: "Unlimited peeks" },
+    { value: "medium", label: "Medium", description: "20 peeks" },
+    { value: "hard", label: "Hard", description: "10 peeks" },
+    { value: "expert", label: "Expert", description: "5 peeks" },
+    { value: "master", label: "Master", description: "2 peeks" },
+    { value: "grandmaster", label: "Grandmaster", description: "0 peeks (pure blindfold)" },
+  ];
+
   useEffect(() => {
     setInQueue(queueStatus.inQueue);
   }, [queueStatus]);
@@ -1478,9 +1527,81 @@ export default function StandardMode() {
                       />
                     </div>
                     {isBlindfold && (
-                      <p className="text-sm text-muted-foreground">
-                        Board will be hidden. Use the peek button to view it briefly.
-                      </p>
+                      <div className="space-y-4 pb-4 border-b">
+                        <p className="text-sm text-muted-foreground">
+                          Board will be hidden. Use the peek button to view it briefly.
+                        </p>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-sm font-medium mb-2 block">Difficulty</Label>
+                            <Select
+                              value={userSettings?.blindfoldDifficulty || "medium"}
+                              onValueChange={(value) => updateSettingsMutation.mutate({ blindfoldDifficulty: value })}
+                              disabled={updateSettingsMutation.isPending}
+                            >
+                              <SelectTrigger className="w-full" data-testid="select-blindfold-difficulty">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {blindfoldDifficultyOptions.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">{option.label}</span>
+                                      <span className="text-xs text-muted-foreground">({option.description})</span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="show-coordinates" className="text-sm cursor-pointer">
+                              Show tile names (a1-h8)
+                            </Label>
+                            <Switch
+                              id="show-coordinates"
+                              checked={userSettings?.blindfoldShowCoordinates || false}
+                              onCheckedChange={(checked) => updateSettingsMutation.mutate({ blindfoldShowCoordinates: checked })}
+                              disabled={updateSettingsMutation.isPending}
+                              data-testid="switch-blindfold-coordinates"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <Label htmlFor="voice-announcements" className="text-sm cursor-pointer">
+                                Voice Announcements
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Hear moves spoken aloud</p>
+                            </div>
+                            <Switch
+                              id="voice-announcements"
+                              checked={userSettings?.voiceOutputEnabled || false}
+                              onCheckedChange={(checked) => updateSettingsMutation.mutate({ voiceOutputEnabled: checked })}
+                              disabled={updateSettingsMutation.isPending}
+                              data-testid="switch-voice-output"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <Label htmlFor="voice-commands" className="text-sm cursor-pointer">
+                                Voice Commands
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Speak your moves instead of clicking</p>
+                            </div>
+                            <Switch
+                              id="voice-commands"
+                              checked={userSettings?.voiceInputEnabled || false}
+                              onCheckedChange={(checked) => updateSettingsMutation.mutate({ voiceInputEnabled: checked })}
+                              disabled={updateSettingsMutation.isPending}
+                              data-testid="switch-voice-input"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     )}
 
                     {!showBotSelection ? (

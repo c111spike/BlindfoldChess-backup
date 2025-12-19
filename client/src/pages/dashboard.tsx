@@ -1,20 +1,14 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History, Users, Gamepad2, EyeOff, RotateCcw, Puzzle, Crown } from "lucide-react";
-import type { Rating, Game, UserSettings } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import type { Rating, Game } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import { ThisDayInChessHistory } from "@/components/this-day-in-chess-history";
 
 export default function Dashboard() {
-  const { toast } = useToast();
   const { user } = useAuth();
   
   const { data: ratings, isLoading: ratingsLoading } = useQuery<Rating>({
@@ -25,9 +19,6 @@ export default function Dashboard() {
     queryKey: ["/api/games/recent"],
   });
 
-  const { data: userSettings } = useQuery<UserSettings>({
-    queryKey: ["/api/settings"],
-  });
   
   const { data: ongoingGame } = useQuery<Game>({
     queryKey: ["/api/games/ongoing"],
@@ -53,35 +44,6 @@ export default function Dashboard() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  const updateBlindfolddifficultyMutation = useMutation({
-    mutationFn: async (difficulty: string) => {
-      return await apiRequest("PATCH", "/api/settings", {
-        blindfoldDifficulty: difficulty,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
-      toast({
-        title: "Settings saved",
-        description: "Blindfold difficulty updated",
-      });
-    },
-  });
-
-  const updateBlindfolddCoordinatesMutation = useMutation({
-    mutationFn: async (showCoordinates: boolean) => {
-      return await apiRequest("PATCH", "/api/settings", {
-        blindfoldShowCoordinates: showCoordinates,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
-      toast({
-        title: "Settings saved",
-        description: "Coordinate labels setting updated",
-      });
-    },
-  });
 
   if (ratingsLoading) {
     return (
@@ -95,14 +57,6 @@ export default function Dashboard() {
     );
   }
 
-  const difficultyOptions = [
-    { value: "easy", label: "Easy", description: "Unlimited press-and-hold peeks" },
-    { value: "medium", label: "Medium", description: "20 press-and-hold peeks" },
-    { value: "hard", label: "Hard", description: "10 press-and-hold peeks" },
-    { value: "expert", label: "Expert", description: "5 press-and-hold peeks" },
-    { value: "master", label: "Master", description: "2 press-and-hold peeks" },
-    { value: "grandmaster", label: "Grandmaster", description: "0 peeks (pure blindfold)" },
-  ];
 
   return (
     <div className="p-8 space-y-8">
@@ -228,54 +182,6 @@ export default function Dashboard() {
             <Button asChild variant="secondary" className="w-full" data-testid="button-mode-otb">
               <Link href="/otb">Start Game</Link>
             </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-blindfold-settings">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <Brain className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <CardTitle className="text-primary-foreground text-2xl">Blindfold Settings</CardTitle>
-            <CardDescription className="text-primary-foreground/80">
-              (Standard only)<br />
-              {ongoingGame && ongoingGame.status === 'active' 
-                ? "Finish current game to change" 
-                : "Select difficulty level"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto space-y-3">
-            <div className="flex items-center justify-between bg-secondary/50 rounded-md px-3 py-2">
-              <Label htmlFor="show-coordinates" className="text-sm text-primary-foreground cursor-pointer">
-                Show tile names (a1-h8)
-              </Label>
-              <Switch
-                id="show-coordinates"
-                checked={userSettings?.blindfoldShowCoordinates || false}
-                onCheckedChange={(checked) => updateBlindfolddCoordinatesMutation.mutate(checked)}
-                disabled={updateBlindfolddCoordinatesMutation.isPending}
-                data-testid="switch-blindfold-coordinates"
-              />
-            </div>
-            <Select
-              value={userSettings?.blindfoldDifficulty || "medium"}
-              onValueChange={(value) => updateBlindfolddifficultyMutation.mutate(value)}
-              disabled={updateBlindfolddifficultyMutation.isPending || (ongoingGame?.status === 'active')}
-            >
-              <SelectTrigger className="w-full bg-secondary text-secondary-foreground border-secondary-border" data-testid="select-blindfold-difficulty">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {difficultyOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    <div>
-                      <div className="font-medium">{option.label}</div>
-                      <div className="text-xs text-muted-foreground">{option.description}</div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </CardContent>
         </Card>
 
