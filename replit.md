@@ -101,9 +101,17 @@ Uses a 30-second per-move server-authoritative timer with client-side countdown 
 ### Stockfish Scaling Infrastructure
 Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueueManager.ts`, with adaptive scaling (2M nodes per position, adaptive to 1M under load), PostgreSQL caching, and performance monitoring via an Admin Performance Dashboard.
 
+**Current Implementation** (Redis Active):
+- Upstash Redis caching is now live with 30-day TTL for position evaluations
+- All 404 historical positions migrated from PostgreSQL to Redis
+- Sub-millisecond lookups (vs 10-50ms PostgreSQL), automatic TTL expiration
+- Fallback to PostgreSQL if Redis unavailable (graceful degradation)
+- Files: server/redisCache.ts, server/analysisQueueManager.ts, server/migrations/migrate-to-redis.ts
+
 **Scaling Recommendations**:
-- Consider Redis when: cache lookups exceed 50ms, cache size hits 100k+ positions, or hit rate drops below 50%
-- Monitor Admin Performance tab for real-time metrics
+- Monitor Admin Performance tab for cache hit rates and response times
+- Redis configured for auto-upgrade from 1GB to 5GB if exceeded
+- Consider sharding if cache size exceeds 5GB (unlikely with 30-day TTL)
 
 **Future Optimization (not yet implemented)**:
 
@@ -135,22 +143,10 @@ Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueu
 3. 5-piece Syzygy tablebases (1GB, one-time setup)
 4. Optional: 6-piece Syzygy via remote API
 
-**Redis Upgrade Instructions (When Ready)**:
-When metrics show Redis is needed (cache lookups >50ms, cache size >100k, hit rate <50%), follow these steps:
-
-1. **Create Upstash Account**: Go to upstash.com and sign up (Google/GitHub/email)
-2. **Create Redis Database**:
-   - Click "Create Database"
-   - Name it "simulchess-cache"
-   - Choose region closest to your users
-   - Select "Regional" type (faster, $20/month Pro plan recommended)
-3. **Get Connection Credentials**:
-   - Copy `UPSTASH_REDIS_REST_URL` from dashboard
-   - Copy `UPSTASH_REDIS_REST_TOKEN` from dashboard
-4. **Add to Replit Secrets**: Add both values as secrets in Replit
-5. **Implementation**: Install `@upstash/redis` package and update analysisQueueManager.ts to use Redis instead of PostgreSQL for cache operations
-
-Benefits: Sub-millisecond lookups (vs 10-50ms PostgreSQL), better concurrency, automatic expiration policies
+**Redis Configuration Notes**:
+- Environment variables: `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Replit Secrets
+- Auto-swap logic handles if URL/TOKEN values are accidentally swapped in the secrets UI
+- To disable Redis temporarily: remove the environment variables (PostgreSQL fallback activates automatically)
 
 ### Engagement Features
 - **This Day in Chess History**: Displays historical chess facts.
