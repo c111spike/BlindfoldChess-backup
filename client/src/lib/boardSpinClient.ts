@@ -11,7 +11,7 @@ interface DifficultyConfig {
 
 const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
   'beginner': {
-    minPieces: 2,
+    minPieces: 3,
     maxPieces: 4,
     rotationInterval: 120,
     excludedAngles: [0],
@@ -55,6 +55,7 @@ const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
 };
 
 const PIECES = ['P', 'N', 'B', 'R', 'Q'];
+const DECISIVE_PIECES = ['R', 'Q']; // Rook or Queen - can force checkmate with king
 
 function getRandomElement<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -145,6 +146,75 @@ function generateValidRandomPosition(targetPieces: number, maxAttempts: number =
   return '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1';
 }
 
+// Generate a 3-piece position with both kings + rook or queen (avoids draw positions)
+function generateDecisive3PiecePosition(maxAttempts: number = 20): string {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const board: (string | null)[][] = Array(8).fill(null).map(() => Array(8).fill(null));
+    
+    // Place white king (bottom half of board)
+    const whiteKingFile = getRandomInt(0, 7);
+    const whiteKingRank = getRandomInt(0, 3);
+    board[whiteKingRank][whiteKingFile] = 'K';
+    
+    // Place black king (top half of board, at least 2 squares away)
+    let blackKingFile: number, blackKingRank: number;
+    do {
+      blackKingFile = getRandomInt(0, 7);
+      blackKingRank = getRandomInt(4, 7);
+    } while (Math.abs(blackKingFile - whiteKingFile) < 2 && Math.abs(blackKingRank - whiteKingRank) < 2);
+    board[blackKingRank][blackKingFile] = 'k';
+    
+    // Place one rook or queen (either color)
+    const piece = getRandomElement(DECISIVE_PIECES);
+    const isWhite = Math.random() > 0.5;
+    
+    // Find a valid square for the piece (not on either king's square)
+    let pieceFile: number, pieceRank: number;
+    do {
+      pieceFile = getRandomInt(0, 7);
+      pieceRank = getRandomInt(0, 7);
+    } while (
+      (pieceFile === whiteKingFile && pieceRank === whiteKingRank) ||
+      (pieceFile === blackKingFile && pieceRank === blackKingRank)
+    );
+    
+    board[pieceRank][pieceFile] = isWhite ? piece : piece.toLowerCase();
+    
+    // Convert board to FEN
+    let fen = '';
+    for (let rank = 7; rank >= 0; rank--) {
+      let emptyCount = 0;
+      for (let file = 0; file < 8; file++) {
+        const p = board[rank][file];
+        if (p) {
+          if (emptyCount > 0) {
+            fen += emptyCount;
+            emptyCount = 0;
+          }
+          fen += p;
+        } else {
+          emptyCount++;
+        }
+      }
+      if (emptyCount > 0) {
+        fen += emptyCount;
+      }
+      if (rank > 0) fen += '/';
+    }
+    
+    // Side with the piece moves first (to avoid giving away the piece)
+    const turn = isWhite ? 'w' : 'b';
+    fen += ` ${turn} - - 0 1`;
+    
+    if (isValidPosition(fen)) {
+      return fen;
+    }
+  }
+  
+  // Fallback: classic K+Q vs K position
+  return '4k3/8/8/8/8/8/8/4K2Q w - - 0 1';
+}
+
 function getRandomRotation(config: DifficultyConfig): number {
   const possibleAngles: number[] = [];
   
@@ -206,7 +276,13 @@ export function generatePositionClient(difficulty: string): GeneratedPosition {
   }
   
   const targetPieces = getRandomInt(config.minPieces, config.maxPieces);
-  const fen = generateValidRandomPosition(targetPieces);
+  
+  // For beginner with exactly 3 pieces, use special decisive position generator
+  // (both kings + rook or queen to avoid draw positions)
+  const fen = (difficulty === 'beginner' && targetPieces === 3)
+    ? generateDecisive3PiecePosition()
+    : generateValidRandomPosition(targetPieces);
+  
   const board = fenToBoard(fen);
   const rotation = getRandomRotation(config);
   const pieceCount = countPieces(fen);
