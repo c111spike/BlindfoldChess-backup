@@ -235,8 +235,15 @@ function detectVSSMismatch(moveAnalyses: MoveAnalysisResult[]): number[] {
   const alerts: number[] = [];
   
   for (let i = 1; i < moveAnalyses.length; i++) {
+    const currMove = moveAnalyses[i];
+    
+    // Skip checkmate moves - delivering mate is always optimal
+    if (currMove.isMateAfter && currMove.mateInAfter === 0) {
+      continue;
+    }
+    
     const prevEval = moveAnalyses[i - 1].normalizedEvalAfter;
-    const currLoss = moveAnalyses[i].normalizedCentipawnLoss;
+    const currLoss = currMove.normalizedCentipawnLoss;
     
     if (Math.abs(prevEval) > 2 && currLoss > 100) {
       alerts.push(i);
