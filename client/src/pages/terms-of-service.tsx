@@ -27,7 +27,7 @@ export default function TermsOfService() {
                 <section>
                   <h2 className="text-xl font-semibold mb-3">Description of Service</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    SimulChess is a chess training platform that provides various game modes including Standard, OTB Tournament, Blindfold, and Simul modes, along with training tools, puzzles, and game analysis. The platform is designed to help players improve their over-the-board chess skills.
+                    SimulChess is a chess training platform that provides various game modes including Standard, OTB Tournament, Blindfold, and Simul modes, along with training tools, puzzles, and game analysis. The platform is designed to simulate over-the-board chess and help build memory.
                   </p>
                 </section>
 
@@ -84,7 +84,7 @@ export default function TermsOfService() {
                 <section>
                   <h2 className="text-xl font-semibold mb-3">Alt Accounts</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    SimulChess allows one alternate account per user for practice purposes. Alt accounts must not be used to circumvent bans, manipulate ratings, or deceive other players about your skill level.
+                    In a future update, SimulChess will allow one alternate account per user for practice purposes. When available, alt accounts must not be used to circumvent bans, manipulate ratings, or deceive other players about your skill level.
                   </p>
                 </section>
 
@@ -108,14 +108,14 @@ export default function TermsOfService() {
                 <section>
                   <h2 className="text-xl font-semibold mb-3">Intellectual Property</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    SimulChess and its original content, features, and functionality are owned by us and are protected by international copyright, trademark, and other intellectual property laws. You may not copy, modify, or distribute our content without permission.
+                    SimulChess and its original content, features, and functionality are owned by us. You may not copy, modify, or distribute our content without permission.
                   </p>
                 </section>
 
                 <section>
                   <h2 className="text-xl font-semibold mb-3">Free Service and Advertising</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    SimulChess is provided free of charge. The platform is supported by advertising. By using our service, you agree to view advertisements as part of your experience. We strive to ensure ads are non-intrusive and do not interfere with gameplay.
+                    SimulChess is provided free of charge. The platform is supported by advertising. By using our service, you agree to view advertisements as part of your experience. We strive to ensure ads are non-intrusive and do not interfere with gameplay. A membership option may be offered in the future to remove advertisements.
                   </p>
                 </section>
 
