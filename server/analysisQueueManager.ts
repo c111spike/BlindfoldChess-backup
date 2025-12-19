@@ -3,6 +3,7 @@ import { db } from './db';
 import { positionCache, analysisMetrics } from '@shared/schema';
 import { eq, sql, desc, and, gte } from 'drizzle-orm';
 import type { InsertPositionCache, PositionCache } from '@shared/schema';
+import { redisCache } from './redisCache';
 
 interface QueuedAnalysis {
   id: string;
@@ -69,15 +70,25 @@ class AnalysisQueueManager {
   private lastMetricsSave: Date = new Date();
   private cacheSize: number = 0;
 
+  private useRedis: boolean = false;
+
   async init(): Promise<void> {
-    try {
-      const result = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(positionCache);
-      this.cacheSize = result[0]?.count || 0;
-      console.log(`[AnalysisQueue] Initialized with ${this.cacheSize} cached positions`);
-    } catch (error) {
-      console.error('[AnalysisQueue] Failed to get cache size:', error);
+    this.useRedis = await redisCache.init();
+    
+    if (this.useRedis) {
+      const stats = await redisCache.getCacheStats();
+      this.cacheSize = stats.keyCount;
+      console.log(`[AnalysisQueue] Initialized with Redis (${this.cacheSize} cached positions)`);
+    } else {
+      try {
+        const result = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(positionCache);
+        this.cacheSize = result[0]?.count || 0;
+        console.log(`[AnalysisQueue] Initialized with PostgreSQL fallback (${this.cacheSize} cached positions)`);
+      } catch (error) {
+        console.error('[AnalysisQueue] Failed to get cache size:', error);
+      }
     }
   }
 
@@ -90,6 +101,36 @@ class AnalysisQueueManager {
   async getCachedPosition(fen: string, minNodes: number = MIN_NODES): Promise<CachedPosition | null> {
     const startTime = Date.now();
     const fenHash = this.hashFen(fen);
+    
+    if (this.useRedis) {
+      try {
+        const cached = await redisCache.get(fenHash, minNodes);
+        const lookupTime = Date.now() - startTime;
+        this.metrics.totalLookupTimeMs += lookupTime;
+        
+        if (cached) {
+          this.metrics.cacheHits++;
+          console.log(`[AnalysisQueue] REDIS HIT for position (${lookupTime}ms lookup)`);
+          return {
+            evaluation: cached.evaluation,
+            bestMove: cached.bestMove,
+            bestMoveEval: cached.bestMoveEval,
+            principalVariation: cached.principalVariation || [],
+            depth: cached.depth,
+            isMate: cached.isMate || false,
+            mateIn: cached.mateIn,
+          };
+        }
+        
+        this.metrics.cacheMisses++;
+        console.log(`[AnalysisQueue] REDIS MISS for position`);
+        return null;
+      } catch (error) {
+        console.error('[AnalysisQueue] Redis lookup error:', error);
+        this.metrics.cacheMisses++;
+        return null;
+      }
+    }
     
     try {
       const cached = await db
@@ -106,8 +147,7 @@ class AnalysisQueueManager {
       
       if (cached.length > 0) {
         this.metrics.cacheHits++;
-        const lookupTimeMs = Date.now() - startTime;
-        console.log(`[AnalysisQueue] CACHE HIT for position (${lookupTimeMs}ms lookup)`);
+        console.log(`[AnalysisQueue] PG HIT for position (${lookupTime}ms lookup)`);
         
         await db
           .update(positionCache)
@@ -129,7 +169,7 @@ class AnalysisQueueManager {
       }
       
       this.metrics.cacheMisses++;
-      console.log(`[AnalysisQueue] CACHE MISS for position`);
+      console.log(`[AnalysisQueue] PG MISS for position`);
       return null;
     } catch (error) {
       console.error('[AnalysisQueue] Cache lookup error:', error);
@@ -140,6 +180,29 @@ class AnalysisQueueManager {
 
   async cachePosition(fen: string, nodes: number, result: CachedPosition): Promise<void> {
     const fenHash = this.hashFen(fen);
+    
+    if (this.useRedis) {
+      try {
+        const success = await redisCache.set(fenHash, {
+          evaluation: result.evaluation,
+          bestMove: result.bestMove,
+          bestMoveEval: result.bestMoveEval,
+          principalVariation: result.principalVariation,
+          depth: result.depth,
+          isMate: result.isMate,
+          mateIn: result.mateIn,
+          nodes,
+          hitCount: 0,
+        });
+        if (success) {
+          this.cacheSize++;
+        }
+        return;
+      } catch (error) {
+        console.error('[AnalysisQueue] Redis cache write error:', error);
+        return;
+      }
+    }
     
     try {
       const existing = await db
@@ -367,6 +430,21 @@ class AnalysisQueueManager {
   async getPositionEvalForBot(fen: string): Promise<{ evaluation: number; bestMove: string } | null> {
     const fenHash = this.hashFen(fen);
     
+    if (this.useRedis) {
+      try {
+        const cached = await redisCache.get(fenHash, 0);
+        if (cached) {
+          return {
+            evaluation: cached.evaluation,
+            bestMove: cached.bestMove,
+          };
+        }
+        return null;
+      } catch (error) {
+        return null;
+      }
+    }
+    
     try {
       const cached = await db
         .select({
@@ -385,9 +463,12 @@ class AnalysisQueueManager {
       }
       return null;
     } catch (error) {
-      // Silent fail for bot lookups - just use regular evaluation
       return null;
     }
+  }
+
+  isUsingRedis(): boolean {
+    return this.useRedis;
   }
 }
 

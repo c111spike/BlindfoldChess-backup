@@ -17,6 +17,8 @@ const { queueManager } = createQueueManager();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
+  
+  await analysisQueueManager.init();
 
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
