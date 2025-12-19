@@ -52,6 +52,8 @@ interface MoveAnalysisResult {
 
 const MAX_EVAL = 10;
 const MAX_CENTIPAWN_LOSS = 500;
+const NUM_WORKERS = 4; // Number of parallel Stockfish workers
+const REQUEST_TIMEOUT = 30000; // 30 second timeout
 
 function normalizeEvaluation(rawEval: number): number {
   return Math.max(-MAX_EVAL, Math.min(MAX_EVAL, rawEval));
@@ -61,14 +63,28 @@ function normalizeCentipawnLoss(rawLoss: number): number {
   return Math.min(MAX_CENTIPAWN_LOSS, Math.max(0, rawLoss));
 }
 
-class StockfishService {
+// Individual Stockfish worker that manages one engine process
+class StockfishWorker {
   private process: ChildProcess | null = null;
   private isReady: boolean = false;
   private outputBuffer: string = '';
   private resolveQueue: Array<(value: string) => void> = [];
   private requestQueue: Promise<any> = Promise.resolve();
   private pendingRejects: Array<(error: Error) => void> = [];
-  private readonly REQUEST_TIMEOUT = 30000; // 30 second timeout
+  private workerId: number;
+  private activeRequests: number = 0;
+
+  constructor(workerId: number) {
+    this.workerId = workerId;
+  }
+
+  getActiveRequests(): number {
+    return this.activeRequests;
+  }
+
+  getWorkerId(): number {
+    return this.workerId;
+  }
 
   async init(): Promise<void> {
     if (this.process) return;
@@ -84,26 +100,25 @@ class StockfishService {
       });
 
       this.process.stderr?.on('data', (data: Buffer) => {
-        console.error('[Stockfish Error]:', data.toString());
+        console.error(`[Stockfish Worker ${this.workerId} Error]:`, data.toString());
       });
 
       this.process.on('error', (err) => {
-        console.error('[Stockfish] Failed to start:', err);
+        console.error(`[Stockfish Worker ${this.workerId}] Failed to start:`, err);
         reject(err);
       });
 
       this.process.on('close', (code) => {
-        console.log('[Stockfish] Process exited with code:', code);
+        console.log(`[Stockfish Worker ${this.workerId}] Process exited with code:`, code);
         this.process = null;
         this.isReady = false;
-        // Reject all pending requests when the process dies
         const error = new Error('Stockfish process terminated unexpectedly');
-        for (const reject of this.pendingRejects) {
-          reject(error);
+        for (const rejectFn of this.pendingRejects) {
+          rejectFn(error);
         }
         this.pendingRejects = [];
-        // Reset the queue so new requests can start fresh
         this.requestQueue = Promise.resolve();
+        this.activeRequests = 0;
       });
 
       this.sendCommand('uci');
@@ -111,7 +126,7 @@ class StockfishService {
         this.sendCommand('isready');
         this.waitForResponse('readyok').then(() => {
           this.isReady = true;
-          console.log('[Stockfish] Engine ready');
+          console.log(`[Stockfish Worker ${this.workerId}] Engine ready`);
           resolve();
         });
       });
@@ -170,55 +185,49 @@ class StockfishService {
   }
 
   async getBestMove(fen: string, depth: number = 15): Promise<StockfishResult> {
-    // Create a new promise for this request with timeout handling
+    this.activeRequests++;
+    
     const executeRequest = (): Promise<StockfishResult> => {
       return new Promise(async (resolve, reject) => {
-        // Register this reject so it can be called if process dies
         this.pendingRejects.push(reject);
         
-        // Set up timeout
         const timeoutId = setTimeout(() => {
           const index = this.pendingRejects.indexOf(reject);
           if (index > -1) this.pendingRejects.splice(index, 1);
+          this.activeRequests--;
           reject(new Error('Stockfish request timed out'));
-        }, this.REQUEST_TIMEOUT);
+        }, REQUEST_TIMEOUT);
 
         try {
           if (!this.isReady) {
             await this.init();
           }
 
-          console.log(`[Stockfish] getBestMove starting for FEN: ${fen}`);
+          console.log(`[Stockfish Worker ${this.workerId}] getBestMove for FEN: ${fen.substring(0, 40)}...`);
           this.sendCommand(`position fen ${fen}`);
           this.sendCommand(`go depth ${depth}`);
 
           const result = await this.waitForBestMove();
           clearTimeout(timeoutId);
           
-          // Remove from pending rejects on success
           const index = this.pendingRejects.indexOf(reject);
           if (index > -1) this.pendingRejects.splice(index, 1);
+          this.activeRequests--;
           
-          console.log(`[Stockfish] getBestMove result for FEN ${fen.substring(0, 30)}...: ${result.bestMove}`);
+          console.log(`[Stockfish Worker ${this.workerId}] Result: ${result.bestMove}`);
           resolve(result);
         } catch (error) {
           clearTimeout(timeoutId);
           const index = this.pendingRejects.indexOf(reject);
           if (index > -1) this.pendingRejects.splice(index, 1);
+          this.activeRequests--;
           reject(error);
         }
       });
     };
 
-    // Chain this request to the queue
-    // Use .then(fn, fn) pattern to ensure forward progress even after errors
-    // The queue always resolves (never stays rejected) so next request can proceed
     const thisRequest = this.requestQueue.then(executeRequest, executeRequest);
-    
-    // Update queue to always resolve so future requests can chain
-    this.requestQueue = thisRequest.catch(() => {
-      // Swallow error for queue continuity - the caller gets the error via thisRequest
-    });
+    this.requestQueue = thisRequest.catch(() => {});
     
     return thisRequest;
   }
@@ -382,140 +391,11 @@ class StockfishService {
     });
   }
 
-  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', nodes?: number): Promise<MoveAnalysisResult[]> {
-    const adaptiveNodes = nodes ?? analysisQueueManager.getAdaptiveNodeCount();
-    
-    if (!this.isReady) {
-      await this.init();
-    }
-
-    const results: MoveAnalysisResult[] = [];
-    let currentFen = startFen;
-    
-    const chess = new Chess(startFen);
-    
-    let cachedBeforeAnalysis = await this.analyzePosition(currentFen, adaptiveNodes);
-    
-    for (let i = 0; i < moves.length; i++) {
-      const sanMove = moves[i];
-      const moveNumber = Math.floor(i / 2) + 1;
-      const color: 'white' | 'black' = i % 2 === 0 ? 'white' : 'black';
-
-      const beforeAnalysis = cachedBeforeAnalysis;
-
-      const moveResult = chess.move(sanMove);
-      if (!moveResult) {
-        throw new Error(`Invalid move: ${sanMove} at position ${currentFen}`);
-      }
-      
-      const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
-      const afterFen = chess.fen();
-
-      const afterAnalysis = await this.analyzePosition(afterFen, adaptiveNodes);
-
-      // Stockfish always reports from side-to-move perspective
-      // 
-      // For CENTIPAWN LOSS: we need evaluations from the MOVER's perspective
-      // - beforeAnalysis.evaluation is already from the mover's perspective
-      // - afterAnalysis.evaluation is from opponent's perspective, so negate it to get mover's view
-      const moverEvalBefore = beforeAnalysis.evaluation;
-      const moverEvalAfter = -afterAnalysis.evaluation; // Flip to mover's perspective
-      
-      const normalizedMoverEvalBefore = normalizeEvaluation(moverEvalBefore);
-      const normalizedMoverEvalAfter = normalizeEvaluation(moverEvalAfter);
-      
-      // Centipawn loss: how much the mover's position got worse
-      const rawCentipawnLoss = Math.max(0, Math.round((normalizedMoverEvalBefore - normalizedMoverEvalAfter) * 100));
-      const centipawnLoss = rawCentipawnLoss;
-      const normalizedCentipawnLoss = normalizeCentipawnLoss(rawCentipawnLoss);
-      
-      // For DISPLAY: normalize evaluations to WHITE's perspective
-      // Positive = good for white, Negative = good for black
-      const isWhiteMove = color === 'white';
-      const evalBefore = isWhiteMove ? moverEvalBefore : -moverEvalBefore;
-      const evalAfter = isWhiteMove ? moverEvalAfter : -moverEvalAfter;
-      
-      // Also normalize bestMoveEval to white's perspective
-      // beforeAnalysis.bestMoveEval is from mover's perspective
-      const bestMoveEvalWhitePerspective = isWhiteMove 
-        ? beforeAnalysis.bestMoveEval 
-        : -beforeAnalysis.bestMoveEval;
-      
-      const normalizedEvalBefore = normalizeEvaluation(evalBefore);
-      const normalizedEvalAfter = normalizeEvaluation(evalAfter);
-
-      const isBestMove = uciMove === beforeAnalysis.bestMove || 
-        (beforeAnalysis.principalVariation.length > 0 && uciMove === beforeAnalysis.principalVariation[0]);
-
-      results.push({
-        moveNumber,
-        color,
-        move: sanMove,
-        fen: afterFen,
-        evalBefore,
-        evalAfter,
-        normalizedEvalBefore,
-        normalizedEvalAfter,
-        bestMove: beforeAnalysis.bestMove,
-        bestMoveEval: bestMoveEvalWhitePerspective,
-        centipawnLoss,
-        normalizedCentipawnLoss,
-        principalVariation: beforeAnalysis.principalVariation,
-        isBestMove,
-        isMateBefore: beforeAnalysis.isMate,
-        isMateAfter: afterAnalysis.isMate,
-        mateInBefore: beforeAnalysis.mateIn,
-        mateInAfter: afterAnalysis.mateIn,
-        capturedPiece: moveResult.captured,
-        movedPiece: moveResult.piece,
-        isCheckmate: chess.isCheckmate(),
-      });
-
-      currentFen = afterFen;
-      cachedBeforeAnalysis = afterAnalysis;
-    }
-
-    return results;
-  }
-
-  private waitForFen(): Promise<string> {
-    return new Promise((resolve) => {
-      let collectedOutput = '';
-      
-      const handler = (data: Buffer) => {
-        collectedOutput += data.toString();
-        const lines = collectedOutput.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('Fen:')) {
-            const fen = line.substring(4).trim();
-            this.process?.stdout?.removeListener('data', handler);
-            this.process?.stdout?.on('data', (d: Buffer) => {
-              this.outputBuffer += d.toString();
-              this.processOutput();
-            });
-            resolve(fen);
-            return;
-          }
-        }
-      };
-
-      this.process?.stdout?.removeAllListeners('data');
-      this.process?.stdout?.on('data', handler);
-    });
-  }
-
-  async getEvaluation(fen: string, nodes: number = 2000000): Promise<number> {
-    const analysis = await this.analyzePosition(fen, nodes);
-    return analysis.evaluation;
-  }
-
   async getTopMoves(fen: string, numMoves: number = 3, nodes: number = 2000000): Promise<TopMoveResult[]> {
     if (!this.isReady) {
       await this.init();
     }
 
-    // Stop any ongoing analysis first to prevent state confusion
     this.sendCommand('stop');
     this.sendCommand('ucinewgame');
     this.sendCommand(`setoption name MultiPV value ${numMoves}`);
@@ -523,9 +403,7 @@ class StockfishService {
     this.sendCommand(`go nodes ${nodes}`);
 
     return new Promise((resolve, reject) => {
-      // Timeout to prevent hanging if Stockfish doesn't respond
       const timeoutId = setTimeout(() => {
-        // Stop the engine, restore handler, and resolve empty
         this.sendCommand('stop');
         this.process?.stdout?.removeAllListeners('data');
         this.process?.stdout?.on('data', (d: Buffer) => {
@@ -534,7 +412,8 @@ class StockfishService {
         });
         this.sendCommand('setoption name MultiPV value 1');
         resolve([]);
-      }, 15000); // Reduced to 15s for faster failure
+      }, 15000);
+      
       const results: Map<number, TopMoveResult> = new Map();
       let collectedOutput = '';
 
@@ -543,7 +422,6 @@ class StockfishService {
         const lines = collectedOutput.split('\n');
 
         for (const line of lines) {
-          // Parse info lines with multipv - with nodes, we just keep updating and use final values
           if (line.startsWith('info depth') && line.includes(' pv ')) {
             const multipvMatch = line.match(/multipv (\d+)/);
             const scoreMatch = line.match(/score cp (-?\d+)/);
@@ -588,10 +466,8 @@ class StockfishService {
               this.processOutput();
             });
 
-            // Reset MultiPV to 1 for future single-line analyses
             this.sendCommand('setoption name MultiPV value 1');
 
-            // Convert map to sorted array
             const topMoves: TopMoveResult[] = [];
             for (let i = 1; i <= numMoves; i++) {
               const result = results.get(i);
@@ -612,5 +488,181 @@ class StockfishService {
   }
 }
 
-export const stockfishService = new StockfishService();
+// Worker pool that manages multiple Stockfish workers
+class StockfishWorkerPool {
+  private workers: StockfishWorker[] = [];
+  private nextWorkerIndex: number = 0;
+  private initialized: boolean = false;
+  // Use a dedicated worker for game analysis to avoid blocking best move requests
+  private analysisWorker: StockfishWorker;
+
+  constructor(numWorkers: number = NUM_WORKERS) {
+    console.log(`[Stockfish Pool] Initializing with ${numWorkers} workers`);
+    for (let i = 0; i < numWorkers; i++) {
+      this.workers.push(new StockfishWorker(i));
+    }
+    // Dedicated worker for heavy analysis tasks
+    this.analysisWorker = new StockfishWorker(numWorkers);
+  }
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    
+    console.log('[Stockfish Pool] Starting all workers...');
+    const initPromises = this.workers.map(w => w.init());
+    initPromises.push(this.analysisWorker.init());
+    await Promise.all(initPromises);
+    this.initialized = true;
+    console.log(`[Stockfish Pool] All ${this.workers.length} workers ready`);
+  }
+
+  // Get the least busy worker using round-robin with load awareness
+  private getNextWorker(): StockfishWorker {
+    // Find worker with least active requests
+    let leastBusy = this.workers[0];
+    let minRequests = leastBusy.getActiveRequests();
+    
+    for (const worker of this.workers) {
+      if (worker.getActiveRequests() < minRequests) {
+        leastBusy = worker;
+        minRequests = worker.getActiveRequests();
+      }
+    }
+    
+    // If all workers have same load, use round-robin
+    if (minRequests === this.workers[0].getActiveRequests()) {
+      const worker = this.workers[this.nextWorkerIndex];
+      this.nextWorkerIndex = (this.nextWorkerIndex + 1) % this.workers.length;
+      return worker;
+    }
+    
+    return leastBusy;
+  }
+
+  async getBestMove(fen: string, depth: number = 15): Promise<StockfishResult> {
+    const worker = this.getNextWorker();
+    console.log(`[Stockfish Pool] Routing to Worker ${worker.getWorkerId()} (active: ${worker.getActiveRequests()})`);
+    return worker.getBestMove(fen, depth);
+  }
+
+  async validateMove(fen: string, move: string): Promise<boolean> {
+    const worker = this.getNextWorker();
+    return worker.validateMove(fen, move);
+  }
+
+  async analyzePosition(fen: string, nodes: number = 2000000, useCache: boolean = true): Promise<PositionAnalysis> {
+    // Use dedicated analysis worker for position analysis
+    return this.analysisWorker.analyzePosition(fen, nodes, useCache);
+  }
+
+  async analyzeGame(moves: string[], startFen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', nodes?: number): Promise<MoveAnalysisResult[]> {
+    const adaptiveNodes = nodes ?? analysisQueueManager.getAdaptiveNodeCount();
+    
+    // Use dedicated analysis worker for game analysis
+    const worker = this.analysisWorker;
+    
+    const results: MoveAnalysisResult[] = [];
+    let currentFen = startFen;
+    
+    const chess = new Chess(startFen);
+    
+    let cachedBeforeAnalysis = await worker.analyzePosition(currentFen, adaptiveNodes);
+    
+    for (let i = 0; i < moves.length; i++) {
+      const sanMove = moves[i];
+      const moveNumber = Math.floor(i / 2) + 1;
+      const color: 'white' | 'black' = i % 2 === 0 ? 'white' : 'black';
+
+      const beforeAnalysis = cachedBeforeAnalysis;
+
+      const moveResult = chess.move(sanMove);
+      if (!moveResult) {
+        throw new Error(`Invalid move: ${sanMove} at position ${currentFen}`);
+      }
+      
+      const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
+      const afterFen = chess.fen();
+
+      const afterAnalysis = await worker.analyzePosition(afterFen, adaptiveNodes);
+
+      const moverEvalBefore = beforeAnalysis.evaluation;
+      const moverEvalAfter = -afterAnalysis.evaluation;
+      
+      const normalizedMoverEvalBefore = normalizeEvaluation(moverEvalBefore);
+      const normalizedMoverEvalAfter = normalizeEvaluation(moverEvalAfter);
+      
+      const rawCentipawnLoss = Math.max(0, Math.round((normalizedMoverEvalBefore - normalizedMoverEvalAfter) * 100));
+      const centipawnLoss = rawCentipawnLoss;
+      const normalizedCentipawnLoss = normalizeCentipawnLoss(rawCentipawnLoss);
+      
+      const isWhiteMove = color === 'white';
+      const evalBefore = isWhiteMove ? moverEvalBefore : -moverEvalBefore;
+      const evalAfter = isWhiteMove ? moverEvalAfter : -moverEvalAfter;
+      
+      const bestMoveEvalWhitePerspective = isWhiteMove 
+        ? beforeAnalysis.bestMoveEval 
+        : -beforeAnalysis.bestMoveEval;
+      
+      const normalizedEvalBefore = normalizeEvaluation(evalBefore);
+      const normalizedEvalAfter = normalizeEvaluation(evalAfter);
+
+      const isBestMove = uciMove === beforeAnalysis.bestMove || 
+        (beforeAnalysis.principalVariation.length > 0 && uciMove === beforeAnalysis.principalVariation[0]);
+
+      results.push({
+        moveNumber,
+        color,
+        move: sanMove,
+        fen: afterFen,
+        evalBefore,
+        evalAfter,
+        normalizedEvalBefore,
+        normalizedEvalAfter,
+        bestMove: beforeAnalysis.bestMove,
+        bestMoveEval: bestMoveEvalWhitePerspective,
+        centipawnLoss,
+        normalizedCentipawnLoss,
+        principalVariation: beforeAnalysis.principalVariation,
+        isBestMove,
+        isMateBefore: beforeAnalysis.isMate,
+        isMateAfter: afterAnalysis.isMate,
+        mateInBefore: beforeAnalysis.mateIn,
+        mateInAfter: afterAnalysis.mateIn,
+        capturedPiece: moveResult.captured,
+        movedPiece: moveResult.piece,
+        isCheckmate: chess.isCheckmate(),
+      });
+
+      currentFen = afterFen;
+      cachedBeforeAnalysis = afterAnalysis;
+    }
+
+    return results;
+  }
+
+  async getEvaluation(fen: string, nodes: number = 2000000): Promise<number> {
+    const analysis = await this.analyzePosition(fen, nodes);
+    return analysis.evaluation;
+  }
+
+  async getTopMoves(fen: string, numMoves: number = 3, nodes: number = 2000000): Promise<TopMoveResult[]> {
+    return this.analysisWorker.getTopMoves(fen, numMoves, nodes);
+  }
+
+  shutdown(): void {
+    for (const worker of this.workers) {
+      worker.shutdown();
+    }
+    this.analysisWorker.shutdown();
+  }
+
+  getStats(): { workers: number; activeRequests: number[] } {
+    return {
+      workers: this.workers.length,
+      activeRequests: this.workers.map(w => w.getActiveRequests())
+    };
+  }
+}
+
+export const stockfishService = new StockfishWorkerPool();
 export type { PositionAnalysis, MoveAnalysisResult, TopMoveResult };
