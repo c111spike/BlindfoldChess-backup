@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCw, Clock, Target, Trophy, Play, Sparkles } from "lucide-react";
 import { generatePositionClient, getBestMoveClient, calculateScoreClient } from "@/lib/boardSpinClient";
+import { Chess } from 'chess.js';
 
 const PIECE_UNICODE: Record<string, string> = {
   'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
@@ -93,6 +94,10 @@ export default function BoardSpin() {
   const [scoreSaved, setScoreSaved] = useState(false);
   const [timeSpent, setTimeSpent] = useState(0);
   const [bonusSelectedSquare, setBonusSelectedSquare] = useState<{rank: number; file: number} | null>(null);
+  const [bonusBoard, setBonusBoard] = useState<(string | null)[][]>(
+    Array(8).fill(null).map(() => Array(8).fill(null))
+  );
+  const [validBonusMoves, setValidBonusMoves] = useState<string[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recreationStartTime = useRef<number>(0);
 
@@ -259,6 +264,8 @@ export default function BoardSpin() {
           console.log(`[BoardSpin Client] Best move: ${bestMoveResult.bestMove}, Turn: ${bestMoveResult.turn}`);
           console.log(`[BoardSpin Client] FEN turn: ${position.fen.split(' ')[1]}`);
           setBestMove(bestMoveResult.bestMove);
+          // Initialize bonus board as a copy of the original position
+          setBonusBoard(position.board.map(row => [...row]));
           setPhase('bonus');
         } catch (stockfishError) {
           console.error('[BoardSpin] Stockfish error, skipping bonus:', stockfishError);
@@ -319,30 +326,89 @@ export default function BoardSpin() {
     }
   };
 
-  const handleBonusSquareClick = (rank: number, file: number, board: (string | null)[][]) => {
-    if (phase !== 'bonus') return;
+  const handleBonusSquareClick = (rank: number, file: number) => {
+    if (phase !== 'bonus' || !position) return;
     
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     // Board convention: board[0] = rank 1, board[7] = rank 8
     // So chess rank = boardRank + 1
-    const piece = board[rank][file];
-    const whiteToMove = position?.fen.split(' ')[1] === 'w';
+    const piece = bonusBoard[rank][file];
+    const whiteToMove = position.fen.split(' ')[1] === 'w';
+    const clickedSquare = files[file] + (rank + 1);
     
     if (bonusSelectedSquare) {
-      // Second click - complete the move
-      const fromChessRank = bonusSelectedSquare.rank + 1;
-      const toChessRank = rank + 1;
-      const fromSquare = files[bonusSelectedSquare.file] + fromChessRank;
-      const toSquare = files[file] + toChessRank;
-      const move = fromSquare + toSquare;
-      setPlayerMove(move);
-      setBonusSelectedSquare(null);
+      // Check if clicking the same square (deselect)
+      if (bonusSelectedSquare.rank === rank && bonusSelectedSquare.file === file) {
+        setBonusSelectedSquare(null);
+        setValidBonusMoves([]);
+        return;
+      }
+      
+      // Check if this is a valid move destination
+      const fromSquare = files[bonusSelectedSquare.file] + (bonusSelectedSquare.rank + 1);
+      const toSquare = clickedSquare;
+      
+      // Check if valid move
+      if (validBonusMoves.includes(toSquare)) {
+        const move = fromSquare + toSquare;
+        
+        // Update the bonus board visually - move the piece
+        const newBoard = bonusBoard.map(row => [...row]);
+        const movingPiece = newBoard[bonusSelectedSquare.rank][bonusSelectedSquare.file];
+        newBoard[bonusSelectedSquare.rank][bonusSelectedSquare.file] = null;
+        newBoard[rank][file] = movingPiece;
+        setBonusBoard(newBoard);
+        
+        setPlayerMove(move);
+        setBonusSelectedSquare(null);
+        setValidBonusMoves([]);
+      } else if (piece) {
+        // Clicked on another piece - try to select it instead
+        const isWhitePiece = piece === piece.toUpperCase();
+        if ((whiteToMove && isWhitePiece) || (!whiteToMove && !isWhitePiece)) {
+          selectBonusPiece(rank, file);
+        }
+      } else {
+        // Invalid destination - deselect
+        setBonusSelectedSquare(null);
+        setValidBonusMoves([]);
+      }
     } else if (piece) {
       // First click - select a piece (must be correct color)
       const isWhitePiece = piece === piece.toUpperCase();
       if ((whiteToMove && isWhitePiece) || (!whiteToMove && !isWhitePiece)) {
-        setBonusSelectedSquare({ rank, file });
+        selectBonusPiece(rank, file);
       }
+    }
+  };
+  
+  const selectBonusPiece = (rank: number, file: number) => {
+    if (!position) return;
+    
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const fromSquare = files[file] + (rank + 1);
+    
+    // Use chess.js to compute legal moves from this square
+    try {
+      const chess = new Chess(position.fen);
+      const moves = chess.moves({ square: fromSquare as any, verbose: true });
+      const validDestinations = moves.map(m => m.to);
+      
+      setBonusSelectedSquare({ rank, file });
+      setValidBonusMoves(validDestinations);
+    } catch (e) {
+      console.warn('[BoardSpin] Could not compute legal moves:', e);
+      setBonusSelectedSquare({ rank, file });
+      setValidBonusMoves([]);
+    }
+  };
+  
+  const resetBonusBoard = () => {
+    if (position) {
+      setBonusBoard(position.board.map(row => [...row]));
+      setPlayerMove('');
+      setBonusSelectedSquare(null);
+      setValidBonusMoves([]);
     }
   };
 
@@ -367,6 +433,8 @@ export default function BoardSpin() {
     setScoreSaved(false);
     setTimeSpent(0);
     setBonusSelectedSquare(null);
+    setBonusBoard(Array(8).fill(null).map(() => Array(8).fill(null)));
+    setValidBonusMoves([]);
     recreationStartTime.current = 0;
   };
 
@@ -411,7 +479,9 @@ export default function BoardSpin() {
               const isA1 = file === 'a' && rank === '1';
               const isH8 = file === 'h' && rank === '8';
               const isBonusSelected = bonusMode && bonusSelectedSquare?.rank === actualRank && bonusSelectedSquare?.file === fileIdx;
-              const isClickablePiece = bonusMode && piece && (
+              const squareNotation = file + (actualRank + 1);
+              const isValidMoveTarget = bonusMode && validBonusMoves.includes(squareNotation);
+              const isClickablePiece = bonusMode && piece && !bonusSelectedSquare && (
                 (whiteToMove && piece === piece.toUpperCase()) || 
                 (!whiteToMove && piece !== piece.toUpperCase())
               );
@@ -425,11 +495,12 @@ export default function BoardSpin() {
                     ${interactive && selectedPiece ? 'hover:ring-2 hover:ring-primary' : ''}
                     ${bonusMode ? 'hover:brightness-110' : ''}
                     ${isBonusSelected ? 'ring-4 ring-green-500 ring-inset brightness-110' : ''}
+                    ${isValidMoveTarget ? 'ring-4 ring-blue-400 ring-inset' : ''}
                     ${bonusMode && isClickablePiece && !isBonusSelected ? 'ring-2 ring-primary/50 ring-inset' : ''}
                   `}
                   onClick={() => {
                     if (interactive) handleSquareClick(actualRank, fileIdx);
-                    if (bonusMode) handleBonusSquareClick(actualRank, fileIdx, board);
+                    if (bonusMode) handleBonusSquareClick(actualRank, fileIdx);
                   }}
                   data-testid={`square-${file}${rank}`}
                 >
@@ -451,6 +522,13 @@ export default function BoardSpin() {
                     >
                       h8
                     </span>
+                  )}
+                  {/* Valid move indicator dot for empty squares */}
+                  {isValidMoveTarget && !piece && (
+                    <div 
+                      className="w-4 h-4 rounded-full bg-blue-400/70"
+                      style={{ transform: `rotate(${-rotation}deg)` }}
+                    />
                   )}
                   {/* Pieces counter-rotate to stay upright */}
                   {piece && (
@@ -858,10 +936,10 @@ export default function BoardSpin() {
               </div>
               
               <p className="text-sm text-muted-foreground">
-                Click a piece to select it, then click the destination square. Or type your move below.
+                Click a piece to select it, then click the destination square to move it. You can reset to try a different move.
               </p>
               
-              {renderBoard(position.board, 0, false, true)}
+              {renderBoard(bonusBoard, 0, false, true)}
               
               <div className="flex items-center gap-2 w-full max-w-xs">
                 <input
@@ -877,9 +955,17 @@ export default function BoardSpin() {
                 </Button>
               </div>
               
-              <Button variant="outline" onClick={skipBonus} data-testid="button-skip-bonus">
-                Skip Bonus
-              </Button>
+              <div className="flex gap-2">
+                {playerMove && (
+                  <Button variant="outline" onClick={resetBonusBoard} data-testid="button-reset-move">
+                    <RotateCw className="w-4 h-4 mr-1" />
+                    Reset Move
+                  </Button>
+                )}
+                <Button variant="outline" onClick={skipBonus} data-testid="button-skip-bonus">
+                  Skip Bonus
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
