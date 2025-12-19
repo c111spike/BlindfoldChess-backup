@@ -16,6 +16,48 @@ const PIECE_UNICODE: Record<string, string> = {
 
 const AVAILABLE_PIECES = ['K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'];
 
+// Transform a square notation based on board rotation
+// This converts the original move coordinates to match the rotated visual display
+const transformSquare = (square: string, rotation: number): string => {
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const file = files.indexOf(square[0]); // 0-7 (a=0, h=7)
+  const rank = parseInt(square[1]) - 1; // 0-7 (1=0, 8=7)
+  
+  let newFile: number, newRank: number;
+  
+  switch (rotation) {
+    case 90:
+      // 90° clockwise: (file, rank) -> (7-rank, file)
+      newFile = 7 - rank;
+      newRank = file;
+      break;
+    case 180:
+      // 180°: (file, rank) -> (7-file, 7-rank)
+      newFile = 7 - file;
+      newRank = 7 - rank;
+      break;
+    case 270:
+      // 270° clockwise (90° counter-clockwise): (file, rank) -> (rank, 7-file)
+      newFile = rank;
+      newRank = 7 - file;
+      break;
+    default:
+      // 0° - no change
+      return square;
+  }
+  
+  return files[newFile] + (newRank + 1);
+};
+
+// Transform a move (e.g., "e2e4") based on rotation
+const transformMove = (move: string, rotation: number): string => {
+  if (!move || move.length < 4) return move;
+  const from = move.substring(0, 2);
+  const to = move.substring(2, 4);
+  const promotion = move.substring(4); // e.g., "q" for pawn promotion
+  return transformSquare(from, rotation) + transformSquare(to, rotation) + promotion;
+};
+
 interface GeneratedPosition {
   fen: string;
   board: (string | null)[][];
@@ -865,15 +907,15 @@ export default function BoardSpin() {
               </div>
             </div>
             
-            {bonusResult !== null && (
+            {bonusResult !== null && position && (
               <div className={`p-4 rounded-lg text-center ${bonusResult ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
                 {bonusResult ? (
                   <p className="text-green-700 dark:text-green-300">
-                    Correct! Best move was {bestMove}. Score doubled!
+                    Correct! Best move was {transformMove(bestMove || '', position.rotation)}. Score doubled!
                   </p>
                 ) : (
                   <p className="text-red-700 dark:text-red-300">
-                    The best move was {bestMove}. No bonus this time.
+                    The best move was {transformMove(bestMove || '', position.rotation)}. No bonus this time.
                   </p>
                 )}
               </div>

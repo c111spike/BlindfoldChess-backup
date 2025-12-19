@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic, Flag, Handshake, Check, X } from "lucide-react";
+import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic, Flag, Handshake, Check, X, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
@@ -89,6 +89,7 @@ export default function SimulVsSimulMode() {
   const [showResignDialog, setShowResignDialog] = useState<'board' | 'all' | null>(null);
   const [pendingDrawOffers, setPendingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with sent draw offers
   const [incomingDrawOffers, setIncomingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with received draw offers
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false); // Mobile sidebar toggle
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
   const activeBoardRef = useRef(0);
@@ -1372,15 +1373,55 @@ export default function SimulVsSimulMode() {
         )}
       </div>
       
+      {/* Mobile sidebar toggle button */}
+      {gameStarted && (
+        <Button
+          variant="outline"
+          size="icon"
+          className="fixed bottom-4 right-4 z-50 md:hidden shadow-lg"
+          onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+          data-testid="button-mobile-sidebar-toggle"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
+      
+      {/* Mobile overlay */}
+      {gameStarted && showMobileSidebar && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setShowMobileSidebar(false)}
+          data-testid="overlay-mobile-sidebar"
+        />
+      )}
+      
       {/* Sidebar - RIGHT, only when game started */}
       {gameStarted && (
-        <div className="w-80 border-l bg-card flex flex-col" data-testid="sidebar-other-games">
+        <div 
+          className={cn(
+            "w-80 border-l bg-card flex flex-col",
+            "fixed md:relative inset-y-0 right-0 z-40",
+            "transform transition-transform duration-300 ease-in-out",
+            "md:transform-none",
+            showMobileSidebar ? "translate-x-0" : "translate-x-full md:translate-x-0"
+          )} 
+          data-testid="sidebar-other-games"
+        >
           <div className="p-4 border-b space-y-3">
             <div className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold" data-testid="text-match-title">
+              <h3 className="font-semibold flex-1" data-testid="text-match-title">
                 Simul vs Simul
               </h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden h-8 w-8"
+                onClick={() => setShowMobileSidebar(false)}
+                data-testid="button-close-sidebar"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
