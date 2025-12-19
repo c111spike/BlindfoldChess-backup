@@ -238,7 +238,7 @@ function detectVSSMismatch(moveAnalyses: MoveAnalysisResult[]): number[] {
     const currMove = moveAnalyses[i];
     
     // Skip checkmate moves - delivering mate is always optimal
-    if (currMove.isMateAfter && currMove.mateInAfter === 0) {
+    if (currMove.isCheckmate) {
       continue;
     }
     

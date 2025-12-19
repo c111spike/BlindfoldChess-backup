@@ -47,6 +47,7 @@ interface MoveAnalysisResult {
   mateInAfter?: number;
   capturedPiece?: string;
   movedPiece: string;
+  isCheckmate: boolean;
 }
 
 const MAX_EVAL = 10;
@@ -414,6 +415,7 @@ class StockfishService {
         mateInAfter: afterAnalysis.mateIn,
         capturedPiece: moveResult.captured,
         movedPiece: moveResult.piece,
+        isCheckmate: chess.isCheckmate(),
       });
 
       currentFen = afterFen;
