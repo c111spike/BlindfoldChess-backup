@@ -39,6 +39,19 @@ const MIN_NODES = 1000000;
 const QUEUE_HIGH_THRESHOLD = 5;
 const QUEUE_CRITICAL_THRESHOLD = 10;
 
+/**
+ * Normalize FEN for cache key purposes.
+ * Keeps: board position, turn, castling rights, en passant square
+ * Removes: half-move clock, full-move number (these don't affect position evaluation)
+ * This ensures cache hits for identical positions regardless of move counters.
+ */
+function normalizeFenForCache(fen: string): string {
+  const parts = fen.split(' ');
+  if (parts.length < 4) return fen;
+  // Return: position + turn + castling rights + en passant (ignoring move counters)
+  return `${parts[0]} ${parts[1]} ${parts[2]} ${parts[3]}`;
+}
+
 class AnalysisQueueManager {
   private queue: QueuedAnalysis[] = [];
   private activeAnalyses: Map<string, QueuedAnalysis> = new Map();
@@ -69,7 +82,9 @@ class AnalysisQueueManager {
   }
 
   private hashFen(fen: string): string {
-    return createHash('sha256').update(fen).digest('hex');
+    // Use normalized FEN for cache key to improve hit rate
+    const normalizedFen = normalizeFenForCache(fen);
+    return createHash('sha256').update(normalizedFen).digest('hex');
   }
 
   async getCachedPosition(fen: string, minNodes: number = MIN_NODES): Promise<CachedPosition | null> {
@@ -91,6 +106,8 @@ class AnalysisQueueManager {
       
       if (cached.length > 0) {
         this.metrics.cacheHits++;
+        const lookupTimeMs = Date.now() - startTime;
+        console.log(`[AnalysisQueue] CACHE HIT for position (${lookupTimeMs}ms lookup)`);
         
         await db
           .update(positionCache)
@@ -112,6 +129,7 @@ class AnalysisQueueManager {
       }
       
       this.metrics.cacheMisses++;
+      console.log(`[AnalysisQueue] CACHE MISS for position`);
       return null;
     } catch (error) {
       console.error('[AnalysisQueue] Cache lookup error:', error);
