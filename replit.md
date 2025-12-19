@@ -125,19 +125,36 @@ API routes automatically include `Cache-Control: no-store` headers to prevent Cl
 - **Cloudflare Waiting Room Strategy**: Activates Cloudflare waiting room based on CPU load via a `/health-status` endpoint (requires Business plan).
 
 ### Stockfish Scaling Infrastructure
+
+**Hybrid Architecture** (Client-Side Primary):
+The platform uses a hybrid client-side + server-side Stockfish architecture for infinite scalability:
+
+**Client-Side Stockfish (Primary - NEW)**:
+- Uses `stockfish` npm package (v17.1 lite-single WASM, 7MB download)
+- Runs entirely in browser via Web Worker for zero server load
+- Implements request queue serialization to prevent WebAssembly crashes
+- Files: `client/src/lib/stockfish.ts`, `client/src/lib/gameAnalysis.ts`, `client/src/hooks/useClientAnalysis.ts`
+
+**Client-Side Features**:
+- **Game Analysis**: Full move-by-move analysis with accuracy scores, move classification (Genius, Fantastic, Best, Good, Imprecise, Mistake, Blunder)
+- **Board Spin**: Position generation and best move calculation run entirely client-side
+- Trade-offs: ~2x slower than native Stockfish, 7MB WASM download, device-dependent performance
+- Files: `client/src/lib/boardSpinClient.ts`
+
+**Server-Side Stockfish (Secondary)**:
 Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueueManager.ts`, with adaptive scaling (2M nodes per position, adaptive to 1M under load), PostgreSQL caching, and performance monitoring via an Admin Performance Dashboard.
 
-**Current Implementation** (Redis Active):
-- Upstash Redis caching is now live with 30-day TTL for position evaluations
+**Redis Caching** (Active):
+- Upstash Redis caching is live with 30-day TTL for position evaluations
 - All 404 historical positions migrated from PostgreSQL to Redis
 - Sub-millisecond lookups (vs 10-50ms PostgreSQL), automatic TTL expiration
 - Fallback to PostgreSQL if Redis unavailable (graceful degradation)
 - Files: server/redisCache.ts, server/analysisQueueManager.ts, server/migrations/migrate-to-redis.ts
 
-**Scaling Recommendations**:
+**Scaling Capacity**:
+- Client-side analysis: Unlimited concurrent users (no server load)
+- Server-side with Redis: 100-1000 concurrent users with cache hits
 - Monitor Admin Performance tab for cache hit rates and response times
-- Redis configured for auto-upgrade from 1GB to 5GB if exceeded
-- Consider sharding if cache size exceeds 5GB (unlikely with 30-day TTL)
 
 **Future Optimization (not yet implemented)**:
 
