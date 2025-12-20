@@ -20,8 +20,14 @@ export default function About() {
                   <Target className="h-5 w-5 text-primary" />
                   Our Mission
                 </h2>
-                <p className="text-muted-foreground leading-relaxed" data-testid="text-mission-description">
+                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-mission-description">
                   SimulChess is designed to enhance over-the-board (OTB) chess habits, strengthen memory, and master simultaneous exhibition gameplay. We believe that while there are many places to play chess online, SimulChess is where you go to become a better chess player.
+                </p>
+                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-mission-origin">
+                  <strong>Founded in 2025</strong>, SimulChess began as a project to help players bridge the gap between fast-paced online play and the deep concentration required for tournament chess.
+                </p>
+                <p className="text-muted-foreground leading-relaxed" data-testid="text-mission-active-learning">
+                  We focus on <strong>Active Learning</strong>—the idea that you learn best by doing. Whether it's managing 5 boards at once or recreating a position from memory, our tools are designed to push your cognitive limits.
                 </p>
               </section>
 
@@ -63,8 +69,11 @@ export default function About() {
                   <Users className="h-5 w-5 text-primary" />
                   Community
                 </h2>
-                <p className="text-muted-foreground leading-relaxed" data-testid="text-community-description">
+                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-community-description">
                   SimulChess is built by chess enthusiasts for chess enthusiasts. Join our growing community of players who are serious about improving their over-the-board performance. All training modes are completely free, supported by non-intrusive advertising.
+                </p>
+                <p className="text-muted-foreground leading-relaxed" data-testid="text-community-puzzles">
+                  <strong>Our community is the heart of SimulChess.</strong> By creating and rating puzzles, our users help curate the most instructive training material available on the web.
                 </p>
               </section>
 

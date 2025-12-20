@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, MessageCircle } from "lucide-react";
+import { Mail, MessageCircle, Bug, Shield, Lightbulb, DollarSign, Scale } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
 
 export default function Contact() {
@@ -19,7 +19,7 @@ export default function Contact() {
             <div className="space-y-8">
               <section>
                 <p className="text-muted-foreground leading-relaxed mb-6" data-testid="text-contact-description">
-                  Have questions, feedback, or need assistance? Reach out to us through any of the channels below.
+                  Have questions, feedback, or need assistance? Reach out to us through any of the channels below. We typically respond to email inquiries within 48 hours.
                 </p>
                 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -31,7 +31,7 @@ export default function Contact() {
                       <div className="flex-1">
                         <h3 className="font-semibold mb-1" data-testid="text-discord-heading">Discord Community</h3>
                         <p className="text-sm text-muted-foreground mb-3" data-testid="text-discord-description">
-                          Join our Discord server for real-time support, discussions, and community updates.
+                          Join our Discord server for real-time support, game discussions, and community updates. This is the fastest way to get help or find a practice partner.
                         </p>
                         <Button asChild variant="outline" size="sm" data-testid="link-discord">
                           <a 
@@ -55,7 +55,7 @@ export default function Contact() {
                       <div className="flex-1">
                         <h3 className="font-semibold mb-1" data-testid="text-email-heading">Email Support</h3>
                         <p className="text-sm text-muted-foreground mb-3" data-testid="text-email-description">
-                          Send us an email for detailed inquiries or issues that need investigation.
+                          For account-specific issues, legal inquiries, or detailed bug reports, please email us directly.
                         </p>
                         <Button asChild variant="outline" size="sm" data-testid="link-email">
                           <a href="mailto:simulchess.com@gmail.com">
@@ -70,19 +70,80 @@ export default function Contact() {
               </section>
 
               <section>
-                <h2 className="text-xl font-semibold mb-3" data-testid="text-faq-heading">Frequently Asked Questions</h2>
-                <div className="space-y-4">
-                  <div data-testid="faq-report-bug">
-                    <h3 className="font-medium mb-2" data-testid="text-faq-bug-question">How do I report a bug?</h3>
-                    <p className="text-muted-foreground leading-relaxed" data-testid="text-faq-bug-answer">
-                      You can report bugs through our Discord server or by sending an email. Please include as much detail as possible, such as what you were doing when the issue occurred and any error messages you saw.
-                    </p>
+                <h2 className="text-xl font-semibold mb-4" data-testid="text-faq-heading">Frequently Asked Questions</h2>
+                <div className="space-y-6">
+                  <div className="p-4 rounded-lg border" data-testid="faq-report-bug">
+                    <div className="flex items-start gap-3">
+                      <Bug className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium mb-2" data-testid="text-faq-bug-question">How do I report a bug effectively?</h3>
+                        <p className="text-muted-foreground leading-relaxed mb-3" data-testid="text-faq-bug-answer">
+                          To help us fix issues quickly, please include:
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                          <li><strong>Browser & Device:</strong> (e.g., Chrome on Windows 11)</li>
+                          <li><strong>Steps to Reproduce:</strong> What were you clicking when it happened?</li>
+                          <li><strong>Screenshots:</strong> A picture of the error or the board state is incredibly helpful.</li>
+                          <li><strong>Game Link:</strong> If the bug happened during a specific game, please include the URL.</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
-                  <div data-testid="faq-report-cheating">
-                    <h3 className="font-medium mb-2" data-testid="text-faq-cheating-question">How do I report a player for cheating?</h3>
-                    <p className="text-muted-foreground leading-relaxed" data-testid="text-faq-cheating-answer">
-                      Use the report button available during or after a game. Our anti-cheat system will review the report. You can also contact us directly with evidence.
-                    </p>
+
+                  <div className="p-4 rounded-lg border" data-testid="faq-report-cheating">
+                    <div className="flex items-start gap-3">
+                      <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium mb-2" data-testid="text-faq-cheating-question">How do I report a player for cheating?</h3>
+                        <p className="text-muted-foreground leading-relaxed mb-3" data-testid="text-faq-cheating-answer">
+                          Fair play is our priority. If you suspect an opponent used engine assistance:
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                          <li>Click the <strong>Report</strong> button on their profile or in the post-game summary.</li>
+                          <li>Our anti-cheat system will analyze the move accuracy against Stockfish evaluations.</li>
+                          <li>For high-stakes events, you can email evidence to our support team.</li>
+                        </ul>
+                        <p className="text-xs text-muted-foreground mt-2 italic">
+                          Note: To maintain the integrity of our detection methods, we do not disclose specific details of our internal reviews.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-lg border" data-testid="faq-arbiter">
+                    <div className="flex items-start gap-3">
+                      <Scale className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium mb-2" data-testid="text-faq-arbiter-question">How does the arbiter system work?</h3>
+                        <p className="text-muted-foreground leading-relaxed" data-testid="text-faq-arbiter-answer">
+                          In OTB Tournament Mode, our virtual arbiter enforces official FIDE rules to simulate real tournament conditions. The arbiter monitors for touch-move violations, illegal moves, and proper clock management. First-time illegal moves result in a 2-minute time penalty; a second offense means immediate forfeit. This system helps you develop the discipline needed for serious over-the-board competition.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-lg border" data-testid="faq-feature-suggestion">
+                    <div className="flex items-start gap-3">
+                      <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium mb-2" data-testid="text-faq-feature-question">Can I suggest a new feature?</h3>
+                        <p className="text-muted-foreground leading-relaxed" data-testid="text-faq-feature-answer">
+                          Absolutely! Most of our training modes—like Board Spin and Simul vs Simul—evolved from community feedback. Post your ideas in the <strong>#suggestions</strong> channel on our Discord or send us an email.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-lg border" data-testid="faq-free">
+                    <div className="flex items-start gap-3">
+                      <DollarSign className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium mb-2" data-testid="text-faq-free-question">Is SimulChess really free?</h3>
+                        <p className="text-muted-foreground leading-relaxed" data-testid="text-faq-free-answer">
+                          Yes. All training tools, puzzles, and game modes are free to use. We are supported by non-intrusive advertising to keep our servers running and our engine analysis high-quality.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </section>
