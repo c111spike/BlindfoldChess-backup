@@ -111,7 +111,7 @@ export default function BoardSpin() {
   }
 
   const { data: personalBest, refetch: refetchPersonalBest } = useQuery<PersonalBest | null>({
-    queryKey: ['/api/boardspin/my-highscore', difficulty],
+    queryKey: [`/api/boardspin/my-highscore?difficulty=${difficulty}`],
     enabled: phase === 'select' || phase === 'results',
   });
 
