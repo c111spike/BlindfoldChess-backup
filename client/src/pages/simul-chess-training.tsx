@@ -1,0 +1,199 @@
+import { useLocation } from "wouter";
+import { Helmet } from "react-helmet-async";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { SEOCrossLinks } from "@/components/seo-cross-links";
+import { Users, Grid3X3, Clock, Brain, BookOpen, Trophy, Zap } from "lucide-react";
+
+export default function SimulChessTraining() {
+  const [, setLocation] = useLocation();
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Simul Chess Training - Simultaneous Exhibition Practice | SimulChess</title>
+        <meta name="description" content="Master simultaneous chess exhibitions with our Simul vs Simul training mode. Practice managing multiple boards, time allocation, and multi-game strategy like a chess master." />
+        <meta property="og:title" content="Simul Chess Training - SimulChess" />
+        <meta property="og:description" content="Train for simultaneous exhibitions. Manage multiple games at once and develop the skills needed to give chess simuls." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://simulchess.com/simul-chess-training" />
+        <meta property="og:image" content="https://simulchess.com/og-simul.png" />
+        <link rel="canonical" href="https://simulchess.com/simul-chess-training" />
+      </Helmet>
+
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Grid3X3 className="h-10 w-10 text-primary" />
+            <h1 className="text-3xl md:text-4xl font-bold">Simul Chess Training</h1>
+          </div>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Master the art of simultaneous exhibitions with multi-board training
+          </p>
+        </div>
+
+        <Card className="mb-8">
+          <CardContent className="pt-6">
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                <Grid3X3 className="h-6 w-6 text-primary shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold">Multiple Boards</h3>
+                  <p className="text-sm text-muted-foreground">Manage 2-8 games simultaneously</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                <Users className="h-6 w-6 text-primary shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold">Simul vs Simul</h3>
+                  <p className="text-sm text-muted-foreground">Both players manage multiple games</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                <Clock className="h-6 w-6 text-primary shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold">Time Management</h3>
+                  <p className="text-sm text-muted-foreground">30 seconds per move, per board</p>
+                </div>
+              </div>
+            </div>
+
+            <Button 
+              size="lg" 
+              className="w-full"
+              onClick={() => setLocation("/simul-vs-simul")}
+              data-testid="button-start-simul-training"
+            >
+              <Grid3X3 className="mr-2 h-5 w-5" />
+              Start Simul Training
+            </Button>
+            <p className="text-sm text-muted-foreground text-center mt-3">
+              Challenge yourself with multiple simultaneous games against opponents
+            </p>
+          </CardContent>
+        </Card>
+
+        <article className="prose prose-neutral dark:prose-invert max-w-none">
+          <h2 className="flex items-center gap-2">
+            <BookOpen className="h-6 w-6" />
+            Simultaneous Chess Exhibitions: Training for Multi-Board Mastery
+          </h2>
+
+          <p>
+            Simultaneous chess exhibitions, or "simuls," represent one of the most impressive feats in chess. 
+            A single player walks around a room, making moves on dozens of boards against multiple opponents, 
+            demonstrating both chess mastery and remarkable mental stamina. While giving a traditional simul 
+            requires significant strength, our Simul vs Simul mode introduces a unique twist: both players 
+            manage multiple boards, creating an entirely new competitive format that trains skills impossible 
+            to develop in single-game play.
+          </p>
+
+          <h3>What Makes Simul Chess Special</h3>
+          <p>
+            In a simultaneous exhibition, the simul giver must maintain awareness of multiple positions 
+            while making quick, accurate decisions at each board. There's no time for deep calculation on 
+            any single game — instead, pattern recognition and positional understanding must guide rapid 
+            move selection. This pressure-cooker environment develops chess intuition faster than any 
+            other training method.
+          </p>
+
+          <p>
+            Our Simul vs Simul format elevates this challenge further. When both players manage multiple 
+            boards, the cognitive demands multiply. You must not only remember your positions but also 
+            track your opponent's activity across games, making strategic decisions about which boards 
+            to prioritize and when to play for quick wins versus solid draws.
+          </p>
+
+          <h3>Cognitive Benefits of Multi-Board Play</h3>
+          <p>
+            Research in cognitive psychology has shown that managing multiple tasks simultaneously 
+            strengthens executive function, working memory, and attention control. Simul chess provides 
+            an ideal vehicle for developing these abilities in a chess-specific context. Players who 
+            train with simuls often report improved focus and faster decision-making in single-game play.
+          </p>
+
+          <p>
+            The context-switching required in simul chess also builds mental flexibility. Moving from a 
+            sharp tactical position on one board to a quiet positional game on another exercises different 
+            chess thinking modes in rapid succession. This variety within a single session provides more 
+            comprehensive training than playing sequential single games.
+          </p>
+
+          <h3>Time Management Across Multiple Boards</h3>
+          <p>
+            Our Simul vs Simul mode uses a 30-second per-move timer that runs continuously across all 
+            your boards. When your opponent moves on any board, your clock starts — you must respond 
+            on that board within 30 seconds, regardless of what's happening elsewhere. This creates 
+            intense pressure to maintain situational awareness and make efficient decisions.
+          </p>
+
+          <p>
+            Successful simul players develop strategies for managing this time pressure. Some focus 
+            on simplifying positions to reduce calculation needs. Others prioritize critical boards 
+            while maintaining safe, waiting positions on others. The optimal approach depends on your 
+            playing style and the specific positions you face, but practicing with time pressure is 
+            essential for developing your personal strategy.
+          </p>
+
+          <h3>Strategic Considerations in Simul Play</h3>
+          <p>
+            Multi-board chess introduces strategic elements that don't exist in single-game play. 
+            You must decide how to allocate your mental energy across boards. Is it better to push 
+            for wins on favorable boards or defend carefully on difficult ones? Should you play quickly 
+            to pressure your opponent's time management, or focus on accuracy even if it means using 
+            more clock?
+          </p>
+
+          <p>
+            Board prioritization becomes crucial as games reach critical phases. Missing a tactical 
+            opportunity on one board while focused on another is frustrating but inevitable — the 
+            key is developing the judgment to identify which positions demand immediate attention 
+            and which can wait.
+          </p>
+
+          <h3>Building Pattern Recognition</h3>
+          <p>
+            Perhaps the greatest benefit of simul training is accelerated pattern recognition development. 
+            When you can't calculate deeply, you must rely on positional patterns and tactical motifs 
+            you've internalized. This forces pattern-based thinking rather than pure calculation, building 
+            the intuitive understanding that characterizes strong players.
+          </p>
+
+          <p>
+            Over time, simul practice creates a library of positions you can assess almost instantly. 
+            You'll recognize pawn structures, piece placements, and tactical setups at a glance, 
+            making accurate decisions even under severe time pressure. These skills transfer directly 
+            to regular play, where having deeper pattern recognition means faster, more accurate moves.
+          </p>
+
+          <h3>Preparing to Give Real Simuls</h3>
+          <p>
+            If your goal is giving actual simultaneous exhibitions, our training mode provides excellent 
+            preparation. Start with 2-3 boards and gradually increase as your comfort grows. Pay attention 
+            to physical and mental fatigue patterns — real simuls require stamina that develops only 
+            through practice. The bot opponents in training mode help you maintain focus without the 
+            social complexity of multiple human opponents.
+          </p>
+
+          <p>
+            Real simuls require consistent opening play to simplify board maintenance. Consider developing 
+            a narrow opening repertoire that leads to familiar structures, reducing the cognitive load 
+            across many games. Our training mode lets you test different approaches and find what works 
+            for your playing style.
+          </p>
+
+          <h3>The Unique Challenge of Simul vs Simul</h3>
+          <p>
+            Our Simul vs Simul format creates a competitive experience unavailable anywhere else. When 
+            both players manage multiple boards, traditional advantages shift. A player who excels at 
+            single-game calculation may struggle against someone with superior multi-tasking ability. 
+            The format rewards different skills, making it an excellent supplement to traditional chess 
+            training and a unique competitive format in its own right.
+          </p>
+
+          <SEOCrossLinks currentPath="/simul-chess-training" />
+        </article>
+      </div>
+    </div>
+  );
+}

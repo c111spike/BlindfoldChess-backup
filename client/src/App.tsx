@@ -2,6 +2,7 @@ import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -35,6 +36,13 @@ import Help from "@/pages/help";
 import About from "@/pages/about";
 import Contact from "@/pages/contact";
 import OidcError from "@/pages/oidc-error";
+import BlindfoldChessTraining from "@/pages/blindfold-chess-training";
+import OTBTournamentSimulator from "@/pages/otb-tournament-simulator";
+import SimulChessTraining from "@/pages/simul-chess-training";
+import KnightsTourPuzzle from "@/pages/knights-tour-puzzle";
+import ChessPieceChallenge from "@/pages/chess-piece-challenge";
+import ChessPuzzlesTrainer from "@/pages/chess-puzzles-trainer";
+import ChessBoardSpin from "@/pages/chess-board-spin";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -72,6 +80,13 @@ function Router() {
       <Route path="/help" component={Help} />
       <Route path="/about" component={About} />
       <Route path="/contact" component={Contact} />
+      <Route path="/blindfold-chess-training" component={BlindfoldChessTraining} />
+      <Route path="/otb-tournament-simulator" component={OTBTournamentSimulator} />
+      <Route path="/simul-chess-training" component={SimulChessTraining} />
+      <Route path="/knights-tour-puzzle" component={KnightsTourPuzzle} />
+      <Route path="/chess-piece-challenge" component={ChessPieceChallenge} />
+      <Route path="/chess-puzzles-trainer" component={ChessPuzzlesTrainer} />
+      <Route path="/chess-board-spin" component={ChessBoardSpin} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -88,7 +103,11 @@ function AppContent() {
 
   const isUsingTestUser = isDevelopment && !!getTestUserId();
   const isOidcErrorPage = location === "/oidc-error";
-  const isPublicPage = ["/privacy", "/terms", "/about", "/contact"].includes(location);
+  const isPublicPage = [
+    "/privacy", "/terms", "/about", "/contact",
+    "/blindfold-chess-training", "/otb-tournament-simulator", "/simul-chess-training",
+    "/knights-tour-puzzle", "/chess-piece-challenge", "/chess-puzzles-trainer", "/chess-board-spin"
+  ].includes(location);
 
   useEffect(() => {
     // Don't redirect if we're on public pages or OIDC error page
@@ -102,13 +121,20 @@ function AppContent() {
     return <OidcError />;
   }
 
-  // Handle public pages (privacy, terms, about, contact) - accessible without auth
+  // Handle public pages (privacy, terms, about, contact, SEO landing pages) - accessible without auth
   if (isPublicPage && !isAuthenticated && !isUsingTestUser) {
     const PublicPageComponent = {
       "/privacy": PrivacyPolicy,
       "/terms": TermsOfService,
       "/about": About,
       "/contact": Contact,
+      "/blindfold-chess-training": BlindfoldChessTraining,
+      "/otb-tournament-simulator": OTBTournamentSimulator,
+      "/simul-chess-training": SimulChessTraining,
+      "/knights-tour-puzzle": KnightsTourPuzzle,
+      "/chess-piece-challenge": ChessPieceChallenge,
+      "/chess-puzzles-trainer": ChessPuzzlesTrainer,
+      "/chess-board-spin": ChessBoardSpin,
     }[location];
     
     if (PublicPageComponent) {
@@ -170,13 +196,15 @@ function AppContent() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="dark">
-        <TooltipProvider>
-          <AppContent />
-          <Toaster />
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="dark">
+          <TooltipProvider>
+            <AppContent />
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 }
