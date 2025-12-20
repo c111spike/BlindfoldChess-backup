@@ -39,6 +39,43 @@ interface ChessBoardProps {
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
 
+// Helper functions for knight move detection and L-shaped arrows
+const squareToIndices = (square: string): { file: number; rank: number } => {
+  return {
+    file: FILES.indexOf(square[0]),
+    rank: parseInt(square[1]) - 1,
+  };
+};
+
+const indicesToSquare = (file: number, rank: number): string => {
+  return `${FILES[file]}${rank + 1}`;
+};
+
+const isKnightMove = (from: string, to: string): boolean => {
+  const fromPos = squareToIndices(from);
+  const toPos = squareToIndices(to);
+  const dx = Math.abs(toPos.file - fromPos.file);
+  const dy = Math.abs(toPos.rank - fromPos.rank);
+  return (dx === 2 && dy === 1) || (dx === 1 && dy === 2);
+};
+
+// Get the intermediate square for L-shaped knight arrow (corner of the L)
+// We move 2 squares in the longer direction first, then 1 in the shorter
+const getKnightIntermediateSquare = (from: string, to: string): string => {
+  const fromPos = squareToIndices(from);
+  const toPos = squareToIndices(to);
+  const dx = toPos.file - fromPos.file;
+  const dy = toPos.rank - fromPos.rank;
+  
+  // If moving 2 squares horizontally, go horizontal first
+  if (Math.abs(dx) === 2) {
+    return indicesToSquare(toPos.file, fromPos.rank);
+  } else {
+    // Moving 2 squares vertically, go vertical first
+    return indicesToSquare(fromPos.file, toPos.rank);
+  }
+};
+
 const PIECE_SYMBOLS: Record<string, string> = {
   K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙",
   k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟",
@@ -322,7 +359,58 @@ export function ChessBoard({
   const renderArrow = (arrow: Arrow, index: number, isPreview: boolean = false) => {
     const from = getSquareCenter(arrow.from);
     const to = getSquareCenter(arrow.to);
+    const color = isPreview ? "rgba(255, 170, 0, 0.7)" : "rgba(255, 170, 0, 0.8)";
     
+    // Check if this is a knight move pattern - render L-shaped arrow
+    if (isKnightMove(arrow.from, arrow.to)) {
+      const intermediateSquare = getKnightIntermediateSquare(arrow.from, arrow.to);
+      const mid = getSquareCenter(intermediateSquare);
+      
+      // Calculate arrow head direction for the final segment
+      const dx2 = to.x - mid.x;
+      const dy2 = to.y - mid.y;
+      const length2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+      
+      const headLength = 3;
+      const adjustedLength2 = length2 - headLength * 0.7;
+      const ratio2 = adjustedLength2 / length2;
+      
+      const toX = mid.x + dx2 * ratio2;
+      const toY = mid.y + dy2 * ratio2;
+      
+      return (
+        <g key={`arrow-${index}`}>
+          {/* First segment: from start to corner */}
+          <line
+            x1={from.x}
+            y1={from.y}
+            x2={mid.x}
+            y2={mid.y}
+            stroke={color}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          {/* Second segment: from corner to destination */}
+          <line
+            x1={mid.x}
+            y1={mid.y}
+            x2={toX}
+            y2={toY}
+            stroke={color}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          {/* Arrow head at destination */}
+          <polygon
+            points={`0,-2 4,0 0,2`}
+            fill={color}
+            transform={`translate(${to.x},${to.y}) rotate(${Math.atan2(dy2, dx2) * 180 / Math.PI})`}
+          />
+        </g>
+      );
+    }
+    
+    // Standard straight arrow for non-knight moves
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.sqrt(dx * dx + dy * dy);
@@ -333,8 +421,6 @@ export function ChessBoard({
     
     const toX = from.x + dx * ratio;
     const toY = from.y + dy * ratio;
-    
-    const color = isPreview ? "rgba(255, 170, 0, 0.7)" : "rgba(255, 170, 0, 0.8)";
     
     return (
       <g key={`arrow-${index}`}>
