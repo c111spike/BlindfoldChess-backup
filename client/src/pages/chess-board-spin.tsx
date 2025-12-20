@@ -12,7 +12,7 @@ export default function ChessBoardSpin() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Board Spin Chess Training - Memory and Tactics Game | SimulChess</title>
-        <meta name="description" content="Test your chess memory with Board Spin. Memorize positions, find the best move, and race against time. A unique training game combining visualization, memory, and tactical calculation." />
+        <meta name="description" content="Test your chess memory with Board Spin. Study positions, spin the board, then recreate them from memory. Nail the recreation for a bonus round to find the best move and double your points." />
         <meta property="og:title" content="Board Spin - Chess Memory Training | SimulChess" />
         <meta property="og:description" content="Memorize chess positions and find the best move. Train your visualization and tactical pattern recognition." />
         <meta property="og:type" content="website" />
@@ -38,22 +38,22 @@ export default function ChessBoardSpin() {
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <Eye className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
-                  <h3 className="font-semibold">Memorize Positions</h3>
-                  <p className="text-sm text-muted-foreground">Study the board before it spins</p>
+                  <h3 className="font-semibold">Study &amp; Spin</h3>
+                  <p className="text-sm text-muted-foreground">Take your time, then spin when ready</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                <Brain className="h-6 w-6 text-primary shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold">Recreate From Memory</h3>
+                  <p className="text-sm text-muted-foreground">Rebuild the position in 2 minutes</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <Zap className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
-                  <h3 className="font-semibold">Find Best Moves</h3>
-                  <p className="text-sm text-muted-foreground">Stockfish-verified solutions</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
-                <Timer className="h-6 w-6 text-primary shrink-0 mt-1" />
-                <div>
-                  <h3 className="font-semibold">Beat the Clock</h3>
-                  <p className="text-sm text-muted-foreground">Race against time for high scores</p>
+                  <h3 className="font-semibold">Bonus Round</h3>
+                  <p className="text-sm text-muted-foreground">Find the best move to double points</p>
                 </div>
               </div>
             </div>
@@ -68,7 +68,7 @@ export default function ChessBoardSpin() {
               Start Board Spin
             </Button>
             <p className="text-sm text-muted-foreground text-center mt-3">
-              Memorize, spin, and solve — how many rounds can you survive?
+              Study, spin, recreate — can you rebuild the position from memory?
             </p>
           </CardContent>
         </Card>
@@ -76,30 +76,34 @@ export default function ChessBoardSpin() {
         <article className="prose prose-neutral dark:prose-invert max-w-none">
           <h2 className="flex items-center gap-2">
             <BookOpen className="h-6 w-6" />
-            Board Spin: The Ultimate Chess Memory and Tactics Challenge
+            Board Spin: The Ultimate Chess Memory Challenge
           </h2>
 
           <p>
-            Board Spin is a unique training game that combines position memorization with tactical 
-            solving. You're shown a chess position for a limited time, then the board "spins" and 
-            you must find the best move from memory. This innovative format simultaneously trains 
-            visualization, memory retention, and tactical calculation — three skills that compound 
-            to create stronger chess players.
+            Board Spin is a unique training game that tests your ability to memorize and recreate 
+            chess positions. You study a position for as long as you need, then press Spin — the 
+            board rotates and the pieces vanish. Your challenge: recreate the entire position from 
+            memory within two minutes. Nail the recreation and you unlock a bonus round where 
+            finding the best move doubles your points. This innovative format trains visualization, 
+            memory retention, and tactical calculation — three skills that compound to create 
+            stronger chess players.
           </p>
 
           <h3>How Board Spin Works</h3>
           <p>
-            Each round begins with a chess position displayed for study. You have limited time to 
-            memorize where every piece stands and begin calculating the tactical possibilities. 
-            When time expires, the pieces disappear and you must find the best move based purely 
-            on your mental image of the position.
+            Each round begins with a chess position displayed for study. Take as long as you need 
+            to memorize where every piece stands — there's no pressure during the study phase. 
+            When you feel confident, press the Spin button. The board rotates to a new viewing 
+            angle and the pieces disappear. Now a two-minute timer starts, and you must place 
+            every piece back in its correct position from memory.
           </p>
 
           <p>
-            Your solutions are verified by Stockfish, the world's strongest chess engine. Only 
-            moves that match the engine's top choices score points. This ensures you're not just 
-            remembering positions but actually finding correct tactical solutions — the combination 
-            of memory and accuracy that defines strong chess vision.
+            Successfully recreating the position earns points and unlocks a bonus round. In the 
+            bonus round, the position reappears and you have a chance to find the best move, 
+            verified by Stockfish — the world's strongest chess engine. Find the correct move 
+            and you double your points for that round. This two-stage format rewards both accurate 
+            memory and tactical understanding.
           </p>
 
           <h3>Why Memory Training Matters for Chess</h3>
@@ -118,50 +122,67 @@ export default function ChessBoardSpin() {
             track of the pieces. Board Spin builds this mental capacity through concentrated practice.
           </p>
 
-          <h3>Connecting Visualization to Tactics</h3>
+          <h3>The Study Phase Strategy</h3>
           <p>
-            The game's real power comes from combining memory with tactical solving. You can't 
-            succeed by merely remembering piece locations — you must also understand the position 
-            well enough to find the best move. This forces deep processing during the study phase 
-            rather than passive observation.
+            Since you control when to spin, the study phase becomes a strategic decision. How long 
+            should you study before testing yourself? Studying too briefly leads to recreation 
+            errors. Studying too long may indicate you're not developing efficient memorization 
+            techniques. Finding your optimal study time — and watching it decrease as you improve — 
+            provides a natural measure of progress.
           </p>
 
           <p>
-            As you improve, you'll develop efficient study strategies. Strong players don't try 
-            to memorize each piece individually. Instead, they perceive the position in terms of 
-            tactical elements: attacking formations, defensive structures, key squares, and piece 
-            relationships. This structured perception is exactly what distinguishes masters from 
-            amateurs.
+            Strong players don't try to memorize each piece individually. Instead, they perceive 
+            the position in terms of meaningful chunks: attacking formations, defensive structures, 
+            key squares, and piece relationships. As you practice, you'll develop this structured 
+            perception — the same skill that distinguishes masters from amateurs in actual games.
           </p>
 
-          <h3>The Time Pressure Element</h3>
+          <h3>The Recreation Challenge</h3>
           <p>
-            The timer creates productive pressure that mimics real game situations. You can't 
-            spend forever studying — you must quickly identify what matters and commit it to 
-            memory. This trains rapid position assessment, a crucial skill for time-scramble 
-            situations in tournament games.
+            Once the board spins, a two-minute timer begins. This pressure creates productive 
+            urgency that mimics time-scramble situations in tournament games. You must quickly 
+            translate your mental image into piece placements, working systematically to avoid 
+            errors. The timer reveals how well you truly internalized the position versus merely 
+            glancing at it.
           </p>
 
           <p>
-            The pressure also reveals weaknesses in your chess understanding. Positions involving 
-            your weaker areas — perhaps knight forks or back-rank threats — will prove harder to 
-            remember and solve. These difficulties highlight exactly what needs additional study, 
-            making Board Spin a diagnostic tool as well as a training exercise.
+            Recreation failures are informative. Did you forget a piece entirely? Misplace it by 
+            one square? Confuse which color controlled a square? Each error type suggests different 
+            weaknesses in your visualization process. Pay attention to your mistakes — they guide 
+            what to focus on during future study phases.
           </p>
 
-          <h3>Progressive Challenge</h3>
+          <h3>The Bonus Round</h3>
+          <p>
+            Successfully recreating a position unlocks the bonus round — your chance to double 
+            your points by finding the best move. The position reappears, and now tactical 
+            calculation takes over. Can you spot the winning combination, the defensive resource, 
+            or the positional breakthrough that Stockfish identifies as optimal?
+          </p>
+
+          <p>
+            The bonus round connects memory training to practical chess improvement. Positions 
+            that tactical engines find interesting often feature the patterns that appear in 
+            real games: forks, pins, discovered attacks, and sacrifices. By practicing both 
+            memorization and tactical solving, you're building complete chess vision.
+          </p>
+
+          <h3>Progressive Difficulty</h3>
           <p>
             Each successful round advances to a more challenging position. Early rounds feature 
-            simpler tactical motifs and cleaner positions. Later rounds introduce complex positions 
-            with multiple tactical possibilities. Seeing how far you can progress provides both 
-            motivation and a measure of your current ability level.
+            fewer pieces and simpler arrangements that beginners can handle. As difficulty 
+            increases, positions include more pieces to remember, making accurate recreation 
+            harder. The board also appears from different viewing angles, challenging you to 
+            maintain your mental image regardless of perspective.
           </p>
 
           <p>
-            High scores require mastering a range of tactical themes and position types. You might 
-            excel at sharp attacking positions but struggle with quiet positional puzzles, or vice 
-            versa. Well-rounded improvement shows in consistently higher scores across all position 
-            types.
+            These escalating challenges prevent plateau effects. Just when you've mastered 
+            positions with eight pieces, you'll face ten. Just when you're comfortable with 
+            the standard board view, you'll see it rotated. This continuous progression keeps 
+            your training effective and engaging.
           </p>
 
           <h3>The Science of Visual Chess Memory</h3>
@@ -183,7 +204,7 @@ export default function ChessBoardSpin() {
           <p>
             Board Spin complements other training methods perfectly. Use it as a warm-up before 
             tactical puzzles or game analysis. The memory component activates your visualization 
-            systems while the tactical element engages your calculation abilities. Five to ten 
+            systems while the bonus round engages your calculation abilities. Five to ten 
             minutes of Board Spin primes your brain for productive chess work.
           </p>
 
@@ -197,16 +218,16 @@ export default function ChessBoardSpin() {
           <h3>Tracking Your Progress</h3>
           <p>
             Your high scores provide clear measures of improvement. As your visualization and 
-            tactical abilities grow, you'll consistently reach higher rounds before errors end 
+            memory abilities grow, you'll consistently reach higher rounds before errors end 
             your run. Watching your high score climb motivates continued practice and validates 
             the effectiveness of your training.
           </p>
 
           <p>
             Pay attention to which positions end your runs. Repeated failures on certain position 
-            types signal areas needing focused study. Perhaps knight endgames are causing trouble, 
-            or positions with multiple candidate moves overwhelm your memory. Use these insights 
-            to direct your broader chess improvement efforts.
+            types signal areas needing focused study. Perhaps positions with many knights cause 
+            trouble, or complex pawn structures overwhelm your memory. Use these insights to 
+            direct your broader chess improvement efforts.
           </p>
 
           <div className="not-prose mt-8 mb-8">
