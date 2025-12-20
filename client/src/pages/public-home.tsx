@@ -58,7 +58,7 @@ const landingPages = [
 export default function PublicHomePage() {
   return (
     <div className="min-h-screen -m-4">
-      <section className="relative w-full min-h-[60vh] md:min-h-[70vh] overflow-hidden">
+      <section className="relative w-full min-h-[80vh] overflow-hidden">
         <div className="absolute inset-0">
           <img
             src={heroImage}
