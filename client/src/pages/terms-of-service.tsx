@@ -11,7 +11,7 @@ export default function TermsOfService() {
             <FileText className="h-8 w-8 text-primary" />
             <div>
               <CardTitle className="text-2xl md:text-3xl">Terms of Service</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Last updated: December 2024</p>
+              <p className="text-sm text-muted-foreground mt-1">Last updated: December 2025</p>
             </div>
           </CardHeader>
           <CardContent>
