@@ -12,9 +12,9 @@ export default function ChessPieceChallenge() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>N-Queens Puzzle and Chess Piece Challenges | SimulChess</title>
-        <meta name="description" content="Solve the legendary N-Queens puzzle at SimulChess. Master piece coordination with challenges for knights, bishops, rooks, and kings. Train your mind with history's greatest chess problems!" />
+        <meta name="description" content="Master the legendary N-Queens puzzle and piece coordination challenges at SimulChess. From computer science benchmarks to chess visualization, train your mind with history's greatest spatial puzzles." />
         <meta property="og:title" content="N-Queens Puzzle and Chess Piece Challenges | SimulChess" />
-        <meta property="og:description" content="Solve the legendary N-Queens puzzle at SimulChess. Master piece coordination with challenges for knights, bishops, rooks, and kings." />
+        <meta property="og:description" content="Master the legendary N-Queens puzzle and piece coordination challenges at SimulChess. From computer science benchmarks to chess visualization, train your mind with history's greatest spatial puzzles." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/chess-piece-challenge" />
         <meta property="og:image" content="https://simulchess.com/og-npiece.png" />
@@ -92,8 +92,10 @@ export default function ChessPieceChallenge() {
           <p>
             The classic N-Queens puzzle asks you to place 8 queens on a standard 8×8 chessboard such that 
             no queen can capture another. Since queens attack along rows, columns, and diagonals, finding 
-            a valid arrangement requires careful thought. There are exactly 92 distinct solutions to the 
-            8-queens problem — but finding even one without guidance challenges most people.
+            a valid arrangement requires careful thought. While there are <strong>92 total solutions</strong> for 
+            an 8×8 board, there are only <strong>12 fundamental solutions</strong>. All others are simply 
+            rotations or mirror images of these twelve. Can you find a unique one that isn't just a 
+            reflection of your last success?
           </p>
 
           <p>
@@ -143,6 +145,13 @@ export default function ChessPieceChallenge() {
           </p>
 
           <p>
+            <strong>Mathematical insight:</strong> Did you know that on an N×N board, the maximum number 
+            of non-attacking bishops you can place is <strong>2N - 2</strong>? For a standard 8×8 board, 
+            that means you can fit 14 bishops! This is a great exercise for visualizing color-restricted 
+            diagonals and understanding how bishops coordinate on same-color squares.
+          </p>
+
+          <p>
             Many developing chess players struggle with bishops because diagonal vision doesn't come 
             naturally to everyone. The N-Bishops challenge provides concentrated practice seeing diagonal 
             lines across the board. After solving several configurations, players find themselves 
@@ -185,6 +194,13 @@ export default function ChessPieceChallenge() {
             from 5×5 through 12×12 — smaller boards provide quicker puzzles perfect for learning, while 
             larger boards offer extended challenges for experienced solvers. This flexibility means the 
             puzzle grows with your skills — there's always a harder variation waiting when you're ready.
+          </p>
+
+          <p>
+            As the board size increases, the number of possible configurations grows exponentially. 
+            While a 10×10 board has <strong>724 solutions</strong>, a 12×12 board — available in our 
+            challenge mode — jumps to <strong>14,200 solutions</strong>. This makes the larger boards 
+            an incredible test of your systematic problem-solving skills.
           </p>
 
           <p>
