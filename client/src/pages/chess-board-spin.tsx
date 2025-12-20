@@ -209,6 +209,18 @@ export default function ChessBoardSpin() {
             to direct your broader chess improvement efforts.
           </p>
 
+          <div className="not-prose mt-8 mb-8">
+            <Button 
+              size="lg" 
+              className="w-full"
+              onClick={() => setLocation("/boardspin")}
+              data-testid="button-start-boardspin-bottom"
+            >
+              <RotateCw className="mr-2 h-5 w-5" />
+              Start Board Spin
+            </Button>
+          </div>
+
           <SEOCrossLinks currentPath="/chess-board-spin" />
         </article>
       </div>

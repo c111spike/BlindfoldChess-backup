@@ -207,6 +207,18 @@ export default function ChessPuzzlesTrainer() {
             often become the best puzzle solvers.
           </p>
 
+          <div className="not-prose mt-8 mb-8">
+            <Button 
+              size="lg" 
+              className="w-full"
+              onClick={() => setLocation("/puzzles")}
+              data-testid="button-start-puzzles-bottom"
+            >
+              <Puzzle className="mr-2 h-5 w-5" />
+              Start Solving Puzzles
+            </Button>
+          </div>
+
           <SEOCrossLinks currentPath="/chess-puzzles-trainer" />
         </article>
       </div>

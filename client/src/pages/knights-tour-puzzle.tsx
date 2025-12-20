@@ -161,9 +161,18 @@ export default function KnightsTourPuzzle() {
           </p>
 
           <p>
-            The existence of closed tours was proven mathematically, but finding them requires 
-            additional planning beyond simply completing all squares. If you can consistently 
-            produce closed tours, you've developed exceptional knight visualization skills.
+            <strong>Mathematical note:</strong> Closed tours are only possible on boards with an 
+            even number of squares. This is because a knight alternates between light and dark 
+            squares with every move — to return to your starting square, you need equal numbers 
+            of light and dark squares. On an 8×8 board (64 squares) or 6×6 board (36 squares), 
+            closed tours are possible. On a 5×5 board (25 squares) or 7×7 board (49 squares), 
+            only open tours can exist.
+          </p>
+
+          <p>
+            Finding closed tours requires additional planning beyond simply completing all squares. 
+            If you can consistently produce closed tours on even-numbered boards, you've developed 
+            exceptional knight visualization skills.
           </p>
 
           <h3>Variations and Advanced Challenges</h3>
@@ -175,10 +184,12 @@ export default function KnightsTourPuzzle() {
           </p>
 
           <p>
-            Some players practice on different board sizes to develop more general knight intuition. 
-            While the 8×8 board is standard, knight's tours exist on many rectangular boards, each 
-            with unique characteristics. This variety prevents rote memorization and ensures you're 
-            building genuine visualization skills rather than just learning specific solutions.
+            On SimulChess, you can practice on board sizes ranging from 5×5 through 12×12, allowing 
+            you to develop more general knight intuition. Smaller boards like 5×5 offer quicker 
+            practice sessions, while larger boards like 10×10 or 12×12 provide extended challenges 
+            that push your memory and planning to the limit. This variety prevents rote memorization 
+            and ensures you're building genuine visualization skills rather than just learning 
+            specific solutions.
           </p>
 
           <h3>Integration With Chess Training</h3>
@@ -195,6 +206,18 @@ export default function KnightsTourPuzzle() {
             learning happens. Easy solutions feel good but provide less cognitive challenge. Embrace 
             the difficulty — it's the source of the puzzle's training value.
           </p>
+
+          <div className="not-prose mt-8 mb-8">
+            <Button 
+              size="lg" 
+              className="w-full"
+              onClick={() => setLocation("/knights-tour")}
+              data-testid="button-start-knights-tour-bottom"
+            >
+              <Waypoints className="mr-2 h-5 w-5" />
+              Start Knight's Tour
+            </Button>
+          </div>
 
           <SEOCrossLinks currentPath="/knights-tour-puzzle" />
         </article>

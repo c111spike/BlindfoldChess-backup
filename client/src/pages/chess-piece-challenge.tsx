@@ -209,6 +209,18 @@ export default function ChessPieceChallenge() {
             to tournament games while remaining accessible enough for meaningful improvement.
           </p>
 
+          <div className="not-prose mt-8 mb-8">
+            <Button 
+              size="lg" 
+              className="w-full"
+              onClick={() => setLocation("/n-piece")}
+              data-testid="button-start-npiece-challenge-bottom"
+            >
+              <Layers className="mr-2 h-5 w-5" />
+              Start N-Piece Challenge
+            </Button>
+          </div>
+
           <SEOCrossLinks currentPath="/chess-piece-challenge" />
         </article>
       </div>
