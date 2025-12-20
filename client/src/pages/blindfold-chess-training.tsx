@@ -186,6 +186,22 @@ export default function BlindfoldChessTraining() {
             adapted for your current skill level.
           </p>
 
+          <h3>Voice Control: Audio Input and Output</h3>
+          <p>
+            SimulChess offers optional voice control that pairs perfectly with blindfold training. Enable audio 
+            output to hear moves announced aloud — "knight to f3," "bishop takes on c6" — reinforcing your mental 
+            picture of the position without needing to look at anything. This audio feedback helps maintain your 
+            visualization while confirming moves are registered correctly.
+          </p>
+
+          <p>
+            Voice input takes this further: speak your moves instead of clicking. Say "rook to d1" or "queen h5 
+            check" and the system recognizes and plays your move. For serious blindfold training, voice control 
+            lets you practice without any visual interaction at all — true blindfold chess where your eyes can 
+            be closed or looking away from the screen entirely. The combination of voice input and audio output 
+            creates the purest blindfold experience possible.
+          </p>
+
           <h3>Start Your Blindfold Chess Journey Today</h3>
           <p>
             Whether you're looking to improve your tournament results, strengthen your memory, or simply challenge 

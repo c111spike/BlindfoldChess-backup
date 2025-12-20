@@ -202,6 +202,22 @@ export default function SimulChessTraining() {
             develop these specialized skills.
           </p>
 
+          <h3>Voice Control: Hands-Free Move Entry</h3>
+          <p>
+            Managing multiple boards means constant navigation and clicking — unless you enable voice control. 
+            SimulChess offers optional audio input that lets you speak your moves: "knight to f3," "bishop 
+            takes c6," "castle kingside." Voice commands work across all your boards, letting you make moves 
+            without interrupting your visual scan of the positions.
+          </p>
+
+          <p>
+            Audio output complements voice input by announcing moves aloud. Hear your opponent's moves spoken 
+            as they happen, keeping you informed even when your attention is on another board. This audio 
+            awareness helps you track game developments across multiple boards simultaneously — catching 
+            critical moves you might otherwise miss while focused elsewhere. For serious simul players, 
+            voice control transforms the multi-board experience.
+          </p>
+
           <div className="not-prose mt-8 mb-8">
             <Button 
               size="lg" 

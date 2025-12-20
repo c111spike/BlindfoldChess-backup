@@ -108,8 +108,8 @@ export default function ChessPieceChallenge() {
           <p>
             While the N-Queens puzzle is the star attraction, it assumes you already understand how queens 
             move. For beginners still learning chess, jumping straight to queens can be overwhelming. 
-            That's why SimulChess extends the concept to all major piece types: rooks, bishops, and knights. 
-            Each piece type creates its own unique puzzle with different difficulty levels.
+            That's why SimulChess extends the concept to all major piece types: rooks, bishops, knights, 
+            and even kings. Each piece type creates its own unique puzzle with different difficulty levels.
           </p>
 
           <p>
@@ -181,10 +181,10 @@ export default function ChessPieceChallenge() {
 
           <h3>Scaling the Challenge</h3>
           <p>
-            Our N-Piece Challenge lets you adjust the board size and number of pieces. Smaller boards 
-            (4×4, 5×5) provide quicker puzzles perfect for learning. Larger boards (10×10, 12×12) offer 
-            extended challenges for experienced solvers. This flexibility means the puzzle grows with 
-            your skills — there's always a harder variation waiting when you're ready.
+            Our N-Piece Challenge lets you adjust the board size and number of pieces. Board sizes range 
+            from 5×5 through 12×12 — smaller boards provide quicker puzzles perfect for learning, while 
+            larger boards offer extended challenges for experienced solvers. This flexibility means the 
+            puzzle grows with your skills — there's always a harder variation waiting when you're ready.
           </p>
 
           <p>
