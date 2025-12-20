@@ -1,9 +1,9 @@
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SEOCrossLinks } from "@/components/seo-cross-links";
-import { Book, Database, RefreshCw, TrendingUp, Target, Brain, Play, CheckCircle } from "lucide-react";
+import { Book, Database, RefreshCw, TrendingUp, Target, Brain, Play, CheckCircle, ArrowLeft } from "lucide-react";
 
 export default function OpeningRepertoireTrainer() {
   const [, setLocation] = useLocation();
@@ -22,6 +22,15 @@ export default function OpeningRepertoireTrainer() {
       </Helmet>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="mb-6">
+          <Link href="/">
+            <Button variant="ghost" size="sm" data-testid="button-back-home">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Book className="h-10 w-10 text-primary" />

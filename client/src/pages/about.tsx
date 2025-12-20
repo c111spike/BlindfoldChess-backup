@@ -1,10 +1,21 @@
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Info, Target, Users, Brain, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Info, Target, Users, Brain, Trophy, ArrowLeft } from "lucide-react";
 
 export default function About() {
   return (
     <div className="min-h-full p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <Link href="/">
+            <Button variant="ghost" size="sm" data-testid="button-back-home">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+
         <Card>
           <CardHeader className="flex flex-row items-center gap-3">
             <Info className="h-8 w-8 text-primary" />
