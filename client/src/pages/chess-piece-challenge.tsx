@@ -11,10 +11,10 @@ export default function ChessPieceChallenge() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>N-Piece Chess Challenge - Piece Coordination Training | SimulChess</title>
-        <meta name="description" content="Master chess piece coordination with our N-Piece Challenge. Practice with limited pieces to understand their unique strengths, movements, and tactical potential." />
-        <meta property="og:title" content="N-Piece Chess Challenge - SimulChess" />
-        <meta property="og:description" content="Train with limited pieces to master each chess piece's strengths. Develop deep understanding of bishops, knights, rooks, and queens." />
+        <title>N-Queens Puzzle and Chess Piece Challenges | SimulChess</title>
+        <meta name="description" content="Solve the famous N-Queens puzzle and learn chess piece movement with our N-Piece Challenge. From beginner-friendly rook and bishop exercises to the classic queen placement problem studied for centuries." />
+        <meta property="og:title" content="N-Queens Puzzle and Chess Piece Challenges | SimulChess" />
+        <meta property="og:description" content="Master the legendary N-Queens puzzle. Plus beginner-friendly challenges with knights, bishops, and rooks to learn how each chess piece moves." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/chess-piece-challenge" />
         <meta property="og:image" content="https://simulchess.com/og-npiece.png" />
@@ -38,22 +38,22 @@ export default function ChessPieceChallenge() {
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <Crown className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
-                  <h3 className="font-semibold">Piece Focus</h3>
-                  <p className="text-sm text-muted-foreground">Master each piece's unique abilities</p>
+                  <h3 className="font-semibold">N-Queens Puzzle</h3>
+                  <p className="text-sm text-muted-foreground">The famous mathematical challenge</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <Target className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
-                  <h3 className="font-semibold">Endgame Skills</h3>
-                  <p className="text-sm text-muted-foreground">Practice essential checkmate patterns</p>
+                  <h3 className="font-semibold">All Piece Types</h3>
+                  <p className="text-sm text-muted-foreground">Knights, bishops, rooks, and queens</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
-                <Zap className="h-6 w-6 text-primary shrink-0 mt-1" />
+                <Brain className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
-                  <h3 className="font-semibold">Tactical Clarity</h3>
-                  <p className="text-sm text-muted-foreground">Fewer pieces, clearer patterns</p>
+                  <h3 className="font-semibold">Learn Piece Movement</h3>
+                  <p className="text-sm text-muted-foreground">Perfect for beginners and experts</p>
                 </div>
               </div>
             </div>
@@ -76,137 +76,138 @@ export default function ChessPieceChallenge() {
         <article className="prose prose-neutral dark:prose-invert max-w-none">
           <h2 className="flex items-center gap-2">
             <BookOpen className="h-6 w-6" />
-            Mastering Chess Pieces: The N-Piece Training Method
+            The N-Queens Puzzle and Chess Piece Challenges
           </h2>
 
           <p>
-            Every chess player knows how the pieces move, but true mastery requires understanding 
-            their deeper characteristics — their optimal squares, coordination patterns, and tactical 
-            potential. The N-Piece Challenge isolates this learning by having you play with limited 
-            material, forcing you to extract maximum value from each piece. This focused approach 
-            accelerates skill development far beyond what normal games can provide.
+            The N-Queens puzzle is one of the most famous problems in mathematics and computer science. 
+            The challenge: place N queens on an N×N chessboard so that no two queens threaten each other. 
+            First posed in 1848 by chess composer Max Bezzel, this deceptively simple puzzle has captivated 
+            mathematicians for nearly two centuries. Our N-Piece Challenge brings this legendary puzzle 
+            to life — and extends it with beginner-friendly variations using other chess pieces to help 
+            players of all levels learn how each piece moves and attacks.
           </p>
 
-          <h3>Why Limited Material Training Works</h3>
+          <h3>The Famous N-Queens Problem</h3>
           <p>
-            In a full chess game, with 32 pieces creating complex interactions, it's difficult to 
-            learn lessons about individual pieces. Mistakes blend into the overall chaos, and good 
-            decisions may go unrecognized. By reducing the piece count, the N-Piece Challenge creates 
-            positions where every move matters and the consequences of your decisions become 
-            immediately apparent.
-          </p>
-
-          <p>
-            This training method has been used by chess coaches for generations. Studies of endgame 
-            positions with few pieces teach essential patterns that recur throughout chess. But our 
-            N-Piece Challenge extends this approach to middle-game positions with custom piece 
-            selections, allowing you to train specific weaknesses in your understanding.
-          </p>
-
-          <h3>Mastering the Knight</h3>
-          <p>
-            Knights confuse many players with their L-shaped movement and unique ability to jump 
-            over other pieces. The N-Piece Challenge with knight-focused setups teaches you to 
-            appreciate the knight's strengths: its power in closed positions, its ability to reach 
-            squares bishops cannot, and its devastating potential in fork positions.
+            The classic N-Queens puzzle asks you to place 8 queens on a standard 8×8 chessboard such that 
+            no queen can capture another. Since queens attack along rows, columns, and diagonals, finding 
+            a valid arrangement requires careful thought. There are exactly 92 distinct solutions to the 
+            8-queens problem — but finding even one without guidance challenges most people.
           </p>
 
           <p>
-            Practice with knight-heavy positions reveals the piece's weaknesses too. Knights struggle 
-            to control long diagonals, move slowly across the board, and lose effectiveness in open 
-            positions. Understanding when knights shine and when they struggle is essential knowledge 
-            that develops naturally through focused training.
+            The puzzle's fame extends beyond chess. It's a standard benchmark problem in computer science, 
+            used to teach backtracking algorithms, constraint satisfaction, and optimization techniques. 
+            Legendary mathematicians including Carl Friedrich Gauss worked on generalizations of the problem. 
+            When you solve the N-Queens puzzle, you're engaging with a problem that has occupied some of 
+            history's greatest minds.
           </p>
 
-          <h3>The Power of Bishops</h3>
+          <h3>Why We Added Other Pieces</h3>
           <p>
-            Bishops are long-range pieces that control diagonals but are restricted to squares of 
-            one color. Bishop training teaches you to appreciate the bishop pair's strength, the 
-            importance of diagonal clearance, and the deadly potential of bishops in open positions. 
-            You'll learn to avoid placing pawns on squares that block your own bishops while 
-            targeting your opponent's.
-          </p>
-
-          <p>
-            Opposite-colored bishop positions deserve special attention. These endgames have unique 
-            drawing characteristics that every serious player must understand. With our N-Piece 
-            Challenge, you can practice these positions repeatedly until the patterns become 
-            second nature.
-          </p>
-
-          <h3>Rook Endgame Mastery</h3>
-          <p>
-            "All rook endgames are drawn" goes the old adage — except when they're not. Rook 
-            endgames are the most common endgame type and require specific technical knowledge. 
-            Concepts like the Lucena position, Philidor defense, and rook activity principles are 
-            essential for any serious player.
+            While the N-Queens puzzle is the star attraction, it assumes you already understand how queens 
+            move. For beginners still learning chess, jumping straight to queens can be overwhelming. 
+            That's why SimulChess extends the concept to all major piece types: rooks, bishops, and knights. 
+            Each piece type creates its own unique puzzle with different difficulty levels.
           </p>
 
           <p>
-            The N-Piece Challenge allows intensive rook endgame practice, building the pattern 
-            recognition needed to handle these positions correctly. You'll learn when to activate 
-            your rook, how to use the king, and when passed pawns should advance. This knowledge 
-            saves countless half-points in tournament play.
+            Starting with simpler pieces helps new players internalize movement patterns through hands-on 
+            practice. Rather than memorizing rules from a book, you discover each piece's attacking range 
+            by experimenting with placement. This active learning approach builds intuition that transfers 
+            directly to real chess games.
           </p>
 
-          <h3>Queen Power and Precision</h3>
+          <h3>N-Rooks: The Beginner-Friendly Starting Point</h3>
           <p>
-            The queen is the most powerful piece but requires precise handling. Queen training 
-            teaches you to avoid early queen development, recognize queen sacrifice opportunities, 
-            and use the queen's mobility without exposing it to attack. The queen's ability to 
-            control multiple diagonals and files simultaneously creates unique tactical possibilities.
-          </p>
-
-          <p>
-            Queen and pawn endgames present their own challenges. These positions require understanding 
-            of perpetual check resources, queen exchanges, and the race between passed pawns. Our 
-            N-Piece Challenge provides the repetition needed to develop confidence in these complex 
-            situations.
-          </p>
-
-          <h3>Piece Coordination Principles</h3>
-          <p>
-            Perhaps the most valuable lesson from N-Piece training is understanding how pieces 
-            work together. Two pieces supporting each other are worth more than the sum of their 
-            parts. Learning to coordinate your pieces — having them protect each other, control 
-            complementary squares, and create combined threats — elevates your entire game.
+            Rooks attack along rows and columns — the simplest movement pattern among the major pieces. 
+            The N-Rooks challenge asks you to place N rooks on an N×N board so none threaten each other. 
+            The solution is straightforward: one rook per row and one per column. This makes it perfect 
+            for absolute beginners learning how rooks move.
           </p>
 
           <p>
-            Different piece combinations have different strengths. Bishop and knight together 
-            control squares of both colors. Two rooks on the same file create unstoppable pressure. 
-            Queen and knight create fork possibilities that queen and bishop cannot. Understanding 
-            these synergies helps you make better trades and positional decisions in full games.
+            Though the solution pattern is simple, working through it builds confidence with the puzzle 
+            format and reinforces the rook's straight-line attacking ability. Many beginners in actual 
+            chess games forget that rooks can attack across the entire board — this exercise makes that 
+            power viscerally clear.
           </p>
 
-          <h3>From Training to Tournament Play</h3>
+          <h3>N-Bishops: Understanding Diagonal Movement</h3>
           <p>
-            The patterns you learn in N-Piece training appear constantly in regular games. An 
-            endgame that seems impossibly complex becomes manageable when you recognize a familiar 
-            pattern from your training. Middle-game decisions improve as you instinctively understand 
-            which piece combinations to seek and which to avoid.
-          </p>
-
-          <p>
-            We recommend rotating through different piece configurations in your training. Don't 
-            just practice what you're already good at — focus extra attention on the pieces and 
-            positions that give you trouble. Systematic practice across all piece types builds 
-            complete chess understanding rather than leaving gaps that opponents can exploit.
-          </p>
-
-          <h3>Structured Training Recommendations</h3>
-          <p>
-            For maximum benefit, approach N-Piece training systematically. Start with simple 
-            king and pawn endings — the foundation of all endgame knowledge. Progress to rook 
-            endings, then minor piece endings, then queen endings. Each category builds on the 
-            previous, creating a comprehensive understanding of chess endgames.
+            Bishops attack along diagonals, and unlike rooks, they're restricted to squares of one color. 
+            The N-Bishops puzzle exploits this property: since a light-squared bishop never threatens a 
+            dark-squared bishop, you can place more bishops than you might expect. This puzzle teaches 
+            both diagonal movement and the critical concept of bishop color restriction.
           </p>
 
           <p>
-            Mix endgame study with middle-game piece coordination exercises. Positions with three 
-            or four pieces per side allow you to practice tactical themes without the complexity 
-            of full positions. This middle ground develops practical skills that translate directly 
-            to tournament games while remaining accessible enough for meaningful improvement.
+            Many developing chess players struggle with bishops because diagonal vision doesn't come 
+            naturally to everyone. The N-Bishops challenge provides concentrated practice seeing diagonal 
+            lines across the board. After solving several configurations, players find themselves 
+            spotting diagonal attacks in real games much more quickly.
+          </p>
+
+          <h3>N-Knights: The Tricky L-Shape</h3>
+          <p>
+            Knights move in an L-shape — two squares in one direction, then one square perpendicular. 
+            This unusual pattern confuses many beginners and even intermediate players. The N-Knights 
+            challenge forces you to really understand which squares a knight controls, building the 
+            visualization skill that makes knights effective in actual games.
+          </p>
+
+          <p>
+            Because knights don't attack in straight lines, you can often fit more knights on the board 
+            than other pieces. Discovering the maximum placement through experimentation teaches the 
+            knight's unique characteristics better than any lecture could. Players who complete the 
+            N-Knights challenge consistently report improved comfort with knight movement in their games.
+          </p>
+
+          <h3>The Queen Challenge: Putting It All Together</h3>
+          <p>
+            The queen combines the rook's straight-line attacks with the bishop's diagonal attacks, making 
+            the N-Queens puzzle the ultimate test. Every row, column, and diagonal becomes a constraint. 
+            If you've worked through the other piece challenges first, you'll have internalized both 
+            movement patterns — making the queen's combined power feel natural rather than overwhelming.
+          </p>
+
+          <p>
+            Solving the 8-Queens puzzle demonstrates genuine spatial reasoning ability. The constraint 
+            satisfaction skills you develop — placing pieces while tracking multiple attack patterns 
+            simultaneously — transfer directly to chess calculation. When you can visualize queen attacks 
+            across an empty board, seeing threats in actual game positions becomes significantly easier.
+          </p>
+
+          <h3>Scaling the Challenge</h3>
+          <p>
+            Our N-Piece Challenge lets you adjust the board size and number of pieces. Smaller boards 
+            (4×4, 5×5) provide quicker puzzles perfect for learning. Larger boards (10×10, 12×12) offer 
+            extended challenges for experienced solvers. This flexibility means the puzzle grows with 
+            your skills — there's always a harder variation waiting when you're ready.
+          </p>
+
+          <p>
+            Experimenting with different configurations reveals interesting mathematical properties. 
+            Some board sizes have many solutions while others have few or none. Discovering these 
+            patterns yourself provides insight into combinatorial mathematics while keeping the 
+            experience engaging and game-like.
+          </p>
+
+          <h3>From Puzzle to Chess Improvement</h3>
+          <p>
+            The skills developed through N-Piece challenges transfer directly to chess performance. 
+            Players who thoroughly understand how each piece attacks make fewer blunders in games. 
+            They spot threats faster, calculate more accurately, and use their pieces more effectively. 
+            The investment in piece movement fundamentals pays dividends throughout your chess journey.
+          </p>
+
+          <p>
+            We recommend starting with whatever piece gives you the most trouble in actual games. 
+            Struggle with knights? Work through the N-Knights challenge until the L-shape becomes 
+            second nature. Miss diagonal threats? The N-Bishops puzzle will sharpen that awareness. 
+            Then tackle the legendary N-Queens problem as the capstone challenge that integrates 
+            everything you've learned.
           </p>
 
           <div className="not-prose mt-8 mb-8">
