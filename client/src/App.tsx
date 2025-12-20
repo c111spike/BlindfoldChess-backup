@@ -44,6 +44,7 @@ import ChessPieceChallenge from "@/pages/chess-piece-challenge";
 import ChessPuzzlesTrainer from "@/pages/chess-puzzles-trainer";
 import ChessBoardSpin from "@/pages/chess-board-spin";
 import OpeningRepertoireTrainer from "@/pages/opening-repertoire-trainer";
+import PublicHomePage from "@/pages/public-home";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -52,13 +53,9 @@ function Router() {
     return null;
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
-
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={isAuthenticated ? Dashboard : PublicHomePage} />
       <Route path="/otb" component={OTBMode} />
       <Route path="/standard" component={StandardMode} />
       <Route path="/simul-vs-simul" component={SimulVsSimulMode} />
@@ -105,7 +102,8 @@ function AppContent() {
 
   const isUsingTestUser = isDevelopment && !!getTestUserId();
   const isOidcErrorPage = location === "/oidc-error";
-  const isPublicPage = [
+  const isHomePage = location === "/";
+  const isPublicLandingPage = [
     "/privacy", "/terms", "/about", "/contact",
     "/blindfold-chess-training", "/otb-tournament-simulator", "/simul-chess-training",
     "/knights-tour-puzzle", "/chess-piece-challenge", "/chess-puzzles-trainer", "/chess-board-spin",
@@ -113,11 +111,11 @@ function AppContent() {
   ].includes(location);
 
   useEffect(() => {
-    // Don't redirect if we're on public pages or OIDC error page
-    if (!isLoading && !isAuthenticated && !isUsingTestUser && !isOidcErrorPage && !isPublicPage) {
+    // Don't redirect if we're on public pages, homepage, or OIDC error page
+    if (!isLoading && !isAuthenticated && !isUsingTestUser && !isOidcErrorPage && !isPublicLandingPage && !isHomePage) {
       window.location.href = "/api/login";
     }
-  }, [isLoading, isAuthenticated, isUsingTestUser, isOidcErrorPage, isPublicPage]);
+  }, [isLoading, isAuthenticated, isUsingTestUser, isOidcErrorPage, isPublicLandingPage, isHomePage]);
 
   // Handle OIDC error page - accessible without auth
   if (isOidcErrorPage) {
@@ -125,7 +123,7 @@ function AppContent() {
   }
 
   // Handle public pages (privacy, terms, about, contact, SEO landing pages) - accessible without auth
-  if (isPublicPage && !isAuthenticated && !isUsingTestUser) {
+  if (isPublicLandingPage && !isAuthenticated && !isUsingTestUser) {
     const PublicPageComponent = {
       "/privacy": PrivacyPolicy,
       "/terms": TermsOfService,
@@ -160,7 +158,8 @@ function AppContent() {
     return <div className="h-screen bg-background" />;
   }
 
-  if (!isAuthenticated && !isUsingTestUser) {
+  // Allow homepage to render with sidebar for guest users
+  if (!isAuthenticated && !isUsingTestUser && !isHomePage) {
     return (
       <div className="h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -185,11 +184,11 @@ function AppContent() {
           <header className="flex items-center justify-between p-2 border-b gap-2">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
-              <TestUserSwitcher />
+              {isAuthenticated && <TestUserSwitcher />}
               <ThemeToggle />
             </div>
           </header>
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto p-4">
             <Router />
           </main>
         </div>

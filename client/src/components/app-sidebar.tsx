@@ -12,6 +12,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, 
   Clock, 
@@ -20,6 +21,7 @@ import {
   BarChart3, 
   Settings,
   LogOut,
+  LogIn,
   Shield,
   FileText,
   HelpCircle,
@@ -34,6 +36,7 @@ import {
   Book,
   Bell,
   BellOff,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getNotificationsEnabled, setNotificationsEnabled } from "@/hooks/useNotifications";
@@ -102,9 +105,57 @@ const menuItems = [
   },
 ];
 
+const guestMenuItems = [
+  {
+    title: "Home",
+    url: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Blindfold Training",
+    url: "/blindfold-chess-training",
+    icon: Eye,
+  },
+  {
+    title: "OTB Tournament",
+    url: "/otb-tournament-simulator",
+    icon: Clock,
+  },
+  {
+    title: "Simul Training",
+    url: "/simul-chess-training",
+    icon: Users,
+  },
+  {
+    title: "Knight's Tour",
+    url: "/knights-tour-puzzle",
+    icon: Navigation,
+  },
+  {
+    title: "N-Piece Challenge",
+    url: "/chess-piece-challenge",
+    icon: Crown,
+  },
+  {
+    title: "Chess Puzzles",
+    url: "/chess-puzzles-trainer",
+    icon: Puzzle,
+  },
+  {
+    title: "Board Spin",
+    url: "/chess-board-spin",
+    icon: RotateCw,
+  },
+  {
+    title: "Repertoire Trainer",
+    url: "/opening-repertoire-trainer",
+    icon: Book,
+  },
+];
+
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [notificationsOn, setNotificationsOn] = useState(() => getNotificationsEnabled());
 
   useEffect(() => {
@@ -121,26 +172,43 @@ export function AppSidebar() {
     setNotificationsEnabled(newValue);
   };
 
+  const currentMenuItems = isAuthenticated ? menuItems : guestMenuItems;
+
   return (
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
           <div className="px-4 py-3 flex items-center gap-3">
-            <img src={logoImage} alt="SimulChess Logo" className="w-10 h-10 object-contain" />
+            <Link href="/">
+              <img src={logoImage} alt="SimulChess Logo" className="w-10 h-10 object-contain" />
+            </Link>
             <div>
               <h2 className="text-xl font-bold">SimulChess</h2>
             </div>
           </div>
         </SidebarGroup>
 
+        {!isAuthenticated && (
+          <SidebarGroup>
+            <div className="px-4 py-2">
+              <Button asChild className="w-full" data-testid="button-login-sidebar">
+                <a href="/api/login">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login / Join Free
+                </a>
+              </Button>
+            </div>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
-          <SidebarGroupLabel>Training</SidebarGroupLabel>
+          <SidebarGroupLabel>{isAuthenticated ? "Training" : "Explore"}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {currentMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link href={item.url} data-testid={`nav-${item.url.slice(1) || "dashboard"}`}>
+                    <Link href={item.url} data-testid={`nav-${item.url.slice(1) || "home"}`}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>
@@ -172,21 +240,23 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <div className="px-2 py-2 border-t border-sidebar-border">
-          <div className="px-2 py-2 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              {notificationsOn ? (
-                <Bell className="h-4 w-4" />
-              ) : (
-                <BellOff className="h-4 w-4" />
-              )}
-              <span>Notifications</span>
+          {isAuthenticated && (
+            <div className="px-2 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {notificationsOn ? (
+                  <Bell className="h-4 w-4" />
+                ) : (
+                  <BellOff className="h-4 w-4" />
+                )}
+                <span>Notifications</span>
+              </div>
+              <Switch
+                checked={notificationsOn}
+                onCheckedChange={handleToggleNotifications}
+                data-testid="toggle-notifications"
+              />
             </div>
-            <Switch
-              checked={notificationsOn}
-              onCheckedChange={handleToggleNotifications}
-              data-testid="toggle-notifications"
-            />
-          </div>
+          )}
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
@@ -220,14 +290,25 @@ export function AppSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="/api/logout" data-testid="button-logout-sidebar">
-                  <LogOut className="h-4 w-4" />
-                  <span>Log Out</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {isAuthenticated ? (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a href="/api/logout" data-testid="button-logout-sidebar">
+                    <LogOut className="h-4 w-4" />
+                    <span>Log Out</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ) : (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a href="/api/login" data-testid="button-login-footer">
+                    <LogIn className="h-4 w-4" />
+                    <span>Log In</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
           <div className="px-3 py-2 text-xs text-muted-foreground/70" data-testid="text-stockfish-credit">
             Analysis powered by{" "}
