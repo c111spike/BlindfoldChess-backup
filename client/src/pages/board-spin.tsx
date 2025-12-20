@@ -116,7 +116,7 @@ export default function BoardSpin() {
   });
 
   const difficulties = [
-    { value: 'beginner', label: 'Beginner (2-4 pieces)', multiplier: '1.0x' },
+    { value: 'beginner', label: 'Beginner (3-4 pieces)', multiplier: '1.0x' },
     { value: 'easy', label: 'Easy (5-7 pieces)', multiplier: '1.5x' },
     { value: 'intermediate', label: 'Intermediate (8-11 pieces)', multiplier: '2.0x' },
     { value: 'advanced', label: 'Advanced (12-14 pieces)', multiplier: '2.5x' },
