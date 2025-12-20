@@ -120,19 +120,19 @@ export function moveToSpeech(move: string, isCapture: boolean = false, isCheck: 
   const squares = cleanMove.match(/([a-h])([1-8])/g);
   if (squares && squares.length > 0) {
     const targetSquare = squares[squares.length - 1];
-    const file = targetSquare[0].toUpperCase();
+    const file = targetSquare[0]; // Keep lowercase for better TTS pronunciation
     const rank = targetSquare[1];
     
     if (hasCapture || isCapture) {
       if (squares.length > 1 || !pieceMatch) {
         const fromFile = cleanMove[0];
         if (fromFile && fromFile.match(/[a-h]/)) {
-          spoken += fromFile.toUpperCase() + ' ';
+          spoken += fromFile + ' ';
         }
       }
-      spoken += 'takes ' + file + ' ' + rank;
+      spoken += 'takes ' + file + rank; // No space between file and rank for natural speech
     } else {
-      spoken += 'to ' + file + ' ' + rank;
+      spoken += file + rank; // Remove "to" and space for cleaner pronunciation like "e4"
     }
   }
   

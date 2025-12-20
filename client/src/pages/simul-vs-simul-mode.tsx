@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic, Flag, Handshake, Check, X, Menu } from "lucide-react";
+import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic, Flag, Handshake, Check, X, Menu, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
@@ -90,9 +91,11 @@ export default function SimulVsSimulMode() {
   const [pendingDrawOffers, setPendingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with sent draw offers
   const [incomingDrawOffers, setIncomingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with received draw offers
   const [showMobileSidebar, setShowMobileSidebar] = useState(false); // Mobile sidebar toggle
+  const [syncAudioToBoard, setSyncAudioToBoard] = useState(true); // Only announce moves for current board
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
   const activeBoardRef = useRef(0);
+  const syncAudioToBoardRef = useRef(true);
   const userSettingsRef = useRef<UserSettings | null>(null);
   const promotionPendingRef = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -127,6 +130,10 @@ export default function SimulVsSimulMode() {
   useEffect(() => {
     activeBoardRef.current = activeBoard;
   }, [activeBoard]);
+  
+  useEffect(() => {
+    syncAudioToBoardRef.current = syncAudioToBoard;
+  }, [syncAudioToBoard]);
   
   useEffect(() => {
     userSettingsRef.current = userSettings || null;
@@ -537,11 +544,15 @@ export default function SimulVsSimulMode() {
           });
           
           if (userSettingsRef.current?.voiceOutputEnabled && data.move) {
-            const chess = new Chess(data.fen);
-            const isCheck = chess.isCheck();
-            const isCapture = data.move.includes('x');
-            const spokenMove = moveToSpeech(data.move, isCapture, isCheck, chess.isCheckmate());
-            speak(`Board ${boardNumber}: ${spokenMove}`);
+            // Check if sync is enabled - only announce if viewing this board
+            const shouldSpeak = !syncAudioToBoardRef.current || boardIndex === activeBoardRef.current;
+            if (shouldSpeak) {
+              const chess = new Chess(data.fen);
+              const isCheck = chess.isCheck();
+              const isCapture = data.move.includes('x');
+              const spokenMove = moveToSpeech(data.move, isCapture, isCheck, chess.isCheckmate());
+              speak(`Board ${boardNumber}: ${spokenMove}`);
+            }
           }
           
           toast({
@@ -1303,6 +1314,20 @@ export default function SimulVsSimulMode() {
                   <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400" data-testid="voice-listening-indicator">
                     <Mic className="h-3 w-3 animate-pulse" />
                     <span>Listening{voiceTranscript ? `: "${voiceTranscript}"` : "..."}</span>
+                  </div>
+                )}
+                {userSettings?.voiceOutputEnabled && (
+                  <div className="flex items-center gap-2" data-testid="sync-audio-toggle">
+                    <Volume2 className="h-4 w-4 text-muted-foreground" />
+                    <label className="text-xs text-muted-foreground cursor-pointer" htmlFor="sync-audio">
+                      Sync
+                    </label>
+                    <Switch
+                      id="sync-audio"
+                      checked={syncAudioToBoard}
+                      onCheckedChange={setSyncAudioToBoard}
+                      className="scale-75"
+                    />
                   </div>
                 )}
               </div>
