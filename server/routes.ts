@@ -5785,10 +5785,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const player1Rating = await storage.getRating(player1Id);
           const player2Rating = await storage.getRating(player2Id);
           
-          // Extract time control from match type (e.g., "standard_bullet" -> "bullet")
-          // Only support standard mode rematches for now
+          // Extract time control from match type (e.g., "standard_bullet" -> "bullet", "otb_blitz" -> "blitz")
+          // Support both standard and OTB mode rematches
           const matchType = currentMatch.matchType;
-          if (!matchType.startsWith('standard_')) {
+          if (!matchType.startsWith('standard_') && !matchType.startsWith('otb_')) {
+            console.log('[WS respond_rematch] Unsupported matchType for rematch:', matchType);
             notifyBothPlayers(false);
             return;
           }
