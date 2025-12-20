@@ -159,6 +159,7 @@ export default function OTBMode() {
   const arbiterTimerRef = useRef<NodeJS.Timeout | null>(null);
   const gameStartTimeRef = useRef<number | null>(null);
   const legalChessGameRef = useRef<Chess | null>(null);
+  const previousLegalFenRef = useRef<string | null>(null); // Tracks FEN before opponent's move for illegal move claims
 
   useEffect(() => {
     gameRef.current = game;
@@ -259,6 +260,11 @@ export default function OTBMode() {
           newBoard.push(boardRow);
         }
         setBoardState(newBoard);
+        
+        // Save previous FEN before updating for illegal move claims
+        if (legalChessGame) {
+          previousLegalFenRef.current = legalChessGame.fen();
+        }
         
         // Update legalChessGame from the received FEN
         const newLegalGame = new Chess(data.fen);
@@ -370,6 +376,11 @@ export default function OTBMode() {
       
       // Update legalChessGame from the received FEN and check for checkmate/stalemate
       if (data.fen) {
+        // Save previous FEN before updating for illegal move claims
+        if (legalChessGame) {
+          previousLegalFenRef.current = legalChessGame.fen();
+        }
+        
         const newLegalGame = new Chess(data.fen);
         setLegalChessGame(newLegalGame);
         
@@ -2339,13 +2350,14 @@ export default function OTBMode() {
         description: messages[claimType],
       });
       
-      // Get previousFen from legalChessGame (state before illegal move) for FEN-based restoration
-      // legalChessGame tracks the legal game state, so its FEN is what we need to restore to
-      // Fallback: compute FEN by replaying all moves except the last one if legalChessGame is not available
+      // Get previousFen from ref (saved BEFORE opponent's move was applied) for FEN-based restoration
+      // This is the position before the illegal move, not after
       let previousFen: string | undefined;
       if (claimType === "illegal") {
-        if (legalChessGame) {
-          previousFen = legalChessGame.fen();
+        // Use the saved previous FEN from before opponent's move was applied
+        if (previousLegalFenRef.current) {
+          previousFen = previousLegalFenRef.current;
+          console.log('[OTB Arbiter] Using saved previousFen:', previousFen);
         } else if (moves.length > 0) {
           // Fallback: rebuild FEN from move history minus the last move
           const tempChess = new Chess();
@@ -2355,8 +2367,10 @@ export default function OTBMode() {
               tempChess.move({ from: move.from, to: move.to, promotion: move.promotion as any });
             }
             previousFen = tempChess.fen();
+            console.log('[OTB Arbiter] Using rebuilt previousFen from moves:', previousFen);
           } catch {
             previousFen = new Chess().fen(); // Ultimate fallback: starting position
+            console.log('[OTB Arbiter] Using fallback starting position');
           }
         }
       }
