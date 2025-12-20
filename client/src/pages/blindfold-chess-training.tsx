@@ -138,9 +138,9 @@ export default function BlindfoldChessTraining() {
           <h3>How to Practice Blindfold Chess on SimulChess</h3>
           <p>
             Our blindfold training system is designed for players of all levels, from complete beginners to 
-            aspiring masters. When you enable Blindfold Mode in Standard play, the chessboard disappears from 
-            view. You'll make your moves by clicking squares based on memory, with the position existing only 
-            in your mind.
+            aspiring masters. When you enable Blindfold Mode in Standard play, a dark cover obscures the 
+            pieces — you still see the board and can click squares, but the pieces are hidden. You must 
+            track the position mentally based on the moves played.
           </p>
 
           <p>
@@ -148,6 +148,13 @@ export default function BlindfoldChessTraining() {
             press and hold the peek button (or spacebar) to briefly reveal the board whenever needed. As your 
             visualization improves, advance to harder difficulties that limit your peeks: Medium (20 peeks), 
             Hard (10 peeks), Expert (5 peeks), Master (2 peeks), and finally Grandmaster (0 peeks).
+          </p>
+
+          <p>
+            For the most authentic blindfold experience, enable voice control. With audio input, you speak 
+            your moves ("knight to f3") instead of clicking. With audio output, opponent moves are announced 
+            aloud. This combination lets you play without looking at the screen at all — true blindfold chess 
+            just like the masters practice.
           </p>
 
           <p>
