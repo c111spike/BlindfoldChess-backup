@@ -145,10 +145,11 @@ export default function BlindfoldChessTraining() {
           </p>
 
           <p>
-            The key to our system is the progressive difficulty levels. Beginners start with unlimited "peeks" — 
+            The key to our system is the progressive difficulty levels. Beginners start with <strong>unlimited peeks</strong> — 
             press and hold the peek button (or spacebar) to briefly reveal the board whenever needed. As your 
-            visualization improves, advance to harder difficulties that limit your peeks: Medium (20 peeks), 
-            Hard (10 peeks), Expert (5 peeks), Master (2 peeks), and finally Grandmaster (0 peeks).
+            visualization improves, advance to harder difficulties that limit your peeks: <strong>Medium (20 peeks)</strong>, 
+            <strong>Hard (10 peeks)</strong>, <strong>Expert (5 peeks)</strong>, <strong>Master (2 peeks)</strong>, 
+            and finally <strong>Grandmaster (0 peeks)</strong>.
           </p>
 
           <p>
