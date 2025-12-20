@@ -1621,39 +1621,54 @@ export default function StandardMode() {
                         </div>
                         
                         <div className="mt-4 p-4 bg-muted/50 rounded-lg" data-testid="blindfold-how-to">
-                          <h3 className="font-semibold text-sm mb-2">How Blindfold Chess Works</h3>
-                          <div className="space-y-2 text-sm text-muted-foreground">
+                          <h3 className="font-semibold mb-3">Training Your Mind: The Art of Blindfold Chess</h3>
+                          <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
                             <p>
-                              <strong>Playing without seeing:</strong> The board is hidden during your game. 
-                              You must visualize piece positions in your mind and make moves based on memory.
+                              Blindfold chess is one of the oldest and most respected training methods in chess history. 
+                              Legendary players from Paul Morphy to Magnus Carlsen have credited blindfold practice with 
+                              sharpening their visualization and calculation abilities. Now you can train the same way 
+                              the masters do.
                             </p>
+                            
                             <p>
-                              <strong>Peeking:</strong> Press and hold the peek button (or spacebar) to briefly 
-                              view the board. Different difficulty levels limit how many peeks you get.
+                              When you enable Blindfold Mode, the chess board disappears from view. You'll make your 
+                              moves by remembering where each piece stands, tracking captures, and visualizing the 
+                              position entirely in your mind. It's challenging at first, but incredibly rewarding.
                             </p>
+                            
                             <p>
-                              <strong>Coordinate notation:</strong> Enable "Show tile names" to see square 
-                              coordinates (a1-h8), helping you think in chess notation.
+                              Don't worry if you need help — that's what the peek system is for. Press and hold the 
+                              peek button (or your spacebar) to briefly reveal the board. As you improve, challenge 
+                              yourself with harder difficulty levels that limit your peeks, gradually weaning yourself 
+                              off visual confirmation.
                             </p>
-                          </div>
-                          
-                          <h3 className="font-semibold text-sm mt-4 mb-2">Memory Benefits</h3>
-                          <div className="space-y-2 text-sm text-muted-foreground">
+                            
+                            <h4 className="font-semibold text-foreground mt-4 mb-2">Why This Transforms Your Chess</h4>
+                            
                             <p>
-                              <strong>Visualization skills:</strong> Strengthen your ability to see the board 
-                              in your mind, a crucial skill for calculating variations during real games.
+                              The benefits of blindfold training extend far beyond the novelty. When you force your 
+                              brain to hold a chess position in working memory, you're building the same mental 
+                              muscles used for deep calculation during real games. Players who train blindfold often 
+                              report seeing variations more clearly and calculating further ahead.
                             </p>
+                            
                             <p>
-                              <strong>Pattern recognition:</strong> Your brain learns to track multiple pieces 
-                              and their relationships without visual cues, improving tactical awareness.
+                              Your pattern recognition also improves dramatically. Without visual cues, your brain 
+                              learns to track piece relationships, potential threats, and tactical motifs through 
+                              pure understanding rather than sight. This deeper processing creates lasting neural 
+                              pathways that make you a stronger player.
                             </p>
+                            
                             <p>
-                              <strong>Working memory:</strong> Holding the board position in your head exercises 
-                              short-term memory, helping you think further ahead during over-the-board play.
+                              Perhaps most importantly, blindfold chess trains your concentration. In tournament 
+                              play, distractions are everywhere — your opponent's movements, spectators, time 
+                              pressure. The intense focus required for blindfold play builds mental stamina that 
+                              helps you maintain composure when the stakes are highest.
                             </p>
-                            <p>
-                              <strong>Focus and concentration:</strong> Without the board visible, you develop 
-                              deeper concentration habits that transfer to tournament play.
+                            
+                            <p className="italic text-xs">
+                              Start with Easy difficulty and work your way up. Even grandmasters began their 
+                              blindfold journey one peek at a time.
                             </p>
                           </div>
                         </div>
