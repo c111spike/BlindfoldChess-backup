@@ -12,9 +12,9 @@ export default function OpeningRepertoireTrainer() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Opening Repertoire Trainer - Build Your Chess Opening System | SimulChess</title>
-        <meta name="description" content="SimulChess Opening Repertoire Trainer - Build and drill your opening lines with spaced repetition. Master ECO-classified openings and track your progress. Start building your repertoire today!" />
+        <meta name="description" content="Master your chess openings with the SimulChess Repertoire Trainer. Build a custom opening library, use spaced repetition drilling, and learn ECO-classified lines today!" />
         <meta property="og:title" content="Opening Repertoire Trainer - SimulChess" />
-        <meta property="og:description" content="SimulChess Opening Repertoire Trainer - Build and drill your opening lines with spaced repetition. Master ECO-classified openings and track your progress." />
+        <meta property="og:description" content="Master your chess openings with the SimulChess Repertoire Trainer. Build a custom opening library, use spaced repetition drilling, and learn ECO-classified lines today!" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/opening-repertoire-trainer" />
         <meta property="og:image" content="https://simulchess.com/og-repertoire.png" />
@@ -175,7 +175,8 @@ export default function OpeningRepertoireTrainer() {
           <h3>Learn the Ideas, Not Just Moves</h3>
           <p>
             Understanding why moves are played is more important than memorizing long lines. Our 
-            opening database includes the key strategic ideas behind each variation.
+            opening database includes the key strategic ideas behind each variation, with lines 
+            verified against master games and engine analysis for theoretical accuracy.
           </p>
 
           <h3>Cover Main Lines First</h3>
@@ -188,6 +189,13 @@ export default function OpeningRepertoireTrainer() {
           <p>
             Consistent daily practice of 10-15 minutes is more effective than occasional marathon 
             sessions. Use the training mode regularly to keep your lines fresh.
+          </p>
+
+          <h3>Review Your Games</h3>
+          <p>
+            Our integrated game review system tracks when you follow your repertoire lines and 
+            identifies where you deviate. After each game, see how well you applied your opening 
+            preparation and discover which lines need more drilling.
           </p>
 
           <h2>The ECO Classification System</h2>
