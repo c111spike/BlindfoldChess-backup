@@ -1505,9 +1505,25 @@ export default function StandardMode() {
     <div className="h-full md:h-screen flex flex-col md:flex-row overflow-auto md:overflow-hidden">
       <div className="flex-1 flex items-center justify-center p-4 md:p-8 bg-muted/30 md:overflow-auto">
         <div className="w-full max-w-3xl space-y-4 md:space-y-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Standard Mode</h1>
-            <p className="text-sm md:text-base text-muted-foreground">Online chess with automatic clocks</p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">Standard Mode</h1>
+              <p className="text-sm md:text-base text-muted-foreground">Online chess with automatic clocks</p>
+            </div>
+            {(gameStarted || isBotGame) && !gameResult && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Pencil className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="arrow-draw-mode-header" className="text-xs whitespace-nowrap">
+                  Draw Arrows
+                </Label>
+                <Switch
+                  id="arrow-draw-mode-header"
+                  checked={arrowDrawMode}
+                  onCheckedChange={setArrowDrawMode}
+                  data-testid="switch-arrow-draw-mode"
+                />
+              </div>
+            )}
           </div>
 
           {!gameStarted && !gameResult ? (
@@ -2078,20 +2094,6 @@ export default function StandardMode() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <div className="flex items-center gap-2">
-                      <Pencil className="h-4 w-4 text-muted-foreground" />
-                      <Label htmlFor="arrow-draw-mode" className="text-sm">
-                        Draw Arrows (Touch)
-                      </Label>
-                    </div>
-                    <Switch
-                      id="arrow-draw-mode"
-                      checked={arrowDrawMode}
-                      onCheckedChange={setArrowDrawMode}
-                      data-testid="switch-arrow-draw-mode"
-                    />
                   </div>
                 </CardContent>
               </Card>
