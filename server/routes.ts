@@ -974,10 +974,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const opponent = await storage.getUser(opponentId);
         const opponentName = `${opponent?.firstName || 'Opponent'} ${opponent?.lastName || ''}`.trim();
         
-        const ratingCategory = existingMatch.matchType.includes('bullet') ? 'bullet' : 
+        // For OTB matches, use otbBlitz/otbRapid etc; for standard use blitz/rapid etc
+        const isOtbMatch = existingMatch.matchType.startsWith('otb_');
+        const baseTimeControl = existingMatch.matchType.includes('bullet') ? 'bullet' : 
                               existingMatch.matchType.includes('blitz') ? 'blitz' : 
                               existingMatch.matchType.includes('rapid') ? 'rapid' : 
-                              existingMatch.matchType.includes('classical') ? 'classical' : 'otb';
+                              existingMatch.matchType.includes('classical') ? 'classical' : 'blitz';
+        const ratingCategory = isOtbMatch 
+          ? `otb${baseTimeControl.charAt(0).toUpperCase()}${baseTimeControl.slice(1)}` // e.g., 'otbBlitz'
+          : baseTimeControl;
         const playerRatingsData = await storage.getRating(userId);
         const opponentRatingsData = await storage.getRating(opponentId);
         const playerRating = (playerRatingsData as any)?.[ratingCategory] || 1200;
@@ -1093,10 +1098,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const opponent = await storage.getUser(opponentId);
       const opponentName = `${opponent?.firstName || 'Opponent'} ${opponent?.lastName || ''}`.trim();
       
-      const ratingCategory = queueType.includes('bullet') ? 'bullet' : 
+      // For OTB matches, use otbBlitz/otbRapid etc; for standard use blitz/rapid etc
+      const isOtbMatch = queueType.startsWith('otb_');
+      const baseTimeControl = queueType.includes('bullet') ? 'bullet' : 
                             queueType.includes('blitz') ? 'blitz' : 
                             queueType.includes('rapid') ? 'rapid' : 
-                            queueType.includes('classical') ? 'classical' : 'otb';
+                            queueType.includes('classical') ? 'classical' : 'blitz';
+      const ratingCategory = isOtbMatch 
+        ? `otb${baseTimeControl.charAt(0).toUpperCase()}${baseTimeControl.slice(1)}` // e.g., 'otbBlitz'
+        : baseTimeControl;
       const playerRatingsData = await storage.getRating(userId);
       const opponentRatingsData = await storage.getRating(opponentId);
       const playerRating = (playerRatingsData as any)?.[ratingCategory] || 1200;
