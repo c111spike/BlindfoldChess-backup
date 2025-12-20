@@ -279,17 +279,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const rating = await storage.getOrCreateRating(userId);
+      const effectiveQueueType = queueType || `standard_${effectiveTimeControl}`;
+      const isOtbQueue = effectiveQueueType.startsWith('otb_');
       
+      // Use OTB rating pools for OTB queues, standard pools otherwise
       const getRatingForTimeControl = (tc: string): number => {
-        if (tc === 'bullet') return rating.bullet;
-        if (tc === 'blitz') return rating.blitz;
-        if (tc === 'rapid') return rating.rapid;
-        if (tc === 'classical') return rating.classical;
+        if (isOtbQueue) {
+          // OTB uses otbBullet, otbBlitz, otbRapid, otbClassical
+          if (tc === 'bullet') return rating.otbBullet;
+          if (tc === 'blitz') return rating.otbBlitz;
+          if (tc === 'rapid') return rating.otbRapid;
+          if (tc === 'classical') return rating.otbClassical;
+        } else {
+          // Standard uses bullet, blitz, rapid, classical
+          if (tc === 'bullet') return rating.bullet;
+          if (tc === 'blitz') return rating.blitz;
+          if (tc === 'rapid') return rating.rapid;
+          if (tc === 'classical') return rating.classical;
+        }
         return 1200;
       };
 
       const currentRating = getRatingForTimeControl(effectiveTimeControl);
-      const effectiveQueueType = queueType || `standard_${effectiveTimeControl}`;
       
       // Calculate rating range for matchmaking (±300 Elo)
       const getRatingRange = (rating: number): string => {
@@ -974,15 +985,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const opponent = await storage.getUser(opponentId);
         const opponentName = `${opponent?.firstName || 'Opponent'} ${opponent?.lastName || ''}`.trim();
         
-        // For OTB matches, use otbBlitz/otbRapid etc; for standard use blitz/rapid etc
-        const isOtbMatch = existingMatch.matchType.startsWith('otb_');
-        const baseTimeControl = existingMatch.matchType.includes('bullet') ? 'bullet' : 
-                              existingMatch.matchType.includes('blitz') ? 'blitz' : 
-                              existingMatch.matchType.includes('rapid') ? 'rapid' : 
-                              existingMatch.matchType.includes('classical') ? 'classical' : 'blitz';
-        const ratingCategory = isOtbMatch 
-          ? `otb${baseTimeControl.charAt(0).toUpperCase()}${baseTimeControl.slice(1)}` // e.g., 'otbBlitz'
-          : baseTimeControl;
+        // Determine rating category based on match type
+        // For OTB matches use otbBlitz/otbRapid etc; for standard use blitz/rapid etc
+        // For simul/blindfold, use their dedicated pools
+        let ratingCategory: string;
+        if (existingMatch.matchType.startsWith('simul_')) {
+          ratingCategory = 'simul';
+        } else if (existingMatch.matchType === 'blindfold') {
+          ratingCategory = 'blindfold';
+        } else {
+          const isOtbMatch = existingMatch.matchType.startsWith('otb_');
+          const baseTimeControl = existingMatch.matchType.includes('bullet') ? 'bullet' : 
+                                existingMatch.matchType.includes('blitz') ? 'blitz' : 
+                                existingMatch.matchType.includes('rapid') ? 'rapid' : 
+                                existingMatch.matchType.includes('classical') ? 'classical' : 'blitz';
+          ratingCategory = isOtbMatch 
+            ? `otb${baseTimeControl.charAt(0).toUpperCase()}${baseTimeControl.slice(1)}` // e.g., 'otbBlitz'
+            : baseTimeControl;
+        }
         const playerRatingsData = await storage.getRating(userId);
         const opponentRatingsData = await storage.getRating(opponentId);
         const playerRating = (playerRatingsData as any)?.[ratingCategory] || 1200;
@@ -1098,15 +1118,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const opponent = await storage.getUser(opponentId);
       const opponentName = `${opponent?.firstName || 'Opponent'} ${opponent?.lastName || ''}`.trim();
       
-      // For OTB matches, use otbBlitz/otbRapid etc; for standard use blitz/rapid etc
-      const isOtbMatch = queueType.startsWith('otb_');
-      const baseTimeControl = queueType.includes('bullet') ? 'bullet' : 
-                            queueType.includes('blitz') ? 'blitz' : 
-                            queueType.includes('rapid') ? 'rapid' : 
-                            queueType.includes('classical') ? 'classical' : 'blitz';
-      const ratingCategory = isOtbMatch 
-        ? `otb${baseTimeControl.charAt(0).toUpperCase()}${baseTimeControl.slice(1)}` // e.g., 'otbBlitz'
-        : baseTimeControl;
+      // Determine rating category based on queue type
+      // For OTB matches use otbBlitz/otbRapid etc; for standard use blitz/rapid etc
+      // For simul/blindfold, use their dedicated pools
+      let ratingCategory: string;
+      if (queueType.startsWith('simul_')) {
+        ratingCategory = 'simul';
+      } else if (queueType === 'blindfold') {
+        ratingCategory = 'blindfold';
+      } else {
+        const isOtbMatch = queueType.startsWith('otb_');
+        const baseTimeControl = queueType.includes('bullet') ? 'bullet' : 
+                              queueType.includes('blitz') ? 'blitz' : 
+                              queueType.includes('rapid') ? 'rapid' : 
+                              queueType.includes('classical') ? 'classical' : 'blitz';
+        ratingCategory = isOtbMatch 
+          ? `otb${baseTimeControl.charAt(0).toUpperCase()}${baseTimeControl.slice(1)}` // e.g., 'otbBlitz'
+          : baseTimeControl;
+      }
       const playerRatingsData = await storage.getRating(userId);
       const opponentRatingsData = await storage.getRating(opponentId);
       const playerRating = (playerRatingsData as any)?.[ratingCategory] || 1200;
