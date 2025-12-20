@@ -1619,6 +1619,44 @@ export default function StandardMode() {
                             />
                           </div>
                         </div>
+                        
+                        <div className="mt-4 p-4 bg-muted/50 rounded-lg" data-testid="blindfold-how-to">
+                          <h3 className="font-semibold text-sm mb-2">How Blindfold Chess Works</h3>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <p>
+                              <strong>Playing without seeing:</strong> The board is hidden during your game. 
+                              You must visualize piece positions in your mind and make moves based on memory.
+                            </p>
+                            <p>
+                              <strong>Peeking:</strong> Press and hold the peek button (or spacebar) to briefly 
+                              view the board. Different difficulty levels limit how many peeks you get.
+                            </p>
+                            <p>
+                              <strong>Coordinate notation:</strong> Enable "Show tile names" to see square 
+                              coordinates (a1-h8), helping you think in chess notation.
+                            </p>
+                          </div>
+                          
+                          <h3 className="font-semibold text-sm mt-4 mb-2">Memory Benefits</h3>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <p>
+                              <strong>Visualization skills:</strong> Strengthen your ability to see the board 
+                              in your mind, a crucial skill for calculating variations during real games.
+                            </p>
+                            <p>
+                              <strong>Pattern recognition:</strong> Your brain learns to track multiple pieces 
+                              and their relationships without visual cues, improving tactical awareness.
+                            </p>
+                            <p>
+                              <strong>Working memory:</strong> Holding the board position in your head exercises 
+                              short-term memory, helping you think further ahead during over-the-board play.
+                            </p>
+                            <p>
+                              <strong>Focus and concentration:</strong> Without the board visible, you develop 
+                              deeper concentration habits that transfer to tournament play.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     )}
 
