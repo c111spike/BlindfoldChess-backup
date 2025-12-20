@@ -23,6 +23,8 @@ import {
   Shield,
   FileText,
   HelpCircle,
+  Info,
+  Mail,
   RotateCw,
   Crown,
   Navigation,
@@ -204,9 +206,17 @@ export function AppSidebar() {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <Link href="/help" data-testid="link-help">
-                  <HelpCircle className="h-4 w-4" />
-                  <span>Help & Support</span>
+                <Link href="/about" data-testid="link-about">
+                  <Info className="h-4 w-4" />
+                  <span>About Us</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href="/contact" data-testid="link-contact">
+                  <Mail className="h-4 w-4" />
+                  <span>Contact Us</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

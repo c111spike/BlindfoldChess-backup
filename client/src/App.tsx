@@ -32,6 +32,8 @@ import RepertoireTrainer from "@/pages/repertoire-trainer";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
 import Help from "@/pages/help";
+import About from "@/pages/about";
+import Contact from "@/pages/contact";
 import OidcError from "@/pages/oidc-error";
 
 function Router() {
@@ -68,6 +70,8 @@ function Router() {
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
       <Route path="/help" component={Help} />
+      <Route path="/about" component={About} />
+      <Route path="/contact" component={Contact} />
       <Route component={NotFound} />
     </Switch>
   );

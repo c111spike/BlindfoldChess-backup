@@ -31,8 +31,12 @@ interface ReportPlayerDialogProps {
 }
 
 const REPORT_REASONS = [
-  { value: "possible_cheating", label: "Possible Cheating", disabled: false },
-  { value: "harassment", label: "Harassment (Chat not available yet)", disabled: true },
+  { value: "engine_use", label: "Suspected Engine Use", disabled: false },
+  { value: "suspicious_accuracy", label: "Suspiciously High Accuracy", disabled: false },
+  { value: "impossible_time", label: "Impossible Time Management", disabled: false },
+  { value: "sandbagging", label: "Sandbagging (Intentional Losing)", disabled: false },
+  { value: "boosting", label: "Rating Boosting", disabled: false },
+  { value: "other", label: "Other", disabled: false },
 ];
 
 export function ReportPlayerDialog({
