@@ -12,9 +12,9 @@ export default function KnightsTourPuzzle() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Knight's Tour Puzzle - Chess Brain Training | SimulChess</title>
-        <meta name="description" content="Solve the classic Knight's Tour puzzle. Visit every square on the chessboard exactly once using knight moves. Improve your visualization and spatial reasoning with this timeless chess challenge." />
+        <meta name="description" content="Take on the classic Knight's Tour challenge at SimulChess. Improve your visualization with Warnsdorff's Rule and master knight movement today!" />
         <meta property="og:title" content="Knight's Tour Puzzle - SimulChess" />
-        <meta property="og:description" content="Challenge yourself with the Knight's Tour. Visit all 64 squares using only knight moves in this classic chess puzzle." />
+        <meta property="og:description" content="Take on the classic Knight's Tour challenge at SimulChess. Improve your visualization with Warnsdorff's Rule and master knight movement." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/knights-tour-puzzle" />
         <meta property="og:image" content="https://simulchess.com/og-knights-tour.png" />
@@ -80,11 +80,10 @@ export default function KnightsTourPuzzle() {
           </h2>
 
           <p>
-            The Knight's Tour is one of the oldest and most celebrated puzzles in chess and mathematics. 
-            The challenge is deceptively simple: starting from any square, move a knight to visit every 
-            square on the chessboard exactly once. With 64 squares and the knight's unusual L-shaped 
-            movement, finding a complete tour requires careful planning and spatial reasoning that 
-            directly improves your chess ability.
+            Take on the classic Knight's Tour challenge at SimulChess. Improve your visualization with 
+            Warnsdorff's Rule and master knight movement as you visit every square on the chessboard 
+            exactly once. With 64 squares and the knight's unusual L-shaped movement, finding a complete 
+            tour requires careful planning and spatial reasoning that directly improves your chess ability.
           </p>
 
           <h3>A Puzzle With Over 1,000 Years of History</h3>
