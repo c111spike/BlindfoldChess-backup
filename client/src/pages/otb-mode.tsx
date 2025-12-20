@@ -262,8 +262,10 @@ export default function OTBMode() {
         setBoardState(newBoard);
         
         // Save previous FEN before updating for illegal move claims
-        if (legalChessGame) {
-          previousLegalFenRef.current = legalChessGame.fen();
+        // Use ref to avoid stale closure - legalChessGameRef is kept in sync
+        if (legalChessGameRef.current) {
+          previousLegalFenRef.current = legalChessGameRef.current.fen();
+          console.log('[OTB] Saved previousFen before castling:', previousLegalFenRef.current);
         }
         
         // Update legalChessGame from the received FEN
@@ -377,8 +379,10 @@ export default function OTBMode() {
       // Update legalChessGame from the received FEN and check for checkmate/stalemate
       if (data.fen) {
         // Save previous FEN before updating for illegal move claims
-        if (legalChessGame) {
-          previousLegalFenRef.current = legalChessGame.fen();
+        // Use ref to avoid stale closure - legalChessGameRef is kept in sync
+        if (legalChessGameRef.current) {
+          previousLegalFenRef.current = legalChessGameRef.current.fen();
+          console.log('[OTB] Saved previousFen before opponent move:', previousLegalFenRef.current);
         }
         
         const newLegalGame = new Chess(data.fen);
