@@ -77,6 +77,7 @@ interface PerformanceStats {
   avgNodesUsed: number;
   currentNodeCount: number;
   gamesAnalyzedToday: number;
+  redisConnected?: boolean;
 }
 
 interface PuzzleAnalysis {
@@ -805,17 +806,21 @@ export default function AdminPage() {
           ) : performanceStats ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card data-testid="card-cache-hit-rate">
+                <Card data-testid="card-redis-status">
                   <CardHeader className="pb-2">
                     <CardDescription className="flex items-center gap-2">
                       <Database className="h-4 w-4" />
-                      Cache Hit Rate
+                      Redis Cache Status
                     </CardDescription>
-                    <CardTitle className="text-2xl">{performanceStats.cacheHitRate}%</CardTitle>
+                    <CardTitle className={`text-2xl ${performanceStats.redisConnected ? 'text-green-500' : 'text-orange-500'}`}>
+                      {performanceStats.redisConnected ? 'Connected' : 'Not Connected'}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground">
-                      Higher is better. Consider Redis when this drops below 50%.
+                      {performanceStats.redisConnected 
+                        ? `Upstash Redis active with ${performanceStats.totalCachedPositions.toLocaleString()} cached positions`
+                        : 'Using PostgreSQL fallback. Configure Upstash for better performance.'}
                     </p>
                   </CardContent>
                 </Card>
@@ -972,12 +977,12 @@ export default function AdminPage() {
                           : 'OK - under 100k positions'}
                       </p>
                     </div>
-                    <div className={`p-4 rounded-lg border ${performanceStats.cacheHitRate < 50 ? 'border-orange-500 bg-orange-500/10' : 'border-green-500 bg-green-500/10'}`}>
-                      <p className="font-medium">Hit Rate</p>
+                    <div className={`p-4 rounded-lg border ${performanceStats.redisConnected ? 'border-green-500 bg-green-500/10' : 'border-orange-500 bg-orange-500/10'}`}>
+                      <p className="font-medium">Redis Status</p>
                       <p className="text-sm text-muted-foreground">
-                        {performanceStats.cacheHitRate < 50 
-                          ? 'Consider Redis - hit rate below 50%' 
-                          : 'OK - hit rate above 50%'}
+                        {performanceStats.redisConnected 
+                          ? 'OK - Upstash Redis connected' 
+                          : 'Consider Upstash Redis for faster lookups'}
                       </p>
                     </div>
                   </div>

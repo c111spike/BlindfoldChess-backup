@@ -4356,6 +4356,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const player1Ws = userConnections.get(match.player1.userId);
             const player2Ws = userConnections.get(match.player2.userId);
 
+            // Fetch fresh ratings from DB to ensure consistency between players
+            // Parse time control to get base minutes (handles formats like '3', '5', '3+2', etc.)
+            const baseMinutes = parseInt(timeControl.split('+')[0], 10) || 5;
+            const ratingCategory = baseMinutes <= 2 ? 'bullet' : 
+                                   baseMinutes <= 5 ? 'blitz' : 
+                                   baseMinutes <= 15 ? 'rapid' : 'classical';
+            const player1RatingsData = await storage.getRating(match.player1.userId);
+            const player2RatingsData = await storage.getRating(match.player2.userId);
+            const player1FreshRating = (player1RatingsData as any)?.[ratingCategory] || 1200;
+            const player2FreshRating = (player2RatingsData as any)?.[ratingCategory] || 1200;
+
             if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
               player1Ws.send(JSON.stringify({
                 type: 'match_found',
@@ -4365,8 +4376,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 color: player1Color,
                 opponent: {
                   name: player2Name,
-                  rating: match.player2.rating,
+                  rating: player2FreshRating,
                 },
+                playerRating: player1FreshRating,
               }));
             }
 
@@ -4379,8 +4391,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 color: player2Color,
                 opponent: {
                   name: player1Name,
-                  rating: match.player1.rating,
+                  rating: player1FreshRating,
                 },
+                playerRating: player2FreshRating,
               }));
             }
           }
@@ -5866,7 +5879,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // NOW send acceptance response to BOTH players (after everything succeeded)
             notifyBothPlayers(true);
             
-            // Send match_found to both players
+            // Send match_found to both players with fresh ratings
+            // In rematch, timeControl is already a named category like 'bullet', 'blitz', 'rapid', 'classical'
+            const player1RatingValue = player1Rating ? (player1Rating as any)[timeControl] : 1200;
+            const player2RatingValue = player2Rating ? (player2Rating as any)[timeControl] : 1200;
+            
             if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
               player1Ws.send(JSON.stringify({
                 type: 'match_found',
@@ -5876,8 +5893,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 color: player1Color,
                 opponent: {
                   name: player2Name,
-                  rating: player2Rating ? player2Rating[timeControl] : 1200,
+                  rating: player2RatingValue,
                 },
+                playerRating: player1RatingValue,
               }));
             }
             
@@ -5890,8 +5908,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 color: player2Color,
                 opponent: {
                   name: player1Name,
-                  rating: player1Rating ? player1Rating[timeControl] : 1200,
+                  rating: player1RatingValue,
                 },
+                playerRating: player2RatingValue,
               }));
             }
           } catch (roomError) {

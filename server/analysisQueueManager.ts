@@ -326,9 +326,22 @@ class AnalysisQueueManager {
     avgNodesUsed: number;
     currentNodeCount: number;
     gamesAnalyzedToday: number;
+    redisConnected: boolean;
   }> {
     const totalLookups = this.metrics.cacheHits + this.metrics.cacheMisses;
     
+    // Get Redis cache stats if available
+    let redisPositions = 0;
+    if (this.useRedis) {
+      try {
+        const redisStats = await redisCache.getCacheStats();
+        redisPositions = redisStats.keyCount;
+      } catch (error) {
+        console.error('[AnalysisQueue] Failed to get Redis cache stats:', error);
+      }
+    }
+    
+    // Also get PostgreSQL fallback cache size
     try {
       const result = await db
         .select({ count: sql<number>`count(*)` })
@@ -337,6 +350,9 @@ class AnalysisQueueManager {
     } catch (error) {
       console.error('[AnalysisQueue] Failed to get cache size:', error);
     }
+
+    // Use Redis position count if available, otherwise PostgreSQL
+    const totalPositions = this.useRedis ? redisPositions : this.cacheSize;
 
     return {
       cacheHitRate: totalLookups > 0 
@@ -350,7 +366,7 @@ class AnalysisQueueManager {
         : 0,
       queueLength: this.queue.length + this.activeAnalyses.size,
       peakQueueLength: this.metrics.peakQueueLength,
-      totalCachedPositions: this.cacheSize,
+      totalCachedPositions: totalPositions,
       analysesCompleted: this.metrics.analysesCompleted,
       adaptiveScaledowns: this.metrics.adaptiveScaledowns,
       avgNodesUsed: this.metrics.analysesCompleted > 0 
@@ -358,6 +374,7 @@ class AnalysisQueueManager {
         : DEFAULT_NODES,
       currentNodeCount: this.getAdaptiveNodeCount(),
       gamesAnalyzedToday: this.metrics.analysesCompleted,
+      redisConnected: this.useRedis,
     };
   }
 
