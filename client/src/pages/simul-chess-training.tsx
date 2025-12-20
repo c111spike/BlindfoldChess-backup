@@ -83,7 +83,7 @@ export default function SimulChessTraining() {
             Simultaneous chess exhibitions, or "simuls," represent one of the most impressive feats in chess. 
             A single player walks around a room, making moves on dozens of boards against multiple opponents, 
             demonstrating both chess mastery and remarkable mental stamina. While giving a traditional simul 
-            requires significant strength, our Simul vs Simul mode introduces a unique twist: both players 
+            requires significant strength, our Simul vs Simul mode introduces a unique twist: all players 
             manage multiple boards, creating an entirely new competitive format that trains skills impossible 
             to develop in single-game play.
           </p>
@@ -98,7 +98,7 @@ export default function SimulChessTraining() {
           </p>
 
           <p>
-            Our Simul vs Simul format elevates this challenge further. When both players manage multiple 
+            Our Simul vs Simul format elevates this challenge further. When all players manage multiple 
             boards, the cognitive demands multiply. You must not only remember your positions but also 
             track your opponent's activity across games, making strategic decisions about which boards 
             to prioritize and when to play for quick wins versus solid draws.
@@ -121,10 +121,11 @@ export default function SimulChessTraining() {
 
           <h3>Time Management Across Multiple Boards</h3>
           <p>
-            Our Simul vs Simul mode uses a 30-second per-move timer that runs continuously across all 
-            your boards. When your opponent moves on any board, your clock starts — you must respond 
-            on that board within 30 seconds, regardless of what's happening elsewhere. This creates 
-            intense pressure to maintain situational awareness and make efficient decisions.
+            Our Simul vs Simul mode uses a 30-second per-move timer for each board. The timer only 
+            starts when you navigate to that specific board — giving you time to assess the position 
+            before your clock begins. Once you're viewing a board where it's your turn, you have 30 
+            seconds to make your move. This creates intense pressure to maintain situational awareness 
+            and make efficient decisions while managing your attention across multiple games.
           </p>
 
           <p>
@@ -169,10 +170,11 @@ export default function SimulChessTraining() {
           <h3>Preparing to Give Real Simuls</h3>
           <p>
             If your goal is giving actual simultaneous exhibitions, our training mode provides excellent 
-            preparation. Start with 2-3 boards and gradually increase as your comfort grows. Pay attention 
-            to physical and mental fatigue patterns — real simuls require stamina that develops only 
-            through practice. The bot opponents in training mode help you maintain focus without the 
-            social complexity of multiple human opponents.
+            preparation. Currently, you can practice with 5 boards simultaneously — enough to develop 
+            the core multi-board skills needed for real exhibitions. Pay attention to physical and mental 
+            fatigue patterns — real simuls require stamina that develops only through practice. The bot 
+            opponents in training mode help you maintain focus without the social complexity of multiple 
+            human opponents.
           </p>
 
           <p>
@@ -185,11 +187,32 @@ export default function SimulChessTraining() {
           <h3>The Unique Challenge of Simul vs Simul</h3>
           <p>
             Our Simul vs Simul format creates a competitive experience unavailable anywhere else. When 
-            both players manage multiple boards, traditional advantages shift. A player who excels at 
+            all players manage multiple boards, traditional advantages shift. A player who excels at 
             single-game calculation may struggle against someone with superior multi-tasking ability. 
             The format rewards different skills, making it an excellent supplement to traditional chess 
             training and a unique competitive format in its own right.
           </p>
+
+          <h3>Track Your Progress with Simul ELO</h3>
+          <p>
+            SimulChess features a dedicated Simul ELO rating system, separate from your standard chess 
+            rating. Your Simul rating reflects your multi-board management abilities specifically — 
+            rewarding players who excel at juggling multiple games, making quick decisions, and maintaining 
+            accuracy under the unique pressures of simultaneous play. Watch your Simul rating grow as you 
+            develop these specialized skills.
+          </p>
+
+          <div className="not-prose mt-8 mb-8">
+            <Button 
+              size="lg" 
+              className="w-full"
+              onClick={() => setLocation("/simul-vs-simul")}
+              data-testid="button-start-simul-training-bottom"
+            >
+              <Grid3X3 className="mr-2 h-5 w-5" />
+              Start Simul Training
+            </Button>
+          </div>
 
           <SEOCrossLinks currentPath="/simul-chess-training" />
         </article>

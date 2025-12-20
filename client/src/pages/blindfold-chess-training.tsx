@@ -150,6 +150,12 @@ export default function BlindfoldChessTraining() {
             Hard (10 peeks), Expert (5 peeks), Master (2 peeks), and finally Grandmaster (0 peeks).
           </p>
 
+          <p>
+            If you're new to algebraic notation, don't worry — you can enable coordinate labels on the board 
+            to display the tile names (a1, b2, etc.) while you learn. This option helps beginners connect 
+            square names to positions as they develop their visualization skills.
+          </p>
+
           <h3>Tips for Blindfold Chess Beginners</h3>
           <p>
             Start with simple positions and short games. Playing against easier bots while learning blindfold 
@@ -187,6 +193,18 @@ export default function BlindfoldChessTraining() {
             system ensures you'll never feel overwhelmed while still pushing your limits. Begin with Easy mode, 
             embrace the struggle, and watch as your chess vision expands beyond what you thought possible.
           </p>
+
+          <div className="not-prose mt-8 mb-8">
+            <Button 
+              size="lg" 
+              className="w-full"
+              onClick={() => setLocation("/standard")}
+              data-testid="button-start-blindfold-training-bottom"
+            >
+              <Eye className="mr-2 h-5 w-5" />
+              Start Blindfold Training
+            </Button>
+          </div>
 
           <SEOCrossLinks currentPath="/blindfold-chess-training" />
         </article>

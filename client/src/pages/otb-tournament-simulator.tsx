@@ -115,7 +115,9 @@ export default function OTBTournamentSimulator() {
             The manual clock requirement teaches you to develop a consistent move-press rhythm. Tournament 
             players who practice with automatic clocks often struggle with clock discipline, either forgetting 
             to press entirely or pressing before completing their move (a technical violation). Our system 
-            builds the muscle memory needed for smooth, confident clock handling under pressure.
+            builds the muscle memory needed for smooth, confident clock handling under pressure. We recommend 
+            hitting the spacebar with the same hand you used to move the piece — this simulates the natural 
+            motion of reaching across to tap a physical clock after completing your move.
           </p>
 
           <h3>OTB Castling: The King-Rook Sequence</h3>
@@ -136,9 +138,11 @@ export default function OTBTournamentSimulator() {
           <h3>The Arbiter Warning System</h3>
           <p>
             Real tournaments have arbiters who monitor games for rule violations. Our built-in arbiter 
-            system provides warnings when you attempt illegal actions, helping you internalize tournament 
-            etiquette. From touch-move violations to improper clock handling, the feedback system trains 
-            you to play cleanly without needing actual tournament experience.
+            system simulates this experience — but just like in real tournaments, the arbiter only acts 
+            when your opponent calls you out on a violation. This keeps both players engaged and attentive 
+            throughout the game, as each player must watch for their opponent's mistakes while avoiding 
+            their own. The feedback system trains you to play cleanly and stay alert without needing 
+            actual tournament experience.
           </p>
 
           <h3>Why OTB Skills Matter for Online Players</h3>
@@ -187,6 +191,18 @@ export default function OTBTournamentSimulator() {
             and internalize proper castling mechanics — all from the comfort of your screen, ready 
             to transfer to the tournament hall.
           </p>
+
+          <div className="not-prose mt-8 mb-8">
+            <Button 
+              size="lg" 
+              className="w-full"
+              onClick={() => setLocation("/otb")}
+              data-testid="button-start-otb-training-bottom"
+            >
+              <Trophy className="mr-2 h-5 w-5" />
+              Start OTB Training
+            </Button>
+          </div>
 
           <SEOCrossLinks currentPath="/otb-tournament-simulator" />
         </article>
