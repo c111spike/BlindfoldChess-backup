@@ -138,6 +138,11 @@ export function ChessBoard({
       return;
     }
     
+    // When arrow draw mode is enabled, disable piece movement to prevent accidental moves
+    if (arrowDrawMode) {
+      return;
+    }
+    
     if (piece) {
       setArrows([]);
     }
