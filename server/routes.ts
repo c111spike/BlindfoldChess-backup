@@ -5810,35 +5810,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const whitePlayerName = player1Color === "white" ? player1Name : player2Name;
           const blackPlayerName = player1Color === "white" ? player2Name : player1Name;
           
-          // Create new game and match (with error handling)
-          let newGame, newMatch;
+          // Create TWO new games and match (one for each player, same pattern as queue matching)
+          let player1Game, player2Game, newMatch;
           try {
-            newGame = await storage.createGame({
-              userId: whitePlayerId,
+            // Create game for player 1
+            player1Game = await storage.createGame({
+              userId: player1Id,
               whitePlayerId: whitePlayerId,
               blackPlayerId: blackPlayerId,
               mode: matchType as any,
-              playerColor: "white",
+              playerColor: player1Color,
               timeControl: time * 60,
               increment: 0,
               fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
               whiteTime: time * 60,
               blackTime: time * 60,
-              opponentName: blackPlayerName,
+              opponentName: player2Name,
             });
             
+            // Create game for player 2
+            player2Game = await storage.createGame({
+              userId: player2Id,
+              whitePlayerId: whitePlayerId,
+              blackPlayerId: blackPlayerId,
+              mode: matchType as any,
+              playerColor: player2Color,
+              timeControl: time * 60,
+              increment: 0,
+              fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+              whiteTime: time * 60,
+              blackTime: time * 60,
+              opponentName: player1Name,
+            });
+            
+            // Create match with BOTH game IDs (required for completeMatch rating calculation)
             newMatch = await storage.createMatch({
               player1Id: player1Id,
               player2Id: player2Id,
               matchType: matchType,
-              gameIds: [newGame.id],
+              gameIds: [player1Game.id, player2Game.id],
               status: 'in_progress',
             });
             
-            // CRITICAL: Update game's matchId (same pattern as atomicMatchPairing)
-            console.log('[DEBUG] [WebSocket rematch] Updating game matchId:', newGame.id, 'with matchId:', newMatch.id);
-            newGame = await storage.updateGame(newGame.id, { matchId: newMatch.id });
-            console.log('[DEBUG] [WebSocket rematch] Game updated - matchId:', newGame.matchId);
+            // CRITICAL: Update BOTH games' matchId (same pattern as queue matching)
+            console.log('[DEBUG] [WebSocket rematch] Updating games with matchId:', newMatch.id);
+            player1Game = await storage.updateGame(player1Game.id, { matchId: newMatch.id });
+            player2Game = await storage.updateGame(player2Game.id, { matchId: newMatch.id });
+            console.log('[DEBUG] [WebSocket rematch] Both games updated - matchIds:', player1Game.matchId, player2Game.matchId);
           } catch (error) {
             console.error('Error creating rematch:', error);
             notifyBothPlayers(false);
@@ -5883,11 +5901,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const player1RatingValue = player1Rating ? (player1Rating as any)[timeControl] : 1200;
             const player2RatingValue = player2Rating ? (player2Rating as any)[timeControl] : 1200;
             
+            // Send each player their OWN game (with their playerColor)
             if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
               player1Ws.send(JSON.stringify({
                 type: 'match_found',
                 matchId: newMatch.id,
-                game: newGame,
+                game: player1Game,
                 timeControl,
                 color: player1Color,
                 opponent: {
@@ -5902,7 +5921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               player2Ws.send(JSON.stringify({
                 type: 'match_found',
                 matchId: newMatch.id,
-                game: newGame,
+                game: player2Game,
                 timeControl,
                 color: player2Color,
                 opponent: {
