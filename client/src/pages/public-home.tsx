@@ -58,16 +58,16 @@ const landingPages = [
 export default function PublicHomePage() {
   return (
     <div className="min-h-screen">
-      <section className="relative w-full overflow-hidden rounded-lg">
+      <section className="relative w-full min-h-[400px] md:min-h-[500px] overflow-hidden">
         <div className="absolute inset-0">
           <img
             src={heroImage}
             alt="Chess tournament player in deep concentration"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
         </div>
-        <div className="relative px-6 py-20 md:py-28">
+        <div className="relative h-full flex items-center px-6 py-16 md:py-24">
           <div className="max-w-2xl space-y-6">
             <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight" data-testid="text-hero-title">
               Build Grandmaster Vision
@@ -102,7 +102,7 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      <section className="py-12" id="features">
+      <section className="py-12 px-4" id="features">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2" data-testid="text-features-title">Training Modes</h2>
           <p className="text-muted-foreground">
@@ -131,7 +131,7 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      <section className="py-12 border-t">
+      <section className="py-12 px-4 border-t">
         <div className="prose prose-neutral dark:prose-invert max-w-none">
           <h2 className="text-2xl font-bold mb-4" data-testid="text-about-title">Why SimulChess?</h2>
           
@@ -177,7 +177,7 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      <section className="py-8 border-t">
+      <section className="py-8 px-4 border-t">
         <div className="text-center">
           <p className="text-muted-foreground mb-4" data-testid="text-cta">
             Ready to elevate your chess training?
