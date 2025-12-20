@@ -110,6 +110,7 @@ export function ChessBoard({
   const [arrows, setArrows] = useState<Arrow[]>([]);
   const [drawingArrow, setDrawingArrow] = useState<{ from: string; currentSquare: string } | null>(null);
   const [isRightMouseDown, setIsRightMouseDown] = useState(false);
+  const [pendingArrowStart, setPendingArrowStart] = useState<string | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   
   const effectiveLastMoveSquares = lastMove 
@@ -119,6 +120,13 @@ export function ChessBoard({
   useEffect(() => {
     setInternalSelectedSquare(null);
   }, [fen]);
+
+  // Clear pending arrow start when arrow draw mode is disabled
+  useEffect(() => {
+    if (!arrowDrawMode) {
+      setPendingArrowStart(null);
+    }
+  }, [arrowDrawMode]);
 
   const parseFen = (fen: string) => {
     const rows = fen.split(" ")[0].split("/");
@@ -175,8 +183,30 @@ export function ChessBoard({
       return;
     }
     
-    // When arrow draw mode is enabled, disable piece movement to prevent accidental moves
+    // When arrow draw mode is enabled, use click-to-click arrow drawing
     if (arrowDrawMode) {
+      if (pendingArrowStart === null) {
+        // First click - set the start square
+        setPendingArrowStart(square);
+      } else if (pendingArrowStart === square) {
+        // Same square clicked - cancel the pending arrow
+        setPendingArrowStart(null);
+      } else {
+        // Second click on different square - create/toggle the arrow
+        const newArrow = { from: pendingArrowStart, to: square };
+        const existingIndex = arrows.findIndex(
+          a => a.from === newArrow.from && a.to === newArrow.to
+        );
+        
+        if (existingIndex >= 0) {
+          // Arrow exists - remove it
+          setArrows(arrows.filter((_, i) => i !== existingIndex));
+        } else {
+          // Arrow doesn't exist - add it
+          setArrows([...arrows, newArrow]);
+        }
+        setPendingArrowStart(null);
+      }
       return;
     }
     
@@ -288,51 +318,18 @@ export function ChessBoard({
     }
   }, [enableArrows, arrowDrawMode, drawingArrow, isRightMouseDown, arrows, getSquareFromPosition]);
 
+  // Touch handlers disabled in arrow draw mode - use click-to-click instead to prevent scroll
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!enableArrows || !arrowDrawMode || interactionMode === "viewOnly") return;
-    
-    const touch = e.touches[0];
-    const square = getSquareFromPosition(touch.clientX, touch.clientY);
-    if (square) {
-      setDrawingArrow({ from: square, currentSquare: square });
-      setIsRightMouseDown(true);
-    }
-  }, [enableArrows, arrowDrawMode, getSquareFromPosition]);
+    // Disabled - arrow draw mode now uses click-to-click to prevent scroll issues
+  }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!drawingArrow || !isRightMouseDown) return;
-    
-    const touch = e.touches[0];
-    const square = getSquareFromPosition(touch.clientX, touch.clientY);
-    if (square && square !== drawingArrow.currentSquare) {
-      setDrawingArrow({ ...drawingArrow, currentSquare: square });
-    }
-  }, [drawingArrow, isRightMouseDown, getSquareFromPosition]);
+    // Disabled - arrow draw mode now uses click-to-click to prevent scroll issues
+  }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!enableArrows || !arrowDrawMode) return;
-    
-    if (drawingArrow && isRightMouseDown) {
-      const changedTouch = e.changedTouches[0];
-      const toSquare = getSquareFromPosition(changedTouch.clientX, changedTouch.clientY);
-      
-      if (toSquare && toSquare !== drawingArrow.from) {
-        const newArrow = { from: drawingArrow.from, to: toSquare };
-        const existingIndex = arrows.findIndex(
-          a => a.from === newArrow.from && a.to === newArrow.to
-        );
-        
-        if (existingIndex >= 0) {
-          setArrows(arrows.filter((_, i) => i !== existingIndex));
-        } else {
-          setArrows([...arrows, newArrow]);
-        }
-      }
-      
-      setDrawingArrow(null);
-      setIsRightMouseDown(false);
-    }
-  }, [enableArrows, arrowDrawMode, drawingArrow, isRightMouseDown, arrows, getSquareFromPosition]);
+    // Disabled - arrow draw mode now uses click-to-click to prevent scroll issues
+  }, []);
 
   const getSquareCenter = useCallback((square: string): { x: number; y: number } => {
     const file = square[0];
@@ -474,6 +471,7 @@ export function ChessBoard({
               const isPremove = isPremoveSquare(square);
               const isLegalMove = legalMoveSquares.includes(square);
               const isLegalCapture = isLegalMove && piece !== null;
+              const isPendingArrowStart = pendingArrowStart === square;
 
               return (
                 <div
@@ -489,6 +487,7 @@ export function ChessBoard({
                     ${isLocked ? (highlightColor === "red" ? "ring-4 ring-red-500 ring-inset" : "ring-4 ring-yellow-500 ring-inset") : ""}
                     ${isLastMove ? (highlightColor === "red" ? "bg-opacity-80 after:absolute after:inset-0 after:bg-red-400/30" : "bg-opacity-80 after:absolute after:inset-0 after:bg-yellow-400/30") : ""}
                     ${isPremove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-blue-500/40" : ""}
+                    ${isPendingArrowStart ? "ring-4 ring-orange-400 ring-inset" : ""}
                     hover-elevate
                   `}
                 >
