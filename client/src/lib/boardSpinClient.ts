@@ -425,44 +425,92 @@ export function generatePositionClient(difficulty: string): GeneratedPosition {
   };
 }
 
-export async function getBestMoveClient(fen: string): Promise<{ bestMove: string; turn: string }> {
+export interface OptimalMove {
+  move: string;
+  evaluation: number;
+  isMate: boolean;
+  mateIn?: number;
+}
+
+export interface OptimalMovesResult {
+  optimalMoves: OptimalMove[];
+  bestMove: string;
+  turn: string;
+}
+
+export async function getOptimalMovesClient(fen: string): Promise<OptimalMovesResult> {
   const fenParts = fen.split(' ');
   const turn = fenParts[1];
   
   try {
     await clientStockfish.init();
     
-    const result = await clientStockfish.getBestMove(fen, { depth: 15 });
-    let finalBestMove = result.bestMove;
-    const evaluation = result.evaluation ?? 0;
+    // Get top 5 moves to find all equally-optimal ones
+    const topMoves = await clientStockfish.getTopMoves(fen, 5, 2000000);
     
-    if (Math.abs(evaluation) <= 0.5) {
-      try {
-        const chess = new Chess(fen);
-        const moves = chess.moves({ verbose: true });
-        
-        const captures = moves.filter(m => m.captured);
-        if (captures.length > 0) {
-          const pieceValues: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-          captures.sort((a, b) => pieceValues[b.captured!] - pieceValues[a.captured!]);
-          finalBestMove = captures[0].from + captures[0].to;
-        }
-      } catch (e) {
-        console.warn('[BoardSpin Client] Could not analyze captures:', e);
+    if (topMoves.length === 0) {
+      // Fallback to single best move
+      const result = await clientStockfish.getBestMove(fen, { depth: 15 });
+      return {
+        optimalMoves: [{
+          move: result.bestMove,
+          evaluation: result.evaluation ?? 0,
+          isMate: false
+        }],
+        bestMove: result.bestMove,
+        turn
+      };
+    }
+    
+    const bestMove = topMoves[0];
+    const optimalMoves: OptimalMove[] = [];
+    
+    // Find all moves that are equally optimal
+    for (const move of topMoves) {
+      const isEquallyOptimal = 
+        // Both are mate in same number of moves
+        (bestMove.isMate && move.isMate && bestMove.mateIn === move.mateIn) ||
+        // Both are non-mate with same evaluation (within 0.1 pawn tolerance)
+        (!bestMove.isMate && !move.isMate && Math.abs(bestMove.evaluation - move.evaluation) <= 0.1);
+      
+      if (isEquallyOptimal) {
+        optimalMoves.push({
+          move: move.move,
+          evaluation: move.evaluation,
+          isMate: move.isMate,
+          mateIn: move.mateIn
+        });
       }
     }
     
-    return { bestMove: finalBestMove, turn };
+    console.log(`[BoardSpin] Found ${optimalMoves.length} equally optimal moves:`, 
+      optimalMoves.map(m => `${m.move}${m.isMate ? ` (mate in ${m.mateIn})` : ` (${m.evaluation})`}`));
+    
+    return {
+      optimalMoves,
+      bestMove: bestMove.move,
+      turn
+    };
   } catch (error) {
     console.error('[BoardSpin Client] Stockfish error:', error);
     const chess = new Chess(fen);
     const moves = chess.moves({ verbose: true });
     if (moves.length > 0) {
       const move = moves[0];
-      return { bestMove: move.from + move.to, turn };
+      return {
+        optimalMoves: [{ move: move.from + move.to, evaluation: 0, isMate: false }],
+        bestMove: move.from + move.to,
+        turn
+      };
     }
     throw error;
   }
+}
+
+// Keep legacy function for backwards compatibility
+export async function getBestMoveClient(fen: string): Promise<{ bestMove: string; turn: string }> {
+  const result = await getOptimalMovesClient(fen);
+  return { bestMove: result.bestMove, turn: result.turn };
 }
 
 export function calculateScoreClient(

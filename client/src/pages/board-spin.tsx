@@ -8,7 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCw, Clock, Target, Trophy, Play, Sparkles } from "lucide-react";
-import { generatePositionClient, getBestMoveClient, calculateScoreClient } from "@/lib/boardSpinClient";
+import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove } from "@/lib/boardSpinClient";
 import { Chess } from 'chess.js';
 
 const PIECE_UNICODE: Record<string, string> = {
@@ -87,9 +87,11 @@ export default function BoardSpin() {
   const [flyingPieces, setFlyingPieces] = useState<Array<{ piece: string; x: number; y: number; id: number }>>([]);
   const [score, setScore] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
+  const [optimalMoves, setOptimalMoves] = useState<OptimalMove[]>([]);
   const [bestMove, setBestMove] = useState<string | null>(null);
   const [playerMove, setPlayerMove] = useState<string>('');
   const [bonusResult, setBonusResult] = useState<boolean | null>(null);
+  const [isAlternativeOptimal, setIsAlternativeOptimal] = useState<boolean>(false);
   const [finalRotation, setFinalRotation] = useState(0);
   const [scoreSaved, setScoreSaved] = useState(false);
   const [timeSpent, setTimeSpent] = useState(0);
@@ -260,10 +262,12 @@ export default function BoardSpin() {
       
       if (result.accuracy === 100) {
         try {
-          const bestMoveResult = await getBestMoveClient(position.fen);
-          console.log(`[BoardSpin Client] Best move: ${bestMoveResult.bestMove}, Turn: ${bestMoveResult.turn}`);
+          const optimalResult = await getOptimalMovesClient(position.fen);
+          console.log(`[BoardSpin Client] Best move: ${optimalResult.bestMove}, Turn: ${optimalResult.turn}`);
+          console.log(`[BoardSpin Client] Optimal moves: ${optimalResult.optimalMoves.map(m => m.move).join(', ')}`);
           console.log(`[BoardSpin Client] FEN turn: ${position.fen.split(' ')[1]}`);
-          setBestMove(bestMoveResult.bestMove);
+          setOptimalMoves(optimalResult.optimalMoves);
+          setBestMove(optimalResult.bestMove);
           // Initialize bonus board as a copy of the original position
           setBonusBoard(position.board.map(row => [...row]));
           setPhase('bonus');
@@ -286,12 +290,20 @@ export default function BoardSpin() {
   };
 
   const handleBonusSubmit = async () => {
-    if (!bestMove) return;
+    if (!bestMove || optimalMoves.length === 0) return;
     
-    const isCorrect = playerMove.toLowerCase().replace(/[^a-h1-8]/g, '') === 
-                      bestMove.toLowerCase().replace(/[^a-h1-8]/g, '');
+    const normalizedPlayerMove = playerMove.toLowerCase().replace(/[^a-h1-8]/g, '');
+    
+    // Check if player's move matches ANY of the optimal moves
+    const matchedOptimalMove = optimalMoves.find(
+      om => om.move.toLowerCase().replace(/[^a-h1-8]/g, '') === normalizedPlayerMove
+    );
+    
+    const isCorrect = matchedOptimalMove !== undefined;
+    const isAlternative = isCorrect && normalizedPlayerMove !== bestMove.toLowerCase().replace(/[^a-h1-8]/g, '');
     
     setBonusResult(isCorrect);
+    setIsAlternativeOptimal(isAlternative);
     
     const finalScore = isCorrect ? score * 2 : score;
     if (isCorrect) {
@@ -426,9 +438,11 @@ export default function BoardSpin() {
     setFlyingPieces([]);
     setScore(0);
     setAccuracy(0);
+    setOptimalMoves([]);
     setBestMove(null);
     setPlayerMove('');
     setBonusResult(null);
+    setIsAlternativeOptimal(false);
     setFinalRotation(0);
     setScoreSaved(false);
     setTimeSpent(0);
@@ -998,12 +1012,27 @@ export default function BoardSpin() {
             {bonusResult !== null && (
               <div className={`p-4 rounded-lg text-center ${bonusResult ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
                 {bonusResult ? (
-                  <p className="text-green-700 dark:text-green-300">
-                    Correct! Best move was {bestMove}. Score doubled!
-                  </p>
+                  isAlternativeOptimal ? (
+                    <p className="text-green-700 dark:text-green-300">
+                      Correct! You found an equally optimal move. Score doubled!
+                      {optimalMoves.length > 1 && (
+                        <span className="block text-sm mt-1 opacity-80">
+                          (Other optimal moves: {optimalMoves.map(m => m.move).join(', ')})
+                        </span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="text-green-700 dark:text-green-300">
+                      Correct! Best move was {bestMove}. Score doubled!
+                    </p>
+                  )
                 ) : (
                   <p className="text-red-700 dark:text-red-300">
-                    The best move was {bestMove}. No bonus this time.
+                    {optimalMoves.length > 1 ? (
+                      <>The optimal moves were {optimalMoves.map(m => m.move).join(', ')}. No bonus this time.</>
+                    ) : (
+                      <>The best move was {bestMove}. No bonus this time.</>
+                    )}
                   </p>
                 )}
               </div>
