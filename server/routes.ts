@@ -5948,10 +5948,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               (player2Ws as any).matchId = newMatch.id;
             }
             
-            // NOW send acceptance response to BOTH players (after everything succeeded)
-            notifyBothPlayers(true);
-            
-            // Send match_found to both players with fresh ratings
+            // Calculate ratings for rematch_response
             // For OTB matches, use otbBlitz/otbRapid rating keys; for standard use blitz/rapid
             const isOtbMatch = matchType.startsWith('otb_');
             const ratingKey = isOtbMatch 
@@ -5962,7 +5959,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const player1RatingValue = player1Rating ? (player1Rating as any)[ratingKey] : 1200;
             const player2RatingValue = player2Rating ? (player2Rating as any)[ratingKey] : 1200;
             
-            // Send each player their OWN game (with their playerColor)
+            // Send rematch_response with newMatchId and game data to BOTH players
+            // This is critical for OTB mode which checks for newMatchId to start the game
+            if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
+              player1Ws.send(JSON.stringify({
+                type: 'rematch_response',
+                matchId: matchId,
+                accepted: true,
+                newMatchId: newMatch.id,
+                game: updatedPlayer1Game,
+                timeControl,
+                color: player1Color,
+                opponent: {
+                  name: player2Name,
+                  rating: player2RatingValue,
+                },
+                playerRating: player1RatingValue,
+              }));
+            }
+            
+            if (player2Ws && player2Ws.readyState === WebSocket.OPEN) {
+              player2Ws.send(JSON.stringify({
+                type: 'rematch_response',
+                matchId: matchId,
+                accepted: true,
+                newMatchId: newMatch.id,
+                game: updatedPlayer2Game,
+                timeControl,
+                color: player2Color,
+                opponent: {
+                  name: player1Name,
+                  rating: player1RatingValue,
+                },
+                playerRating: player2RatingValue,
+              }));
+            }
+            
+            // Also send match_found for Standard mode compatibility (it may use this for queue-based matching)
             if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
               player1Ws.send(JSON.stringify({
                 type: 'match_found',

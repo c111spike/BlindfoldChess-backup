@@ -720,7 +720,16 @@ export default function OTBMode() {
     });
   }, [matchId, toast]);
 
-  const handleRematchResponse = useCallback((data: { matchId: string; accepted: boolean; newMatchId?: string }) => {
+  const handleRematchResponse = useCallback((data: { 
+    matchId: string; 
+    accepted: boolean; 
+    newMatchId?: string;
+    game?: any;
+    color?: string;
+    opponent?: { name: string; rating: number };
+    timeControl?: string;
+    playerRating?: number;
+  }) => {
     console.log('[OTB] Rematch response:', data);
     if (data.accepted && data.newMatchId) {
       // Reset game state for rematch
@@ -731,6 +740,11 @@ export default function OTBMode() {
       setMatchId(data.newMatchId);
       matchIdRef.current = data.newMatchId; // Sync ref immediately to avoid stale closure issues
       
+      // Set the game ID from server response
+      if (data.game?.id) {
+        setGameId(data.game.id);
+      }
+      
       const newGame = new Chess();
       setGame(newGame);
       setLegalChessGame(new Chess());
@@ -740,12 +754,22 @@ export default function OTBMode() {
       setActiveColor("white");
       setClockTurn("white");
       
-      // Swap colors for rematch
-      const newColor = playerColor === "white" ? "black" : "white";
+      // Use server-provided color (random assignment) instead of swapping
+      const newColor = (data.color as "white" | "black") || (playerColor === "white" ? "black" : "white");
       setPlayerColor(newColor);
       
-      // Reset times
-      const minutes = parseInt(timeControl);
+      // Update opponent info from server
+      if (data.opponent) {
+        setOpponentName(data.opponent.name);
+        setOpponentRating(data.opponent.rating);
+      }
+      if (data.playerRating) {
+        setPlayerRating(data.playerRating);
+      }
+      
+      // Reset times - use server-provided timeControl or fall back to current
+      const tcFromServer = data.timeControl || timeControl;
+      const minutes = parseInt(tcFromServer);
       const seconds = minutes * 60;
       setWhiteTime(seconds);
       setBlackTime(seconds);
@@ -770,6 +794,9 @@ export default function OTBMode() {
       setArbiterPending(false);
       setDrawOffered(false);
       setOpponentOfferedDraw(false);
+      
+      // Ensure game is started
+      setGameStarted(true);
       
       gameStartTimeRef.current = Date.now();
       
