@@ -39,14 +39,14 @@ export default function SimulChessTraining() {
                 <Grid3X3 className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
                   <h3 className="font-semibold">Multiple Boards</h3>
-                  <p className="text-sm text-muted-foreground">Manage 2-8 games simultaneously</p>
+                  <p className="text-sm text-muted-foreground">Manage 5 games simultaneously</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <Users className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
                   <h3 className="font-semibold">Simul vs Simul</h3>
-                  <p className="text-sm text-muted-foreground">Both players manage multiple games</p>
+                  <p className="text-sm text-muted-foreground">All players manage multiple games</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
