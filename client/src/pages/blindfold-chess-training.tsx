@@ -80,10 +80,11 @@ export default function BlindfoldChessTraining() {
           </h2>
 
           <p>
-            Blindfold chess is one of the most powerful training methods in chess history, practiced by world champions 
-            from Paul Morphy to Magnus Carlsen. When you play blindfold chess, you make moves without seeing the board, 
-            relying entirely on your mental visualization of the position. This ancient practice transforms how your 
-            brain processes chess information and develops skills that directly translate to tournament success.
+            Master board vision with SimulChess's blindfold training system. Our adjustable difficulty levels and 
+            immersive voice control let you build your memory at your own pace — from beginner-friendly unlimited 
+            peeks to grandmaster-level zero tolerance. Practiced by world champions from Paul Morphy to Magnus 
+            Carlsen, blindfold chess transforms how your brain processes positions and develops skills that 
+            directly translate to tournament success.
           </p>
 
           <h3>What is Blindfold Chess?</h3>
