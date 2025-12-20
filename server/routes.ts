@@ -4357,15 +4357,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const player2Ws = userConnections.get(match.player2.userId);
 
             // Fetch fresh ratings from DB to ensure consistency between players
-            // Parse time control to get base minutes (handles formats like '3', '5', '3+2', etc.)
-            const baseMinutes = parseInt(timeControl.split('+')[0], 10) || 5;
-            const ratingCategory = baseMinutes <= 2 ? 'bullet' : 
-                                   baseMinutes <= 5 ? 'blitz' : 
-                                   baseMinutes <= 15 ? 'rapid' : 'classical';
+            // timeControl is already 'blitz' or 'rapid' - use it directly as the rating category
             const player1RatingsData = await storage.getRating(match.player1.userId);
             const player2RatingsData = await storage.getRating(match.player2.userId);
-            const player1FreshRating = (player1RatingsData as any)?.[ratingCategory] || 1200;
-            const player2FreshRating = (player2RatingsData as any)?.[ratingCategory] || 1200;
+            const player1FreshRating = (player1RatingsData as any)?.[timeControl] || 1200;
+            const player2FreshRating = (player2RatingsData as any)?.[timeControl] || 1200;
 
             if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
               player1Ws.send(JSON.stringify({
