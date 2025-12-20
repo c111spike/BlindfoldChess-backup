@@ -261,7 +261,25 @@ export default function OTBMode() {
         setBoardState(newBoard);
         
         // Update legalChessGame from the received FEN
-        setLegalChessGame(new Chess(data.fen));
+        const newLegalGame = new Chess(data.fen);
+        setLegalChessGame(newLegalGame);
+        
+        // Check for checkmate/stalemate after castling (rare but possible)
+        if (newLegalGame.isCheckmate()) {
+          const opponentColor = playerColor === "white" ? "black" : "white";
+          console.log('[OTB] Opponent delivered checkmate via castling! Winner:', opponentColor);
+          const result = opponentColor === "white" ? "white_win" : "black_win";
+          setGameResult(result);
+          if (handleGameEndRef.current) {
+            handleGameEndRef.current(result);
+          }
+        } else if (newLegalGame.isStalemate() || newLegalGame.isDraw()) {
+          console.log('[OTB] Draw after opponent castling!');
+          setGameResult("draw");
+          if (handleGameEndRef.current) {
+            handleGameEndRef.current("draw");
+          }
+        }
       }
       
       setMoves(prev => [...prev, {
@@ -348,6 +366,36 @@ export default function OTBMode() {
           winner: data.captured === "K" ? "black" : "white",
           countdown: 5,
         });
+      }
+      
+      // Update legalChessGame from the received FEN and check for checkmate/stalemate
+      if (data.fen) {
+        const newLegalGame = new Chess(data.fen);
+        setLegalChessGame(newLegalGame);
+        
+        // Check if opponent's move resulted in checkmate/stalemate/draw
+        if (newLegalGame.isCheckmate()) {
+          // Opponent delivered checkmate - they win, end game immediately
+          const opponentColor = playerColor === "white" ? "black" : "white";
+          console.log('[OTB] Opponent delivered checkmate! Winner:', opponentColor);
+          const result = opponentColor === "white" ? "white_win" : "black_win";
+          setGameResult(result);
+          if (handleGameEndRef.current) {
+            handleGameEndRef.current(result);
+          }
+        } else if (newLegalGame.isStalemate()) {
+          console.log('[OTB] Stalemate from opponent move!');
+          setGameResult("draw");
+          if (handleGameEndRef.current) {
+            handleGameEndRef.current("draw");
+          }
+        } else if (newLegalGame.isDraw()) {
+          console.log('[OTB] Draw from opponent move (50-move rule, insufficient material, or repetition)');
+          setGameResult("draw");
+          if (handleGameEndRef.current) {
+            handleGameEndRef.current("draw");
+          }
+        }
       }
     }
     
@@ -1839,6 +1887,9 @@ export default function OTBMode() {
     const pieceIsWhite = originalPiece === originalPiece.toUpperCase();
     const nextTurn: "white" | "black" = pieceIsWhite ? "black" : "white";
     
+    // Track if this move ends the game (checkmate/stalemate/draw)
+    let gameEndingResult: "white_win" | "black_win" | "draw" | null = null;
+    
     // For multiplayer: try to make the move in chess.js to get SAN
     if (legalChessGame) {
       const newLegalGame = new Chess(legalChessGame.fen());
@@ -1853,6 +1904,19 @@ export default function OTBMode() {
           newFenFromChess = newLegalGame.fen();
           if (matchId) {
             setLegalChessGame(newLegalGame);
+            
+            // Check for checkmate/stalemate/draw after legal move in multiplayer OTB
+            if (newLegalGame.isCheckmate()) {
+              const winnerColor = pieceIsWhite ? "white" : "black";
+              console.log('[OTB] Legal checkmate detected! Winner:', winnerColor);
+              gameEndingResult = winnerColor === "white" ? "white_win" : "black_win";
+            } else if (newLegalGame.isStalemate()) {
+              console.log('[OTB] Stalemate detected!');
+              gameEndingResult = "draw";
+            } else if (newLegalGame.isDraw()) {
+              console.log('[OTB] Draw detected (50-move rule, insufficient material, or repetition)');
+              gameEndingResult = "draw";
+            }
           }
         } else {
           // Fallback notation
@@ -1917,6 +1981,13 @@ export default function OTBMode() {
     }
     
     saveGameState();
+    
+    // If this move ended the game (checkmate/stalemate/draw), handle it after sending move
+    if (gameEndingResult) {
+      setHasMadeMove(false);
+      setGameResult(gameEndingResult);
+      handleGameEnd(gameEndingResult);
+    }
   };
 
   const handlePromotionSelect = (promotionPiece: "q" | "r" | "b" | "n") => {
