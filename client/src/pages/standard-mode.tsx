@@ -1664,8 +1664,7 @@ export default function StandardMode() {
                           </Button>
                         </div>
                         
-                        {isBlindfold && (
-                          <div className="mt-4 p-4 bg-muted/50 rounded-lg" data-testid="blindfold-how-to">
+                        <div className="mt-8 p-4 bg-muted/50 rounded-lg" data-testid="blindfold-how-to">
                             <h3 className="font-semibold mb-3">Training Your Mind: The Art of Blindfold Chess</h3>
                             <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
                               <p>
@@ -1717,7 +1716,6 @@ export default function StandardMode() {
                               </p>
                             </div>
                           </div>
-                        )}
                       </>
                     ) : !selectedBotDifficulty ? (
                       <>
