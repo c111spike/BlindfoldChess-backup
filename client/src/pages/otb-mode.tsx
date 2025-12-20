@@ -2964,6 +2964,7 @@ export default function OTBMode() {
                         <Button 
                           variant="outline"
                           onClick={() => {
+                            setLocation("/");
                             setGameResult(null);
                             setGameStarted(false);
                             setGameId(null);
