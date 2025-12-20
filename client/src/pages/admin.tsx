@@ -78,7 +78,6 @@ interface PerformanceStats {
   avgNodesUsed: number;
   currentNodeCount: number;
   gamesAnalyzedToday: number;
-  redisConnected?: boolean;
 }
 
 interface PuzzleAnalysis {
@@ -1509,21 +1508,19 @@ export default function AdminPage() {
           ) : performanceStats ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card data-testid="card-redis-status">
+                <Card data-testid="card-database-status">
                   <CardHeader className="pb-2">
                     <CardDescription className="flex items-center gap-2">
                       <Database className="h-4 w-4" />
-                      Redis Cache Status
+                      Database Cache Status
                     </CardDescription>
-                    <CardTitle className={`text-2xl ${performanceStats.redisConnected ? 'text-green-500' : 'text-orange-500'}`}>
-                      {performanceStats.redisConnected ? 'Connected' : 'Not Connected'}
+                    <CardTitle className="text-2xl text-green-500">
+                      Active
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground">
-                      {performanceStats.redisConnected 
-                        ? `Upstash Redis active with ${performanceStats.totalCachedPositions.toLocaleString()} cached positions`
-                        : 'Using PostgreSQL fallback. Configure Upstash for better performance.'}
+                      PostgreSQL cache with {performanceStats.totalCachedPositions.toLocaleString()} positions (30-day TTL)
                     </p>
                   </CardContent>
                 </Card>
@@ -1541,7 +1538,7 @@ export default function AdminPage() {
                   <CardContent>
                     <p className="text-xs text-muted-foreground">
                       {performanceStats.avgCacheLookupMs > 50 
-                        ? '⚠️ Consider Redis for faster lookups' 
+                        ? '⚠️ Lookup time elevated' 
                         : '✓ Database caching is performing well'}
                     </p>
                   </CardContent>
@@ -1553,15 +1550,15 @@ export default function AdminPage() {
                       <Database className="h-4 w-4" />
                       Cached Positions
                     </CardDescription>
-                    <CardTitle className={`text-2xl ${performanceStats.totalCachedPositions > 100000 ? 'text-orange-500' : ''}`}>
+                    <CardTitle className={`text-2xl ${performanceStats.totalCachedPositions > 50000 ? 'text-orange-500' : ''}`}>
                       {performanceStats.totalCachedPositions.toLocaleString()}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground">
-                      {performanceStats.totalCachedPositions > 100000 
-                        ? '⚠️ Consider Redis for large cache' 
-                        : '✓ Cache size is manageable'}
+                      {performanceStats.totalCachedPositions > 50000 
+                        ? '⚠️ Consider own Neon account for larger storage' 
+                        : '✓ Cache size is within Replit limits'}
                     </p>
                   </CardContent>
                 </Card>
@@ -1657,9 +1654,9 @@ export default function AdminPage() {
 
               <Card className="mt-6">
                 <CardHeader>
-                  <CardTitle className="text-lg">When to Upgrade to Redis</CardTitle>
+                  <CardTitle className="text-lg">Storage Scaling Guide</CardTitle>
                   <CardDescription>
-                    Monitor these indicators to know when database caching becomes insufficient
+                    Monitor storage usage and plan for growth
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1668,24 +1665,22 @@ export default function AdminPage() {
                       <p className="font-medium">Cache Lookup Time</p>
                       <p className="text-sm text-muted-foreground">
                         {performanceStats.avgCacheLookupMs > 50 
-                          ? 'Consider Redis - lookups exceeding 50ms' 
+                          ? 'Elevated - database may be under load' 
                           : 'OK - under 50ms threshold'}
                       </p>
                     </div>
-                    <div className={`p-4 rounded-lg border ${performanceStats.totalCachedPositions > 100000 ? 'border-orange-500 bg-orange-500/10' : 'border-green-500 bg-green-500/10'}`}>
+                    <div className={`p-4 rounded-lg border ${performanceStats.totalCachedPositions > 50000 ? 'border-orange-500 bg-orange-500/10' : 'border-green-500 bg-green-500/10'}`}>
                       <p className="font-medium">Cache Size</p>
                       <p className="text-sm text-muted-foreground">
-                        {performanceStats.totalCachedPositions > 100000 
-                          ? 'Consider Redis - over 100k positions' 
-                          : 'OK - under 100k positions'}
+                        {performanceStats.totalCachedPositions > 50000 
+                          ? 'Approaching Replit limits - consider own Neon account' 
+                          : 'OK - within Replit storage limits'}
                       </p>
                     </div>
-                    <div className={`p-4 rounded-lg border ${performanceStats.redisConnected ? 'border-green-500 bg-green-500/10' : 'border-orange-500 bg-orange-500/10'}`}>
-                      <p className="font-medium">Redis Status</p>
+                    <div className="p-4 rounded-lg border border-blue-500 bg-blue-500/10">
+                      <p className="font-medium">Scaling Tip</p>
                       <p className="text-sm text-muted-foreground">
-                        {performanceStats.redisConnected 
-                          ? 'OK - Upstash Redis connected' 
-                          : 'Consider Upstash Redis for faster lookups'}
+                        For larger caches, create your own Neon account at neon.tech for unlimited storage
                       </p>
                     </div>
                   </div>
