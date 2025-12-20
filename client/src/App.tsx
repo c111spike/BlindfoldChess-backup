@@ -43,6 +43,7 @@ import KnightsTourPuzzle from "@/pages/knights-tour-puzzle";
 import ChessPieceChallenge from "@/pages/chess-piece-challenge";
 import ChessPuzzlesTrainer from "@/pages/chess-puzzles-trainer";
 import ChessBoardSpin from "@/pages/chess-board-spin";
+import OpeningRepertoireTrainer from "@/pages/opening-repertoire-trainer";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -87,6 +88,7 @@ function Router() {
       <Route path="/chess-piece-challenge" component={ChessPieceChallenge} />
       <Route path="/chess-puzzles-trainer" component={ChessPuzzlesTrainer} />
       <Route path="/chess-board-spin" component={ChessBoardSpin} />
+      <Route path="/opening-repertoire-trainer" component={OpeningRepertoireTrainer} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -106,7 +108,8 @@ function AppContent() {
   const isPublicPage = [
     "/privacy", "/terms", "/about", "/contact",
     "/blindfold-chess-training", "/otb-tournament-simulator", "/simul-chess-training",
-    "/knights-tour-puzzle", "/chess-piece-challenge", "/chess-puzzles-trainer", "/chess-board-spin"
+    "/knights-tour-puzzle", "/chess-piece-challenge", "/chess-puzzles-trainer", "/chess-board-spin",
+    "/opening-repertoire-trainer"
   ].includes(location);
 
   useEffect(() => {
@@ -135,6 +138,7 @@ function AppContent() {
       "/chess-piece-challenge": ChessPieceChallenge,
       "/chess-puzzles-trainer": ChessPuzzlesTrainer,
       "/chess-board-spin": ChessBoardSpin,
+      "/opening-repertoire-trainer": OpeningRepertoireTrainer,
     }[location];
     
     if (PublicPageComponent) {
