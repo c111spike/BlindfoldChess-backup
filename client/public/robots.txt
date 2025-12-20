@@ -1,0 +1,42 @@
+User-agent: *
+Allow: /
+
+# SEO Landing Pages
+Allow: /otb-tournament-simulator
+Allow: /simul-chess-training
+Allow: /blindfold-chess-training
+Allow: /knights-tour-puzzle
+Allow: /chess-piece-challenge
+Allow: /chess-board-spin
+Allow: /chess-puzzles-trainer
+Allow: /opening-repertoire-trainer
+
+# Training Modes
+Allow: /otb
+Allow: /standard
+Allow: /simul-vs-simul
+Allow: /boardspin
+Allow: /n-piece
+Allow: /knights-tour
+Allow: /puzzles
+Allow: /repertoire
+
+# Informational Pages
+Allow: /about
+Allow: /contact
+Allow: /help
+Allow: /privacy
+Allow: /terms
+
+# Disallow user-specific and admin pages
+Disallow: /admin
+Disallow: /settings
+Disallow: /statistics
+Disallow: /history
+Disallow: /analysis/
+Disallow: /simul-match/
+Disallow: /puzzles/create
+Disallow: /puzzle/
+
+# Sitemap location
+Sitemap: https://simulchess.com/sitemap.xml
