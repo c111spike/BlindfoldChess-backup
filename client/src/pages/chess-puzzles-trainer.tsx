@@ -12,7 +12,7 @@ export default function ChessPuzzlesTrainer() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Chess Puzzles Trainer - Tactical Training | SimulChess</title>
-        <meta name="description" content="Sharpen your chess tactics with our puzzle trainer. Solve community-created puzzles, improve pattern recognition, and track your tactical rating. Daily puzzles for all skill levels." />
+        <meta name="description" content="Sharpen your chess tactics with our puzzle trainer. Solve community-created puzzles at various difficulty levels and improve your pattern recognition. Create and share your own puzzles." />
         <meta property="og:title" content="Chess Puzzles Trainer - SimulChess" />
         <meta property="og:description" content="Daily chess puzzles for tactical improvement. Create, share, and solve puzzles with the SimulChess community." />
         <meta property="og:type" content="website" />
@@ -52,8 +52,8 @@ export default function ChessPuzzlesTrainer() {
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <Trophy className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
-                  <h3 className="font-semibold">Rating System</h3>
-                  <p className="text-sm text-muted-foreground">Track your improvement</p>
+                  <h3 className="font-semibold">Difficulty Levels</h3>
+                  <p className="text-sm text-muted-foreground">From beginner to master</p>
                 </div>
               </div>
             </div>
@@ -132,18 +132,19 @@ export default function ChessPuzzlesTrainer() {
             approach provides comprehensive training.
           </p>
 
-          <h3>Progressive Difficulty</h3>
+          <h3>Choosing the Right Difficulty</h3>
           <p>
             Effective puzzle training requires appropriate challenge levels. Puzzles too easy provide 
-            little learning; puzzles too hard frustrate without teaching. Our rating system matches 
-            puzzles to your current ability, ensuring you're constantly challenged but not overwhelmed.
+            little learning; puzzles too hard frustrate without teaching. Each puzzle in our collection 
+            includes a difficulty rating assigned by its creator, helping you find challenges that 
+            match your current skill level.
           </p>
 
           <p>
-            Your puzzle rating tracks improvement over time, providing motivation and measurable 
-            progress. Many players find that their puzzle rating leads their game rating — tactical 
-            improvement happens first in the controlled puzzle environment before manifesting in 
-            competitive play. Watching your puzzle rating climb predicts and motivates improvement.
+            We recommend starting with puzzles slightly above your comfort zone. If you solve everything 
+            instantly, move up in difficulty. If you're constantly frustrated, step back to easier puzzles 
+            and build your pattern library. The sweet spot is puzzles that require genuine thought but 
+            remain solvable with focused effort — that's where the fastest learning happens.
           </p>
 
           <h3>Effective Puzzle Solving Technique</h3>
@@ -185,10 +186,11 @@ export default function ChessPuzzlesTrainer() {
           </p>
 
           <p>
-            After games, analyze your tactical moments. Did you find the combinations present? 
-            Did you miss opportunities? Connecting puzzle patterns to real game situations 
-            strengthens the transfer between training and performance. Our post-game analysis 
-            tools help identify missed tactics for further study.
+            After games, use our post-game Review tab to identify where you misjudged positions. 
+            The VSS Mismatch feature highlights moments where your evaluation differed significantly 
+            from reality — often tactical opportunities you missed or threats you overlooked. 
+            Connecting these insights to puzzle patterns strengthens the transfer between training 
+            and competitive performance.
           </p>
 
           <h3>Creating Your Own Puzzles</h3>
