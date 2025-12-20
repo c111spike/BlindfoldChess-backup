@@ -12,9 +12,9 @@ export default function OTBTournamentSimulator() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>OTB Tournament Simulator - Over the Board Chess Practice | SimulChess</title>
-        <meta name="description" content="Prepare for real tournaments with SimulChess. Master touch-move rules and manual clocks in our OTB Simulator. Build the habits you need to dominate the board!" />
+        <meta name="description" content="Bridge the gap between online and over-the-board play. Master touch-move, manual clock discipline, and FIDE-standard castling with the SimulChess OTB Tournament Simulator." />
         <meta property="og:title" content="OTB Tournament Simulator - SimulChess" />
-        <meta property="og:description" content="Prepare for real tournaments with SimulChess. Master touch-move rules and manual clocks in our OTB Simulator." />
+        <meta property="og:description" content="Bridge the gap between online and over-the-board play. Master touch-move, manual clock discipline, and FIDE-standard castling with the SimulChess OTB Tournament Simulator." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/otb-tournament-simulator" />
         <meta property="og:image" content="https://simulchess.com/og-otb.png" />
@@ -145,6 +145,13 @@ export default function OTBTournamentSimulator() {
             actual tournament experience.
           </p>
 
+          <p>
+            In standard OTB play, the first illegal move completed (by pressing the clock) usually results 
+            in <strong>two minutes added to the opponent's clock</strong>. A second illegal move results in an 
+            <strong>immediate loss</strong>. Our simulator helps you avoid these costly penalties by enforcing 
+            clean play and training you to verify your moves before committing.
+          </p>
+
           <h3>Proper OTB Etiquette</h3>
           <p>
             Tournament chess follows unwritten codes of conduct that new players often overlook. Our 
@@ -158,8 +165,10 @@ export default function OTBTournamentSimulator() {
             Beyond the handshake, good etiquette includes sitting quietly, avoiding distracting 
             behaviors, and treating your opponent with respect regardless of the game's outcome. 
             Keep your phone silenced and away from the board — many tournaments require phones to 
-            be stored outside the playing area entirely. These behaviors demonstrate professionalism 
-            and help you focus on the game rather than external distractions.
+            be stored outside the playing area entirely or switched completely off in a bag at the table. 
+            Even a phone vibrating can result in an <strong>immediate forfeit</strong> under 2025 FIDE and 
+            US Chess regulations. These behaviors demonstrate professionalism and help you focus on the 
+            game rather than external distractions.
           </p>
 
           <h3>Why OTB Skills Matter for Online Players</h3>
@@ -182,6 +191,15 @@ export default function OTBTournamentSimulator() {
             Pay attention to notation if your tournament requires it. While our simulator focuses on 
             physical play mechanics, the mental discipline of OTB play extends to recording moves 
             accurately. Consider practicing with a physical board and notation sheet alongside the simulator.
+          </p>
+
+          <h3>Pawn Promotion Mastery</h3>
+          <p>
+            In OTB chess, pawn promotion follows a specific sequence that online players often overlook. 
+            The move is not complete until the new piece replaces the pawn on the board <strong>and</strong> you 
+            press the clock. Our simulator mirrors this sequence, ensuring you don't accidentally leave a 
+            pawn on the 8th rank — a technical "illegal move" in real tournaments that can cost you time 
+            penalties or even the game.
           </p>
 
           <h3>Common OTB Mistakes to Avoid</h3>
