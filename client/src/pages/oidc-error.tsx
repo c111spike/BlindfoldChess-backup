@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 
 export default function OidcError() {
   const handleRetry = () => {
@@ -9,6 +10,9 @@ export default function OidcError() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">

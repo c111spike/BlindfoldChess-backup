@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -619,6 +620,9 @@ export default function AdminPage() {
 
   return (
     <div className="p-8 space-y-6">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="flex items-center gap-3">
         <Shield className="h-8 w-8 text-primary" />
         <div>

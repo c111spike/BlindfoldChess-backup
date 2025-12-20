@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -96,6 +97,9 @@ export default function Settings() {
 
   return (
     <div className="p-8 space-y-6">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div>
         <h1 className="text-4xl font-bold mb-2">Settings</h1>
         <p className="text-muted-foreground">Manage your account and preferences</p>

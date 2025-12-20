@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Helmet } from "react-helmet-async";
 import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -2606,6 +2607,9 @@ export default function OTBMode() {
 
   return (
     <div className="h-screen flex">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="flex-1 flex items-center justify-center p-4 bg-muted/30 overflow-auto">
         <div className="w-full max-w-2xl space-y-3">
           <div>

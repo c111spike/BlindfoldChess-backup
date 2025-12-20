@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -150,6 +151,9 @@ export default function RepertoireTrainer() {
 
   return (
     <div className="p-8 space-y-6">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Training</div>

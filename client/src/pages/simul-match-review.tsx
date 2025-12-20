@@ -1,4 +1,5 @@
 import { useParams, useLocation } from "wouter";
+import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -116,6 +117,9 @@ export default function SimulMatchReview() {
 
   return (
     <div className="container max-w-6xl mx-auto p-4">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Button

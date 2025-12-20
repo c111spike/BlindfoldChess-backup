@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Helmet } from "react-helmet-async";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Chess } from "chess.js";
 import { useLocation } from "wouter";
@@ -1244,6 +1245,9 @@ export default function SimulVsSimulMode() {
   
   return (
     <div className="h-full flex" data-testid="page-simul-vs-simul">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       {/* Main Content Area - LEFT */}
       <div className="flex-1 flex flex-col p-4 md:p-8 bg-muted/30 overflow-auto">
         {!gameStarted ? (

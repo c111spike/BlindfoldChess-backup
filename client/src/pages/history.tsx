@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,6 +46,9 @@ export default function History() {
 
   return (
     <div className="p-8 space-y-6">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold mb-2">Game History</h1>

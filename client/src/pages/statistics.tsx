@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,6 +75,9 @@ export default function StatisticsPage() {
 
   return (
     <div className="p-8 space-y-8">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div>
         <h1 className="text-4xl font-bold mb-2">Statistics</h1>
         <p className="text-muted-foreground">Track your progress across all training modes</p>

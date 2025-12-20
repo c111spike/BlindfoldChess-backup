@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { Helmet } from "react-helmet-async";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Chess } from "chess.js";
@@ -459,6 +460,9 @@ export default function PuzzleCreator() {
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-muted/30">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Create a Puzzle</h1>

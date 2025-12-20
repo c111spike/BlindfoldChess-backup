@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -617,6 +618,9 @@ export default function BoardSpin() {
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">

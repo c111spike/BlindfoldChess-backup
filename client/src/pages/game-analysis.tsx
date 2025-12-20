@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Helmet } from "react-helmet-async";
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Chess, Square } from 'chess.js';
@@ -2051,6 +2052,9 @@ export default function GameAnalysisPage() {
 
   return (
     <div className="container max-w-7xl mx-auto p-4">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           {simulMatchId ? (

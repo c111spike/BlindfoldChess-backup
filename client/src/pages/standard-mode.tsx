@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Helmet } from "react-helmet-async";
 import { Chess } from "chess.js";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -1505,6 +1506,9 @@ export default function StandardMode() {
 
   return (
     <div className="h-full md:h-screen flex flex-col md:flex-row overflow-auto md:overflow-hidden">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="flex-1 flex items-center justify-center p-4 md:p-8 bg-muted/30 md:overflow-auto">
         <div className="w-full max-w-3xl space-y-4 md:space-y-6">
           <div className="flex items-start justify-between gap-4">

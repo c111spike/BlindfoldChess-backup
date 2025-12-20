@@ -2,12 +2,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Home, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
+import { Helmet } from "react-helmet-async";
 
 export default function NotFound() {
   const [, setLocation] = useLocation();
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <Card className="w-full max-w-md mx-4">
         <CardContent className="pt-6 text-center">
           <div className="flex flex-col items-center gap-4">

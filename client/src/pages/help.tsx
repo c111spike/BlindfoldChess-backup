@@ -2,10 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { HelpCircle, Mail, MessageCircle } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
+import { Helmet } from "react-helmet-async";
 
 export default function Help() {
   return (
     <div className="min-h-full p-4 md:p-8">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader className="flex flex-row items-center gap-3">

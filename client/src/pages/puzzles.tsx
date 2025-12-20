@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -1319,6 +1320,9 @@ export default function Puzzles() {
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-muted/30">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>

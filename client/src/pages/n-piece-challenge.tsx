@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -411,6 +412,9 @@ export default function NPieceChallenge() {
   
   return (
     <div className="h-full flex">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="flex-1 flex items-center justify-center p-4 bg-muted/30 overflow-auto">
         <div className="w-full max-w-2xl space-y-4">
           <div>

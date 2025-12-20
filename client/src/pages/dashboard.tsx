@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,9 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 space-y-8">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="mb-8">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div className="flex-shrink-0">
