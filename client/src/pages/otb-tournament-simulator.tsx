@@ -145,6 +145,23 @@ export default function OTBTournamentSimulator() {
             actual tournament experience.
           </p>
 
+          <h3>Proper OTB Etiquette</h3>
+          <p>
+            Tournament chess follows unwritten codes of conduct that new players often overlook. Our 
+            simulator incorporates the pre-game handshake — a traditional gesture of sportsmanship 
+            before the first move. This simple ritual sets the tone for respectful competition and 
+            is expected at virtually every serious OTB event. Practicing this habit, even against 
+            a computer opponent, prepares you for the social customs of tournament play.
+          </p>
+
+          <p>
+            Beyond the handshake, good etiquette includes sitting quietly, avoiding distracting 
+            behaviors, and treating your opponent with respect regardless of the game's outcome. 
+            Keep your phone silenced and away from the board — many tournaments require phones to 
+            be stored outside the playing area entirely. These behaviors demonstrate professionalism 
+            and help you focus on the game rather than external distractions.
+          </p>
+
           <h3>Why OTB Skills Matter for Online Players</h3>
           <p>
             Even if you primarily play online, OTB skills translate to stronger overall play. The discipline 
