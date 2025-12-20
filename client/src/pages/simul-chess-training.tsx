@@ -12,9 +12,9 @@ export default function SimulChessTraining() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Simul Chess Training - Simultaneous Exhibition Practice | SimulChess</title>
-        <meta name="description" content="Master simultaneous chess exhibitions with our Simul vs Simul training mode. Practice managing multiple boards, time allocation, and multi-game strategy like a chess master." />
+        <meta name="description" content="Take on the ultimate multi-tasking challenge with SimulChess. Practice simultaneous exhibitions with our unique Simul vs Simul mode. Master time management and build elite pattern recognition today!" />
         <meta property="og:title" content="Simul Chess Training - SimulChess" />
-        <meta property="og:description" content="Train for simultaneous exhibitions. Manage multiple games at once and develop the skills needed to give chess simuls." />
+        <meta property="og:description" content="Take on the ultimate multi-tasking challenge with SimulChess. Practice simultaneous exhibitions with our unique Simul vs Simul mode." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/simul-chess-training" />
         <meta property="og:image" content="https://simulchess.com/og-simul.png" />
@@ -80,12 +80,11 @@ export default function SimulChessTraining() {
           </h2>
 
           <p>
-            Simultaneous chess exhibitions, or "simuls," represent one of the most impressive feats in chess. 
-            A single player walks around a room, making moves on dozens of boards against multiple opponents, 
-            demonstrating both chess mastery and remarkable mental stamina. While giving a traditional simul 
-            requires significant strength, our Simul vs Simul mode introduces a unique twist: all players 
-            manage multiple boards, creating an entirely new competitive format that trains skills impossible 
-            to develop in single-game play.
+            Take on the ultimate multi-tasking challenge with SimulChess. Our unique Simul vs Simul mode lets 
+            you practice simultaneous exhibitions while mastering time management and building elite pattern 
+            recognition. Unlike traditional simuls where one master faces many opponents, Simul vs Simul has 
+            all players managing multiple boards — creating an entirely new competitive format that trains 
+            skills impossible to develop in single-game play.
           </p>
 
           <h3>What Makes Simul Chess Special</h3>
