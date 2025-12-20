@@ -1212,9 +1212,16 @@ export default function OTBMode() {
     
     console.log('[OTB] Calculated thinking times:', thinkingTimes);
     
+    // For multiplayer games, let the match complete API set the result on BOTH games
+    // This prevents race condition where each player sets different results on their own game
+    const currentMatchId = matchIdRef.current;
+    const isMultiplayer = !!currentMatchId && !isBotGame;
+    
+    // Only set result directly for bot games - multiplayer games get result from completeMatch
     updateGameMutation.mutate({
       status: "completed",
-      result,
+      // CRITICAL: Don't set result for multiplayer - let completeMatch handle it atomically
+      ...(isMultiplayer ? {} : { result }),
       completedAt: new Date(),
       fen,
       moves: sanMoves,
@@ -1225,8 +1232,7 @@ export default function OTBMode() {
     });
 
     // For multiplayer games, call match complete API to notify both players
-    // Then refetch ratings and calculate change
-    const currentMatchId = matchIdRef.current;
+    // This API atomically sets the SAME result on BOTH players' games
     if (currentMatchId) {
       apiRequest("POST", `/api/matches/${currentMatchId}/complete`, { result })
         .then(async () => {
@@ -1289,7 +1295,7 @@ export default function OTBMode() {
     // Keep board visible by setting gameResult instead of immediately hiding
     setGameResult(result);
     setPendingCheckmate(null);
-  }, [boardState, activeColor, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast, timeControl, initialPlayerRating]);
+  }, [boardState, activeColor, updateGameMutation, moves, whiteTime, blackTime, clockPresses, toast, timeControl, initialPlayerRating, isBotGame]);
 
   // Keep ref updated with latest handleGameEnd
   useEffect(() => {
