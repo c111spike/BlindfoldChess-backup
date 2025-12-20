@@ -4362,6 +4362,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const player2RatingsData = await storage.getRating(match.player2.userId);
             const player1FreshRating = (player1RatingsData as any)?.[timeControl] || 1200;
             const player2FreshRating = (player2RatingsData as any)?.[timeControl] || 1200;
+            console.log(`[DEBUG] [Ratings] timeControl=${timeControl}, player1=${match.player1.userId} rating=${player1FreshRating}, player2=${match.player2.userId} rating=${player2FreshRating}`);
+            console.log(`[DEBUG] [Ratings] player1RatingsData:`, player1RatingsData);
+            console.log(`[DEBUG] [Ratings] player2RatingsData:`, player2RatingsData);
 
             if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
               player1Ws.send(JSON.stringify({
