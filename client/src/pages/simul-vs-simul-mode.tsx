@@ -4,7 +4,8 @@ import { Chess } from "chess.js";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Label } from "@/components/ui/label";
 import { ChessBoard } from "@/components/chess-board";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -779,6 +780,36 @@ export default function SimulVsSimulMode() {
     },
   });
   
+  // Settings mutations for voice options with optimistic updates
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (settings: Record<string, any>) => {
+      const response = await apiRequest("PATCH", "/api/settings", settings);
+      return response.json();
+    },
+    onMutate: async (newSettings) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/settings"] });
+      const previousSettings = queryClient.getQueryData(["/api/settings"]);
+      queryClient.setQueryData(["/api/settings"], (old: any) => ({
+        ...old,
+        ...newSettings,
+      }));
+      return { previousSettings };
+    },
+    onError: (err, newSettings, context) => {
+      if (context?.previousSettings) {
+        queryClient.setQueryData(["/api/settings"], context.previousSettings);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to save setting",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+    },
+  });
+  
   const startQueuePolling = () => {
     if (queuePollRef.current) {
       clearInterval(queuePollRef.current);
@@ -1233,6 +1264,60 @@ export default function SimulVsSimulMode() {
                       <span className="text-muted-foreground">(6 players)</span>
                     </div>
                   </div>
+                  
+                  <div className="space-y-3 pt-2 border-t">
+                    <h4 className="font-semibold text-sm">Voice Settings</h4>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="voice-announcements" className="text-sm cursor-pointer">
+                          Voice Announcements
+                        </Label>
+                        <p className="text-xs text-muted-foreground">Hear moves spoken aloud</p>
+                      </div>
+                      <Switch
+                        id="voice-announcements"
+                        checked={userSettings?.voiceOutputEnabled || false}
+                        onCheckedChange={(checked) => updateSettingsMutation.mutate({ voiceOutputEnabled: checked })}
+                        disabled={updateSettingsMutation.isPending}
+                        data-testid="switch-voice-output"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="voice-commands" className="text-sm cursor-pointer">
+                          Voice Commands
+                        </Label>
+                        <p className="text-xs text-muted-foreground">Speak your moves instead of clicking</p>
+                      </div>
+                      <Switch
+                        id="voice-commands"
+                        checked={userSettings?.voiceInputEnabled || false}
+                        onCheckedChange={(checked) => updateSettingsMutation.mutate({ voiceInputEnabled: checked })}
+                        disabled={updateSettingsMutation.isPending}
+                        data-testid="switch-voice-input"
+                      />
+                    </div>
+                    
+                    {userSettings?.voiceOutputEnabled && (
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label htmlFor="sync-audio-setup" className="text-sm cursor-pointer flex items-center gap-2">
+                            <Volume2 className="h-4 w-4" />
+                            Sync Audio to Current Board
+                          </Label>
+                          <p className="text-xs text-muted-foreground">Only announce moves for the board you're viewing</p>
+                        </div>
+                        <Switch
+                          id="sync-audio-setup"
+                          checked={syncAudioToBoard}
+                          onCheckedChange={setSyncAudioToBoard}
+                          data-testid="switch-sync-audio"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
                   <div className="p-4 bg-muted rounded-lg space-y-2">
                     <h4 className="font-semibold text-sm">How It Works</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
@@ -1314,20 +1399,6 @@ export default function SimulVsSimulMode() {
                   <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400" data-testid="voice-listening-indicator">
                     <Mic className="h-3 w-3 animate-pulse" />
                     <span>Listening{voiceTranscript ? `: "${voiceTranscript}"` : "..."}</span>
-                  </div>
-                )}
-                {userSettings?.voiceOutputEnabled && (
-                  <div className="flex items-center gap-2" data-testid="sync-audio-toggle">
-                    <Volume2 className="h-4 w-4 text-muted-foreground" />
-                    <label className="text-xs text-muted-foreground cursor-pointer" htmlFor="sync-audio">
-                      Sync
-                    </label>
-                    <Switch
-                      id="sync-audio"
-                      checked={syncAudioToBoard}
-                      onCheckedChange={setSyncAudioToBoard}
-                      className="scale-75"
-                    />
                   </div>
                 )}
               </div>
