@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -32,6 +32,7 @@ import RepertoireTrainer from "@/pages/repertoire-trainer";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
 import Help from "@/pages/help";
+import OidcError from "@/pages/oidc-error";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -74,6 +75,7 @@ function Router() {
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",
@@ -81,12 +83,19 @@ function AppContent() {
   };
 
   const isUsingTestUser = isDevelopment && !!getTestUserId();
+  const isOidcErrorPage = location === "/oidc-error";
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !isUsingTestUser) {
+    // Don't redirect if we're on the OIDC error page
+    if (!isLoading && !isAuthenticated && !isUsingTestUser && !isOidcErrorPage) {
       window.location.href = "/api/login";
     }
-  }, [isLoading, isAuthenticated, isUsingTestUser]);
+  }, [isLoading, isAuthenticated, isUsingTestUser, isOidcErrorPage]);
+
+  // Handle OIDC error page - accessible without auth
+  if (isOidcErrorPage) {
+    return <OidcError />;
+  }
 
   if (isLoading) {
     return <div className="h-screen bg-background" />;
