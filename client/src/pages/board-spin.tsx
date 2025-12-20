@@ -461,11 +461,11 @@ export default function BoardSpin() {
       <motion.div 
         className="relative aspect-square w-full max-w-[400px]"
         style={{ 
-          transform: `rotate(${rotation}deg)`,
           transformOrigin: 'center center',
         }}
+        initial={{ rotate: rotation }}
         animate={{ rotate: rotation }}
-        transition={{ duration: 0.1 }}
+        transition={{ duration: 0 }}
       >
         <div className="grid grid-cols-8 gap-0 border-2 border-border rounded-md overflow-hidden">
           {ranks.map((rank, rankIdx) => (
