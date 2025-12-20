@@ -649,9 +649,11 @@ export const positionCache = pgTable("position_cache", {
   hitCount: integer("hit_count").default(0), // How many times this cache was used
   createdAt: timestamp("created_at").defaultNow(),
   lastHitAt: timestamp("last_hit_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // TTL for cache cleanup (30 days from creation)
 }, (table) => ({
   fenHashIdx: index("position_cache_fen_hash_idx").on(table.fenHash),
   hitCountIdx: index("position_cache_hit_count_idx").on(table.hitCount),
+  expiresAtIdx: index("position_cache_expires_at_idx").on(table.expiresAt),
 }));
 
 // Analysis Metrics table - tracks performance metrics for scaling decisions
