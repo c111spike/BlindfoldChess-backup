@@ -101,7 +101,9 @@ export default function SimulChessTraining() {
             Our Simul vs Simul format elevates this challenge further. When all players manage multiple 
             boards, the cognitive demands multiply. You must not only remember your positions but also 
             track your opponent's activity across games, making strategic decisions about which boards 
-            to prioritize and when to play for quick wins versus solid draws.
+            to prioritize and when to play for quick wins versus solid draws. Our auto-switcher feature 
+            keeps the action flowing — as soon as you make a move, the system automatically switches 
+            to the next board awaiting your attention.
           </p>
 
           <h3>Cognitive Benefits of Multi-Board Play</h3>
@@ -124,8 +126,9 @@ export default function SimulChessTraining() {
             Our Simul vs Simul mode uses a 30-second per-move timer for each board. The timer only 
             starts when you navigate to that specific board — giving you time to assess the position 
             before your clock begins. Once you're viewing a board where it's your turn, you have 30 
-            seconds to make your move. This creates intense pressure to maintain situational awareness 
-            and make efficient decisions while managing your attention across multiple games.
+            seconds to make your move. After you move, the auto-switcher immediately takes you to the 
+            next board and a fresh 30-second timer begins. This seamless flow keeps the pressure on 
+            while eliminating manual board navigation.
           </p>
 
           <p>
