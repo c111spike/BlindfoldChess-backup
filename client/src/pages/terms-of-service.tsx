@@ -113,16 +113,26 @@ export default function TermsOfService() {
                 </section>
 
                 <section>
-                  <h2 className="text-xl font-semibold mb-3">Free Service and Advertising</h2>
+                  <h2 className="text-xl font-semibold mb-3" data-testid="text-terms-advertising-heading">Free Service and Advertising</h2>
+                  <p className="text-muted-foreground leading-relaxed mb-3">
+                    SimulChess is provided free of charge. The platform is supported by advertising. By using our service, you agree to view advertisements as part of your experience. We strive to ensure ads are non-intrusive and do not interfere with gameplay.
+                  </p>
                   <p className="text-muted-foreground leading-relaxed">
-                    SimulChess is provided free of charge. The platform is supported by advertising. By using our service, you agree to view advertisements as part of your experience. We strive to ensure ads are non-intrusive and do not interfere with gameplay. A membership option may be offered in the future to remove advertisements.
+                    Our advertising partners may use cookies to serve personalized ads. Please refer to our{" "}
+                    <a href="/privacy" className="text-primary hover:underline" data-testid="link-privacy-from-terms">
+                      Privacy Policy
+                    </a>{" "}
+                    for details on how your data is used and how you can manage your advertising preferences.
                   </p>
                 </section>
 
                 <section>
-                  <h2 className="text-xl font-semibold mb-3">Disclaimer of Warranties</h2>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <h2 className="text-xl font-semibold mb-3" data-testid="text-terms-disclaimer-heading">Disclaimer of Warranties</h2>
+                  <p className="text-muted-foreground leading-relaxed mb-3">
                     SimulChess is provided "as is" and "as available" without warranties of any kind, either express or implied. We do not guarantee that the service will be uninterrupted, secure, or error-free. Your use of the platform is at your own risk.
+                  </p>
+                  <p className="text-muted-foreground leading-relaxed">
+                    We are not responsible for the content, products, or services of third-party advertisements displayed on the platform.
                   </p>
                 </section>
 
@@ -155,9 +165,13 @@ export default function TermsOfService() {
                 </section>
 
                 <section>
-                  <h2 className="text-xl font-semibold mb-3">Contact</h2>
+                  <h2 className="text-xl font-semibold mb-3" data-testid="text-terms-contact-heading">Contact</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    If you have questions about these Terms of Service, please contact us through the platform or visit our support channels.
+                    If you have questions about these Terms of Service, please contact us at{" "}
+                    <a href="mailto:simulchess.com@gmail.com" className="text-primary hover:underline" data-testid="link-email-terms">
+                      simulchess.com@gmail.com
+                    </a>
+                    .
                   </p>
                 </section>
               </div>
