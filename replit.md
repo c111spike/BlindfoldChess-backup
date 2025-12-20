@@ -144,16 +144,14 @@ The platform uses a hybrid client-side + server-side Stockfish architecture for 
 **Server-Side Stockfish (Secondary)**:
 Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueueManager.ts`, with adaptive scaling (2M nodes per position, adaptive to 1M under load), PostgreSQL caching, and performance monitoring via an Admin Performance Dashboard.
 
-**Redis Caching** (Active):
-- Upstash Redis caching is live with 30-day TTL for position evaluations
-- All 404 historical positions migrated from PostgreSQL to Redis
-- Sub-millisecond lookups (vs 10-50ms PostgreSQL), automatic TTL expiration
-- Fallback to PostgreSQL if Redis unavailable (graceful degradation)
-- Files: server/redisCache.ts, server/analysisQueueManager.ts, server/migrations/migrate-to-redis.ts
+**PostgreSQL Position Cache**:
+- Position evaluations cached in `position_cache` table with 30-day TTL via `expiresAt` column
+- Automatic TTL extension on cache hits (positions stay cached as long as they're used)
+- Files: `server/analysisQueueManager.ts`, `shared/schema.ts`
 
 **Scaling Capacity**:
 - Client-side analysis: Unlimited concurrent users (no server load)
-- Server-side with Redis: 100-1000 concurrent users with cache hits
+- Server-side with PostgreSQL cache: Efficient caching with indexed lookups
 - Monitor Admin Performance tab for cache hit rates and response times
 
 **Future Optimization (not yet implemented)**:
@@ -164,7 +162,6 @@ Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueu
 - Cuts Stockfish workload by ~25-40% (most analyzed positions are openings)
 - **For Analysis**: Instant opening evaluations, shows "masters played this"
 - **For Bots**: Access millions of master games; personality affects line choice (aggressive → sharp lines, defensive → solid lines)
-- Cache results in Redis for reuse
 
 **Syzygy Endgame Tablebases**:
 - 5-piece: ~1GB storage, covers most practical endgames
@@ -181,15 +178,9 @@ Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueu
 ```
 
 **Implementation Order**:
-1. Redis caching (prerequisite for all optimizations)
-2. Lichess Opening API (easy, free, big impact)
-3. 5-piece Syzygy tablebases (1GB, one-time setup)
-4. Optional: 6-piece Syzygy via remote API
-
-**Redis Configuration Notes**:
-- Environment variables: `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Replit Secrets
-- Auto-swap logic handles if URL/TOKEN values are accidentally swapped in the secrets UI
-- To disable Redis temporarily: remove the environment variables (PostgreSQL fallback activates automatically)
+1. Lichess Opening API (easy, free, big impact)
+2. 5-piece Syzygy tablebases (1GB, one-time setup)
+3. Optional: 6-piece Syzygy via remote API
 
 ### Engagement Features
 - **This Day in Chess History**: Displays historical chess facts.
