@@ -12,9 +12,9 @@ export default function OTBTournamentSimulator() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>OTB Tournament Simulator - Over the Board Chess Practice | SimulChess</title>
-        <meta name="description" content="Practice over-the-board chess with realistic tournament conditions. Master touch-move rules, physical clock mechanics, and proper OTB etiquette before your next tournament." />
+        <meta name="description" content="Prepare for real tournaments with SimulChess. Master touch-move rules and manual clocks in our OTB Simulator. Build the habits you need to dominate the board!" />
         <meta property="og:title" content="OTB Tournament Simulator - SimulChess" />
-        <meta property="og:description" content="Prepare for real chess tournaments with our OTB simulator. Practice touch-move, clock handling, and tournament etiquette." />
+        <meta property="og:description" content="Prepare for real tournaments with SimulChess. Master touch-move rules and manual clocks in our OTB Simulator." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/otb-tournament-simulator" />
         <meta property="og:image" content="https://simulchess.com/og-otb.png" />
@@ -80,11 +80,11 @@ export default function OTBTournamentSimulator() {
           </h2>
 
           <p>
-            Over-the-board (OTB) chess is a fundamentally different experience from online play. The physical 
-            presence of your opponent, the tactile sensation of moving pieces, the ritual of pressing the clock — 
-            these elements create a unique competitive environment that catches many online players off guard. 
-            Our OTB Tournament Simulator bridges this gap, helping you develop the habits and skills needed 
-            for real tournament success.
+            Prepare for real tournaments with SimulChess's OTB Simulator. Master touch-move rules and manual 
+            clocks while building the habits you need to dominate the board. The physical presence of your 
+            opponent, the tactile sensation of moving pieces, the ritual of pressing the clock — these elements 
+            create a unique competitive environment that catches many online players off guard. Our simulator 
+            bridges this gap, developing the skills needed for tournament success.
           </p>
 
           <h3>The Critical Difference: Touch-Move Rule</h3>
