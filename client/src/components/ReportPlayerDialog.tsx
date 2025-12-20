@@ -48,14 +48,11 @@ export function ReportPlayerDialog({
 
   const reportMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("/api/cheat-reports", {
-        method: "POST",
-        body: JSON.stringify({
-          reportedUserId,
-          gameId,
-          reason,
-          details: details.trim() || null,
-        }),
+      return apiRequest("POST", "/api/cheat-reports", {
+        reportedUserId,
+        gameId,
+        reason,
+        details: details.trim() || null,
       });
     },
     onSuccess: () => {

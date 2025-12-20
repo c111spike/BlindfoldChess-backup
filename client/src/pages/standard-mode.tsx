@@ -517,7 +517,9 @@ export default function StandardMode() {
       setOpponentId(computedOpponentId || null);
       setPlayerName(`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'You');
       
-      const tcMinutes = parseInt(matchData.timeControl) || 3;
+      // Handle named time controls ('blitz', 'rapid') or numeric strings ('5', '15')
+      const timeControlMap: Record<string, number> = { bullet: 1, blitz: 5, rapid: 15, classical: 30 };
+      const tcMinutes = timeControlMap[matchData.timeControl] || parseInt(matchData.timeControl) || 5;
       const tcSeconds = tcMinutes * 60;
       setTimeControl(tcSeconds);
       
@@ -2313,6 +2315,7 @@ export default function StandardMode() {
                 setShowRematchDialog(false);
                 setShowGameEndDialog(false);
                 resetGameState();
+                setLocation('/');
               }}
               disabled={waitingForRematchResponse}
               data-testid="button-rematch-main-menu"
@@ -2349,6 +2352,7 @@ export default function StandardMode() {
                 onClick={() => {
                   setShowGameEndDialog(false);
                   resetGameState();
+                  setLocation('/');
                 }}
                 data-testid="button-main-menu"
               >
