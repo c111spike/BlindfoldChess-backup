@@ -12,9 +12,9 @@ export default function SimulChessTraining() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Simul Chess Training - Simultaneous Exhibition Practice | SimulChess</title>
-        <meta name="description" content="Take on the ultimate multi-tasking challenge with SimulChess. Practice simultaneous exhibitions with our unique Simul vs Simul mode. Master time management and build elite pattern recognition today!" />
+        <meta name="description" content="Master the art of multi-board chess with SimulChess. Train in unique Simul vs Simul modes, build elite pattern recognition through 'chunking,' and track your progress with specialized Simul ELO." />
         <meta property="og:title" content="Simul Chess Training - SimulChess" />
-        <meta property="og:description" content="Take on the ultimate multi-tasking challenge with SimulChess. Practice simultaneous exhibitions with our unique Simul vs Simul mode." />
+        <meta property="og:description" content="Master the art of multi-board chess with SimulChess. Train in unique Simul vs Simul modes, build elite pattern recognition through 'chunking,' and track your progress with specialized Simul ELO." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/simul-chess-training" />
         <meta property="og:image" content="https://simulchess.com/og-simul.png" />
@@ -89,6 +89,13 @@ export default function SimulChessTraining() {
 
           <h3>What Makes Simul Chess Special</h3>
           <p>
+            Simultaneous chess has a legendary history, from Paul Morphy's blindfold simuls to the 2011 
+            world record set by GM Ehsan Ghaem Maghami, who played <strong>604 boards simultaneously 
+            over 25 hours</strong>. While our training starts at 5 boards, it builds the same foundational 
+            endurance used by record-breakers.
+          </p>
+
+          <p>
             In a simultaneous exhibition, the simul giver must maintain awareness of multiple positions 
             while making quick, accurate decisions at each board. There's no time for deep calculation on 
             any single game — instead, pattern recognition and positional understanding must guide rapid 
@@ -138,6 +145,14 @@ export default function SimulChessTraining() {
             essential for developing your personal strategy.
           </p>
 
+          <p>
+            <strong>Combatting Decision Fatigue:</strong> In a 5-board simul, you will make hundreds of 
+            decisions in a short window. Successful trainers use the "First Best Move" principle: if a 
+            move looks solid and safe, play it instantly to save your mental energy for the critical 
+            tactical boards. Overthinking routine positions drains the cognitive resources you need 
+            when complications arise.
+          </p>
+
           <h3>Strategic Considerations in Simul Play</h3>
           <p>
             Multi-board chess introduces strategic elements that don't exist in single-game play. 
@@ -154,12 +169,14 @@ export default function SimulChessTraining() {
             and which can wait.
           </p>
 
-          <h3>Building Pattern Recognition</h3>
+          <h3>Building Pattern Recognition Through Chunking</h3>
           <p>
             Perhaps the greatest benefit of simul training is accelerated pattern recognition development. 
-            When you can't calculate deeply, you must rely on positional patterns and tactical motifs 
-            you've internalized. This forces pattern-based thinking rather than pure calculation, building 
-            the intuitive understanding that characterizes strong players.
+            Cognitive scientists call this <strong>"Chunking"</strong> — the ability to group individual 
+            pieces into meaningful clusters. By training with 5 boards at once, you force your brain to 
+            stop "reading" move-by-move and start "recognizing" entire structures instantly. When you 
+            can't calculate deeply, you must rely on positional patterns and tactical motifs you've 
+            internalized, building the intuitive understanding that characterizes strong players.
           </p>
 
           <p>

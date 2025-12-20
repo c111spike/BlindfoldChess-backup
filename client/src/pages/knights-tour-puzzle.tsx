@@ -12,9 +12,9 @@ export default function KnightsTourPuzzle() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Knight's Tour Puzzle - Chess Brain Training | SimulChess</title>
-        <meta name="description" content="Take on the classic Knight's Tour challenge at SimulChess. Improve your visualization with Warnsdorff's Rule and master knight movement today!" />
+        <meta name="description" content="Conquer the Knight's Tour on SimulChess. Master Warnsdorff's Rule, build deep visualization skills, and explore the mathematics behind one of history's most famous chess puzzles." />
         <meta property="og:title" content="Knight's Tour Puzzle - SimulChess" />
-        <meta property="og:description" content="Take on the classic Knight's Tour challenge at SimulChess. Improve your visualization with Warnsdorff's Rule and master knight movement." />
+        <meta property="og:description" content="Conquer the Knight's Tour on SimulChess. Master Warnsdorff's Rule, build deep visualization skills, and explore the mathematics behind one of history's most famous chess puzzles." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/knights-tour-puzzle" />
         <meta property="og:image" content="https://simulchess.com/og-knights-tour.png" />
@@ -98,9 +98,10 @@ export default function KnightsTourPuzzle() {
           <p>
             The puzzle's longevity reflects its perfect combination of accessibility and depth. Anyone 
             who knows how a knight moves can attempt the tour, yet finding solutions requires genuine 
-            mental effort. There are approximately 26 trillion possible knight's tours on a standard 
-            8×8 board, but reaching even one requires navigating countless dead ends where no legal 
-            move leads to an unvisited square.
+            mental effort. While the exact number of open tours remains a subject of mathematical debate, 
+            there are exactly <strong>13,267,364,410,532 (over 13 trillion) geometrically distinct closed 
+            tours</strong> on a standard 8×8 board. This astronomical number highlights the puzzle's depth — 
+            though solutions are plentiful, the "dead-end" paths are exponentially more common.
           </p>
 
           <h3>Why Chess Players Should Practice the Knight's Tour</h3>
@@ -145,6 +146,15 @@ export default function KnightsTourPuzzle() {
           </p>
 
           <p>
+            While Warnsdorff's Rule is a powerful heuristic, it is not 100% guaranteed on every 
+            starting square. Computer simulations show that on an 8×8 board, following the rule 
+            strictly without intelligent tie-breaking (choosing between squares with the same move 
+            count) leads to a successful tour in about <strong>80-90% of cases</strong>. For the 
+            final 10-20%, a player must rely on intuition and backtracking — which is where true 
+            mastery develops.
+          </p>
+
+          <p>
             Corner and edge squares deserve special attention because they have fewer accessible 
             squares (2-4) compared to central squares (8). Experienced solvers develop patterns for 
             handling the board's edges efficiently, often visiting corner regions early before moving 
@@ -172,6 +182,14 @@ export default function KnightsTourPuzzle() {
             Finding closed tours requires additional planning beyond simply completing all squares. 
             If you can consistently produce closed tours on even-numbered boards, you've developed 
             exceptional knight visualization skills.
+          </p>
+
+          <p>
+            <strong>The Parity Rule:</strong> On boards with an odd number of squares (like 5×5), 
+            the knight must start and end on the same color square as the corners. This is because 
+            there is one more square of that color than the other. If you start on the wrong color, 
+            a full tour is <strong>mathematically impossible</strong>! Understanding this rule saves 
+            frustration and demonstrates the deep mathematical structure underlying the puzzle.
           </p>
 
           <h3>Variations and Advanced Challenges</h3>
