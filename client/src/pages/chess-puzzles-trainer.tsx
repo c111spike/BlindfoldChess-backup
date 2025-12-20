@@ -12,9 +12,9 @@ export default function ChessPuzzlesTrainer() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Chess Puzzles Trainer - Tactical Training | SimulChess</title>
-        <meta name="description" content="Sharpen your chess tactics with our puzzle trainer. Solve community-created puzzles at various difficulty levels and improve your pattern recognition. Create and share your own puzzles." />
+        <meta name="description" content="Master chess tactics with SimulChess. Solve a huge variety of community-rated puzzles, from beginner forks to master combinations. Start your training now!" />
         <meta property="og:title" content="Chess Puzzles Trainer - SimulChess" />
-        <meta property="og:description" content="Daily chess puzzles for tactical improvement. Create, share, and solve puzzles with the SimulChess community." />
+        <meta property="og:description" content="Master chess tactics with SimulChess. Solve a huge variety of community-rated puzzles, from beginner forks to master combinations." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/chess-puzzles-trainer" />
         <meta property="og:image" content="https://simulchess.com/og-puzzles.png" />
@@ -80,11 +80,11 @@ export default function ChessPuzzlesTrainer() {
           </h2>
 
           <p>
-            Chess puzzles are the single most efficient way to improve your tactical ability. Each 
-            puzzle presents a position with a winning combination, challenging you to find the key 
-            moves that deliver checkmate, win material, or achieve a decisive advantage. Regular 
-            puzzle training builds the pattern recognition that separates strong players from weaker 
-            ones, allowing you to spot tactical opportunities in your own games almost instantly.
+            Master chess tactics with SimulChess. Solve a huge variety of community-rated puzzles, 
+            from beginner forks to master combinations. Each puzzle presents a position with a winning 
+            combination, challenging you to find the key moves that deliver checkmate, win material, 
+            or achieve a decisive advantage. Regular puzzle training builds the pattern recognition 
+            that separates strong players from weaker ones.
           </p>
 
           <h3>Why Puzzles Work</h3>
