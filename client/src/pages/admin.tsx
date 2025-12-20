@@ -41,6 +41,7 @@ import {
 import { ChessBoard } from "@/components/chess-board";
 import { Chess } from "chess.js";
 import { Input } from "@/components/ui/input";
+import { clientStockfish, TopMoveResult } from "@/lib/stockfish";
 import type { User, Puzzle, CheatReport, UserAntiCheat, PuzzleReport } from "@shared/schema";
 import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -369,6 +370,11 @@ export default function AdminPage() {
   const [gameViewerOpen, setGameViewerOpen] = useState(false);
   const [viewingGame, setViewingGame] = useState<any>(null);
   const [gameMoveIndex, setGameMoveIndex] = useState(0);
+  
+  // Engine analysis state for cheat detection
+  const [engineAnalysis, setEngineAnalysis] = useState<Map<number, TopMoveResult[]>>(new Map());
+  const [isAnalyzingPosition, setIsAnalyzingPosition] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState<{current: number; total: number} | null>(null);
 
   const isAdmin = user?.isAdmin === true;
 
@@ -947,13 +953,19 @@ export default function AdminPage() {
             </div>
           )}
           
-          {/* Game Viewer Dialog */}
-          <Dialog open={gameViewerOpen} onOpenChange={setGameViewerOpen}>
-            <DialogContent className="max-w-4xl">
+          {/* Game Viewer Dialog with Engine Analysis */}
+          <Dialog open={gameViewerOpen} onOpenChange={(open) => {
+            setGameViewerOpen(open);
+            if (!open) {
+              setEngineAnalysis(new Map());
+              setAnalysisProgress(null);
+            }
+          }}>
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Game Review</DialogTitle>
+                <DialogTitle>Game Review - Anti-Cheat Analysis</DialogTitle>
                 <DialogDescription>
-                  Review the moves to investigate cheating suspicion
+                  Review moves with engine analysis to investigate cheating suspicion
                 </DialogDescription>
               </DialogHeader>
               {viewingGame && (
@@ -969,22 +981,293 @@ export default function AdminPage() {
                     </div>
                   </div>
                   
-                  <div className="flex justify-center">
-                    <div className="w-80 h-80">
-                      <ChessBoard 
-                        fen={(() => {
+                  {/* Analyze Game Button */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={async () => {
+                        if (isAnalyzingPosition) return;
+                        setIsAnalyzingPosition(true);
+                        const moves = viewingGame.game?.moves || [];
+                        const totalMoves = moves.length;
+                        setAnalysisProgress({ current: 0, total: totalMoves });
+                        
+                        try {
+                          await clientStockfish.init();
+                          const newAnalysis = new Map<number, TopMoveResult[]>();
+                          
                           const chess = new Chess();
-                          const moves = viewingGame.game?.moves || [];
-                          for (let i = 0; i < gameMoveIndex && i < moves.length; i++) {
+                          for (let i = 0; i < totalMoves; i++) {
+                            setAnalysisProgress({ current: i + 1, total: totalMoves });
+                            const fen = chess.fen();
+                            
+                            try {
+                              const topMoves = await clientStockfish.getTopMoves(fen, 3, 500000);
+                              newAnalysis.set(i, topMoves);
+                            } catch (e) {
+                              console.warn('Failed to analyze position', i, e);
+                            }
+                            
                             try {
                               chess.move(moves[i]);
                             } catch {}
                           }
-                          return chess.fen();
-                        })()}
-                        onMove={() => false}
-                        perspective="white"
-                      />
+                          
+                          setEngineAnalysis(newAnalysis);
+                        } catch (error) {
+                          toast({ title: "Analysis Error", description: "Failed to run engine analysis", variant: "destructive" });
+                        } finally {
+                          setIsAnalyzingPosition(false);
+                          setAnalysisProgress(null);
+                        }
+                      }}
+                      disabled={isAnalyzingPosition}
+                      data-testid="button-analyze-game"
+                    >
+                      {isAnalyzingPosition ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Analyzing {analysisProgress?.current}/{analysisProgress?.total}...
+                        </>
+                      ) : (
+                        <>
+                          <Cpu className="h-4 w-4 mr-2" />
+                          Analyze with Stockfish
+                        </>
+                      )}
+                    </Button>
+                    
+                    {engineAnalysis.size > 0 && (
+                      <Badge variant="secondary">
+                        {engineAnalysis.size} positions analyzed
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {/* Summary Statistics */}
+                  {engineAnalysis.size > 0 && (() => {
+                    const moves = viewingGame.game?.moves || [];
+                    const thinkingTimes = viewingGame.game?.thinkingTimes || [];
+                    
+                    // Separate counters for engine analysis vs total moves
+                    let whiteTop1 = 0, whiteTop3 = 0, whiteAnalyzedMoves = 0;
+                    let blackTop1 = 0, blackTop3 = 0, blackAnalyzedMoves = 0;
+                    let whiteTotalTime = 0, blackTotalTime = 0;
+                    let skippedPositions = 0;
+                    
+                    // Total move counts
+                    const totalMoves = moves.length;
+                    const whiteTotalMoves = Math.ceil(totalMoves / 2);
+                    const blackTotalMoves = Math.floor(totalMoves / 2);
+                    
+                    const chess = new Chess();
+                    for (let i = 0; i < moves.length; i++) {
+                      const topMoves = engineAnalysis.get(i);
+                      const playerMove = moves[i];
+                      const thinkTime = thinkingTimes[i] || 0;
+                      const isWhite = i % 2 === 0;
+                      
+                      // Accumulate time stats for ALL moves
+                      if (isWhite) {
+                        whiteTotalTime += thinkTime;
+                      } else {
+                        blackTotalTime += thinkTime;
+                      }
+                      
+                      // Always advance board state for accurate subsequent evaluations
+                      let moveObj = null;
+                      try {
+                        moveObj = chess.move(playerMove);
+                      } catch {}
+                      
+                      // Calculate engine match stats only when we have analysis
+                      if (topMoves && topMoves.length > 0 && moveObj) {
+                        const uciMove = moveObj.from + moveObj.to + (moveObj.promotion || '');
+                        const matchIndex = topMoves.findIndex(tm => tm.move === uciMove);
+                        
+                        if (isWhite) {
+                          whiteAnalyzedMoves++;
+                          if (matchIndex === 0) whiteTop1++;
+                          if (matchIndex >= 0 && matchIndex < 3) whiteTop3++;
+                        } else {
+                          blackAnalyzedMoves++;
+                          if (matchIndex === 0) blackTop1++;
+                          if (matchIndex >= 0 && matchIndex < 3) blackTop3++;
+                        }
+                      } else if (!topMoves || topMoves.length === 0) {
+                        skippedPositions++;
+                      }
+                    }
+                    
+                    // Engine match percentages based on analyzed moves only
+                    const whiteTop1Pct = whiteAnalyzedMoves > 0 ? Math.round((whiteTop1 / whiteAnalyzedMoves) * 100) : 0;
+                    const whiteTop3Pct = whiteAnalyzedMoves > 0 ? Math.round((whiteTop3 / whiteAnalyzedMoves) * 100) : 0;
+                    const blackTop1Pct = blackAnalyzedMoves > 0 ? Math.round((blackTop1 / blackAnalyzedMoves) * 100) : 0;
+                    const blackTop3Pct = blackAnalyzedMoves > 0 ? Math.round((blackTop3 / blackAnalyzedMoves) * 100) : 0;
+                    
+                    // Average time based on ALL moves (not just analyzed)
+                    const whiteAvgTime = whiteTotalMoves > 0 ? Math.round(whiteTotalTime / whiteTotalMoves) : 0;
+                    const blackAvgTime = blackTotalMoves > 0 ? Math.round(blackTotalTime / blackTotalMoves) : 0;
+                    
+                    return (
+                      <div className="space-y-3">
+                        {skippedPositions > 0 && (
+                          <div className="flex items-center gap-2 p-2 bg-yellow-500/20 border border-yellow-500/50 rounded text-sm">
+                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                            <span>{skippedPositions} of {totalMoves} positions could not be analyzed (engine timeout)</span>
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground">
+                          Analysis based on {whiteAnalyzedMoves + blackAnalyzedMoves} of {totalMoves} moves with engine data
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                          <div className="space-y-2">
+                            <p className="font-semibold text-sm">White Analysis</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="p-2 bg-background rounded">
+                                <span className="text-muted-foreground">Top 1 Match:</span>
+                                <span className={`ml-1 font-bold ${whiteTop1Pct > 70 ? 'text-red-500' : ''}`}>
+                                  {whiteTop1Pct}%
+                                </span>
+                              </div>
+                              <div className="p-2 bg-background rounded">
+                                <span className="text-muted-foreground">Top 3 Match:</span>
+                                <span className={`ml-1 font-bold ${whiteTop3Pct > 90 ? 'text-red-500' : ''}`}>
+                                  {whiteTop3Pct}%
+                                </span>
+                              </div>
+                              <div className="p-2 bg-background rounded col-span-2">
+                                <span className="text-muted-foreground">Avg Think Time:</span>
+                                <span className="ml-1 font-bold">{whiteAvgTime}s</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="font-semibold text-sm">Black Analysis</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="p-2 bg-background rounded">
+                                <span className="text-muted-foreground">Top 1 Match:</span>
+                                <span className={`ml-1 font-bold ${blackTop1Pct > 70 ? 'text-red-500' : ''}`}>
+                                  {blackTop1Pct}%
+                                </span>
+                              </div>
+                              <div className="p-2 bg-background rounded">
+                                <span className="text-muted-foreground">Top 3 Match:</span>
+                                <span className={`ml-1 font-bold ${blackTop3Pct > 90 ? 'text-red-500' : ''}`}>
+                                  {blackTop3Pct}%
+                                </span>
+                              </div>
+                              <div className="p-2 bg-background rounded col-span-2">
+                                <span className="text-muted-foreground">Avg Think Time:</span>
+                                <span className="ml-1 font-bold">{blackAvgTime}s</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Chess Board */}
+                    <div className="flex justify-center">
+                      <div className="w-72 h-72">
+                        <ChessBoard 
+                          fen={(() => {
+                            const chess = new Chess();
+                            const moves = viewingGame.game?.moves || [];
+                            for (let i = 0; i < gameMoveIndex && i < moves.length; i++) {
+                              try {
+                                chess.move(moves[i]);
+                              } catch {}
+                            }
+                            return chess.fen();
+                          })()}
+                          onMove={() => false}
+                          orientation="white"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Engine Analysis Panel */}
+                    <div className="space-y-3">
+                      <p className="font-semibold text-sm">Position {gameMoveIndex} Analysis</p>
+                      
+                      {/* Current move info with thinking time */}
+                      {gameMoveIndex > 0 && (
+                        <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">
+                              {gameMoveIndex % 2 === 1 ? 'White' : 'Black'} played:
+                            </span>
+                            <Badge variant="outline" className="font-mono">
+                              {viewingGame.game?.moves?.[gameMoveIndex - 1]}
+                            </Badge>
+                          </div>
+                          {viewingGame.game?.thinkingTimes?.[gameMoveIndex - 1] !== undefined && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Think time:</span>
+                              <span className="font-mono">
+                                {viewingGame.game.thinkingTimes[gameMoveIndex - 1]}s
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Engine match indicator */}
+                          {engineAnalysis.get(gameMoveIndex - 1) && (() => {
+                            const topMoves = engineAnalysis.get(gameMoveIndex - 1)!;
+                            const playerMove = viewingGame.game?.moves?.[gameMoveIndex - 1];
+                            
+                            const tempChess = new Chess();
+                            const moves = viewingGame.game?.moves || [];
+                            for (let i = 0; i < gameMoveIndex - 1 && i < moves.length; i++) {
+                              try { tempChess.move(moves[i]); } catch {}
+                            }
+                            
+                            try {
+                              const moveObj = tempChess.move(playerMove);
+                              if (moveObj) {
+                                const uciMove = moveObj.from + moveObj.to + (moveObj.promotion || '');
+                                const matchIndex = topMoves.findIndex(tm => tm.move === uciMove);
+                                
+                                if (matchIndex === 0) {
+                                  return <Badge className="bg-green-500">Best Move (Top 1)</Badge>;
+                                } else if (matchIndex === 1) {
+                                  return <Badge className="bg-yellow-500">Top 2 Move</Badge>;
+                                } else if (matchIndex === 2) {
+                                  return <Badge className="bg-orange-500">Top 3 Move</Badge>;
+                                } else {
+                                  return <Badge variant="secondary">Not in Top 3</Badge>;
+                                }
+                              }
+                            } catch {}
+                            return null;
+                          })()}
+                        </div>
+                      )}
+                      
+                      {/* Top 3 Engine Moves */}
+                      {engineAnalysis.get(gameMoveIndex) ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground">Engine Top 3 Moves:</p>
+                          {engineAnalysis.get(gameMoveIndex)!.map((tm, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-2 bg-background rounded text-sm">
+                              <div className="flex items-center gap-2">
+                                <Badge variant={idx === 0 ? "default" : "outline"} className="w-6 justify-center">
+                                  {idx + 1}
+                                </Badge>
+                                <span className="font-mono">{tm.move}</span>
+                              </div>
+                              <span className="text-muted-foreground">
+                                {tm.isMate ? `M${tm.mateIn}` : `${tm.evaluation > 0 ? '+' : ''}${tm.evaluation.toFixed(1)}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : engineAnalysis.size > 0 ? (
+                        <p className="text-sm text-muted-foreground">No analysis for this position</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Click "Analyze with Stockfish" to see engine recommendations</p>
+                      )}
                     </div>
                   </div>
                   
@@ -1030,18 +1313,61 @@ export default function AdminPage() {
                     </Button>
                   </div>
                   
-                  <div className="bg-muted p-3 rounded max-h-32 overflow-y-auto">
-                    <p className="text-sm font-mono">
-                      {viewingGame.game?.moves?.map((move: string, i: number) => (
-                        <span 
-                          key={i} 
-                          className={`cursor-pointer hover:bg-primary/20 px-1 rounded ${i < gameMoveIndex ? 'text-foreground' : 'text-muted-foreground'}`}
-                          onClick={() => setGameMoveIndex(i + 1)}
-                        >
-                          {i % 2 === 0 ? `${Math.floor(i/2) + 1}. ` : ''}{move}{' '}
-                        </span>
-                      ))}
-                    </p>
+                  {/* Move list with thinking times */}
+                  <div className="bg-muted p-3 rounded max-h-40 overflow-y-auto">
+                    <div className="text-sm font-mono space-y-1">
+                      {viewingGame.game?.moves?.reduce((acc: JSX.Element[], move: string, i: number) => {
+                        const thinkTime = viewingGame.game?.thinkingTimes?.[i];
+                        const topMoves = engineAnalysis.get(i);
+                        
+                        let matchClass = '';
+                        if (topMoves && topMoves.length > 0) {
+                          const tempChess = new Chess();
+                          const moves = viewingGame.game?.moves || [];
+                          for (let j = 0; j < i; j++) {
+                            try { tempChess.move(moves[j]); } catch {}
+                          }
+                          try {
+                            const moveObj = tempChess.move(move);
+                            if (moveObj) {
+                              const uciMove = moveObj.from + moveObj.to + (moveObj.promotion || '');
+                              const matchIndex = topMoves.findIndex(tm => tm.move === uciMove);
+                              if (matchIndex === 0) matchClass = 'bg-green-500/20 text-green-700 dark:text-green-400';
+                              else if (matchIndex === 1) matchClass = 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400';
+                              else if (matchIndex === 2) matchClass = 'bg-orange-500/20 text-orange-700 dark:text-orange-400';
+                            }
+                          } catch {}
+                        }
+                        
+                        if (i % 2 === 0) {
+                          acc.push(
+                            <span key={i} className="inline-flex items-center gap-1">
+                              <span className="text-muted-foreground w-6">{Math.floor(i/2) + 1}.</span>
+                              <span 
+                                className={`cursor-pointer hover:bg-primary/20 px-1 rounded ${matchClass} ${i < gameMoveIndex ? '' : 'opacity-50'}`}
+                                onClick={() => setGameMoveIndex(i + 1)}
+                              >
+                                {move}
+                                {thinkTime !== undefined && <span className="text-xs text-muted-foreground ml-1">({thinkTime}s)</span>}
+                              </span>
+                            </span>
+                          );
+                        } else {
+                          acc.push(
+                            <span key={i} className="inline-flex items-center gap-1 mr-3">
+                              <span 
+                                className={`cursor-pointer hover:bg-primary/20 px-1 rounded ${matchClass} ${i < gameMoveIndex ? '' : 'opacity-50'}`}
+                                onClick={() => setGameMoveIndex(i + 1)}
+                              >
+                                {move}
+                                {thinkTime !== undefined && <span className="text-xs text-muted-foreground ml-1">({thinkTime}s)</span>}
+                              </span>
+                            </span>
+                          );
+                        }
+                        return acc;
+                      }, [])}
+                    </div>
                   </div>
                 </div>
               )}
