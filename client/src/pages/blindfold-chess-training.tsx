@@ -164,6 +164,12 @@ export default function BlindfoldChessTraining() {
             square names to positions as they develop their visualization skills.
           </p>
 
+          <p>
+            After each game, our game review system tracks your average peek time and compares it to your 
+            last peek time, helping you measure progress objectively. Watch as your reliance on peeks 
+            decreases over time — concrete proof that your visualization is improving.
+          </p>
+
           <h3>Tips for Blindfold Chess Beginners</h3>
           <p>
             Start with simple positions and short games. Playing against easier bots while learning blindfold 
