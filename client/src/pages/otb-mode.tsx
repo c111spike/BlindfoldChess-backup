@@ -3016,6 +3016,7 @@ export default function OTBMode() {
                             <Button
                               variant="default"
                               onClick={() => {
+                                setOpponentWantsRematch(false); // Prevent double-click
                                 sendRematchResponse(matchId, true);
                               }}
                               data-testid="button-accept-rematch"

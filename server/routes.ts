@@ -3486,6 +3486,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const disconnectTimers = new Map<string, NodeJS.Timeout>();
   const DISCONNECT_GRACE_PERIOD = 30000; // 30 seconds
   
+  // Track processed rematch requests to prevent duplicate handling
+  const processedRematches = new Set<string>();
+  
   // Track handshake state per match for OTB mode
   // Key: matchId, Value: { whiteOfferedHandshake: boolean, blackOfferedHandshake: boolean, whiteMoved: boolean, blackMoved: boolean }
   interface HandshakeState {
@@ -5661,161 +5664,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const userId = ws.userId;
           const accepted = data.accepted;
           
+          console.log('[WS respond_rematch] Received from:', userId, 'matchId:', matchId, 'accepted:', accepted);
+          
           if (!matchId || !userId) return;
           
-          // Get match to find player IDs (before any room modifications)
-          const currentMatch = await storage.getMatch(matchId);
-          
-          // Early exit if match not found - send error to all room members
-          if (!currentMatch) {
-            const roomUsers = matchRooms.get(matchId);
-            if (roomUsers) {
-              roomUsers.forEach((roomUserId) => {
-                const playerWs = userConnections.get(roomUserId);
-                if (playerWs && playerWs.readyState === WebSocket.OPEN) {
-                  playerWs.send(JSON.stringify({
-                    type: 'rematch_response',
-                    matchId: matchId,
-                    accepted: false,
-                  }));
-                }
-              });
-            }
+          // Idempotency check - prevent duplicate rematch processing
+          if (accepted && processedRematches.has(matchId)) {
+            console.log('[WS respond_rematch] Already processed rematch for matchId:', matchId, '- ignoring duplicate');
             return;
           }
           
-          const player1Id = currentMatch.player1Id;
-          const player2Id = currentMatch.player2Id;
-          
-          // Helper to notify BOTH players of response (using player IDs, not room membership)
-          const notifyBothPlayers = (accepted: boolean) => {
-            const player1Ws = userConnections.get(player1Id);
-            const player2Ws = userConnections.get(player2Id);
-            
-            if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
-              player1Ws.send(JSON.stringify({
-                type: 'rematch_response',
-                matchId: matchId,
-                accepted,
-              }));
-            }
-            
-            if (player2Ws && player2Ws.readyState === WebSocket.OPEN) {
-              player2Ws.send(JSON.stringify({
-                type: 'rematch_response',
-                matchId: matchId,
-                accepted,
-              }));
-            }
-          };
-          
-          // If declined, clean up match state and notify both players
-          if (!accepted) {
-            // Finalize match in database if not already completed
-            if (currentMatch.status !== 'completed') {
-              await storage.updateMatch(matchId, {
-                status: 'completed',
-                completedAt: new Date()
-              });
-              
-              // Fully finalize any games that might not be completely finalized
-              // This ensures getActiveGame returns null so players can rejoin queue
-              for (const gameId of currentMatch.gameIds) {
-                const game = await storage.getGame(gameId);
-                if (game && (!game.completedAt || game.result === 'ongoing')) {
-                  // If no result set, mark as draw (shouldn't happen in normal flow)
-                  const finalResult = game.result === 'ongoing' ? 'draw' : game.result;
-                  await storage.updateGame(gameId, {
-                    result: finalResult,
-                    completedAt: new Date()
-                  });
-                }
-              }
-            }
-            
-            // Get WebSocket connections
-            const player1Ws = userConnections.get(player1Id);
-            const player2Ws = userConnections.get(player2Id);
-            
-            // Remove both players from old match room
-            const oldMatchRoom = matchRooms.get(matchId);
-            if (oldMatchRoom) {
-              oldMatchRoom.delete(player1Id);
-              oldMatchRoom.delete(player2Id);
-              if (oldMatchRoom.size === 0) {
-                matchRooms.delete(matchId);
-              }
-            }
-            
-            // Clear WebSocket matchId for both players so they can rejoin queue
-            if (player1Ws) {
-              (player1Ws as any).matchId = null;
-            }
-            if (player2Ws) {
-              (player2Ws as any).matchId = null;
-            }
-            
-            // Remove both players from queue manager to allow re-queueing
-            queueManager.leave(player1Id);
-            queueManager.leave(player2Id);
-            
-            // Notify both players of the decline
-            // Note: Don't send game_end event - the game already ended from resignation
-            notifyBothPlayers(false);
-            return;
+          // Mark as processed IMMEDIATELY after check to prevent race conditions
+          // The try/finally below handles cleanup on any failure
+          if (accepted) {
+            processedRematches.add(matchId);
+            // Clean up old entries after 5 minutes to prevent memory leak
+            setTimeout(() => processedRematches.delete(matchId), 5 * 60 * 1000);
           }
           
-          // If accepted, create a new match between the same players
-          // First validate and create the new match, THEN notify players
-          // (We already have player IDs from currentMatch above)
-          
-          // Get player data
-          const player1 = await storage.getUser(player1Id);
-          const player2 = await storage.getUser(player2Id);
-          
-          if (!player1 || !player2) {
-            notifyBothPlayers(false);
-            return;
-          }
-          
-          const player1Name = `${player1.firstName || 'Opponent'} ${player1.lastName || ''}`.trim();
-          const player2Name = `${player2.firstName || 'Opponent'} ${player2.lastName || ''}`.trim();
-          
-          // Get ratings for the match type
-          const player1Rating = await storage.getRating(player1Id);
-          const player2Rating = await storage.getRating(player2Id);
-          
-          // Extract time control from match type (e.g., "standard_bullet" -> "bullet", "otb_blitz" -> "blitz")
-          // Support both standard and OTB mode rematches
-          const matchType = currentMatch.matchType;
-          if (!matchType.startsWith('standard_') && !matchType.startsWith('otb_')) {
-            console.log('[WS respond_rematch] Unsupported matchType for rematch:', matchType);
-            notifyBothPlayers(false);
-            return;
-          }
-          
-          const timeControl = matchType.split('_')[1] as 'bullet' | 'blitz' | 'rapid' | 'classical';
-          const timeMap = { bullet: 1, blitz: 5, rapid: 15, classical: 30 };
-          const time = timeMap[timeControl];
-          if (!time) {
-            notifyBothPlayers(false);
-            return;
-          }
-          
-          // Randomly assign colors
-          const player1Color = Math.random() > 0.5 ? "white" : "black";
-          const player2Color = player1Color === "white" ? "black" : "white";
-          
-          const whitePlayerId = player1Color === "white" ? player1Id : player2Id;
-          const blackPlayerId = player1Color === "white" ? player2Id : player1Id;
-          const whitePlayerName = player1Color === "white" ? player1Name : player2Name;
-          const blackPlayerName = player1Color === "white" ? player2Name : player1Name;
-          
-          // Create TWO new games and match (one for each player, same pattern as queue matching)
-          let player1Game, player2Game, newMatch;
+          // Wrap ALL async operations in try/finally for accepted path to ensure cleanup
+          let rematchSucceeded = false;
           try {
+            // Get match to find player IDs (before any room modifications)
+            const currentMatch = await storage.getMatch(matchId);
+          
+            // Early exit if match not found - send error to all room members
+            if (!currentMatch) {
+              const roomUsers = matchRooms.get(matchId);
+              if (roomUsers) {
+                roomUsers.forEach((roomUserId) => {
+                  const playerWs = userConnections.get(roomUserId);
+                  if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                    playerWs.send(JSON.stringify({
+                      type: 'rematch_response',
+                      matchId: matchId,
+                      accepted: false,
+                    }));
+                  }
+                });
+              }
+              return;
+            }
+          
+            const player1Id = currentMatch.player1Id;
+            const player2Id = currentMatch.player2Id;
+          
+            // Helper to notify BOTH players of response (using player IDs, not room membership)
+            const notifyBothPlayers = (accepted: boolean) => {
+              const player1Ws = userConnections.get(player1Id);
+              const player2Ws = userConnections.get(player2Id);
+            
+              if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
+                player1Ws.send(JSON.stringify({
+                  type: 'rematch_response',
+                  matchId: matchId,
+                  accepted,
+                }));
+              }
+            
+              if (player2Ws && player2Ws.readyState === WebSocket.OPEN) {
+                player2Ws.send(JSON.stringify({
+                  type: 'rematch_response',
+                  matchId: matchId,
+                  accepted,
+                }));
+              }
+            };
+          
+            // If declined, clean up match state and notify both players
+            if (!accepted) {
+              // Finalize match in database if not already completed
+              if (currentMatch.status !== 'completed') {
+                await storage.updateMatch(matchId, {
+                  status: 'completed',
+                  completedAt: new Date()
+                });
+              
+                // Fully finalize any games that might not be completely finalized
+                // This ensures getActiveGame returns null so players can rejoin queue
+                for (const gameId of currentMatch.gameIds) {
+                  const game = await storage.getGame(gameId);
+                  if (game && (!game.completedAt || game.result === 'ongoing')) {
+                    // If no result set, mark as draw (shouldn't happen in normal flow)
+                    const finalResult = game.result === 'ongoing' ? 'draw' : game.result;
+                    await storage.updateGame(gameId, {
+                      result: finalResult,
+                      completedAt: new Date()
+                    });
+                  }
+                }
+              }
+            
+              // Get WebSocket connections
+              const player1Ws = userConnections.get(player1Id);
+              const player2Ws = userConnections.get(player2Id);
+            
+              // Remove both players from old match room
+              const oldMatchRoom = matchRooms.get(matchId);
+              if (oldMatchRoom) {
+                oldMatchRoom.delete(player1Id);
+                oldMatchRoom.delete(player2Id);
+                if (oldMatchRoom.size === 0) {
+                  matchRooms.delete(matchId);
+                }
+              }
+            
+              // Clear WebSocket matchId for both players so they can rejoin queue
+              if (player1Ws) {
+                (player1Ws as any).matchId = null;
+              }
+              if (player2Ws) {
+                (player2Ws as any).matchId = null;
+              }
+            
+              // Remove both players from queue manager to allow re-queueing
+              queueManager.leave(player1Id);
+              queueManager.leave(player2Id);
+            
+              // Notify both players of the decline
+              // Note: Don't send game_end event - the game already ended from resignation
+              // Note: For declined, we don't need to touch processedRematches since it wasn't added
+              notifyBothPlayers(false);
+              return;
+            }
+          
+            // If accepted, create a new match between the same players
+            // Get player data
+            const player1 = await storage.getUser(player1Id);
+            const player2 = await storage.getUser(player2Id);
+            
+            if (!player1 || !player2) {
+              notifyBothPlayers(false);
+              return;
+            }
+            
+            const player1Name = `${player1.firstName || 'Opponent'} ${player1.lastName || ''}`.trim();
+            const player2Name = `${player2.firstName || 'Opponent'} ${player2.lastName || ''}`.trim();
+            
+            // Get ratings for the match type
+            const player1Rating = await storage.getRating(player1Id);
+            const player2Rating = await storage.getRating(player2Id);
+            
+            // Extract time control from match type (e.g., "standard_bullet" -> "bullet", "otb_blitz" -> "blitz")
+            // Support both standard and OTB mode rematches
+            const matchType = currentMatch.matchType;
+            if (!matchType.startsWith('standard_') && !matchType.startsWith('otb_')) {
+              console.log('[WS respond_rematch] Unsupported matchType for rematch:', matchType);
+              notifyBothPlayers(false);
+              return;
+            }
+            
+            const timeControl = matchType.split('_')[1] as 'bullet' | 'blitz' | 'rapid' | 'classical';
+            const timeMap = { bullet: 1, blitz: 5, rapid: 15, classical: 30 };
+            const time = timeMap[timeControl];
+            if (!time) {
+              notifyBothPlayers(false);
+              return;
+            }
+            
+            // Randomly assign colors
+            const player1Color = Math.random() > 0.5 ? "white" : "black";
+            const player2Color = player1Color === "white" ? "black" : "white";
+            
+            const whitePlayerId = player1Color === "white" ? player1Id : player2Id;
+            const blackPlayerId = player1Color === "white" ? player2Id : player1Id;
+            const whitePlayerName = player1Color === "white" ? player1Name : player2Name;
+            const blackPlayerName = player1Color === "white" ? player2Name : player1Name;
+            
+            // Create TWO new games and match (one for each player, same pattern as queue matching)
             // Create game for player 1
-            player1Game = await storage.createGame({
+            const player1Game = await storage.createGame({
               userId: player1Id,
               whitePlayerId: whitePlayerId,
               blackPlayerId: blackPlayerId,
@@ -5830,7 +5848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             // Create game for player 2
-            player2Game = await storage.createGame({
+            const player2Game = await storage.createGame({
               userId: player2Id,
               whitePlayerId: whitePlayerId,
               blackPlayerId: blackPlayerId,
@@ -5845,7 +5863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             // Create match with BOTH game IDs (required for completeMatch rating calculation)
-            newMatch = await storage.createMatch({
+            const newMatch = await storage.createMatch({
               player1Id: player1Id,
               player2Id: player2Id,
               matchType: matchType,
@@ -5855,17 +5873,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // CRITICAL: Update BOTH games' matchId (same pattern as queue matching)
             console.log('[DEBUG] [WebSocket rematch] Updating games with matchId:', newMatch.id);
-            player1Game = await storage.updateGame(player1Game.id, { matchId: newMatch.id });
-            player2Game = await storage.updateGame(player2Game.id, { matchId: newMatch.id });
-            console.log('[DEBUG] [WebSocket rematch] Both games updated - matchIds:', player1Game.matchId, player2Game.matchId);
-          } catch (error) {
-            console.error('Error creating rematch:', error);
-            notifyBothPlayers(false);
-            return;
-          }
-          
-          // Room setup and match_found sending (wrapped in try-catch)
-          try {
+            const updatedPlayer1Game = await storage.updateGame(player1Game.id, { matchId: newMatch.id });
+            const updatedPlayer2Game = await storage.updateGame(player2Game.id, { matchId: newMatch.id });
+            console.log('[DEBUG] [WebSocket rematch] Both games updated - matchIds:', updatedPlayer1Game.matchId, updatedPlayer2Game.matchId);
+            
+            // Mark rematch as succeeded - this must be set before room setup to prevent finally block cleanup
+            rematchSucceeded = true;
+            
+            // Room setup and match_found sending
             // Get WebSocket connections
             const player1Ws = userConnections.get(player1Id);
             const player2Ws = userConnections.get(player2Id);
@@ -5898,16 +5913,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             notifyBothPlayers(true);
             
             // Send match_found to both players with fresh ratings
-            // In rematch, timeControl is already a named category like 'bullet', 'blitz', 'rapid', 'classical'
-            const player1RatingValue = player1Rating ? (player1Rating as any)[timeControl] : 1200;
-            const player2RatingValue = player2Rating ? (player2Rating as any)[timeControl] : 1200;
+            // For OTB matches, use otbBlitz/otbRapid rating keys; for standard use blitz/rapid
+            const isOtbMatch = matchType.startsWith('otb_');
+            const ratingKey = isOtbMatch 
+              ? `otb${timeControl.charAt(0).toUpperCase()}${timeControl.slice(1)}` // e.g., 'otbBlitz', 'otbRapid'
+              : timeControl; // e.g., 'blitz', 'rapid'
+            
+            console.log('[WS respond_rematch] Using rating key:', ratingKey, 'for matchType:', matchType);
+            const player1RatingValue = player1Rating ? (player1Rating as any)[ratingKey] : 1200;
+            const player2RatingValue = player2Rating ? (player2Rating as any)[ratingKey] : 1200;
             
             // Send each player their OWN game (with their playerColor)
             if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
               player1Ws.send(JSON.stringify({
                 type: 'match_found',
                 matchId: newMatch.id,
-                game: player1Game,
+                game: updatedPlayer1Game,
                 timeControl,
                 color: player1Color,
                 opponent: {
@@ -5922,7 +5943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               player2Ws.send(JSON.stringify({
                 type: 'match_found',
                 matchId: newMatch.id,
-                game: player2Game,
+                game: updatedPlayer2Game,
                 timeControl,
                 color: player2Color,
                 opponent: {
@@ -5932,11 +5953,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 playerRating: player2RatingValue,
               }));
             }
-          } catch (roomError) {
-            console.error('Error setting up rematch rooms/notifications:', roomError);
-            // If room setup or match_found sending fails, notify both players of failure
-            notifyBothPlayers(false);
-            return;
+          } catch (error) {
+            console.error('Error in rematch handler:', error);
+            // Note: notifyBothPlayers may not be accessible here since it's defined inside try block
+            // The finally block will clean up processedRematches; players will see rematch timeout
+          } finally {
+            // Only keep matchId in processedRematches if rematch succeeded
+            // This allows retries on failure while preventing duplicates on success
+            if (!rematchSucceeded) {
+              processedRematches.delete(matchId);
+            }
           }
         } else if (data.type === 'game_end') {
           // Player resigned or other game-ending action
