@@ -3907,10 +3907,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sendSimulTimerState(pairingId, timer);
       }
       
-      // Broadcast bot move to human players
-      const room = simulPairingRooms.get(pairingId);
-      if (room) {
-        room.forEach((userId) => {
+      // Broadcast bot move to ALL match participants AND board viewers
+      // This ensures players receive bot moves even when viewing different boards
+      const sentTo = new Set<string>();
+      
+      // First, send to all match participants (players who might be on other boards)
+      const matchRoom = simulMatchRooms.get(pairing.matchId);
+      if (matchRoom) {
+        matchRoom.forEach((userId) => {
+          const ws = userConnections.get(userId);
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'simul_opponent_move',
+              pairingId,
+              move: botMove.move,
+              fen: newFen,
+              from: botMove.from,
+              to: botMove.to,
+              piece: result.piece,
+              captured: result.captured || null,
+              moveCount: newMoves.length,
+              activeColor: newActiveColor,
+              isBot: true,
+            }));
+            sentTo.add(userId);
+          }
+        });
+      }
+      
+      // Also send to pairing room viewers (spectators not in match room)
+      const pairingRoom = simulPairingRooms.get(pairingId);
+      if (pairingRoom) {
+        pairingRoom.forEach((userId) => {
+          if (sentTo.has(userId)) return; // Already sent
           const ws = userConnections.get(userId);
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
@@ -3930,12 +3959,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // If game ended, notify players and check match completion
+      // If game ended, notify ALL match participants AND board viewers
       if (gameResult !== 'ongoing') {
         console.log(`[SimulBot] Game ended: ${gameResult}, winner: ${winner || 'none'}`);
-        const room = simulPairingRooms.get(pairingId);
-        if (room) {
-          room.forEach((userId) => {
+        const gameEndSentTo = new Set<string>();
+        
+        // Send to all match participants
+        const gameEndMatchRoom = simulMatchRooms.get(pairing.matchId);
+        if (gameEndMatchRoom) {
+          gameEndMatchRoom.forEach((userId) => {
+            const ws = userConnections.get(userId);
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'simul_game_end',
+                pairingId,
+                result: gameResult,
+                winner,
+              }));
+              gameEndSentTo.add(userId);
+            }
+          });
+        }
+        
+        // Also send to pairing room viewers (spectators not in match room)
+        const gameEndPairingRoom = simulPairingRooms.get(pairingId);
+        if (gameEndPairingRoom) {
+          gameEndPairingRoom.forEach((userId) => {
+            if (gameEndSentTo.has(userId)) return; // Already sent
             const ws = userConnections.get(userId);
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({
