@@ -1619,59 +1619,6 @@ export default function StandardMode() {
                             />
                           </div>
                         </div>
-                        
-                        <div className="mt-4 p-4 bg-muted/50 rounded-lg" data-testid="blindfold-how-to">
-                          <h3 className="font-semibold mb-3">Training Your Mind: The Art of Blindfold Chess</h3>
-                          <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-                            <p>
-                              Blindfold chess is one of the oldest and most respected training methods in chess history. 
-                              Legendary players from Paul Morphy to Magnus Carlsen have credited blindfold practice with 
-                              sharpening their visualization and calculation abilities. Now you can train the same way 
-                              the masters do.
-                            </p>
-                            
-                            <p>
-                              When you enable Blindfold Mode, the chess board disappears from view. You'll make your 
-                              moves by remembering where each piece stands, tracking captures, and visualizing the 
-                              position entirely in your mind. It's challenging at first, but incredibly rewarding.
-                            </p>
-                            
-                            <p>
-                              Don't worry if you need help — that's what the peek system is for. Press and hold the 
-                              peek button (or your spacebar) to briefly reveal the board. As you improve, challenge 
-                              yourself with harder difficulty levels that limit your peeks, gradually weaning yourself 
-                              off visual confirmation.
-                            </p>
-                            
-                            <h4 className="font-semibold text-foreground mt-4 mb-2">Why This Transforms Your Chess</h4>
-                            
-                            <p>
-                              The benefits of blindfold training extend far beyond the novelty. When you force your 
-                              brain to hold a chess position in working memory, you're building the same mental 
-                              muscles used for deep calculation during real games. Players who train blindfold often 
-                              report seeing variations more clearly and calculating further ahead.
-                            </p>
-                            
-                            <p>
-                              Your pattern recognition also improves dramatically. Without visual cues, your brain 
-                              learns to track piece relationships, potential threats, and tactical motifs through 
-                              pure understanding rather than sight. This deeper processing creates lasting neural 
-                              pathways that make you a stronger player.
-                            </p>
-                            
-                            <p>
-                              Perhaps most importantly, blindfold chess trains your concentration. In tournament 
-                              play, distractions are everywhere — your opponent's movements, spectators, time 
-                              pressure. The intense focus required for blindfold play builds mental stamina that 
-                              helps you maintain composure when the stakes are highest.
-                            </p>
-                            
-                            <p className="italic text-xs">
-                              Start with Easy difficulty and work your way up. Even grandmasters began their 
-                              blindfold journey one peek at a time.
-                            </p>
-                          </div>
-                        </div>
                       </div>
                     )}
 
@@ -1716,6 +1663,61 @@ export default function StandardMode() {
                             Choose Bot Opponent
                           </Button>
                         </div>
+                        
+                        {isBlindfold && (
+                          <div className="mt-4 p-4 bg-muted/50 rounded-lg" data-testid="blindfold-how-to">
+                            <h3 className="font-semibold mb-3">Training Your Mind: The Art of Blindfold Chess</h3>
+                            <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+                              <p>
+                                Blindfold chess is one of the oldest and most respected training methods in chess history. 
+                                Legendary players from Paul Morphy to Magnus Carlsen have credited blindfold practice with 
+                                sharpening their visualization and calculation abilities. Now you can train the same way 
+                                the masters do.
+                              </p>
+                              
+                              <p>
+                                When you enable Blindfold Mode, the chess board disappears from view. You'll make your 
+                                moves by remembering where each piece stands, tracking captures, and visualizing the 
+                                position entirely in your mind. It's challenging at first, but incredibly rewarding.
+                              </p>
+                              
+                              <p>
+                                Don't worry if you need help — that's what the peek system is for. Press and hold the 
+                                peek button (or your spacebar) to briefly reveal the board. As you improve, challenge 
+                                yourself with harder difficulty levels that limit your peeks, gradually weaning yourself 
+                                off visual confirmation.
+                              </p>
+                              
+                              <h4 className="font-semibold text-foreground mt-4 mb-2">Why This Transforms Your Chess</h4>
+                              
+                              <p>
+                                The benefits of blindfold training extend far beyond the novelty. When you force your 
+                                brain to hold a chess position in working memory, you're building the same mental 
+                                muscles used for deep calculation during real games. Players who train blindfold often 
+                                report seeing variations more clearly and calculating further ahead.
+                              </p>
+                              
+                              <p>
+                                Your pattern recognition also improves dramatically. Without visual cues, your brain 
+                                learns to track piece relationships, potential threats, and tactical motifs through 
+                                pure understanding rather than sight. This deeper processing creates lasting neural 
+                                pathways that make you a stronger player.
+                              </p>
+                              
+                              <p>
+                                Perhaps most importantly, blindfold chess trains your concentration. In tournament 
+                                play, distractions are everywhere — your opponent's movements, spectators, time 
+                                pressure. The intense focus required for blindfold play builds mental stamina that 
+                                helps you maintain composure when the stakes are highest.
+                              </p>
+                              
+                              <p className="italic text-xs">
+                                Start with Easy difficulty and work your way up. Even grandmasters began their 
+                                blindfold journey one peek at a time.
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : !selectedBotDifficulty ? (
                       <>
