@@ -88,17 +88,42 @@ function AppContent() {
 
   const isUsingTestUser = isDevelopment && !!getTestUserId();
   const isOidcErrorPage = location === "/oidc-error";
+  const isPublicPage = ["/privacy", "/terms", "/about", "/contact"].includes(location);
 
   useEffect(() => {
-    // Don't redirect if we're on the OIDC error page
-    if (!isLoading && !isAuthenticated && !isUsingTestUser && !isOidcErrorPage) {
+    // Don't redirect if we're on public pages or OIDC error page
+    if (!isLoading && !isAuthenticated && !isUsingTestUser && !isOidcErrorPage && !isPublicPage) {
       window.location.href = "/api/login";
     }
-  }, [isLoading, isAuthenticated, isUsingTestUser, isOidcErrorPage]);
+  }, [isLoading, isAuthenticated, isUsingTestUser, isOidcErrorPage, isPublicPage]);
 
   // Handle OIDC error page - accessible without auth
   if (isOidcErrorPage) {
     return <OidcError />;
+  }
+
+  // Handle public pages (privacy, terms, about, contact) - accessible without auth
+  if (isPublicPage && !isAuthenticated && !isUsingTestUser) {
+    const PublicPageComponent = {
+      "/privacy": PrivacyPolicy,
+      "/terms": TermsOfService,
+      "/about": About,
+      "/contact": Contact,
+    }[location];
+    
+    if (PublicPageComponent) {
+      return (
+        <div className="min-h-screen bg-background">
+          <div className="p-4 border-b flex justify-between items-center">
+            <a href="/api/login" className="text-primary hover:underline" data-testid="link-login">
+              Sign in to SimulChess
+            </a>
+            <ThemeToggle />
+          </div>
+          <PublicPageComponent />
+        </div>
+      );
+    }
   }
 
   if (isLoading) {
