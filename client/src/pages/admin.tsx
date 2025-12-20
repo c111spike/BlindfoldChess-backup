@@ -115,6 +115,238 @@ const REVIEW_STATUS_LABELS: Record<string, string> = {
   dismissed: "Dismissed",
 };
 
+interface CheatReportCardProps {
+  report: CheatReport;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onViewGame: (gameId: string) => void;
+  onSuspend: (userId: string, days: number) => void;
+  onBan: (userId: string) => void;
+  onRefundGame: (gameId: string) => void;
+  onRefundAllWins: (userId: string) => void;
+  onResolve: (reportId: string, resolution: string) => void;
+  isLoading: boolean;
+}
+
+function CheatReportCard({ 
+  report, 
+  isExpanded, 
+  onToggleExpand, 
+  onViewGame, 
+  onSuspend, 
+  onBan, 
+  onRefundGame, 
+  onRefundAllWins,
+  onResolve,
+  isLoading 
+}: CheatReportCardProps) {
+  const { data: reporter } = useQuery<User>({
+    queryKey: ["/api/admin/users", report.reporterId],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/users/${report.reporterId}`);
+      return res.json();
+    },
+    enabled: !!report.reporterId,
+  });
+  
+  const { data: reportedUser } = useQuery<User>({
+    queryKey: ["/api/admin/users", report.reportedUserId],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/users/${report.reportedUserId}`);
+      return res.json();
+    },
+    enabled: !!report.reportedUserId,
+  });
+
+  return (
+    <Card data-testid={`cheat-report-${report.id}`}>
+      <CardContent className="py-5">
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold">Report #{report.id.slice(0, 8)}</p>
+                <Badge variant="destructive">{report.reason.replace(/_/g, ' ')}</Badge>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium">Reporter: </span>
+                {reporter ? `${reporter.firstName} ${reporter.lastName}` : 'Loading...'}
+              </div>
+              <div className="text-sm">
+                <span className="font-medium text-red-600">Reported Player: </span>
+                <span className="text-red-600 font-semibold">
+                  {reportedUser ? `${reportedUser.firstName} ${reportedUser.lastName}` : 'Loading...'}
+                </span>
+              </div>
+              {report.details && (
+                <p className="text-sm text-muted-foreground mt-1">{report.details}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Reported: {new Date(report.createdAt!).toLocaleString()}
+              </p>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onToggleExpand}
+              data-testid={`button-expand-${report.id}`}
+            >
+              <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+              {isExpanded ? 'Collapse' : 'Actions'}
+            </Button>
+          </div>
+          
+          {/* Expanded Actions */}
+          {isExpanded && (
+            <div className="border-t pt-4 space-y-4">
+              {/* View Game Button */}
+              {report.gameId && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => onViewGame(report.gameId!)}
+                    disabled={isLoading}
+                    data-testid={`button-view-game-${report.id}`}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Game & Moves
+                  </Button>
+                </div>
+              )}
+              
+              {/* Moderation Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Suspend Options */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Suspend Player</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 5, 10, 30].map(days => (
+                      <Button
+                        key={days}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onSuspend(report.reportedUserId, days)}
+                        disabled={isLoading}
+                        data-testid={`button-suspend-${days}-${report.id}`}
+                      >
+                        {days} day{days > 1 ? 's' : ''}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Ban */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Permanent Ban</p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={isLoading}
+                        data-testid={`button-ban-${report.id}`}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Ban Player
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Confirm Permanent Ban</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to permanently ban {reportedUser?.firstName} {reportedUser?.lastName}?
+                          This action cannot be easily undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="destructive" onClick={() => onBan(report.reportedUserId)}>
+                          Confirm Ban
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+              
+              {/* ELO Refund Options */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Refund ELO (Reverse Rating Changes)</p>
+                <div className="flex flex-wrap gap-2">
+                  {report.gameId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onRefundGame(report.gameId!)}
+                      disabled={isLoading}
+                      data-testid={`button-refund-game-${report.id}`}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-1" />
+                      Refund This Game
+                    </Button>
+                  )}
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isLoading}
+                        data-testid={`button-refund-all-${report.id}`}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Refund All Wins
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Confirm Refund All Wins</DialogTitle>
+                        <DialogDescription>
+                          This will reverse rating changes for ALL games won by {reportedUser?.firstName} {reportedUser?.lastName}.
+                          This gives back points to all their opponents.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="destructive" onClick={() => onRefundAllWins(report.reportedUserId)}>
+                          Confirm Refund All
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+              
+              {/* Resolve/Dismiss */}
+              <div className="flex items-center gap-2 border-t pt-4">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => onResolve(report.id, "Reviewed and action taken")}
+                  disabled={isLoading}
+                  data-testid={`button-resolve-${report.id}`}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Mark as Resolved
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onResolve(report.id, "Dismissed as invalid")}
+                  disabled={isLoading}
+                  data-testid={`button-dismiss-${report.id}`}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Dismiss (False Report)
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -131,6 +363,12 @@ export default function AdminPage() {
   const [puzzleAnalysis, setPuzzleAnalysis] = useState<PuzzleAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [reviewFen, setReviewFen] = useState<string | null>(null);
+  
+  // Cheat report state
+  const [expandedReport, setExpandedReport] = useState<string | null>(null);
+  const [gameViewerOpen, setGameViewerOpen] = useState(false);
+  const [viewingGame, setViewingGame] = useState<any>(null);
+  const [gameMoveIndex, setGameMoveIndex] = useState(0);
 
   const isAdmin = user?.isAdmin === true;
 
@@ -302,6 +540,62 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/puzzles/flagged"] });
       toast({ title: "Puzzle Removed", description: "The puzzle has been removed." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+  
+  const suspendUserMutation = useMutation({
+    mutationFn: async ({ userId, days }: { userId: string; days: number }) => {
+      if (!isAdmin) throw new Error("Unauthorized");
+      return apiRequest("POST", `/api/admin/users/${userId}/suspend`, { days });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cheat-reports?isResolved=false"] });
+      toast({ title: "User Suspended", description: `User has been suspended for ${variables.days} days.` });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+  
+  const banUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      if (!isAdmin) throw new Error("Unauthorized");
+      return apiRequest("POST", `/api/admin/users/${userId}/ban`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cheat-reports?isResolved=false"] });
+      toast({ title: "User Banned", description: "User has been permanently banned." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+  
+  const refundGameMutation = useMutation({
+    mutationFn: async (gameId: string) => {
+      if (!isAdmin) throw new Error("Unauthorized");
+      return apiRequest("POST", `/api/admin/games/${gameId}/refund-elo`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cheat-reports?isResolved=false"] });
+      toast({ title: "ELO Refunded", description: data.message || "Rating changes have been reversed." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+  
+  const refundAllWinsMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      if (!isAdmin) throw new Error("Unauthorized");
+      return apiRequest("POST", `/api/admin/users/${userId}/refund-all-wins`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cheat-reports?isResolved=false"] });
+      toast({ title: "All Wins Refunded", description: data.message || "All rating gains have been reversed." });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -620,56 +914,139 @@ export default function AdminPage() {
           ) : (
             <div className="space-y-3">
               {cheatReports.map(report => (
-                <Card key={report.id} data-testid={`cheat-report-${report.id}`}>
-                  <CardContent className="py-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">Report #{report.id.slice(0, 8)}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Reason: {report.reason.replace(/_/g, ' ')}
-                        </p>
-                        {report.details && (
-                          <p className="text-sm text-muted-foreground mt-1">{report.details}</p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Reported: {new Date(report.createdAt!).toLocaleString()}
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => resolveReportMutation.mutate({ 
-                            reportId: report.id, 
-                            resolution: "Reviewed and action taken" 
-                          })}
-                          disabled={resolveReportMutation.isPending}
-                          data-testid={`button-resolve-${report.id}`}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Resolve
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => resolveReportMutation.mutate({ 
-                            reportId: report.id, 
-                            resolution: "Dismissed as invalid" 
-                          })}
-                          disabled={resolveReportMutation.isPending}
-                          data-testid={`button-dismiss-${report.id}`}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Dismiss
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <CheatReportCard 
+                  key={report.id}
+                  report={report}
+                  isExpanded={expandedReport === report.id}
+                  onToggleExpand={() => setExpandedReport(expandedReport === report.id ? null : report.id)}
+                  onViewGame={async (gameId: string) => {
+                    try {
+                      const response = await apiRequest("GET", `/api/admin/games/${gameId}/details`);
+                      const data = await response.json();
+                      setViewingGame(data);
+                      setGameMoveIndex(0);
+                      setGameViewerOpen(true);
+                    } catch (error) {
+                      toast({ title: "Error", description: "Failed to load game", variant: "destructive" });
+                    }
+                  }}
+                  onSuspend={(userId, days) => suspendUserMutation.mutate({ userId, days })}
+                  onBan={(userId) => banUserMutation.mutate(userId)}
+                  onRefundGame={(gameId) => refundGameMutation.mutate(gameId)}
+                  onRefundAllWins={(userId) => refundAllWinsMutation.mutate(userId)}
+                  onResolve={(reportId, resolution) => resolveReportMutation.mutate({ reportId, resolution })}
+                  isLoading={
+                    suspendUserMutation.isPending || 
+                    banUserMutation.isPending || 
+                    refundGameMutation.isPending || 
+                    refundAllWinsMutation.isPending ||
+                    resolveReportMutation.isPending
+                  }
+                />
               ))}
             </div>
           )}
+          
+          {/* Game Viewer Dialog */}
+          <Dialog open={gameViewerOpen} onOpenChange={setGameViewerOpen}>
+            <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                <DialogTitle>Game Review</DialogTitle>
+                <DialogDescription>
+                  Review the moves to investigate cheating suspicion
+                </DialogDescription>
+              </DialogHeader>
+              {viewingGame && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <div>
+                      <span className="font-semibold">White: </span>
+                      {viewingGame.whitePlayer?.firstName} {viewingGame.whitePlayer?.lastName}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Black: </span>
+                      {viewingGame.blackPlayer?.firstName} {viewingGame.blackPlayer?.lastName}
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-center">
+                    <div className="w-80 h-80">
+                      <ChessBoard 
+                        fen={(() => {
+                          const chess = new Chess();
+                          const moves = viewingGame.game?.moves || [];
+                          for (let i = 0; i < gameMoveIndex && i < moves.length; i++) {
+                            try {
+                              chess.move(moves[i]);
+                            } catch {}
+                          }
+                          return chess.fen();
+                        })()}
+                        onMove={() => false}
+                        perspective="white"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setGameMoveIndex(0)}
+                      disabled={gameMoveIndex === 0}
+                      data-testid="button-game-start"
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setGameMoveIndex(Math.max(0, gameMoveIndex - 1))}
+                      disabled={gameMoveIndex === 0}
+                      data-testid="button-game-prev"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm px-3">
+                      Move {gameMoveIndex} / {viewingGame.game?.moves?.length || 0}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setGameMoveIndex(Math.min((viewingGame.game?.moves?.length || 0), gameMoveIndex + 1))}
+                      disabled={gameMoveIndex >= (viewingGame.game?.moves?.length || 0)}
+                      data-testid="button-game-next"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setGameMoveIndex(viewingGame.game?.moves?.length || 0)}
+                      disabled={gameMoveIndex >= (viewingGame.game?.moves?.length || 0)}
+                      data-testid="button-game-end"
+                    >
+                      End
+                    </Button>
+                  </div>
+                  
+                  <div className="bg-muted p-3 rounded max-h-32 overflow-y-auto">
+                    <p className="text-sm font-mono">
+                      {viewingGame.game?.moves?.map((move: string, i: number) => (
+                        <span 
+                          key={i} 
+                          className={`cursor-pointer hover:bg-primary/20 px-1 rounded ${i < gameMoveIndex ? 'text-foreground' : 'text-muted-foreground'}`}
+                          onClick={() => setGameMoveIndex(i + 1)}
+                        >
+                          {i % 2 === 0 ? `${Math.floor(i/2) + 1}. ` : ''}{move}{' '}
+                        </span>
+                      ))}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="flagged-puzzles" className="space-y-4">

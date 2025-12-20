@@ -266,6 +266,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { timeControl, queueType } = req.body;
+      
+      // Check if user is banned or suspended
+      const userRecord = await storage.getUser(userId);
+      if (userRecord?.isBanned) {
+        return res.status(403).json({ message: "Your account has been banned. You cannot join games." });
+      }
+      if (userRecord?.suspendedUntil && new Date(userRecord.suspendedUntil) > new Date()) {
+        const suspendedUntil = new Date(userRecord.suspendedUntil).toLocaleDateString();
+        return res.status(403).json({ message: `Your account is suspended until ${suspendedUntil}. You cannot join games.` });
+      }
 
       // Extract time control from queueType if provided (e.g., 'otb_blitz' -> 'blitz')
       let effectiveTimeControl = timeControl;
@@ -2307,6 +2317,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching anti-cheat stats:", error);
       res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+  
+  // Admin: Suspend user for specified duration
+  app.post('/api/admin/users/:userId/suspend', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { days } = req.body;
+      
+      if (!days || ![1, 5, 10, 30].includes(days)) {
+        return res.status(400).json({ message: "Invalid suspension duration. Must be 1, 5, 10, or 30 days." });
+      }
+      
+      const suspendedUntil = new Date();
+      suspendedUntil.setDate(suspendedUntil.getDate() + days);
+      
+      const user = await storage.suspendUser(userId, suspendedUntil);
+      res.json({ success: true, user, message: `User suspended until ${suspendedUntil.toLocaleDateString()}` });
+    } catch (error) {
+      console.error("Error suspending user:", error);
+      res.status(500).json({ message: "Failed to suspend user" });
+    }
+  });
+  
+  // Admin: Ban user permanently
+  app.post('/api/admin/users/:userId/ban', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const user = await storage.banUser(userId);
+      res.json({ success: true, user, message: "User has been permanently banned" });
+    } catch (error) {
+      console.error("Error banning user:", error);
+      res.status(500).json({ message: "Failed to ban user" });
+    }
+  });
+  
+  // Admin: Unban/unsuspend user
+  app.post('/api/admin/users/:userId/unban', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const user = await storage.unbanUser(userId);
+      res.json({ success: true, user, message: "User has been unbanned" });
+    } catch (error) {
+      console.error("Error unbanning user:", error);
+      res.status(500).json({ message: "Failed to unban user" });
+    }
+  });
+  
+  // Admin: Refund ELO for a specific game (reverse rating changes)
+  app.post('/api/admin/games/:gameId/refund-elo', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { gameId } = req.params;
+      
+      const result = await storage.refundGameElo(gameId);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Error refunding game ELO:", error);
+      res.status(500).json({ message: "Failed to refund ELO" });
+    }
+  });
+  
+  // Admin: Refund ELO for ALL wins by a cheater
+  app.post('/api/admin/users/:userId/refund-all-wins', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const result = await storage.refundAllWinsElo(userId);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Error refunding all wins ELO:", error);
+      res.status(500).json({ message: "Failed to refund ELO for all wins" });
+    }
+  });
+  
+  // Admin: Get game details with moves for cheat investigation
+  app.get('/api/admin/games/:gameId/details', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { gameId } = req.params;
+      
+      const game = await storage.getGame(gameId);
+      if (!game) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+      
+      // Get player info
+      const whitePlayer = game.whitePlayerId ? await storage.getUser(game.whitePlayerId) : null;
+      const blackPlayer = game.blackPlayerId ? await storage.getUser(game.blackPlayerId) : null;
+      
+      res.json({
+        game,
+        whitePlayer,
+        blackPlayer,
+      });
+    } catch (error) {
+      console.error("Error fetching game details:", error);
+      res.status(500).json({ message: "Failed to fetch game details" });
+    }
+  });
+  
+  // Admin: Get user info by ID
+  app.get('/api/admin/users/:userId', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 

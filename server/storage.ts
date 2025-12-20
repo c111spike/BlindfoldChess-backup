@@ -254,6 +254,13 @@ export interface IStorage {
   updateReviewStatus(userId: string, status: ReviewStatus, adminId: string, notes?: string): Promise<UserAntiCheat>;
   issueWarning(userId: string, adminId: string, notes: string): Promise<UserAntiCheat>;
   
+  // Admin Moderation
+  suspendUser(userId: string, suspendedUntil: Date): Promise<User>;
+  banUser(userId: string): Promise<User>;
+  unbanUser(userId: string): Promise<User>;
+  refundGameElo(gameId: string): Promise<{ message: string; gamesRefunded: number }>;
+  refundAllWinsElo(userId: string): Promise<{ message: string; gamesRefunded: number }>;
+  
   // Opening Repertoire Trainer
   getOpenings(options?: { eco?: string; search?: string; color?: string; limit?: number; offset?: number }): Promise<Opening[]>;
   getOpening(id: string): Promise<Opening | undefined>;
@@ -2407,6 +2414,146 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userAntiCheat.userId, userId))
       .returning();
     return updated;
+  }
+  
+  // Admin Moderation
+  async suspendUser(userId: string, suspendedUntil: Date): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        suspendedUntil,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+  
+  async banUser(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        isBanned: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+  
+  async unbanUser(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        isBanned: false,
+        suspendedUntil: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+  
+  async refundGameElo(gameId: string): Promise<{ message: string; gamesRefunded: number }> {
+    const game = await this.getGame(gameId);
+    if (!game) {
+      throw new Error("Game not found");
+    }
+    
+    if (!game.ratingChange) {
+      return { message: "No rating change to refund for this game", gamesRefunded: 0 };
+    }
+    
+    // Find the match to get both games
+    if (!game.matchId) {
+      return { message: "Cannot refund single-player game", gamesRefunded: 0 };
+    }
+    
+    // Get both games in this match
+    const matchGames = await db
+      .select()
+      .from(games)
+      .where(eq(games.matchId, game.matchId));
+    
+    if (matchGames.length !== 2) {
+      return { message: "Match does not have exactly 2 games", gamesRefunded: 0 };
+    }
+    
+    // Determine time control category for rating update
+    const timeControl = game.timeControl || 10;
+    let ratingKey: string;
+    if (game.mode?.toString().includes('otb')) {
+      if (timeControl <= 3) ratingKey = 'otbBullet';
+      else if (timeControl <= 10) ratingKey = 'otbBlitz';
+      else ratingKey = 'otbRapid';
+    } else if (game.mode?.toString().includes('standard')) {
+      if (timeControl <= 3) ratingKey = 'bullet';
+      else if (timeControl <= 10) ratingKey = 'blitz';
+      else ratingKey = 'rapid';
+    } else {
+      ratingKey = 'blitz';
+    }
+    
+    // Refund rating changes for both players
+    for (const g of matchGames) {
+      if (g.userId && g.ratingChange) {
+        const existingRating = await this.getRating(g.userId);
+        if (existingRating) {
+          const currentRating = (existingRating as any)[ratingKey] || 1000;
+          // Reverse the rating change
+          await db
+            .update(ratings)
+            .set({ 
+              [ratingKey]: currentRating - g.ratingChange,
+              updatedAt: new Date()
+            })
+            .where(eq(ratings.userId, g.userId));
+        }
+      }
+      
+      // Mark game as refunded by setting ratingChange to 0
+      await db
+        .update(games)
+        .set({ ratingChange: 0 })
+        .where(eq(games.id, g.id));
+    }
+    
+    return { message: `Refunded rating changes for match`, gamesRefunded: matchGames.length };
+  }
+  
+  async refundAllWinsElo(userId: string): Promise<{ message: string; gamesRefunded: number }> {
+    // Find all completed games where this user won
+    const winConditions = or(
+      and(eq(games.whitePlayerId, userId), eq(games.result, 'white_win')),
+      and(eq(games.blackPlayerId, userId), eq(games.result, 'black_win'))
+    );
+    
+    const wonGames = await db
+      .select()
+      .from(games)
+      .where(and(
+        or(eq(games.whitePlayerId, userId), eq(games.blackPlayerId, userId)),
+        winConditions,
+        eq(games.status, 'completed'),
+        sql`${games.ratingChange} IS NOT NULL AND ${games.ratingChange} != 0`
+      ));
+    
+    let refundedCount = 0;
+    const processedMatches = new Set<string>();
+    
+    for (const game of wonGames) {
+      if (game.matchId && !processedMatches.has(game.matchId)) {
+        try {
+          await this.refundGameElo(game.id);
+          processedMatches.add(game.matchId);
+          refundedCount++;
+        } catch (e) {
+          console.error(`Failed to refund game ${game.id}:`, e);
+        }
+      }
+    }
+    
+    return { message: `Refunded ${refundedCount} games won by this user`, gamesRefunded: refundedCount };
   }
 
   // Opening Repertoire Trainer

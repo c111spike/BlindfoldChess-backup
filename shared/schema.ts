@@ -39,6 +39,8 @@ export const users = pgTable("users", {
   dailyBlindfoldGamesPlayed: integer("daily_blindfold_games_played").default(0),
   lastDailyReset: timestamp("last_daily_reset").defaultNow(),
   isAdmin: boolean("is_admin").default(false),
+  isBanned: boolean("is_banned").default(false),
+  suspendedUntil: timestamp("suspended_until"),
   puzzleReputation: integer("puzzle_reputation").default(0),
   puzzleSolveStreak: integer("puzzle_solve_streak").default(0),
   createdAt: timestamp("created_at").defaultNow(),
