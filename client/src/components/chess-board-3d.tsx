@@ -1,6 +1,19 @@
 import { Canvas } from "@react-three/fiber";
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import * as THREE from "three";
+import { ChessBoard } from "@/components/chess-board";
+
+function isWebGLAvailable(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
+    );
+  } catch (e) {
+    return false;
+  }
+}
 
 interface ChessBoard3DProps {
   fen?: string;
@@ -140,7 +153,7 @@ function Board({ orientation, highlightedSquares, legalMoveSquares, lastMoveSqua
       </mesh>
       
       {/* Squares */}
-      {squares.map(({ square, position, color, isLegalMove }) => (
+      {squares.map(({ square, position, color, isLegalMove, isHighlighted }) => (
         <group key={square}>
           <mesh
             position={position as [number, number, number]}
@@ -153,6 +166,14 @@ function Board({ orientation, highlightedSquares, legalMoveSquares, lastMoveSqua
             <boxGeometry args={[SQUARE_SIZE * 0.98, 0.1, SQUARE_SIZE * 0.98]} />
             <meshStandardMaterial color={color} />
           </mesh>
+          
+          {/* Highlighted square indicator (for check, custom highlights) */}
+          {isHighlighted && (
+            <mesh position={[position[0], 0.06, position[2]]}>
+              <boxGeometry args={[SQUARE_SIZE * 0.9, 0.02, SQUARE_SIZE * 0.9]} />
+              <meshStandardMaterial color="#ff4444" transparent opacity={0.6} />
+            </mesh>
+          )}
           
           {/* Legal move indicator */}
           {isLegalMove && (
@@ -455,8 +476,13 @@ export function ChessBoard3D({
   className = "",
 }: ChessBoard3DProps) {
   const [internalSelected, setInternalSelected] = useState<string | null>(null);
+  const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
   
-  const effectiveSelected = selectedSquare !== undefined ? selectedSquare : internalSelected;
+  useEffect(() => {
+    setWebglSupported(isWebGLAvailable());
+  }, []);
+  
+  const effectiveSelected = selectedSquare ?? internalSelected;
   
   const handleSquareClick = useCallback((square: string) => {
     if (onSquareClick) {
@@ -479,6 +505,30 @@ export function ChessBoard3D({
     : [0, 8, -8];
   
   const lookAt: [number, number, number] = [0, 0, 0];
+
+  if (webglSupported === null) {
+    return <div className={`w-full aspect-square ${className}`} data-testid="chess-board-3d-loading" />;
+  }
+
+  if (!webglSupported) {
+    const lastMove = lastMoveSquares.length === 2 
+      ? { from: lastMoveSquares[0], to: lastMoveSquares[1] } 
+      : undefined;
+    return (
+      <ChessBoard
+        fen={fen}
+        orientation={orientation}
+        highlightedSquares={highlightedSquares}
+        legalMoveSquares={legalMoveSquares}
+        lastMove={lastMove}
+        selectedSquare={effectiveSelected}
+        onSquareClick={onSquareClick}
+        onMove={onMove}
+        className={className}
+        noCard={true}
+      />
+    );
+  }
 
   return (
     <div className={`w-full aspect-square ${className}`} data-testid="chess-board-3d">
