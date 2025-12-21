@@ -1552,7 +1552,7 @@ export default function OTBMode() {
     
     setWhiteTime(seconds);
     setBlackTime(seconds);
-    setIncrement(0);
+    setIncrement(getIncrementForTimeControl(timeControl));
     setGameResult(null);
     setGameStarted(true);
     gameStartTimeRef.current = Date.now(); // Track game start for first move timing
@@ -1595,11 +1595,14 @@ export default function OTBMode() {
     
     const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
     
+    const gameIncrement = getIncrementForTimeControl(timeControl);
+    setIncrement(gameIncrement);
+    
     createGameMutation.mutate({
       mode,
       playerColor: "white",
       timeControl: minutes,
-      increment: 0,
+      increment: gameIncrement,
       fen: newGame.fen(),
       moves: [],
       whiteTime: seconds,
@@ -1642,7 +1645,6 @@ export default function OTBMode() {
     
     setWhiteTime(seconds);
     setBlackTime(seconds);
-    setIncrement(0);
     setGameResult(null);
     
     const newGame = new Chess();
@@ -1690,12 +1692,14 @@ export default function OTBMode() {
     setOpponentRating(bot.elo);
     
     const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
+    const gameIncrement = getIncrementForTimeControl(timeControl);
+    setIncrement(gameIncrement);
     
     createGameMutation.mutate({
       mode,
       playerColor: assignedColor,
       timeControl: minutes,
-      increment: 0,
+      increment: gameIncrement,
       fen: newGame.fen(),
       moves: [],
       whiteTime: seconds,
