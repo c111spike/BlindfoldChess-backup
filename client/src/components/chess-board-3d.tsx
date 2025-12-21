@@ -532,9 +532,12 @@ function Pieces({ fen, orientation, onSquareClick }: {
     <group>
       {Array.from(pieces.entries()).map(([square, { type, color }]) => {
         const [x, z] = squareToPosition(square, orientation);
+        // Use composite key with square, type, and color to ensure React remounts
+        // meshes when piece identity changes (fixes illegal move rollback sync)
+        const pieceKey = `${square}-${type}-${color}`;
         return (
           <ChessPiece
-            key={square}
+            key={pieceKey}
             type={type}
             color={color}
             position={[x, 0.05, z]}
