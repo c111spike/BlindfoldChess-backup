@@ -3051,6 +3051,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Syzygy Tablebase lookup - for endgame positions with ≤7 pieces
+  app.post('/api/syzygy/lookup', async (req, res) => {
+    try {
+      const { fen } = req.body;
+      
+      if (!fen || typeof fen !== 'string') {
+        return res.status(400).json({ message: "FEN position is required" });
+      }
+      
+      const { syzygyService } = await import('./syzygyService');
+      const result = await syzygyService.lookup(fen);
+      
+      if (!result) {
+        return res.status(404).json({ 
+          message: "Position not in tablebase (requires ≤7 pieces)",
+          isTablebasePosition: false 
+        });
+      }
+      
+      res.json({
+        ...result,
+        isTablebasePosition: true,
+        wdlDescription: syzygyService.wdlToDescription(result.wdl),
+      });
+    } catch (error) {
+      console.error("Error looking up Syzygy tablebase:", error);
+      res.status(500).json({ message: "Failed to lookup tablebase" });
+    }
+  });
+
+  // Check if a position is in tablebase territory (≤7 pieces)
+  app.get('/api/syzygy/check', async (req, res) => {
+    try {
+      const fen = req.query.fen as string;
+      
+      if (!fen) {
+        return res.status(400).json({ message: "FEN position is required" });
+      }
+      
+      const { syzygyService } = await import('./syzygyService');
+      const isTablebasePosition = syzygyService.isTablebasePosition(fen);
+      
+      res.json({ isTablebasePosition });
+    } catch (error) {
+      console.error("Error checking Syzygy eligibility:", error);
+      res.status(500).json({ message: "Failed to check tablebase eligibility" });
+    }
+  });
+
+  // Syzygy cache stats (for admin dashboard)
+  app.get('/api/syzygy/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { syzygyService } = await import('./syzygyService');
+      const stats = await syzygyService.getCacheStats();
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching Syzygy stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
   // Get top 3 engine moves for a position
   app.post('/api/analysis/top-moves', isAuthenticated, async (req: any, res) => {
     try {

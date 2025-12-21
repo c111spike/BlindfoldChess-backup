@@ -658,6 +658,44 @@ export const positionCache = pgTable("position_cache", {
   expiresAtIdx: index("position_cache_expires_at_idx").on(table.expiresAt),
 }));
 
+// Syzygy Tablebase Cache - caches endgame tablebase lookups (permanent - never expire)
+export const syzygyCache = pgTable("syzygy_cache", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fenHash: varchar("fen_hash", { length: 64 }).notNull().unique(), // SHA-256 hash of FEN
+  fen: text("fen").notNull(),
+  pieceCount: integer("piece_count").notNull(), // Number of pieces on board (for quick filtering)
+  
+  // WDL (Win/Draw/Loss) from side to move perspective
+  // +2 = win, +1 = cursed win (win but 50-move rule may apply), 0 = draw
+  // -1 = blessed loss (losing but 50-move rule may save), -2 = loss
+  wdl: integer("wdl").notNull(),
+  
+  // DTZ (Distance To Zeroing) - moves until pawn move or capture
+  // Positive = winning position, negative = losing position
+  // null if no zeroing possible (all pawns gone)
+  dtz: integer("dtz"),
+  
+  // Best moves ranked by tablebase
+  bestMoves: jsonb("best_moves").$type<Array<{
+    uci: string;    // e.g., "e2e4"
+    san: string;    // e.g., "e4"
+    wdl: number;    // WDL after this move
+    dtz: number | null;  // DTZ after this move
+  }>>().default([]),
+  
+  // Is this a checkmate or stalemate position?
+  isCheckmate: boolean("is_checkmate").default(false),
+  isStalemate: boolean("is_stalemate").default(false),
+  
+  // Metadata
+  hitCount: integer("hit_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastHitAt: timestamp("last_hit_at").defaultNow(),
+}, (table) => ({
+  fenHashIdx: index("syzygy_cache_fen_hash_idx").on(table.fenHash),
+  pieceCountIdx: index("syzygy_cache_piece_count_idx").on(table.pieceCount),
+}));
+
 // Analysis Metrics table - tracks performance metrics for scaling decisions
 export const analysisMetrics = pgTable("analysis_metrics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -746,6 +784,8 @@ export type InsertRatingBenchmark = typeof ratingBenchmarks.$inferInsert;
 export type RatingBenchmark = typeof ratingBenchmarks.$inferSelect;
 export type InsertPositionCache = typeof positionCache.$inferInsert;
 export type PositionCache = typeof positionCache.$inferSelect;
+export type InsertSyzygyCache = typeof syzygyCache.$inferInsert;
+export type SyzygyCache = typeof syzygyCache.$inferSelect;
 export type InsertAnalysisMetrics = typeof analysisMetrics.$inferInsert;
 export type AnalysisMetrics = typeof analysisMetrics.$inferSelect;
 
