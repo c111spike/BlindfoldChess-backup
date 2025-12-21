@@ -1,4 +1,5 @@
 import { ChessBoard } from "@/components/chess-board";
+import { ChessBoard3D } from "@/components/chess-board-3d";
 
 interface PerspectiveBoardProps {
   fen?: string;
@@ -27,48 +28,26 @@ interface PerspectiveBoardProps {
 export function PerspectiveChessBoard({
   perspective3d = false,
   className = "",
+  lastMove,
   ...props
 }: PerspectiveBoardProps) {
   if (!perspective3d) {
-    return <ChessBoard {...props} className={className} />;
+    return <ChessBoard {...props} lastMove={lastMove} className={className} />;
   }
 
+  const lastMoveSquares = lastMove ? [lastMove.from, lastMove.to] : [];
+
   return (
-    <div 
-      className={`relative ${className}`}
-      style={{
-        perspective: "1000px",
-        perspectiveOrigin: "50% 80%",
-      }}
-      data-testid="perspective-board-container"
-    >
-      <style>{`
-        .perspective-3d-board [data-square] img,
-        .perspective-3d-board [data-square] svg {
-          transform: translateZ(20px) scale(1.05);
-          filter: drop-shadow(2px 4px 3px rgba(0, 0, 0, 0.4));
-          transition: transform 0.15s ease-out;
-        }
-        .perspective-3d-board [data-square]:hover img,
-        .perspective-3d-board [data-square]:hover svg {
-          transform: translateZ(30px) scale(1.1);
-          filter: drop-shadow(3px 6px 5px rgba(0, 0, 0, 0.5));
-        }
-      `}</style>
-      <div
-        className="perspective-3d-board"
-        style={{
-          transform: "rotateX(25deg)",
-          transformOrigin: "50% 100%",
-          transformStyle: "preserve-3d",
-        }}
-      >
-        <ChessBoard 
-          {...props} 
-          noCard={true}
-          className="shadow-2xl"
-        />
-      </div>
-    </div>
+    <ChessBoard3D
+      fen={props.fen}
+      orientation={props.orientation}
+      highlightedSquares={props.highlightedSquares}
+      legalMoveSquares={props.legalMoveSquares}
+      lastMoveSquares={lastMoveSquares}
+      selectedSquare={props.selectedSquare}
+      onSquareClick={props.onSquareClick}
+      onMove={props.onMove}
+      className={className}
+    />
   );
 }
