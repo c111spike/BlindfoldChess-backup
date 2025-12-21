@@ -199,7 +199,7 @@ export default function OTBMode() {
     // Set increment based on time control (15+30 for rapid, 0 for blitz)
     setIncrement(getIncrementForTimeControl(timeControl));
     
-    // Disable notation practice for 5-minute games (FIDE rules)
+    // Disable notation practice for 5-minute games (OTB rules)
     if (timeControl === "5" && notationPractice) {
       setNotationPractice(false);
     }
@@ -3093,7 +3093,7 @@ export default function OTBMode() {
                         <p className="text-xs text-muted-foreground -mt-1 ml-0">
                           {isNotationAllowed 
                             ? "Type each move's notation after playing"
-                            : "Notation not required under 5 minutes (FIDE rules)"
+                            : "Notation not required under 5 minutes (OTB rules)"
                           }
                         </p>
                       </div>
