@@ -155,10 +155,38 @@ export default function OTBTournamentSimulator() {
           </p>
 
           <p>
-            In standard OTB play, the first illegal move completed (by pressing the clock) usually results 
-            in <strong>two minutes added to the opponent's clock</strong>. A second illegal move results in an 
-            <strong>immediate loss</strong>. Our simulator helps you avoid these costly penalties by enforcing 
-            clean play and training you to verify your moves before committing.
+            Our arbiter follows a consistent <strong>two-strike system</strong> for all violations. The first 
+            offense triggers a warning with <strong>two minutes added to your opponent's clock</strong>. A second 
+            offense of the same type results in a <strong>forced forfeit</strong>. Here's how each violation is handled:
+          </p>
+
+          <ul>
+            <li>
+              <strong>Handshake Violations:</strong> Refusing or failing to shake hands before the game? Your 
+              opponent can call the arbiter. First offense adds two minutes to their clock. Refuse again and 
+              you forfeit the game.
+            </li>
+            <li>
+              <strong>Illegal Moves:</strong> Playing an illegal move and pressing the clock commits the violation. 
+              First illegal move adds two minutes to your opponent. A second illegal move means immediate loss.
+            </li>
+            <li>
+              <strong>False Claims:</strong> Incorrectly claiming a draw (threefold repetition, 50-move rule, etc.) 
+              when the conditions aren't met? First false claim adds two minutes to your opponent. A second false 
+              claim forfeits the game.
+            </li>
+          </ul>
+
+          <p>
+            <strong>Coming Soon:</strong> Chat distraction penalties. Attempting to distract your opponent through 
+            inappropriate chat messages will trigger the same two-strike system — first offense adds two minutes 
+            to their clock, second offense results in forfeit.
+          </p>
+
+          <p>
+            This penalty structure mirrors real tournament rules and trains you to play with discipline. 
+            Our simulator helps you avoid these costly mistakes by enforcing clean play and training you 
+            to verify your moves before committing.
           </p>
 
           <h3>Proper OTB Etiquette</h3>
