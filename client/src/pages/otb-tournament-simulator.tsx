@@ -129,6 +129,23 @@ export default function OTBTournamentSimulator() {
             motion of reaching across to tap a physical clock after completing your move.
           </p>
 
+          <h3>Visual Realism: True Perspective Fixed 3D View</h3>
+          <p>
+            Stop training on a flat 2D grid that looks nothing like a real tournament table. In an actual event, 
+            you see the board from a fixed, angled perspective. Our <strong>Fixed 3D Perspective</strong> mimics 
+            the exact eye-level of a seated player.
+          </p>
+
+          <p>
+            <strong>The Benefit:</strong> Most online players struggle to see "long diagonals" or knight forks on 
+            a real board because the spatial geometry is different.
+          </p>
+
+          <p>
+            <strong>The Result:</strong> By locking the camera in a realistic 3D position, you build the specific 
+            spatial awareness needed to spot tactics in a physical environment.
+          </p>
+
           <h3>OTB Castling: The King-Rook Sequence</h3>
           <p>
             Castling in OTB chess follows a specific procedure that trips up many online players. You must 
@@ -237,6 +254,28 @@ export default function OTBTournamentSimulator() {
             press the clock. Our simulator mirrors this sequence, ensuring you don't accidentally leave a 
             pawn on the 8th rank — a technical "illegal move" in real tournaments that can cost you time 
             penalties or even the game.
+          </p>
+
+          <h3>Notation Mastery: Mastering the Scoresheet</h3>
+          <p>
+            In a rated tournament, if you don't write down your moves, you can't claim a draw or dispute an 
+            illegal move. Our simulator removes the "automatic move list" safety net.
+          </p>
+
+          <p>
+            <strong>Active Learning:</strong> You have the option to type your own moves in Standard Algebraic 
+            Notation (SAN).
+          </p>
+
+          <p>
+            <strong>The Interactive Arbiter:</strong> If you type a move incorrectly (e.g., writing Nf3 when it 
+            should be Nxf3), a message instantly alerts you to the error and provides a mini-lesson on how to 
+            correctly record that specific move.
+          </p>
+
+          <p>
+            <strong>The Routine:</strong> This trains the essential <em>Move → Record → Press Clock</em> rhythm, 
+            ensuring you never feel rushed or confused by your scoresheet during a real game.
           </p>
 
           <h3>Common OTB Mistakes to Avoid</h3>
