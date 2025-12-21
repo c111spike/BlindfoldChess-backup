@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useClientAnalysis } from '@/hooks/useClientAnalysis';
+import { SyzygyIndicator } from '@/components/syzygy-indicator';
 import {
   ChevronLeft,
   ChevronRight,
@@ -2193,6 +2194,9 @@ export default function GameAnalysisPage() {
                   </div>
                 </CardContent>
               </Card>
+              
+              {/* Syzygy Tablebase Indicator for endgame positions */}
+              <SyzygyIndicator fen={currentFen()} />
               
               {currentMoveIndex >= 0 && (
                 <Card data-testid="current-move-details">

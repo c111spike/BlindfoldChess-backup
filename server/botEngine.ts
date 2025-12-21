@@ -3,6 +3,7 @@ import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
 import { BOT_DIFFICULTY_ELO } from "../shared/botTypes";
 import { lookupOpeningMove, isInOpeningPhase } from "./openingBook";
 import { analysisQueueManager } from "./analysisQueueManager";
+import { syzygyService } from "./syzygyService";
 
 const PIECE_VALUES: Record<string, number> = {
   p: 100,
@@ -199,6 +200,21 @@ function getMistakeProbability(difficulty: BotDifficulty): number {
   return probabilityMap[difficulty];
 }
 
+// Chance for bot to "miss" the tablebase-perfect move in endgames
+// Higher difficulty bots always play perfect endgames
+function getTablebaseMissChance(difficulty: BotDifficulty): number {
+  const missChanceMap: Record<BotDifficulty, number> = {
+    beginner: 0.7,    // 70% chance to miss tablebase move
+    novice: 0.5,      // 50% chance to miss
+    intermediate: 0.3, // 30% chance to miss
+    club: 0.15,       // 15% chance to miss
+    advanced: 0.05,   // 5% chance to miss
+    expert: 0.0,      // Always plays tablebase perfect
+    master: 0.0,      // Always plays tablebase perfect
+  };
+  return missChanceMap[difficulty];
+}
+
 function scoreMove(
   game: Chess,
   move: Move,
@@ -330,6 +346,43 @@ export async function generateBotMove(
           promotion: matchingMove.promotion,
         };
       }
+    }
+  }
+
+  // Syzygy Tablebase lookup for endgame positions (≤7 pieces)
+  if (syzygyService.isTablebasePosition(fen)) {
+    try {
+      const tablebaseResult = await syzygyService.lookup(fen);
+      
+      if (tablebaseResult && tablebaseResult.bestMoves.length > 0) {
+        // Higher difficulty bots use tablebase-perfect play
+        // Lower difficulty bots have a chance to "miss" the tablebase move
+        const tablebaseMissChance = getTablebaseMissChance(difficulty);
+        
+        if (Math.random() >= tablebaseMissChance) {
+          // Find a tablebase move that matches our legal moves
+          const bestTablebaseMove = tablebaseResult.bestMoves[0];
+          const matchingMove = moves.find(m => 
+            m.from + m.to + (m.promotion || '') === bestTablebaseMove.uci ||
+            m.san === bestTablebaseMove.san
+          );
+          
+          if (matchingMove) {
+            console.log(`[Bot] Playing tablebase move: ${matchingMove.san} (WDL: ${tablebaseResult.wdl}, DTZ: ${tablebaseResult.dtz})`);
+            return {
+              move: matchingMove.san,
+              from: matchingMove.from,
+              to: matchingMove.to,
+              promotion: matchingMove.promotion,
+            };
+          }
+        } else {
+          console.log(`[Bot] Intentionally missing tablebase move (${(tablebaseMissChance * 100).toFixed(0)}% miss chance)`);
+        }
+      }
+    } catch (error) {
+      console.error("[Bot] Tablebase lookup error:", error);
+      // Fall through to regular move generation
     }
   }
 
