@@ -49,7 +49,7 @@ function squareToPosition(square: string, orientation: "white" | "black"): [numb
   if (orientation === "white") {
     return [
       (fileIndex - 3.5) * SQUARE_SIZE,
-      (rankIndex - 3.5) * SQUARE_SIZE
+      (3.5 - rankIndex) * SQUARE_SIZE
     ];
   } else {
     return [
@@ -65,7 +65,7 @@ function positionToSquare(x: number, z: number, orientation: "white" | "black"):
   
   if (orientation === "white") {
     fileIndex = Math.floor(x / SQUARE_SIZE + 4);
-    rankIndex = Math.floor(z / SQUARE_SIZE + 4);
+    rankIndex = Math.floor(4 - z / SQUARE_SIZE);
   } else {
     fileIndex = Math.floor(4 - x / SQUARE_SIZE);
     rankIndex = Math.floor(4 - z / SQUARE_SIZE);
@@ -501,8 +501,8 @@ export function ChessBoard3D({
   }, [onSquareClick, onMove, effectiveSelected]);
 
   const cameraPosition: [number, number, number] = orientation === "white" 
-    ? [0, 8, 8]
-    : [0, 8, -8];
+    ? [0, 10, 12]
+    : [0, 10, -12];
   
   const lookAt: [number, number, number] = [0, 0, 0];
 
