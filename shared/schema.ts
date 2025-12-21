@@ -288,6 +288,8 @@ export const userSettings = pgTable("user_settings", {
   arbiterWarnings: boolean("arbiter_warnings").default(true),
   blindfoldDifficulty: varchar("blindfold_difficulty").default("easy"),
   blindfoldShowCoordinates: boolean("blindfold_show_coordinates").default(false),
+  otbPerspective3d: boolean("otb_perspective_3d").default(false),
+  otbNotationPractice: boolean("otb_notation_practice").default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
