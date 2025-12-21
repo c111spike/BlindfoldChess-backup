@@ -195,12 +195,12 @@ function Pawn({ position, color }: { position: [number, number, number]; color: 
     <group position={position}>
       {/* Wide base plate */}
       <mesh position={[0, 0.05, 0]} castShadow>
-        <cylinderGeometry args={[0.38, 0.42, 0.1, 24]} />
+        <cylinderGeometry args={[0.29, 0.32, 0.1, 24]} />
         <meshStandardMaterial color={accentColor} />
       </mesh>
       {/* Base collar */}
       <mesh position={[0, 0.15, 0]} castShadow>
-        <cylinderGeometry args={[0.32, 0.38, 0.12, 24]} />
+        <cylinderGeometry args={[0.24, 0.29, 0.12, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
       {/* Tapered neck */}
@@ -229,12 +229,12 @@ function Rook({ position, color }: { position: [number, number, number]; color: 
     <group position={position}>
       {/* Wide base plate */}
       <mesh position={[0, 0.05, 0]} castShadow>
-        <cylinderGeometry args={[0.42, 0.46, 0.1, 24]} />
+        <cylinderGeometry args={[0.32, 0.35, 0.1, 24]} />
         <meshStandardMaterial color={accentColor} />
       </mesh>
       {/* Base collar */}
       <mesh position={[0, 0.15, 0]} castShadow>
-        <cylinderGeometry args={[0.36, 0.42, 0.12, 24]} />
+        <cylinderGeometry args={[0.27, 0.32, 0.12, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
       {/* Tower body */}
@@ -265,12 +265,12 @@ function Knight({ position, color }: { position: [number, number, number]; color
     <group position={position}>
       {/* Wide base plate */}
       <mesh position={[0, 0.05, 0]} castShadow>
-        <cylinderGeometry args={[0.42, 0.46, 0.1, 24]} />
+        <cylinderGeometry args={[0.32, 0.35, 0.1, 24]} />
         <meshStandardMaterial color={accentColor} />
       </mesh>
       {/* Base collar */}
       <mesh position={[0, 0.15, 0]} castShadow>
-        <cylinderGeometry args={[0.34, 0.42, 0.12, 24]} />
+        <cylinderGeometry args={[0.26, 0.32, 0.12, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
       {/* Neck column */}
@@ -318,12 +318,12 @@ function Bishop({ position, color }: { position: [number, number, number]; color
     <group position={position}>
       {/* Wide base plate */}
       <mesh position={[0, 0.05, 0]} castShadow>
-        <cylinderGeometry args={[0.42, 0.46, 0.1, 24]} />
+        <cylinderGeometry args={[0.32, 0.35, 0.1, 24]} />
         <meshStandardMaterial color={accentColor} />
       </mesh>
       {/* Base collar */}
       <mesh position={[0, 0.15, 0]} castShadow>
-        <cylinderGeometry args={[0.34, 0.42, 0.12, 24]} />
+        <cylinderGeometry args={[0.26, 0.32, 0.12, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
       {/* Lower body */}
@@ -372,12 +372,12 @@ function Queen({ position, color }: { position: [number, number, number]; color:
     <group position={position}>
       {/* Wide base plate */}
       <mesh position={[0, 0.05, 0]} castShadow>
-        <cylinderGeometry args={[0.46, 0.50, 0.1, 24]} />
+        <cylinderGeometry args={[0.35, 0.38, 0.1, 24]} />
         <meshStandardMaterial color={accentColor} />
       </mesh>
       {/* Base collar */}
       <mesh position={[0, 0.16, 0]} castShadow>
-        <cylinderGeometry args={[0.40, 0.46, 0.14, 24]} />
+        <cylinderGeometry args={[0.30, 0.35, 0.14, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
       {/* Lower body - curved */}
@@ -426,12 +426,12 @@ function King({ position, color }: { position: [number, number, number]; color: 
     <group position={position}>
       {/* Wide base plate */}
       <mesh position={[0, 0.05, 0]} castShadow>
-        <cylinderGeometry args={[0.48, 0.52, 0.1, 24]} />
+        <cylinderGeometry args={[0.36, 0.39, 0.1, 24]} />
         <meshStandardMaterial color={accentColor} />
       </mesh>
       {/* Base collar */}
       <mesh position={[0, 0.16, 0]} castShadow>
-        <cylinderGeometry args={[0.42, 0.48, 0.14, 24]} />
+        <cylinderGeometry args={[0.32, 0.36, 0.14, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
       {/* Lower body */}
