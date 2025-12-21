@@ -62,7 +62,7 @@ export default function OTBTournamentSimulator() {
                 <AlertTriangle className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
                   <h3 className="font-semibold">Arbiter System</h3>
-                  <p className="text-sm text-muted-foreground">Warnings for rule violations</p>
+                  <p className="text-sm text-muted-foreground">Warnings and forced forfeits</p>
                 </div>
               </div>
             </div>
