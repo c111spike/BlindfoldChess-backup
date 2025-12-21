@@ -90,6 +90,18 @@ export default function OTBMode() {
   const [notationPractice, setNotationPractice] = useState(false);
   const [pendingNotation, setPendingNotation] = useState<string | null>(null);
   const [confirmedMoves, setConfirmedMoves] = useState<MoveRecord[]>([]);
+  // Notation queue for Move → Clock → Write flow
+  // Stores moves that need to be recorded (both player's and opponent's/bot's moves)
+  const [notationQueue, setNotationQueue] = useState<{
+    notation: string;
+    isPlayerMove: boolean;
+    moveNumber: number;
+    isWhiteMove: boolean;
+  }[]>([]);
+  // Track the last player move notation to add to queue after clock press
+  const [pendingPlayerNotation, setPendingPlayerNotation] = useState<string | null>(null);
+  // Flag to pause bot until player records their move
+  const [waitingForNotation, setWaitingForNotation] = useState(false);
   
   const [myViolations, setMyViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
   const [opponentViolations, setOpponentViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
@@ -193,6 +205,13 @@ export default function OTBMode() {
       setMobileScoreSheetOpen(false);
     }
   }, [gameResult]);
+
+  // Automatically clear waitingForNotation when notation queue empties
+  useEffect(() => {
+    if (notationQueue.length === 0 && waitingForNotation) {
+      setWaitingForNotation(false);
+    }
+  }, [notationQueue.length, waitingForNotation]);
 
   // Sync increment and notation practice with time control changes
   useEffect(() => {
@@ -424,10 +443,23 @@ export default function OTBMode() {
           setOpponentHandshakeViolation(true);
         }
         
+        // Notation practice: add opponent's move to queue for player to record (PvP)
+        if (notationPractice) {
+          const moveNumber = Math.floor((newMoves.length - 1) / 2) + 1;
+          const isWhiteMove = (newMoves.length - 1) % 2 === 0;
+          
+          setNotationQueue(prevQueue => [...prevQueue, {
+            notation: data.move,
+            isPlayerMove: false,
+            moveNumber,
+            isWhiteMove,
+          }]);
+        }
+        
         return newMoves;
       });
       
-      // Opponent moves are auto-confirmed (player doesn't record them)
+      // Opponent moves are auto-confirmed (player doesn't record them in scoresheet)
       setConfirmedMoves(prev => [...prev, opponentMove]);
       
       setLastMoveSquares([data.from, data.to]);
@@ -821,6 +853,9 @@ export default function OTBMode() {
       setMoves([]);
       setConfirmedMoves([]);
       setPendingNotation(null);
+      setNotationQueue([]);
+      setPendingPlayerNotation(null);
+      setWaitingForNotation(false);
       setLastMoveSquares([]);
       setActiveColor("white");
       setClockTurn("white");
@@ -1113,6 +1148,9 @@ export default function OTBMode() {
           setMoves([]);
           setConfirmedMoves([]);
           setPendingNotation(null);
+          setNotationQueue([]);
+          setPendingPlayerNotation(null);
+          setWaitingForNotation(false);
           setLastMoveSquares([]);
           setSelectedSquare(null);
           setGameResult(null);
@@ -1444,11 +1482,12 @@ export default function OTBMode() {
   const handleClockPress = useCallback(() => {
     if (!gameStarted || arbiterPending || pendingCheckmate) return;
     
-    // Block clock press if notation practice is on and waiting for notation input
-    if (notationPractice && pendingNotation) {
+    // Block clock press if notation practice is on and queue has items BUT player doesn't have a pending move
+    // This allows clock press for Move → Clock → Write flow while blocking during queue catch-up
+    if (notationPractice && notationQueue.length > 0 && !pendingPlayerNotation) {
       toast({
-        title: "Record your move first",
-        description: "Type the notation of your move before pressing the clock",
+        title: "Record your moves first",
+        description: "Clear your notation queue before pressing the clock",
         variant: "destructive",
       });
       return;
@@ -1481,11 +1520,31 @@ export default function OTBMode() {
     setClockPresses(clockPresses + 1);
     setHasMadeMove(false);
     
+    // NEW: After clock press, add player's move to notation queue (Move → Clock → Write flow)
+    if (notationPractice && pendingPlayerNotation) {
+      const currentMoveCount = moves.length;
+      const moveNumber = Math.floor((currentMoveCount - 1) / 2) + 1;
+      const isWhiteMove = (currentMoveCount - 1) % 2 === 0;
+      
+      setNotationQueue(prev => [...prev, {
+        notation: pendingPlayerNotation,
+        isPlayerMove: true,
+        moveNumber,
+        isWhiteMove,
+      }]);
+      setPendingPlayerNotation(null);
+      
+      // For bot games, set waiting flag to pause bot until notation is recorded
+      if (isBotGame) {
+        setWaitingForNotation(true);
+      }
+    }
+    
     // Send clock press to opponent via WebSocket
     if (matchId) {
       sendMove(matchId, "__CLOCK_PRESS__", "", whiteTime, blackTime, undefined);
     }
-  }, [gameStarted, clockTurn, increment, clockPresses, arbiterPending, pendingCheckmate, matchId, isBotGame, hasMadeMove, playerColor, toast, sendMove, whiteTime, blackTime, notationPractice, pendingNotation]);
+  }, [gameStarted, clockTurn, increment, clockPresses, arbiterPending, pendingCheckmate, matchId, isBotGame, hasMadeMove, playerColor, toast, sendMove, whiteTime, blackTime, notationPractice, notationQueue, pendingPlayerNotation, moves.length]);
 
   const handleStartGame = () => {
     const minutes = parseInt(timeControl);
@@ -1505,6 +1564,9 @@ export default function OTBMode() {
     setMoves([]);
     setConfirmedMoves([]);
     setPendingNotation(null);
+    setNotationQueue([]);
+    setPendingPlayerNotation(null);
+    setWaitingForNotation(false);
     setLastMoveSquares([]);
     setActiveColor("white");
     setPlayerColor("white");
@@ -1590,6 +1652,9 @@ export default function OTBMode() {
     setMoves([]);
     setConfirmedMoves([]);
     setPendingNotation(null);
+    setNotationQueue([]);
+    setPendingPlayerNotation(null);
+    setWaitingForNotation(false);
     setLastMoveSquares([]);
     setActiveColor("white");
     setClockTurn("white");
@@ -1895,6 +1960,22 @@ export default function OTBMode() {
         
         setLastMoveSquares([moveResult.from, moveResult.to]);
         
+        // Notation practice: add bot's move to queue for player to record
+        if (notationPractice) {
+          const currentMoveCount = moves.length + 1; // +1 for the bot move just added
+          const moveNumber = Math.floor((currentMoveCount - 1) / 2) + 1;
+          const isWhiteMove = (currentMoveCount - 1) % 2 === 0;
+          
+          setNotationQueue(prev => [...prev, {
+            notation: moveResult.san,
+            isPlayerMove: false,
+            moveNumber,
+            isWhiteMove,
+          }]);
+          // Player must record bot's move before making their next move
+          setWaitingForNotation(true);
+        }
+        
         if (newLegalGame.isCheckmate()) {
           // Set gameResult IMMEDIATELY to prevent race condition
           const result = botColor === "white" ? "white_win" : "black_win";
@@ -1941,7 +2022,8 @@ export default function OTBMode() {
   }, [isBotGame, selectedBot, legalChessGame, gameResult, playerColor, activeColor, moves, myViolations, toast, handleGameEnd, requestBotMove, increment]);
 
   useEffect(() => {
-    if (isBotGame && gameStarted && !botThinking && !arbiterPending && !gameResult) {
+    // Pause bot if waiting for player to record notation (Move → Clock → Write flow)
+    if (isBotGame && gameStarted && !botThinking && !arbiterPending && !gameResult && !waitingForNotation) {
       const botColor = playerColor === "white" ? "black" : "white";
       if (clockTurn === botColor && activeColor === botColor) {
         const timer = setTimeout(() => {
@@ -1950,7 +2032,7 @@ export default function OTBMode() {
         return () => clearTimeout(timer);
       }
     }
-  }, [isBotGame, gameStarted, botThinking, arbiterPending, gameResult, playerColor, clockTurn, activeColor, executeBotTurn]);
+  }, [isBotGame, gameStarted, botThinking, arbiterPending, gameResult, playerColor, clockTurn, activeColor, executeBotTurn, waitingForNotation]);
 
   const isPawnPromotion = (piece: string | null, toRank: number): boolean => {
     if (!piece) return false;
@@ -2108,9 +2190,11 @@ export default function OTBMode() {
     setLockedPiece(null); // Reset touch-move lock after completing a move
     setLastMoveSquares([fromSquare, toSquare]);
     
-    // Notation practice: set pending notation for player to record
+    // Notation practice: store notation to add to queue after clock press (Move → Clock → Write flow)
     if (notationPractice) {
-      setPendingNotation(moveNotation);
+      setPendingPlayerNotation(moveNotation);
+      // Auto-confirm the move - the notation queue handles the writing requirement
+      setConfirmedMoves(prev => [...prev, newMove]);
     } else {
       // If not practicing notation, auto-confirm the move
       setConfirmedMoves(prev => [...prev, newMove]);
@@ -2166,11 +2250,11 @@ export default function OTBMode() {
   const handleSquareClick = (square: string) => {
     if (!gameStarted || arbiterPending || pendingCheckmate || pendingPromotion || botThinking) return;
     
-    // Block moves while waiting for notation input
-    if (notationPractice && pendingNotation) {
+    // Block moves while waiting for notation queue to be cleared
+    if (notationPractice && notationQueue.length > 0) {
       toast({
-        title: "Record your move first",
-        description: "Type the notation of your move before making another",
+        title: "Record your moves first",
+        description: "Clear your notation queue before making another move",
         variant: "destructive",
       });
       return;
@@ -3092,7 +3176,7 @@ export default function OTBMode() {
                         </div>
                         <p className="text-xs text-muted-foreground -mt-1 ml-0">
                           {isNotationAllowed 
-                            ? "Type each move's notation after playing"
+                            ? "Move → Clock → Write: Record moves after pressing clock"
                             : "Notation not required under 5 minutes (OTB rules)"
                           }
                         </p>
@@ -3301,6 +3385,9 @@ export default function OTBMode() {
                             setMoves([]);
                             setConfirmedMoves([]);
                             setPendingNotation(null);
+                            setNotationQueue([]);
+                            setPendingPlayerNotation(null);
+                            setWaitingForNotation(false);
                             setBoardState(INITIAL_BOARD.map(row => [...row]));
                             setSelectedSquare(null);
                             setClockPresses(0);
@@ -3498,19 +3585,17 @@ export default function OTBMode() {
                 </CardContent>
               </Card>
 
-              {/* Notation Practice Input */}
-              {notationPractice && pendingNotation && (
+              {/* Notation Practice Input - Move → Clock → Write flow */}
+              {notationPractice && notationQueue.length > 0 && (
                 <NotationInput
-                  expectedNotation={pendingNotation}
+                  expectedNotation={notationQueue[0].notation}
                   onCorrect={() => {
-                    const lastMove = moves[moves.length - 1];
-                    if (lastMove) {
-                      setConfirmedMoves(prev => [...prev, lastMove]);
-                    }
-                    setPendingNotation(null);
+                    // Remove the first item from the queue
+                    // useEffect will clear waitingForNotation when queue empties
+                    setNotationQueue(prev => prev.slice(1));
                   }}
-                  moveNumber={Math.ceil(moves.length / 2)}
-                  isWhiteMove={moves.length % 2 === 1}
+                  moveNumber={notationQueue[0].moveNumber}
+                  isWhiteMove={notationQueue[0].isWhiteMove}
                 />
               )}
 

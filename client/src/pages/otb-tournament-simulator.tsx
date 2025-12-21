@@ -274,7 +274,7 @@ export default function OTBTournamentSimulator() {
           </p>
 
           <p>
-            <strong>The Routine:</strong> This trains the essential <em>Move → Record → Press Clock</em> rhythm, 
+            <strong>The Routine:</strong> This trains the essential <em>Move → Press Clock → Record</em> rhythm, 
             ensuring you never feel rushed or confused by your scoresheet during a real game.
           </p>
 
