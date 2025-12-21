@@ -194,6 +194,17 @@ export default function OTBMode() {
     }
   }, [gameResult]);
 
+  // Sync increment and notation practice with time control changes
+  useEffect(() => {
+    // Set increment based on time control (15+30 for rapid, 0 for blitz)
+    setIncrement(getIncrementForTimeControl(timeControl));
+    
+    // Disable notation practice for 5-minute games (FIDE rules)
+    if (timeControl === "5" && notationPractice) {
+      setNotationPractice(false);
+    }
+  }, [timeControl]);
+
   const squareToIndices = (square: string): { rank: number; file: number } => {
     const file = FILES.indexOf(square[0]);
     const rank = RANKS.indexOf(square[1]);
@@ -233,6 +244,37 @@ export default function OTBMode() {
     if (!piece) return null;
     return piece === piece.toUpperCase() ? "white" : "black";
   };
+
+  // Generate proper SAN notation from move details
+  // Uses chess.js to generate standard algebraic notation (e4, Nf3, exd5, O-O, etc.)
+  const generateSanNotation = (
+    fen: string,
+    from: string,
+    to: string,
+    promotion?: string
+  ): string | null => {
+    try {
+      const tempGame = new Chess(fen);
+      const result = tempGame.move({
+        from,
+        to,
+        promotion: promotion?.toLowerCase() as 'q' | 'r' | 'b' | 'n' | undefined,
+      });
+      return result ? result.san : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Get the time increment for a given time control
+  const getIncrementForTimeControl = (tc: string): number => {
+    // Rapid (15 min) gets 30 second increment
+    // Blitz (5 min) gets no increment
+    return tc === "15" ? 30 : 0;
+  };
+
+  // Check if notation practice is allowed for current time control
+  const isNotationAllowed = timeControl !== "5";
 
   const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number; from?: string; to?: string; piece?: string; captured?: string; promotion?: string }) => {
     // Use ref to get the latest matchId value and avoid stale closure issues
@@ -1982,7 +2024,7 @@ export default function OTBMode() {
     
     setBoardState(newBoard);
     
-    // Try to get SAN from chess.js, fall back to custom notation
+    // Try to get SAN from chess.js, fall back to generating SAN from board state
     let moveNotation: string;
     let newFenFromChess: string | null = null;
     
@@ -1991,6 +2033,19 @@ export default function OTBMode() {
     
     // Track if this move ends the game (checkmate/stalemate/draw)
     let gameEndingResult: "white_win" | "black_win" | "draw" | null = null;
+    
+    // Helper to generate SAN from current board state (before move was applied)
+    const generateSanFromBoardState = (): string => {
+      // Reconstruct FEN from board state before the move
+      const preMoveFen = boardToFen(boardState, pieceIsWhite ? "white" : "black");
+      const sanResult = generateSanNotation(preMoveFen, fromSquare, toSquare, promotedPiece);
+      if (sanResult) {
+        return sanResult;
+      }
+      // Ultimate fallback for truly illegal moves - mark as illegal
+      const promotionSuffix = promotedPiece ? `=${promotedPiece.toUpperCase()}` : '';
+      return `${fromSquare}${toSquare}${promotionSuffix}`;
+    };
     
     // For multiplayer: try to make the move in chess.js to get SAN
     if (legalChessGame) {
@@ -2021,14 +2076,12 @@ export default function OTBMode() {
             }
           }
         } else {
-          // Fallback notation
-          const promotionSuffix = promotedPiece ? `=${promotedPiece.toUpperCase()}` : '';
-          moveNotation = `${originalPiece.toUpperCase()}${fromSquare}-${toSquare}${captured ? 'x' + captured.toUpperCase() : ''}${promotionSuffix}`;
+          // Move returned null - generate SAN from board state
+          moveNotation = generateSanFromBoardState();
         }
       } catch (e) {
-        // Fallback notation for illegal moves in OTB mode
-        const promotionSuffix = promotedPiece ? `=${promotedPiece.toUpperCase()}` : '';
-        moveNotation = `${originalPiece.toUpperCase()}${fromSquare}-${toSquare}${captured ? 'x' + captured.toUpperCase() : ''}${promotionSuffix}`;
+        // Move threw error - generate SAN from board state
+        moveNotation = generateSanFromBoardState();
         if (matchId) {
           const newFenForLegal = boardToFen(newBoard, nextTurn);
           const freshGame = new Chess(newFenForLegal);
@@ -2036,9 +2089,8 @@ export default function OTBMode() {
         }
       }
     } else {
-      // No legalChessGame - use fallback notation
-      const promotionSuffix = promotedPiece ? `=${promotedPiece.toUpperCase()}` : '';
-      moveNotation = `${originalPiece.toUpperCase()}${fromSquare}-${toSquare}${captured ? 'x' + captured.toUpperCase() : ''}${promotionSuffix}`;
+      // No legalChessGame - generate SAN from board state
+      moveNotation = generateSanFromBoardState();
     }
     
     const newMove: MoveRecord = {
@@ -2739,7 +2791,7 @@ export default function OTBMode() {
                         data-testid="button-queue-blitz"
                       >
                         <Clock className="mr-2 h-4 w-4" />
-                        Blitz (5 min)
+                        Blitz (5+0)
                       </Button>
                       <Button 
                         variant="outline" 
@@ -2748,7 +2800,7 @@ export default function OTBMode() {
                         data-testid="button-queue-rapid"
                       >
                         <Clock className="mr-2 h-4 w-4" />
-                        Rapid (15 min)
+                        Rapid (15+30)
                       </Button>
                     </div>
 
@@ -2763,8 +2815,8 @@ export default function OTBMode() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="5">Blitz: 5 min</SelectItem>
-                                <SelectItem value="15">Rapid: 15 min</SelectItem>
+                                <SelectItem value="5">Blitz: 5+0</SelectItem>
+                                <SelectItem value="15">Rapid: 15+30</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -2802,8 +2854,8 @@ export default function OTBMode() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="5">Blitz: 5 min</SelectItem>
-                                <SelectItem value="15">Rapid: 15 min</SelectItem>
+                                <SelectItem value="5">Blitz: 5+0</SelectItem>
+                                <SelectItem value="15">Rapid: 15+30</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -3024,18 +3076,25 @@ export default function OTBMode() {
                           View board as if sitting at a table
                         </p>
                         <div className="flex items-center justify-between">
-                          <Label htmlFor="notation-practice-pregame" className="text-sm cursor-pointer">
+                          <Label 
+                            htmlFor="notation-practice-pregame" 
+                            className={`text-sm ${isNotationAllowed ? 'cursor-pointer' : 'text-muted-foreground cursor-not-allowed'}`}
+                          >
                             Notation Practice
                           </Label>
                           <Switch
                             id="notation-practice-pregame"
                             checked={notationPractice}
                             onCheckedChange={setNotationPractice}
+                            disabled={!isNotationAllowed}
                             data-testid="switch-notation-practice"
                           />
                         </div>
                         <p className="text-xs text-muted-foreground -mt-1 ml-0">
-                          Type each move's notation after playing
+                          {isNotationAllowed 
+                            ? "Type each move's notation after playing"
+                            : "Notation not required under 5 minutes (FIDE rules)"
+                          }
                         </p>
                       </div>
                     </div>

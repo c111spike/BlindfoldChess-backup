@@ -94,19 +94,19 @@ export default function Landing() {
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-2">
                   <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground">3D perspective view - see the board like sitting at a table</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground">Notation training - write moves in algebraic notation</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground">Manual clock pressing with physical feedback</p>
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground">Arbiter AI with OTB-accurate warnings</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-muted-foreground">3-level highlighting system</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-muted-foreground">Separate Elo for Bullet/Blitz/Rapid</p>
                 </div>
               </CardContent>
             </Card>
