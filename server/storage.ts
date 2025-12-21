@@ -239,6 +239,7 @@ export interface IStorage {
   getActiveSimulVsSimulMatchForUser(userId: string): Promise<SimulVsSimulMatch | undefined>;
   getAllSimulVsSimulPairings(matchId: string): Promise<SimulVsSimulPairing[]>;
   clearSimulVsSimulQueue(boardCount: number, userIds: string[]): Promise<void>;
+  getCompletedSimulVsSimulPairingCount(): Promise<number>;
   
   // Anti-Cheat System
   createCheatReport(report: InsertCheatReport): Promise<CheatReport>;
@@ -2225,6 +2226,16 @@ export class DatabaseStorage implements IStorage {
           inArray(simulVsSimulQueue.odId, userIds)
         )
       );
+  }
+
+  async getCompletedSimulVsSimulPairingCount(): Promise<number> {
+    const [result] = await db
+      .select({
+        count: sql<number>`count(*)::int`,
+      })
+      .from(simulVsSimulPairings)
+      .where(sql`${simulVsSimulPairings.result} != 'ongoing'`);
+    return result?.count || 0;
   }
 
   // Anti-Cheat System

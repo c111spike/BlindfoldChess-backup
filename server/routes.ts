@@ -139,10 +139,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get('/api/stats/platform', async (req, res) => {
     try {
-      const [gameStats, blindfoldCount, trainingCounts] = await Promise.all([
+      const [gameStats, blindfoldCount, trainingCounts, simulVsSimulCount] = await Promise.all([
         storage.getGameStatistics(),
         storage.getBlindfoldGameCount(),
-        storage.getTrainingChallengesCounts()
+        storage.getTrainingChallengesCounts(),
+        storage.getCompletedSimulVsSimulPairingCount()
       ]);
       
       // Convert array to object with mode as key
@@ -154,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         onlinePlayers: authenticatedUsers.size,
         totalGames: {
-          simulVsSimul: statsByMode['simul_vs_simul'] || 0,
+          simulVsSimul: simulVsSimulCount,
           otb: statsByMode['otb'] || 0,
           standard: statsByMode['standard'] || 0,
           blindfold: blindfoldCount,
@@ -4450,10 +4451,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const player1 = await storage.getUser(match.player1.userId);
             const player2 = await storage.getUser(match.player2.userId);
-            
-            // Get user settings to check blindfold configuration
-            const player1Settings = await storage.getUserSettings(match.player1.userId);
-            const player2Settings = await storage.getUserSettings(match.player2.userId);
 
             const player1Name = `${player1?.firstName || 'Opponent'} ${player1?.lastName || ''}`.trim();
             const player2Name = `${player2?.firstName || 'Opponent'} ${player2?.lastName || ''}`.trim();
@@ -4464,6 +4461,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const blackPlayerName = player1Color === "black" ? player1Name : player2Name;
 
             // Create game for player 1
+            // Note: blindfoldEnabled is NOT set automatically from settings
+            // It should only be set when player explicitly enables blindfold mode for a game
             const player1GameData: any = {
               userId: match.player1.userId,
               whitePlayerId: whitePlayerId,
@@ -4477,10 +4476,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               blackTime: time * 60,
               opponentName: player2Name,
             };
-            if (player1Settings?.blindfoldDifficulty) {
-              player1GameData.blindfoldDifficulty = player1Settings.blindfoldDifficulty;
-              player1GameData.blindfoldEnabled = true;
-            }
             const player1Game = await storage.createGame(player1GameData);
 
             // Create game for player 2
@@ -4497,10 +4492,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               blackTime: time * 60,
               opponentName: player1Name,
             };
-            if (player2Settings?.blindfoldDifficulty) {
-              player2GameData.blindfoldDifficulty = player2Settings.blindfoldDifficulty;
-              player2GameData.blindfoldEnabled = true;
-            }
             const player2Game = await storage.createGame(player2GameData);
 
             // Create match record with both game IDs
