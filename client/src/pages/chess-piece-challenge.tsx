@@ -55,7 +55,7 @@ export default function ChessPieceChallenge() {
                 <Target className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
                   <h3 className="font-semibold">All Piece Types</h3>
-                  <p className="text-sm text-muted-foreground">Knights, bishops, rooks, and queens</p>
+                  <p className="text-sm text-muted-foreground">Knights, bishops, rooks, queens, and kings</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
