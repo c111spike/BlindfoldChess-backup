@@ -189,22 +189,33 @@ function Board({ orientation, highlightedSquares, legalMoveSquares, lastMoveSqua
 }
 
 function Pawn({ position, color }: { position: [number, number, number]; color: "w" | "b" }) {
-  const pieceColor = color === "w" ? "#eeeeee" : "#222222";
+  const pieceColor = color === "w" ? "#f5f5f0" : "#1a1a1a";
+  const accentColor = color === "w" ? "#e8e8e0" : "#2a2a2a";
   return (
     <group position={position}>
-      {/* Base */}
+      {/* Wide base plate */}
+      <mesh position={[0, 0.05, 0]} castShadow>
+        <cylinderGeometry args={[0.38, 0.42, 0.1, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Base collar */}
       <mesh position={[0, 0.15, 0]} castShadow>
-        <cylinderGeometry args={[0.3 * PIECE_SCALE, 0.35 * PIECE_SCALE, 0.15, 16]} />
+        <cylinderGeometry args={[0.32, 0.38, 0.12, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Body */}
-      <mesh position={[0, 0.4, 0]} castShadow>
-        <cylinderGeometry args={[0.2 * PIECE_SCALE, 0.28 * PIECE_SCALE, 0.4, 16]} />
+      {/* Tapered neck */}
+      <mesh position={[0, 0.35, 0]} castShadow>
+        <cylinderGeometry args={[0.18, 0.28, 0.3, 20]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Head */}
-      <mesh position={[0, 0.65, 0]} castShadow>
-        <sphereGeometry args={[0.18 * PIECE_SCALE, 16, 16]} />
+      {/* Collar ring */}
+      <mesh position={[0, 0.52, 0]} castShadow>
+        <torusGeometry args={[0.16, 0.04, 12, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Round head */}
+      <mesh position={[0, 0.68, 0]} castShadow>
+        <sphereGeometry args={[0.22, 20, 20]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
     </group>
@@ -212,106 +223,196 @@ function Pawn({ position, color }: { position: [number, number, number]; color: 
 }
 
 function Rook({ position, color }: { position: [number, number, number]; color: "w" | "b" }) {
-  const pieceColor = color === "w" ? "#eeeeee" : "#222222";
+  const pieceColor = color === "w" ? "#f5f5f0" : "#1a1a1a";
+  const accentColor = color === "w" ? "#e8e8e0" : "#2a2a2a";
   return (
     <group position={position}>
-      {/* Base */}
-      <mesh position={[0, 0.1, 0]} castShadow>
-        <cylinderGeometry args={[0.32 * PIECE_SCALE, 0.38 * PIECE_SCALE, 0.2, 16]} />
+      {/* Wide base plate */}
+      <mesh position={[0, 0.05, 0]} castShadow>
+        <cylinderGeometry args={[0.42, 0.46, 0.1, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Base collar */}
+      <mesh position={[0, 0.15, 0]} castShadow>
+        <cylinderGeometry args={[0.36, 0.42, 0.12, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Tower */}
-      <mesh position={[0, 0.45, 0]} castShadow>
-        <cylinderGeometry args={[0.25 * PIECE_SCALE, 0.28 * PIECE_SCALE, 0.6, 16]} />
+      {/* Tower body */}
+      <mesh position={[0, 0.5, 0]} castShadow>
+        <cylinderGeometry args={[0.28, 0.32, 0.6, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Top */}
-      <mesh position={[0, 0.8, 0]} castShadow>
-        <boxGeometry args={[0.35 * PIECE_SCALE, 0.15, 0.35 * PIECE_SCALE]} />
-        <meshStandardMaterial color={pieceColor} />
+      {/* Tower rim */}
+      <mesh position={[0, 0.82, 0]} castShadow>
+        <cylinderGeometry args={[0.34, 0.28, 0.08, 24]} />
+        <meshStandardMaterial color={accentColor} />
       </mesh>
+      {/* Battlements - 4 corners */}
+      {[0, Math.PI/2, Math.PI, Math.PI*1.5].map((angle, i) => (
+        <mesh key={i} position={[Math.cos(angle) * 0.22, 0.95, Math.sin(angle) * 0.22]} castShadow>
+          <boxGeometry args={[0.16, 0.18, 0.16]} />
+          <meshStandardMaterial color={pieceColor} />
+        </mesh>
+      ))}
     </group>
   );
 }
 
 function Knight({ position, color }: { position: [number, number, number]; color: "w" | "b" }) {
-  const pieceColor = color === "w" ? "#eeeeee" : "#222222";
+  const pieceColor = color === "w" ? "#f5f5f0" : "#1a1a1a";
+  const accentColor = color === "w" ? "#e8e8e0" : "#2a2a2a";
   return (
     <group position={position}>
-      {/* Base */}
-      <mesh position={[0, 0.1, 0]} castShadow>
-        <cylinderGeometry args={[0.32 * PIECE_SCALE, 0.38 * PIECE_SCALE, 0.2, 16]} />
+      {/* Wide base plate */}
+      <mesh position={[0, 0.05, 0]} castShadow>
+        <cylinderGeometry args={[0.42, 0.46, 0.1, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Base collar */}
+      <mesh position={[0, 0.15, 0]} castShadow>
+        <cylinderGeometry args={[0.34, 0.42, 0.12, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Body */}
-      <mesh position={[0, 0.4, 0]} castShadow>
-        <cylinderGeometry args={[0.22 * PIECE_SCALE, 0.28 * PIECE_SCALE, 0.5, 16]} />
+      {/* Neck column */}
+      <mesh position={[0, 0.38, 0]} castShadow>
+        <cylinderGeometry args={[0.22, 0.30, 0.38, 20]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Head (angled box for horse shape) */}
-      <mesh position={[0.05, 0.7, 0]} rotation={[0, 0, 0.3]} castShadow>
-        <boxGeometry args={[0.18 * PIECE_SCALE, 0.35, 0.25 * PIECE_SCALE]} />
+      {/* Horse neck - angled */}
+      <mesh position={[0.08, 0.65, 0]} rotation={[0, 0, 0.4]} castShadow>
+        <cylinderGeometry args={[0.16, 0.20, 0.45, 16]} />
+        <meshStandardMaterial color={pieceColor} />
+      </mesh>
+      {/* Horse head */}
+      <mesh position={[0.22, 0.88, 0]} rotation={[0, 0, 0.8]} castShadow>
+        <boxGeometry args={[0.35, 0.18, 0.22]} />
+        <meshStandardMaterial color={pieceColor} />
+      </mesh>
+      {/* Horse snout */}
+      <mesh position={[0.38, 0.82, 0]} rotation={[0, 0, 0.3]} castShadow>
+        <boxGeometry args={[0.22, 0.12, 0.16]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Ears */}
+      <mesh position={[0.12, 1.0, 0.06]} rotation={[0.3, 0, 0.5]} castShadow>
+        <coneGeometry args={[0.06, 0.14, 8]} />
+        <meshStandardMaterial color={pieceColor} />
+      </mesh>
+      <mesh position={[0.12, 1.0, -0.06]} rotation={[-0.3, 0, 0.5]} castShadow>
+        <coneGeometry args={[0.06, 0.14, 8]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
       {/* Mane */}
-      <mesh position={[-0.02, 0.75, 0]} rotation={[0, 0, -0.2]} castShadow>
-        <boxGeometry args={[0.08 * PIECE_SCALE, 0.25, 0.2 * PIECE_SCALE]} />
-        <meshStandardMaterial color={pieceColor} />
+      <mesh position={[-0.02, 0.78, 0]} rotation={[0, 0, -0.3]} castShadow>
+        <boxGeometry args={[0.08, 0.35, 0.18]} />
+        <meshStandardMaterial color={accentColor} />
       </mesh>
     </group>
   );
 }
 
 function Bishop({ position, color }: { position: [number, number, number]; color: "w" | "b" }) {
-  const pieceColor = color === "w" ? "#eeeeee" : "#222222";
+  const pieceColor = color === "w" ? "#f5f5f0" : "#1a1a1a";
+  const accentColor = color === "w" ? "#e8e8e0" : "#2a2a2a";
   return (
     <group position={position}>
-      {/* Base */}
-      <mesh position={[0, 0.1, 0]} castShadow>
-        <cylinderGeometry args={[0.32 * PIECE_SCALE, 0.38 * PIECE_SCALE, 0.2, 16]} />
+      {/* Wide base plate */}
+      <mesh position={[0, 0.05, 0]} castShadow>
+        <cylinderGeometry args={[0.42, 0.46, 0.1, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Base collar */}
+      <mesh position={[0, 0.15, 0]} castShadow>
+        <cylinderGeometry args={[0.34, 0.42, 0.12, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Body */}
-      <mesh position={[0, 0.45, 0]} castShadow>
-        <cylinderGeometry args={[0.15 * PIECE_SCALE, 0.28 * PIECE_SCALE, 0.6, 16]} />
+      {/* Lower body */}
+      <mesh position={[0, 0.35, 0]} castShadow>
+        <cylinderGeometry args={[0.24, 0.32, 0.32, 20]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Mitre */}
-      <mesh position={[0, 0.8, 0]} castShadow>
-        <coneGeometry args={[0.18 * PIECE_SCALE, 0.3, 16]} />
+      {/* Collar ring */}
+      <mesh position={[0, 0.52, 0]} castShadow>
+        <torusGeometry args={[0.22, 0.04, 12, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Tapered upper body */}
+      <mesh position={[0, 0.72, 0]} castShadow>
+        <cylinderGeometry args={[0.12, 0.22, 0.38, 20]} />
         <meshStandardMaterial color={pieceColor} />
+      </mesh>
+      {/* Mitre head - teardrop shape */}
+      <mesh position={[0, 0.98, 0]} castShadow>
+        <sphereGeometry args={[0.18, 20, 20]} />
+        <meshStandardMaterial color={pieceColor} />
+      </mesh>
+      {/* Mitre point */}
+      <mesh position={[0, 1.15, 0]} castShadow>
+        <coneGeometry args={[0.14, 0.2, 16]} />
+        <meshStandardMaterial color={pieceColor} />
+      </mesh>
+      {/* Diagonal slit on mitre */}
+      <mesh position={[0.08, 1.02, 0]} rotation={[0, 0, 0.5]} castShadow>
+        <boxGeometry args={[0.22, 0.04, 0.08]} />
+        <meshStandardMaterial color={accentColor} />
       </mesh>
       {/* Top ball */}
-      <mesh position={[0, 0.98, 0]} castShadow>
-        <sphereGeometry args={[0.06 * PIECE_SCALE, 12, 12]} />
-        <meshStandardMaterial color={pieceColor} />
+      <mesh position={[0, 1.28, 0]} castShadow>
+        <sphereGeometry args={[0.06, 12, 12]} />
+        <meshStandardMaterial color={accentColor} />
       </mesh>
     </group>
   );
 }
 
 function Queen({ position, color }: { position: [number, number, number]; color: "w" | "b" }) {
-  const pieceColor = color === "w" ? "#eeeeee" : "#222222";
+  const pieceColor = color === "w" ? "#f5f5f0" : "#1a1a1a";
+  const accentColor = color === "w" ? "#e8e8e0" : "#2a2a2a";
   return (
     <group position={position}>
-      {/* Base */}
-      <mesh position={[0, 0.12, 0]} castShadow>
-        <cylinderGeometry args={[0.35 * PIECE_SCALE, 0.42 * PIECE_SCALE, 0.24, 16]} />
+      {/* Wide base plate */}
+      <mesh position={[0, 0.05, 0]} castShadow>
+        <cylinderGeometry args={[0.46, 0.50, 0.1, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Base collar */}
+      <mesh position={[0, 0.16, 0]} castShadow>
+        <cylinderGeometry args={[0.40, 0.46, 0.14, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Body */}
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <cylinderGeometry args={[0.18 * PIECE_SCALE, 0.32 * PIECE_SCALE, 0.7, 16]} />
+      {/* Lower body - curved */}
+      <mesh position={[0, 0.40, 0]} castShadow>
+        <cylinderGeometry args={[0.28, 0.38, 0.40, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Crown */}
-      <mesh position={[0, 0.9, 0]} castShadow>
-        <cylinderGeometry args={[0.22 * PIECE_SCALE, 0.15 * PIECE_SCALE, 0.2, 8]} />
+      {/* Waist ring */}
+      <mesh position={[0, 0.62, 0]} castShadow>
+        <torusGeometry args={[0.26, 0.05, 12, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Upper body - elegant taper */}
+      <mesh position={[0, 0.88, 0]} castShadow>
+        <cylinderGeometry args={[0.16, 0.26, 0.48, 20]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Top ball */}
-      <mesh position={[0, 1.05, 0]} castShadow>
-        <sphereGeometry args={[0.08 * PIECE_SCALE, 12, 12]} />
+      {/* Crown base */}
+      <mesh position={[0, 1.15, 0]} castShadow>
+        <cylinderGeometry args={[0.22, 0.16, 0.10, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Crown points - 8 spikes around */}
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+        const angle = (i * Math.PI * 2) / 8;
+        return (
+          <mesh key={i} position={[Math.cos(angle) * 0.16, 1.28, Math.sin(angle) * 0.16]} castShadow>
+            <sphereGeometry args={[0.05, 10, 10]} />
+            <meshStandardMaterial color={pieceColor} />
+          </mesh>
+        );
+      })}
+      {/* Crown orb on top */}
+      <mesh position={[0, 1.38, 0]} castShadow>
+        <sphereGeometry args={[0.10, 16, 16]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
     </group>
@@ -319,32 +420,53 @@ function Queen({ position, color }: { position: [number, number, number]; color:
 }
 
 function King({ position, color }: { position: [number, number, number]; color: "w" | "b" }) {
-  const pieceColor = color === "w" ? "#eeeeee" : "#222222";
+  const pieceColor = color === "w" ? "#f5f5f0" : "#1a1a1a";
+  const accentColor = color === "w" ? "#e8e8e0" : "#2a2a2a";
   return (
     <group position={position}>
-      {/* Base */}
-      <mesh position={[0, 0.12, 0]} castShadow>
-        <cylinderGeometry args={[0.35 * PIECE_SCALE, 0.42 * PIECE_SCALE, 0.24, 16]} />
+      {/* Wide base plate */}
+      <mesh position={[0, 0.05, 0]} castShadow>
+        <cylinderGeometry args={[0.48, 0.52, 0.1, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Base collar */}
+      <mesh position={[0, 0.16, 0]} castShadow>
+        <cylinderGeometry args={[0.42, 0.48, 0.14, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Body */}
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <cylinderGeometry args={[0.2 * PIECE_SCALE, 0.32 * PIECE_SCALE, 0.7, 16]} />
+      {/* Lower body */}
+      <mesh position={[0, 0.42, 0]} castShadow>
+        <cylinderGeometry args={[0.30, 0.40, 0.44, 24]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Collar */}
-      <mesh position={[0, 0.88, 0]} castShadow>
-        <cylinderGeometry args={[0.22 * PIECE_SCALE, 0.18 * PIECE_SCALE, 0.1, 16]} />
+      {/* Waist ring */}
+      <mesh position={[0, 0.66, 0]} castShadow>
+        <torusGeometry args={[0.28, 0.05, 12, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Upper body */}
+      <mesh position={[0, 0.92, 0]} castShadow>
+        <cylinderGeometry args={[0.18, 0.28, 0.48, 20]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Cross vertical */}
-      <mesh position={[0, 1.08, 0]} castShadow>
-        <boxGeometry args={[0.06 * PIECE_SCALE, 0.35, 0.06 * PIECE_SCALE]} />
+      {/* Crown band */}
+      <mesh position={[0, 1.18, 0]} castShadow>
+        <cylinderGeometry args={[0.22, 0.18, 0.08, 24]} />
+        <meshStandardMaterial color={accentColor} />
+      </mesh>
+      {/* Crown dome */}
+      <mesh position={[0, 1.28, 0]} castShadow>
+        <sphereGeometry args={[0.16, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
-      {/* Cross horizontal */}
-      <mesh position={[0, 1.15, 0]} castShadow>
-        <boxGeometry args={[0.2 * PIECE_SCALE, 0.08, 0.06 * PIECE_SCALE]} />
+      {/* Cross - vertical beam */}
+      <mesh position={[0, 1.52, 0]} castShadow>
+        <boxGeometry args={[0.08, 0.40, 0.08]} />
+        <meshStandardMaterial color={pieceColor} />
+      </mesh>
+      {/* Cross - horizontal beam */}
+      <mesh position={[0, 1.58, 0]} castShadow>
+        <boxGeometry args={[0.28, 0.08, 0.08]} />
         <meshStandardMaterial color={pieceColor} />
       </mesh>
     </group>
@@ -475,30 +597,17 @@ export function ChessBoard3D({
   onMove,
   className = "",
 }: ChessBoard3DProps) {
-  const [internalSelected, setInternalSelected] = useState<string | null>(null);
   const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
   
   useEffect(() => {
     setWebglSupported(isWebGLAvailable());
   }, []);
   
-  const effectiveSelected = selectedSquare ?? internalSelected;
-  
   const handleSquareClick = useCallback((square: string) => {
     if (onSquareClick) {
       onSquareClick(square);
     }
-    
-    if (onMove && effectiveSelected && effectiveSelected !== square) {
-      const success = onMove(effectiveSelected, square);
-      if (success) {
-        setInternalSelected(null);
-        return;
-      }
-    }
-    
-    setInternalSelected(square);
-  }, [onSquareClick, onMove, effectiveSelected]);
+  }, [onSquareClick]);
 
   const cameraPosition: [number, number, number] = orientation === "white" 
     ? [0, 10, 12]
@@ -521,7 +630,7 @@ export function ChessBoard3D({
         highlightedSquares={highlightedSquares}
         legalMoveSquares={legalMoveSquares}
         lastMove={lastMove}
-        selectedSquare={effectiveSelected}
+        selectedSquare={selectedSquare}
         onSquareClick={onSquareClick}
         onMove={onMove}
         className={className}
@@ -550,7 +659,7 @@ export function ChessBoard3D({
           highlightedSquares={highlightedSquares}
           legalMoveSquares={legalMoveSquares}
           lastMoveSquares={lastMoveSquares}
-          selectedSquare={effectiveSelected}
+          selectedSquare={selectedSquare}
           onSquareClick={handleSquareClick}
         />
       </Canvas>
