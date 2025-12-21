@@ -38,13 +38,27 @@ export function PerspectiveChessBoard({
       className={`relative ${className}`}
       style={{
         perspective: "1000px",
-        perspectiveOrigin: "50% 100%",
+        perspectiveOrigin: "50% 80%",
       }}
       data-testid="perspective-board-container"
     >
+      <style>{`
+        .perspective-3d-board [data-square] img,
+        .perspective-3d-board [data-square] svg {
+          transform: translateZ(20px) scale(1.05);
+          filter: drop-shadow(2px 4px 3px rgba(0, 0, 0, 0.4));
+          transition: transform 0.15s ease-out;
+        }
+        .perspective-3d-board [data-square]:hover img,
+        .perspective-3d-board [data-square]:hover svg {
+          transform: translateZ(30px) scale(1.1);
+          filter: drop-shadow(3px 6px 5px rgba(0, 0, 0, 0.5));
+        }
+      `}</style>
       <div
+        className="perspective-3d-board"
         style={{
-          transform: "rotateX(30deg)",
+          transform: "rotateX(25deg)",
           transformOrigin: "50% 100%",
           transformStyle: "preserve-3d",
         }}
@@ -55,14 +69,6 @@ export function PerspectiveChessBoard({
           className="shadow-2xl"
         />
       </div>
-      <div 
-        className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-[110%] h-6 bg-gradient-to-t from-amber-950 to-amber-900 rounded-b-lg shadow-lg"
-        style={{
-          transform: "rotateX(-10deg) translateZ(-10px)",
-          transformOrigin: "top center",
-        }}
-        data-testid="table-edge"
-      />
     </div>
   );
 }
