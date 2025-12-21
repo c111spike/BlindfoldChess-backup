@@ -435,7 +435,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     forfeit?: boolean,
     forfeitReason?: string,
     previousFen?: string,
-    claimType?: "unsportsmanlike" | "illegal" | "distraction"
+    claimType?: "unsportsmanlike" | "illegal" | "distraction" | "threefold" | "fiftymove"
   ) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ 

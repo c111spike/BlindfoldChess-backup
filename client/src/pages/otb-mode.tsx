@@ -86,8 +86,8 @@ export default function OTBMode() {
   const [showPieceHighlight, setShowPieceHighlight] = useState(true);
   
   const [myViolations, setMyViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-  const [opponentViolations, setOpponentViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-  const [myFalseClaims, setMyFalseClaims] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+  const [opponentViolations, setOpponentViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
+  const [myFalseClaims, setMyFalseClaims] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
   const [opponentFalseClaims, setOpponentFalseClaims] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
   const [arbiterPending, setArbiterPending] = useState(false);
   const [arbiterDialogOpen, setArbiterDialogOpen] = useState(false);
@@ -778,8 +778,8 @@ export default function OTBMode() {
       // Reset all other game state
       setClockPresses(0);
       setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-      setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-      setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+      setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
+      setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
       setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
       setMyHandshakeOffered(false);
       setOpponentHandshakeOffered(false);
@@ -1057,8 +1057,8 @@ export default function OTBMode() {
           setIncrement(response.game.increment || 0);
           
           setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-          setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-          setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+          setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
+          setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
           setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
           setMyHandshakeOffered(false);
           setOpponentHandshakeOffered(false);
@@ -1427,8 +1427,8 @@ export default function OTBMode() {
     setClockTurn("white");
     setClockPresses(0);
     setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-    setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-    setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
+    setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
     setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
     setMyHandshakeOffered(false);
     setOpponentHandshakeOffered(false);
@@ -1509,8 +1509,8 @@ export default function OTBMode() {
     setClockTurn("white");
     setClockPresses(0);
     setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-    setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-    setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+    setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
+    setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
     setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
     setMyHandshakeOffered(false);
     setOpponentHandshakeOffered(true);
@@ -2280,9 +2280,11 @@ export default function OTBMode() {
       unsportsmanlike: myFalseClaims.unsportsmanlike + 1,
       illegal: myFalseClaims.illegal + 1,
       distraction: myFalseClaims.distraction + 1,
+      threefold: myFalseClaims.threefold + 1,
+      fiftymove: myFalseClaims.fiftymove + 1,
     };
     
-    const hasForfeit = newFalseClaims.unsportsmanlike >= 2 || newFalseClaims.illegal >= 2 || newFalseClaims.distraction >= 2;
+    const hasForfeit = newFalseClaims.unsportsmanlike >= 2 || newFalseClaims.illegal >= 2 || newFalseClaims.distraction >= 2 || newFalseClaims.threefold >= 2 || newFalseClaims.fiftymove >= 2;
     
     if (hasForfeit) {
       toast({
@@ -2303,7 +2305,7 @@ export default function OTBMode() {
     }
   };
   
-  const handleArbiterClaim = (claimType: "unsportsmanlike" | "illegal" | "distraction") => {
+  const handleArbiterClaim = (claimType: "unsportsmanlike" | "illegal" | "distraction" | "threefold" | "fiftymove") => {
     if (arbiterTimerRef.current) {
       clearInterval(arbiterTimerRef.current);
       arbiterTimerRef.current = null;
@@ -2363,6 +2365,35 @@ export default function OTBMode() {
       }
     } else if (claimType === "distraction") {
       isValidClaim = false;
+    } else if (claimType === "threefold") {
+      // Check for threefold repetition using the current game state
+      if (legalChessGame) {
+        isValidClaim = legalChessGame.isThreefoldRepetition();
+      } else {
+        isValidClaim = false;
+      }
+    } else if (claimType === "fiftymove") {
+      // Check 50-move rule: halfMoveClock >= 100 (100 half-moves = 50 full moves)
+      if (legalChessGame) {
+        // Get the FEN and extract halfmove clock (5th field)
+        const fenParts = legalChessGame.fen().split(' ');
+        const halfMoveClock = parseInt(fenParts[4], 10);
+        isValidClaim = halfMoveClock >= 100;
+      } else {
+        isValidClaim = false;
+      }
+    }
+    
+    // Handle draw claims differently - they end the game in a draw if valid
+    if ((claimType === "threefold" || claimType === "fiftymove") && isValidClaim) {
+      const drawType = claimType === "threefold" ? "Threefold Repetition" : "50-Move Rule";
+      toast({
+        title: "Draw Claimed",
+        description: `Game ends in a draw by ${drawType}.`,
+      });
+      handleGameEnd("draw");
+      setArbiterPending(false);
+      return;
     }
     
     if (isValidClaim) {
@@ -3102,8 +3133,8 @@ export default function OTBMode() {
                             setSelectedSquare(null);
                             setClockPresses(0);
                             setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-                            setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
-                            setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+                            setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
+                            setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
                             setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
                             setMyHandshakeOffered(false);
                             setOpponentHandshakeOffered(false);
@@ -3535,6 +3566,36 @@ export default function OTBMode() {
                 <div className="text-left">
                   <p className="font-semibold">Illegal Move</p>
                   <p className="text-xs text-muted-foreground">Opponent made an illegal move</p>
+                </div>
+              </div>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-auto py-3"
+              onClick={() => handleArbiterClaim("threefold")}
+              data-testid="button-claim-threefold"
+            >
+              <div className="flex items-center gap-3">
+                <RotateCcw className="h-5 w-5 text-blue-500" />
+                <div className="text-left">
+                  <p className="font-semibold">Threefold Repetition</p>
+                  <p className="text-xs text-muted-foreground">Claim draw - same position 3 times</p>
+                </div>
+              </div>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-auto py-3"
+              onClick={() => handleArbiterClaim("fiftymove")}
+              data-testid="button-claim-fiftymove"
+            >
+              <div className="flex items-center gap-3">
+                <Clock className="h-5 w-5 text-blue-500" />
+                <div className="text-left">
+                  <p className="font-semibold">50-Move Rule</p>
+                  <p className="text-xs text-muted-foreground">Claim draw - 50 moves without pawn/capture</p>
                 </div>
               </div>
             </Button>
