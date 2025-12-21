@@ -8,6 +8,8 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
+import { PerspectiveChessBoard } from "@/components/perspective-chess-board";
+import { NotationInput } from "@/components/notation-input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +86,10 @@ export default function OTBMode() {
   const [showLegalMoves, setShowLegalMoves] = useState(false);
   const [highlightLastMove, setHighlightLastMove] = useState(true);
   const [showPieceHighlight, setShowPieceHighlight] = useState(true);
+  const [perspective3d, setPerspective3d] = useState(false);
+  const [notationPractice, setNotationPractice] = useState(false);
+  const [pendingNotation, setPendingNotation] = useState<string | null>(null);
+  const [confirmedMoves, setConfirmedMoves] = useState<MoveRecord[]>([]);
   
   const [myViolations, setMyViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
   const [opponentViolations, setOpponentViolations] = useState({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
@@ -161,6 +167,7 @@ export default function OTBMode() {
   const gameStartTimeRef = useRef<number | null>(null);
   const legalChessGameRef = useRef<Chess | null>(null);
   const previousLegalFenRef = useRef<string | null>(null); // Tracks FEN before opponent's move for illegal move claims
+  const pendingNotationRef = useRef<string | null>(null); // Ref to avoid stale closure in callbacks
 
   useEffect(() => {
     gameRef.current = game;
@@ -174,6 +181,11 @@ export default function OTBMode() {
   useEffect(() => {
     legalChessGameRef.current = legalChessGame;
   }, [legalChessGame]);
+
+  // Keep pendingNotationRef in sync to avoid stale closure issues in rollback handlers
+  useEffect(() => {
+    pendingNotationRef.current = pendingNotation;
+  }, [pendingNotation]);
 
   // Close mobile score sheet when game ends
   useEffect(() => {
@@ -291,13 +303,16 @@ export default function OTBMode() {
         }
       }
       
-      setMoves(prev => [...prev, {
+      const castlingMove = {
         from: data.from || '',
         to: data.to || '',
         piece: 'K',
         notation: data.move,
         timestamp: Date.now(),
-      }]);
+      };
+      setMoves(prev => [...prev, castlingMove]);
+      // Opponent moves are auto-confirmed (player doesn't record them)
+      setConfirmedMoves(prev => [...prev, castlingMove]);
       
       if (data.from && data.to) {
         setLastMoveSquares([data.from, data.to]);
@@ -345,16 +360,18 @@ export default function OTBMode() {
         return newBoard;
       });
       
+      const opponentMove = {
+        from: data.from!,
+        to: data.to!,
+        piece: data.piece || "?",
+        captured: data.captured,
+        promotion: data.promotion,
+        notation: data.move,
+        timestamp: Date.now(),
+      };
+      
       setMoves(prev => {
-        const newMoves = [...prev, {
-          from: data.from!,
-          to: data.to!,
-          piece: data.piece || "?",
-          captured: data.captured,
-          promotion: data.promotion,
-          notation: data.move,
-          timestamp: Date.now(),
-        }];
+        const newMoves = [...prev, opponentMove];
         
         // Check if this is opponent's first move and track handshake violation
         // Opponent is black if we're white: black's first move is when newMoves.length === 2
@@ -367,6 +384,9 @@ export default function OTBMode() {
         
         return newMoves;
       });
+      
+      // Opponent moves are auto-confirmed (player doesn't record them)
+      setConfirmedMoves(prev => [...prev, opponentMove]);
       
       setLastMoveSquares([data.from, data.to]);
       
@@ -535,6 +555,12 @@ export default function OTBMode() {
         
         // Only slice moves if we have the FEN (guards against double-slice)
         setMoves(prev => prev.slice(0, -1));
+        // Only slice confirmedMoves if the move was already confirmed (no pending notation)
+        // Use ref to get current value and avoid stale closure
+        if (!pendingNotationRef.current) {
+          setConfirmedMoves(prev => prev.slice(0, -1));
+        }
+        setPendingNotation(null);
         setLastMoveSquares([]);
         setHasMadeMove(false);
       }
@@ -751,6 +777,8 @@ export default function OTBMode() {
       setLegalChessGame(new Chess());
       setBoardState(INITIAL_BOARD.map(row => [...row]));
       setMoves([]);
+      setConfirmedMoves([]);
+      setPendingNotation(null);
       setLastMoveSquares([]);
       setActiveColor("white");
       setClockTurn("white");
@@ -1041,6 +1069,8 @@ export default function OTBMode() {
           setLegalChessGame(new Chess());
           setBoardState(INITIAL_BOARD.map(row => [...row]));
           setMoves([]);
+          setConfirmedMoves([]);
+          setPendingNotation(null);
           setLastMoveSquares([]);
           setSelectedSquare(null);
           setGameResult(null);
@@ -1372,6 +1402,16 @@ export default function OTBMode() {
   const handleClockPress = useCallback(() => {
     if (!gameStarted || arbiterPending || pendingCheckmate) return;
     
+    // Block clock press if notation practice is on and waiting for notation input
+    if (notationPractice && pendingNotation) {
+      toast({
+        title: "Record your move first",
+        description: "Type the notation of your move before pressing the clock",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // In multiplayer, can only press clock on your turn
     if (matchId && clockTurn !== playerColor) {
       return; // Not your turn, can't press clock
@@ -1403,7 +1443,7 @@ export default function OTBMode() {
     if (matchId) {
       sendMove(matchId, "__CLOCK_PRESS__", "", whiteTime, blackTime, undefined);
     }
-  }, [gameStarted, clockTurn, increment, clockPresses, arbiterPending, pendingCheckmate, matchId, isBotGame, hasMadeMove, playerColor, toast, sendMove, whiteTime, blackTime]);
+  }, [gameStarted, clockTurn, increment, clockPresses, arbiterPending, pendingCheckmate, matchId, isBotGame, hasMadeMove, playerColor, toast, sendMove, whiteTime, blackTime, notationPractice, pendingNotation]);
 
   const handleStartGame = () => {
     const minutes = parseInt(timeControl);
@@ -1421,6 +1461,8 @@ export default function OTBMode() {
     setLegalChessGame(new Chess());
     setBoardState(INITIAL_BOARD.map(row => [...row]));
     setMoves([]);
+    setConfirmedMoves([]);
+    setPendingNotation(null);
     setLastMoveSquares([]);
     setActiveColor("white");
     setPlayerColor("white");
@@ -1504,6 +1546,8 @@ export default function OTBMode() {
     setLegalChessGame(new Chess());
     setBoardState(INITIAL_BOARD.map(row => [...row]));
     setMoves([]);
+    setConfirmedMoves([]);
+    setPendingNotation(null);
     setLastMoveSquares([]);
     setActiveColor("white");
     setClockTurn("white");
@@ -1692,6 +1736,12 @@ export default function OTBMode() {
         });
         
         setMoves(prev => prev.slice(0, -1));
+        // Only slice confirmedMoves if the move was already confirmed (no pending notation)
+        // Use ref to get current value and avoid stale closure
+        if (!pendingNotationRef.current) {
+          setConfirmedMoves(prev => prev.slice(0, -1));
+        }
+        setPendingNotation(null);
         setLastMoveSquares([]);
         
         if (botColor === "white") {
@@ -1785,7 +1835,7 @@ export default function OTBMode() {
             piece;
           
           const pieceChar = moveResult.piece.toUpperCase();
-          setMoves(prevMoves => [...prevMoves, {
+          const botMoveRecord = {
             from: moveResult.from,
             to: moveResult.to,
             piece: piece || (moveResult.color === 'w' ? pieceChar : pieceChar.toLowerCase()),
@@ -1793,7 +1843,10 @@ export default function OTBMode() {
             promotion: moveResult.promotion,
             notation: moveResult.san, // Use standard algebraic notation from chess.js
             timestamp: Date.now(),
-          }]);
+          };
+          setMoves(prevMoves => [...prevMoves, botMoveRecord]);
+          // Bot moves are auto-confirmed (player doesn't record them)
+          setConfirmedMoves(prev => [...prev, botMoveRecord]);
           
           return newBoard;
         });
@@ -2003,6 +2056,14 @@ export default function OTBMode() {
     setLockedPiece(null); // Reset touch-move lock after completing a move
     setLastMoveSquares([fromSquare, toSquare]);
     
+    // Notation practice: set pending notation for player to record
+    if (notationPractice) {
+      setPendingNotation(moveNotation);
+    } else {
+      // If not practicing notation, auto-confirm the move
+      setConfirmedMoves(prev => [...prev, newMove]);
+    }
+    
     // Set hasMadeMove for both multiplayer AND bot games to prevent multiple moves before clock/validation
     if (matchId || isBotGame) {
       setHasMadeMove(true);
@@ -2052,6 +2113,16 @@ export default function OTBMode() {
 
   const handleSquareClick = (square: string) => {
     if (!gameStarted || arbiterPending || pendingCheckmate || pendingPromotion || botThinking) return;
+    
+    // Block moves while waiting for notation input
+    if (notationPractice && pendingNotation) {
+      toast({
+        title: "Record your move first",
+        description: "Type the notation of your move before making another",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const isMyTurn = activeColor === playerColor;
     if (!isMyTurn && matchId) return;
@@ -2502,6 +2573,12 @@ export default function OTBMode() {
           setActiveColor(newActiveColor);
           setClockTurn(newActiveColor);
           setMoves(prev => prev.slice(0, -1));
+          // Only slice confirmedMoves if the move was already confirmed (no pending notation)
+          // Use ref to get current value and avoid stale closure
+          if (!pendingNotationRef.current) {
+            setConfirmedMoves(prev => prev.slice(0, -1));
+          }
+          setPendingNotation(null);
           setLastMoveSquares([]);
           setHasMadeMove(false);
         }
@@ -2928,6 +3005,40 @@ export default function OTBMode() {
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">Settings cannot be changed during gameplay</p>
                     </div>
+
+                    <div className="pt-4 border-t">
+                      <h3 className="text-sm font-semibold mb-3">OTB Training Tools</h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="perspective-3d-pregame" className="text-sm cursor-pointer">
+                            3D Perspective View
+                          </Label>
+                          <Switch
+                            id="perspective-3d-pregame"
+                            checked={perspective3d}
+                            onCheckedChange={setPerspective3d}
+                            data-testid="switch-perspective-3d"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground -mt-1 ml-0">
+                          View board as if sitting at a table
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="notation-practice-pregame" className="text-sm cursor-pointer">
+                            Notation Practice
+                          </Label>
+                          <Switch
+                            id="notation-practice-pregame"
+                            checked={notationPractice}
+                            onCheckedChange={setNotationPractice}
+                            data-testid="switch-notation-practice"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground -mt-1 ml-0">
+                          Type each move's notation after playing
+                        </p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               ) : (
@@ -3129,6 +3240,8 @@ export default function OTBMode() {
                             setMatchId(null);
                             matchIdRef.current = null; // Sync ref immediately to avoid stale closure issues
                             setMoves([]);
+                            setConfirmedMoves([]);
+                            setPendingNotation(null);
                             setBoardState(INITIAL_BOARD.map(row => [...row]));
                             setSelectedSquare(null);
                             setClockPresses(0);
@@ -3202,7 +3315,7 @@ export default function OTBMode() {
 
               {/* Board with OTB controls on right side */}
               <div className="flex gap-1">
-                <ChessBoard 
+                <PerspectiveChessBoard 
                   fen={fen}
                   orientation={playerColor}
                   showCoordinates={true}
@@ -3213,6 +3326,7 @@ export default function OTBMode() {
                   lockedPiece={showPieceHighlight ? lockedPiece : null}
                   onSquareClick={handleSquareClick}
                   highlightColor="red"
+                  perspective3d={perspective3d}
                 />
                 
                 {/* OTB Control Column - 2 tiles wide, 8 tiles tall */}
@@ -3325,6 +3439,22 @@ export default function OTBMode() {
                 </CardContent>
               </Card>
 
+              {/* Notation Practice Input */}
+              {notationPractice && pendingNotation && (
+                <NotationInput
+                  expectedNotation={pendingNotation}
+                  onCorrect={() => {
+                    const lastMove = moves[moves.length - 1];
+                    if (lastMove) {
+                      setConfirmedMoves(prev => [...prev, lastMove]);
+                    }
+                    setPendingNotation(null);
+                  }}
+                  moveNumber={Math.ceil(moves.length / 2)}
+                  isWhiteMove={moves.length % 2 === 1}
+                />
+              )}
+
               {/* Violations and game controls */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-xs">
@@ -3377,9 +3507,12 @@ export default function OTBMode() {
         <div className="hidden lg:flex w-72 border-l bg-card flex-col">
           <div className="p-4 border-b">
             <h3 className="font-semibold">Score Sheet</h3>
+            {notationPractice && (
+              <p className="text-xs text-muted-foreground mt-1">Recording moves as you play</p>
+            )}
           </div>
           <ScrollArea className="h-80 p-4">
-            {moves.length === 0 ? (
+            {(notationPractice ? confirmedMoves : moves).length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-2">
                 No moves yet
               </p>
@@ -3394,18 +3527,21 @@ export default function OTBMode() {
                     </tr>
                   </thead>
                   <tbody>
-                    {Array.from({ length: Math.ceil(moves.length / 2) }).map((_, moveNumber) => {
-                      const whiteMove = moves[moveNumber * 2];
-                      const blackMove = moves[moveNumber * 2 + 1];
-                      
-                      return (
-                        <tr key={moveNumber} className="border-b border-border/50" data-testid={`move-row-${moveNumber}`}>
-                          <td className="py-1 px-2 text-muted-foreground">{moveNumber + 1}</td>
-                          <td className="py-1 px-2" data-testid={`move-${moveNumber * 2}`}>{whiteMove?.notation || "-"}</td>
-                          <td className="py-1 px-2" data-testid={`move-${moveNumber * 2 + 1}`}>{blackMove?.notation || "-"}</td>
-                        </tr>
-                      );
-                    })}
+                    {(() => {
+                      const displayMoves = notationPractice ? confirmedMoves : moves;
+                      return Array.from({ length: Math.ceil(displayMoves.length / 2) }).map((_, moveNumber) => {
+                        const whiteMove = displayMoves[moveNumber * 2];
+                        const blackMove = displayMoves[moveNumber * 2 + 1];
+                        
+                        return (
+                          <tr key={moveNumber} className="border-b border-border/50" data-testid={`move-row-${moveNumber}`}>
+                            <td className="py-1 px-2 text-muted-foreground">{moveNumber + 1}</td>
+                            <td className="py-1 px-2" data-testid={`move-${moveNumber * 2}`}>{whiteMove?.notation || "-"}</td>
+                            <td className="py-1 px-2" data-testid={`move-${moveNumber * 2 + 1}`}>{blackMove?.notation || "-"}</td>
+                          </tr>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -3454,9 +3590,12 @@ export default function OTBMode() {
                   <FileText className="h-4 w-4" />
                   Score Sheet
                 </SheetTitle>
+                {notationPractice && (
+                  <p className="text-xs text-muted-foreground mt-1">Recording moves as you play</p>
+                )}
               </SheetHeader>
               <ScrollArea className="h-80 p-4">
-              {moves.length === 0 ? (
+              {(notationPractice ? confirmedMoves : moves).length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-2">
                   No moves yet
                 </p>
@@ -3471,18 +3610,21 @@ export default function OTBMode() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from({ length: Math.ceil(moves.length / 2) }).map((_, moveNumber) => {
-                        const whiteMove = moves[moveNumber * 2];
-                        const blackMove = moves[moveNumber * 2 + 1];
-                        
-                        return (
-                          <tr key={moveNumber} className="border-b border-border/50" data-testid={`mobile-move-row-${moveNumber}`}>
-                            <td className="py-1 px-2 text-muted-foreground" data-testid={`text-mobile-move-number-${moveNumber}`}>{moveNumber + 1}</td>
-                            <td className="py-1 px-2" data-testid={`text-mobile-white-move-${moveNumber}`}>{whiteMove?.notation || "-"}</td>
-                            <td className="py-1 px-2" data-testid={`text-mobile-black-move-${moveNumber}`}>{blackMove?.notation || "-"}</td>
-                          </tr>
-                        );
-                      })}
+                      {(() => {
+                        const displayMoves = notationPractice ? confirmedMoves : moves;
+                        return Array.from({ length: Math.ceil(displayMoves.length / 2) }).map((_, moveNumber) => {
+                          const whiteMove = displayMoves[moveNumber * 2];
+                          const blackMove = displayMoves[moveNumber * 2 + 1];
+                          
+                          return (
+                            <tr key={moveNumber} className="border-b border-border/50" data-testid={`mobile-move-row-${moveNumber}`}>
+                              <td className="py-1 px-2 text-muted-foreground" data-testid={`text-mobile-move-number-${moveNumber}`}>{moveNumber + 1}</td>
+                              <td className="py-1 px-2" data-testid={`text-mobile-white-move-${moveNumber}`}>{whiteMove?.notation || "-"}</td>
+                              <td className="py-1 px-2" data-testid={`text-mobile-black-move-${moveNumber}`}>{blackMove?.notation || "-"}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>
