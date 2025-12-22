@@ -134,16 +134,20 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
   selectedSquare: string | null;
   onSquareClick: (square: string) => void;
 }) {
-  const { nodes } = useGLTF(CHESS_MODEL_PATH) as { nodes: Record<string, THREE.Object3D> };
+  const { nodes, materials } = useGLTF(CHESS_MODEL_PATH) as { 
+    nodes: Record<string, THREE.Object3D>;
+    materials: Record<string, THREE.Material>;
+  };
   const boardMesh = nodes["Object_4"] as THREE.Mesh;
   
-  // Calculate board geometry and scale
-  const { geometry, scale, offset } = useMemo(() => {
+  // Calculate board geometry, material and scale
+  const { geometry, material, scale, offset } = useMemo(() => {
     if (!boardMesh || !boardMesh.geometry) {
-      return { geometry: null, scale: 1, offset: [0, 0, 0] };
+      return { geometry: null, material: null, scale: 1, offset: [0, 0, 0] };
     }
     
     const geo = boardMesh.geometry.clone();
+    const mat = boardMesh.material as THREE.Material;
     const box = new THREE.Box3().setFromBufferAttribute(geo.attributes.position as THREE.BufferAttribute);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
@@ -158,8 +162,9 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     
     return { 
       geometry: geo, 
+      material: mat,
       scale: calculatedScale,
-      offset: [0, -0.25, 0] as [number, number, number]
+      offset: [0, -0.15, 0] as [number, number, number]
     };
   }, [boardMesh]);
 
@@ -190,7 +195,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     return result;
   }, [orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare]);
 
-  if (!geometry) {
+  if (!geometry || !material) {
     // Fall back to primitive board
     return <FallbackBoard 
       orientation={orientation}
@@ -204,15 +209,14 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
 
   return (
     <group>
-      {/* Wooden board from GLB */}
+      {/* Wooden board from GLB with original textures */}
       <mesh 
         geometry={geometry} 
+        material={material}
         scale={[scale, scale, scale]}
         position={offset as [number, number, number]}
         receiveShadow
-      >
-        <meshStandardMaterial color="#c4a777" roughness={0.7} metalness={0.05} />
-      </mesh>
+      />
       
       {/* Interactive overlay squares (invisible, just for clicking and highlighting) */}
       {squares.map(({ square, position, isLegalMove, isHighlighted, isSelected, isLastMove }) => (
@@ -698,13 +702,14 @@ function GLBChessPiece({ type, color, position, onClick, nodes }: {
   const meshName = getPieceMeshName(type, color);
   const meshNode = nodes[meshName] as THREE.Mesh;
   
-  // Calculate geometry and scale once
-  const { geometry, scale } = useMemo(() => {
+  // Calculate geometry, material and scale once
+  const { geometry, material, scale } = useMemo(() => {
     if (!meshNode || !meshNode.geometry) {
-      return { geometry: null, scale: 0.012 };
+      return { geometry: null, material: null, scale: 0.012 };
     }
     
     const geo = meshNode.geometry.clone();
+    const mat = meshNode.material as THREE.Material;
     
     // Calculate scale to normalize piece heights
     const box = new THREE.Box3().setFromBufferAttribute(geo.attributes.position as THREE.BufferAttribute);
@@ -726,10 +731,10 @@ function GLBChessPiece({ type, color, position, onClick, nodes }: {
     const targetHeight = targetHeights[type] || 0.9;
     const calculatedScale = targetHeight / size.y;
     
-    return { geometry: geo, scale: calculatedScale };
+    return { geometry: geo, material: mat, scale: calculatedScale };
   }, [meshNode, type]);
   
-  if (!geometry) {
+  if (!geometry || !material) {
     // Fallback to primitive piece if mesh not found
     return <FallbackChessPiece type={type} color={color} position={position} onClick={onClick} />;
   }
@@ -739,9 +744,6 @@ function GLBChessPiece({ type, color, position, onClick, nodes }: {
     position[1] + (hovered ? 0.1 : 0),
     position[2]
   ];
-  
-  // Use wooden colors from the model aesthetic
-  const pieceColor = color === "w" ? "#e8d4b8" : "#5a3d2b";
   
   return (
     <group 
@@ -762,11 +764,10 @@ function GLBChessPiece({ type, color, position, onClick, nodes }: {
     >
       <mesh 
         geometry={geometry} 
+        material={material}
         scale={[scale, scale, scale]}
         castShadow
-      >
-        <meshStandardMaterial color={pieceColor} roughness={0.6} metalness={0.1} />
-      </mesh>
+      />
     </group>
   );
 }
