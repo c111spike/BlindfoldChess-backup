@@ -125,7 +125,149 @@ function parseFen(fen: string): Map<string, { type: string; color: "w" | "b" }> 
   return pieces;
 }
 
-function Board({ orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare, onSquareClick }: {
+// GLB wooden board component
+function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare, onSquareClick }: {
+  orientation: "white" | "black";
+  highlightedSquares: string[];
+  legalMoveSquares: string[];
+  lastMoveSquares: string[];
+  selectedSquare: string | null;
+  onSquareClick: (square: string) => void;
+}) {
+  const { nodes } = useGLTF(CHESS_MODEL_PATH) as { nodes: Record<string, THREE.Object3D> };
+  const boardMesh = nodes["Object_4"] as THREE.Mesh;
+  
+  // Calculate board geometry and scale
+  const { geometry, scale, offset } = useMemo(() => {
+    if (!boardMesh || !boardMesh.geometry) {
+      return { geometry: null, scale: 1, offset: [0, 0, 0] };
+    }
+    
+    const geo = boardMesh.geometry.clone();
+    const box = new THREE.Box3().setFromBufferAttribute(geo.attributes.position as THREE.BufferAttribute);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    
+    // Center geometry
+    geo.translate(-center.x, -box.min.y, -center.z);
+    
+    // Scale to match our board size (8 units for the playing area)
+    // The board in the model includes a border, so we scale to fit
+    const targetSize = BOARD_SIZE + 0.8; // 8 + some border
+    const calculatedScale = targetSize / Math.max(size.x, size.z);
+    
+    return { 
+      geometry: geo, 
+      scale: calculatedScale,
+      offset: [0, -0.1, 0] as [number, number, number]
+    };
+  }, [boardMesh]);
+
+  // Calculate interactive squares for click detection and highlighting
+  const squares = useMemo(() => {
+    const result: { square: string; position: [number, number, number]; isHighlighted: boolean; isLegalMove: boolean; isLastMove: boolean; isSelected: boolean }[] = [];
+    
+    for (let fileIdx = 0; fileIdx < 8; fileIdx++) {
+      for (let rankIdx = 0; rankIdx < 8; rankIdx++) {
+        const square = files[fileIdx] + ranks[rankIdx];
+        const [x, z] = squareToPosition(square, orientation);
+        const isSelected = selectedSquare === square;
+        const isHighlighted = highlightedSquares.includes(square);
+        const isLegalMove = legalMoveSquares.includes(square);
+        const isLastMove = lastMoveSquares.includes(square);
+        
+        result.push({
+          square,
+          position: [x, 0.01, z],
+          isHighlighted,
+          isLegalMove,
+          isLastMove,
+          isSelected
+        });
+      }
+    }
+    
+    return result;
+  }, [orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare]);
+
+  if (!geometry) {
+    // Fall back to primitive board
+    return <FallbackBoard 
+      orientation={orientation}
+      highlightedSquares={highlightedSquares}
+      legalMoveSquares={legalMoveSquares}
+      lastMoveSquares={lastMoveSquares}
+      selectedSquare={selectedSquare}
+      onSquareClick={onSquareClick}
+    />;
+  }
+
+  return (
+    <group>
+      {/* Wooden board from GLB */}
+      <mesh 
+        geometry={geometry} 
+        scale={[scale, scale, scale]}
+        position={offset as [number, number, number]}
+        receiveShadow
+      >
+        <meshStandardMaterial color="#c4a777" roughness={0.7} metalness={0.05} />
+      </mesh>
+      
+      {/* Interactive overlay squares (invisible, just for clicking and highlighting) */}
+      {squares.map(({ square, position, isLegalMove, isHighlighted, isSelected, isLastMove }) => (
+        <group key={square}>
+          {/* Invisible click target */}
+          <mesh
+            position={position as [number, number, number]}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSquareClick(square);
+            }}
+          >
+            <boxGeometry args={[SQUARE_SIZE * 0.98, 0.02, SQUARE_SIZE * 0.98]} />
+            <meshStandardMaterial transparent opacity={0} />
+          </mesh>
+          
+          {/* Selection highlight */}
+          {isSelected && (
+            <mesh position={[position[0], 0.02, position[2]]}>
+              <boxGeometry args={[SQUARE_SIZE * 0.95, 0.01, SQUARE_SIZE * 0.95]} />
+              <meshStandardMaterial color={SELECTED_COLOR} transparent opacity={0.5} />
+            </mesh>
+          )}
+          
+          {/* Last move highlight */}
+          {isLastMove && !isSelected && (
+            <mesh position={[position[0], 0.02, position[2]]}>
+              <boxGeometry args={[SQUARE_SIZE * 0.95, 0.01, SQUARE_SIZE * 0.95]} />
+              <meshStandardMaterial color={LAST_MOVE_COLOR} transparent opacity={0.4} />
+            </mesh>
+          )}
+          
+          {/* Check/highlighted square indicator */}
+          {isHighlighted && (
+            <mesh position={[position[0], 0.03, position[2]]}>
+              <boxGeometry args={[SQUARE_SIZE * 0.9, 0.01, SQUARE_SIZE * 0.9]} />
+              <meshStandardMaterial color="#ff4444" transparent opacity={0.6} />
+            </mesh>
+          )}
+          
+          {/* Legal move indicator */}
+          {isLegalMove && (
+            <mesh position={[position[0], 0.03, position[2]]}>
+              <cylinderGeometry args={[0.15, 0.15, 0.02, 16]} />
+              <meshStandardMaterial color={LEGAL_MOVE_COLOR} transparent opacity={0.7} />
+            </mesh>
+          )}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+// Fallback board with colored squares (when GLB not available)
+function FallbackBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare, onSquareClick }: {
   orientation: "white" | "black";
   highlightedSquares: string[];
   legalMoveSquares: string[];
@@ -206,6 +348,38 @@ function Board({ orientation, highlightedSquares, legalMoveSquares, lastMoveSqua
         </group>
       ))}
     </group>
+  );
+}
+
+// Board wrapper that tries GLB first
+function Board({ orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare, onSquareClick }: {
+  orientation: "white" | "black";
+  highlightedSquares: string[];
+  legalMoveSquares: string[];
+  lastMoveSquares: string[];
+  selectedSquare: string | null;
+  onSquareClick: (square: string) => void;
+}) {
+  return (
+    <Suspense fallback={
+      <FallbackBoard 
+        orientation={orientation}
+        highlightedSquares={highlightedSquares}
+        legalMoveSquares={legalMoveSquares}
+        lastMoveSquares={lastMoveSquares}
+        selectedSquare={selectedSquare}
+        onSquareClick={onSquareClick}
+      />
+    }>
+      <GLBBoard 
+        orientation={orientation}
+        highlightedSquares={highlightedSquares}
+        legalMoveSquares={legalMoveSquares}
+        lastMoveSquares={lastMoveSquares}
+        selectedSquare={selectedSquare}
+        onSquareClick={onSquareClick}
+      />
+    </Suspense>
   );
 }
 
