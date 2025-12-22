@@ -43,6 +43,7 @@ import {
   Book,
   Plus,
   Download,
+  GraduationCap,
 } from 'lucide-react';
 import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase } from '@shared/schema';
 
@@ -838,6 +839,7 @@ function RepertoireCheck({
   onNavigateToMove?: (moveIndex: number) => void;
 }) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [checkResult, setCheckResult] = useState<RepertoireCheckResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -846,6 +848,8 @@ function RepertoireCheck({
   const [selectedDeviation, setSelectedDeviation] = useState<RepertoireDeviation | null>(null);
   const [selectedRepertoireId, setSelectedRepertoireId] = useState<string>("");
   const [addingLine, setAddingLine] = useState(false);
+  const [addAlternativeDialogOpen, setAddAlternativeDialogOpen] = useState(false);
+  const [drillDialogOpen, setDrillDialogOpen] = useState(false);
 
   useEffect(() => {
     const checkRepertoire = async () => {
@@ -944,6 +948,69 @@ function RepertoireCheck({
     setAddLineDialogOpen(true);
   };
 
+  const openAddAlternativeDialog = (deviation: RepertoireDeviation) => {
+    setSelectedDeviation(deviation);
+    if (repertoires.length === 1) {
+      setSelectedRepertoireId(repertoires[0].id);
+    }
+    setAddAlternativeDialogOpen(true);
+  };
+
+  const handleAddAlternative = async () => {
+    if (!selectedDeviation || !selectedRepertoireId) return;
+    
+    setAddingLine(true);
+    try {
+      const response = await fetch(`/api/repertoires/${selectedRepertoireId}/lines`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          fen: selectedDeviation.position,
+          correctMove: selectedDeviation.movePlayed,
+          moveSan: selectedDeviation.movePlayed,
+          moveNumber: selectedDeviation.moveNumber,
+          isUserAdded: true,
+          frequency: 50,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add alternative');
+      }
+
+      toast({
+        title: "Alternative added",
+        description: `Added ${selectedDeviation.movePlayed} as an alternative move in your repertoire.`,
+      });
+      
+      setAddAlternativeDialogOpen(false);
+      setSelectedDeviation(null);
+      setSelectedRepertoireId("");
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to add alternative to repertoire",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingLine(false);
+    }
+  };
+
+  const openDrillDialog = (deviation: RepertoireDeviation) => {
+    setSelectedDeviation(deviation);
+    setDrillDialogOpen(true);
+  };
+
+  const handleDrillNow = () => {
+    if (!selectedDeviation || repertoires.length === 0) return;
+    
+    // Navigate to repertoire trainer with the position to drill
+    const repertoireId = repertoires[0].id;
+    setLocation(`/repertoire-trainer?drill=${encodeURIComponent(selectedDeviation.position)}&rep=${repertoireId}`);
+  };
+
   if (loading) {
     return (
       <Card data-testid="repertoire-check">
@@ -1033,19 +1100,45 @@ function RepertoireCheck({
                   <AlertTriangle className="w-4 h-4" />
                   <span className="font-medium">Your Deviations ({playerDeviations.length})</span>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {playerDeviations.map((dev, i) => (
                     <div 
                       key={i}
-                      className="flex items-center justify-between p-2 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
-                      onClick={() => onNavigateToMove?.(dev.ply)}
+                      className="p-3 rounded-lg bg-muted/50"
                       data-testid={`deviation-player-${dev.ply}`}
                     >
-                      <div className="flex-1">
+                      <div 
+                        className="flex-1 cursor-pointer hover:underline"
+                        onClick={() => onNavigateToMove?.(dev.ply)}
+                      >
                         <span className="font-medium">Move {dev.moveNumber}: </span>
                         <span className="text-orange-500">{dev.movePlayed}</span>
                         <span className="text-muted-foreground"> instead of </span>
                         <span className="text-green-500">{dev.expectedMoves.join(' or ')}</span>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        {repertoires.length > 0 && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => openDrillDialog(dev)}
+                              data-testid={`drill-line-${dev.ply}`}
+                            >
+                              <GraduationCap className="w-4 h-4 mr-1" />
+                              Drill Line
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openAddAlternativeDialog(dev)}
+                              data-testid={`add-alternative-${dev.ply}`}
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add as Alternative
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1155,6 +1248,121 @@ function RepertoireCheck({
               ) : (
                 "Add to Repertoire"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Alternative Dialog */}
+      <Dialog open={addAlternativeDialogOpen} onOpenChange={setAddAlternativeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add as Alternative Move</DialogTitle>
+            <DialogDescription>
+              Add this move as an alternative in your repertoire. This is useful if you've discovered a playable sideline.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedDeviation && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted">
+                <div className="text-sm">
+                  <span className="font-medium">Move {selectedDeviation.moveNumber}: </span>
+                  <span className="text-orange-500 font-bold">{selectedDeviation.movePlayed}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Your repertoire recommends: <span className="text-green-500">{selectedDeviation.expectedMoves.join(' or ')}</span>
+                </div>
+              </div>
+              
+              {repertoires.length > 1 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Repertoire</label>
+                  <div className="space-y-2">
+                    {repertoires.map((rep) => (
+                      <div
+                        key={rep.id}
+                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                          selectedRepertoireId === rep.id
+                            ? "border-primary bg-primary/10"
+                            : "hover:bg-muted"
+                        }`}
+                        onClick={() => setSelectedRepertoireId(rep.id)}
+                        data-testid={`select-alt-repertoire-${rep.id}`}
+                      >
+                        <div className="font-medium">{rep.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddAlternativeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddAlternative}
+              disabled={addingLine || !selectedRepertoireId}
+              data-testid="button-confirm-add-alternative"
+            >
+              {addingLine ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Alternative"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Drill Line Dialog */}
+      <Dialog open={drillDialogOpen} onOpenChange={setDrillDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Drill This Line</DialogTitle>
+            <DialogDescription>
+              Practice the correct move for this position in the Repertoire Trainer.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedDeviation && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted">
+                <div className="text-sm">
+                  <span className="font-medium">Position at move {selectedDeviation.moveNumber}</span>
+                </div>
+                <div className="text-sm mt-2">
+                  <span className="text-muted-foreground">You played: </span>
+                  <span className="text-orange-500 font-bold">{selectedDeviation.movePlayed}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Correct move: </span>
+                  <span className="text-green-500 font-bold">{selectedDeviation.expectedMoves.join(' or ')}</span>
+                </div>
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                Opening the Repertoire Trainer will let you practice this position until you've memorized the correct response.
+              </p>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDrillDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDrillNow}
+              data-testid="button-drill-now"
+            >
+              <GraduationCap className="w-4 h-4 mr-2" />
+              Drill Now
             </Button>
           </DialogFooter>
         </DialogContent>
