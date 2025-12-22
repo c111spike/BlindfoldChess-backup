@@ -832,8 +832,8 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
   const pieces = useMemo(() => parseFen(fen), [fen]);
   
   // Offset and spacing scale to center pieces on GLB board squares
-  const pieceOffsetX = 0.05;
-  const pieceOffsetZ = 0.05;
+  const pieceOffsetX = 0.12;
+  const pieceOffsetZ = 0.12;
   const spacingScale = 0.95; // Reduce spacing between pieces slightly
   
   return (
