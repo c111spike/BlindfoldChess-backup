@@ -830,6 +830,10 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
   const { nodes } = useGLTF(CHESS_MODEL_PATH) as { nodes: Record<string, THREE.Object3D> };
   const pieces = useMemo(() => parseFen(fen), [fen]);
   
+  // Offset to center pieces on GLB board squares
+  const pieceOffsetX = 0.5;
+  const pieceOffsetZ = 0.5;
+  
   return (
     <group>
       {Array.from(pieces.entries()).map(([square, { type, color }]) => {
@@ -840,7 +844,7 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
             key={pieceKey}
             type={type}
             color={color}
-            position={[x, 0.60, z]}
+            position={[x + pieceOffsetX, 0.60, z + pieceOffsetZ]}
             onClick={() => onSquareClick(square)}
             nodes={nodes}
           />
