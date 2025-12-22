@@ -164,7 +164,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
       geometry: geo, 
       material: mat,
       scale: calculatedScale,
-      offset: [0, 0, 0] as [number, number, number]
+      offset: [0, -0.45, 0] as [number, number, number]
     };
   }, [boardMesh]);
 
