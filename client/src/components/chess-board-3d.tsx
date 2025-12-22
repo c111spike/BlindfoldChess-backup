@@ -231,7 +231,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
       {/* Interactive overlay squares (invisible, just for clicking and highlighting) */}
       {squares.map(({ square, position, isLegalMove, isHighlighted, isSelected, isLastMove }) => {
         const scaledSquareSize = SQUARE_SIZE * spacingScale;
-        const highlightY = 0.15; // Height above board surface for visibility
+        const highlightY = 0.12; // Height above board surface for visibility
         return (
           <group key={square}>
             {/* Invisible click target - taller for better click detection */}
@@ -243,38 +243,62 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
               }}
             >
               <boxGeometry args={[scaledSquareSize * 0.98, 0.6, scaledSquareSize * 0.98]} />
-              <meshStandardMaterial transparent opacity={0} />
+              <meshBasicMaterial transparent opacity={0} />
             </mesh>
             
-            {/* Selection highlight */}
+            {/* Selection highlight - yellow */}
             {isSelected && (
-              <mesh position={[position[0], highlightY, position[2]]}>
-                <boxGeometry args={[scaledSquareSize * 0.92, 0.02, scaledSquareSize * 0.92]} />
-                <meshStandardMaterial color={SELECTED_COLOR} transparent opacity={0.7} />
+              <mesh position={[position[0], highlightY, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+                <planeGeometry args={[scaledSquareSize * 0.9, scaledSquareSize * 0.9]} />
+                <meshBasicMaterial 
+                  color={SELECTED_COLOR} 
+                  transparent 
+                  opacity={0.6} 
+                  depthWrite={false}
+                  side={2}
+                />
               </mesh>
             )}
             
-            {/* Last move highlight */}
+            {/* Last move highlight - blue */}
             {isLastMove && !isSelected && (
-              <mesh position={[position[0], highlightY, position[2]]}>
-                <boxGeometry args={[scaledSquareSize * 0.92, 0.02, scaledSquareSize * 0.92]} />
-                <meshStandardMaterial color={LAST_MOVE_COLOR} transparent opacity={0.6} />
+              <mesh position={[position[0], highlightY, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+                <planeGeometry args={[scaledSquareSize * 0.9, scaledSquareSize * 0.9]} />
+                <meshBasicMaterial 
+                  color={LAST_MOVE_COLOR} 
+                  transparent 
+                  opacity={0.5} 
+                  depthWrite={false}
+                  side={2}
+                />
               </mesh>
             )}
             
-            {/* Check/highlighted square indicator */}
+            {/* Check/highlighted square indicator - red */}
             {isHighlighted && (
-              <mesh position={[position[0], highlightY + 0.01, position[2]]}>
-                <boxGeometry args={[scaledSquareSize * 0.85, 0.02, scaledSquareSize * 0.85]} />
-                <meshStandardMaterial color="#ff4444" transparent opacity={0.8} />
+              <mesh position={[position[0], highlightY + 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
+                <planeGeometry args={[scaledSquareSize * 0.85, scaledSquareSize * 0.85]} />
+                <meshBasicMaterial 
+                  color="#ff4444" 
+                  transparent 
+                  opacity={0.7} 
+                  depthWrite={false}
+                  side={2}
+                />
               </mesh>
             )}
             
-            {/* Legal move indicator */}
+            {/* Legal move indicator - green dot */}
             {isLegalMove && (
-              <mesh position={[position[0], highlightY + 0.01, position[2]]}>
-                <cylinderGeometry args={[0.2, 0.2, 0.03, 16]} />
-                <meshStandardMaterial color={LEGAL_MOVE_COLOR} transparent opacity={0.85} />
+              <mesh position={[position[0], highlightY + 0.02, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
+                <circleGeometry args={[0.2, 16]} />
+                <meshBasicMaterial 
+                  color={LEGAL_MOVE_COLOR} 
+                  transparent 
+                  opacity={0.8} 
+                  depthWrite={false}
+                  side={2}
+                />
               </mesh>
             )}
           </group>
