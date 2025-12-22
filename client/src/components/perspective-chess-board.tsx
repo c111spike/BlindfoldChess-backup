@@ -29,13 +29,17 @@ export function PerspectiveChessBoard({
   perspective3d = false,
   className = "",
   lastMove,
+  lastMoveSquares: propLastMoveSquares,
   ...props
 }: PerspectiveBoardProps) {
   if (!perspective3d) {
-    return <ChessBoard {...props} lastMove={lastMove} className={className} />;
+    return <ChessBoard {...props} lastMove={lastMove} lastMoveSquares={propLastMoveSquares} className={className} />;
   }
 
-  const lastMoveSquares = lastMove ? [lastMove.from, lastMove.to] : [];
+  // Use prop lastMoveSquares if provided, otherwise derive from lastMove
+  const lastMoveSquares = propLastMoveSquares?.length 
+    ? propLastMoveSquares 
+    : (lastMove ? [lastMove.from, lastMove.to] : []);
 
   return (
     <ChessBoard3D
