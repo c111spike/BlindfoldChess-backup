@@ -174,6 +174,13 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
   const pieceOffsetZ = -0.05;
   const spacingScale = 0.95;
   
+  // Debug logging for highlights
+  useEffect(() => {
+    if (selectedSquare || lastMoveSquares.length > 0 || legalMoveSquares.length > 0) {
+      console.log('[GLBBoard] Highlights:', { selectedSquare, lastMoveSquares, legalMoveSquares, highlightedSquares });
+    }
+  }, [selectedSquare, lastMoveSquares, legalMoveSquares, highlightedSquares]);
+  
   // Calculate interactive squares for click detection and highlighting
   const squares = useMemo(() => {
     const result: { square: string; position: [number, number, number]; isHighlighted: boolean; isLegalMove: boolean; isLastMove: boolean; isSelected: boolean }[] = [];
@@ -248,56 +255,56 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
             
             {/* Selection highlight - yellow */}
             {isSelected && (
-              <mesh position={[position[0], highlightY, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+              <mesh position={[position[0], highlightY, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
                 <planeGeometry args={[scaledSquareSize * 0.9, scaledSquareSize * 0.9]} />
                 <meshBasicMaterial 
                   color={SELECTED_COLOR} 
                   transparent 
-                  opacity={0.6} 
+                  opacity={0.7} 
                   depthWrite={false}
-                  side={2}
+                  side={THREE.DoubleSide}
                 />
               </mesh>
             )}
             
             {/* Last move highlight - blue */}
             {isLastMove && !isSelected && (
-              <mesh position={[position[0], highlightY, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+              <mesh position={[position[0], highlightY, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
                 <planeGeometry args={[scaledSquareSize * 0.9, scaledSquareSize * 0.9]} />
                 <meshBasicMaterial 
                   color={LAST_MOVE_COLOR} 
                   transparent 
-                  opacity={0.5} 
+                  opacity={0.6} 
                   depthWrite={false}
-                  side={2}
+                  side={THREE.DoubleSide}
                 />
               </mesh>
             )}
             
             {/* Check/highlighted square indicator - red */}
             {isHighlighted && (
-              <mesh position={[position[0], highlightY + 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
+              <mesh position={[position[0], highlightY + 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={11}>
                 <planeGeometry args={[scaledSquareSize * 0.85, scaledSquareSize * 0.85]} />
                 <meshBasicMaterial 
                   color="#ff4444" 
                   transparent 
-                  opacity={0.7} 
+                  opacity={0.8} 
                   depthWrite={false}
-                  side={2}
+                  side={THREE.DoubleSide}
                 />
               </mesh>
             )}
             
             {/* Legal move indicator - green dot */}
             {isLegalMove && (
-              <mesh position={[position[0], highlightY + 0.02, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
-                <circleGeometry args={[0.2, 16]} />
+              <mesh position={[position[0], highlightY + 0.02, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={11}>
+                <circleGeometry args={[0.22, 16]} />
                 <meshBasicMaterial 
                   color={LEGAL_MOVE_COLOR} 
                   transparent 
-                  opacity={0.8} 
+                  opacity={0.85} 
                   depthWrite={false}
-                  side={2}
+                  side={THREE.DoubleSide}
                 />
               </mesh>
             )}
