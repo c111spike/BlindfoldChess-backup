@@ -258,10 +258,10 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
               <meshBasicMaterial transparent opacity={0} />
             </mesh>
             
-            {/* Selection highlight - yellow box - full tile size */}
+            {/* Selection highlight - yellow box - matches piece grid */}
             {isSelected && (
               <mesh position={[position[0], boardSurfaceY, position[2]]} renderOrder={100}>
-                <boxGeometry args={[SQUARE_SIZE * 0.95, 0.03, SQUARE_SIZE * 0.95]} />
+                <boxGeometry args={[scaledSquareSize * 0.98, 0.03, scaledSquareSize * 0.98]} />
                 <meshBasicMaterial 
                   color={SELECTED_COLOR} 
                   transparent 
@@ -272,10 +272,10 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
               </mesh>
             )}
             
-            {/* Last move highlight - blue box - full tile size */}
+            {/* Last move highlight - blue box - matches piece grid */}
             {isLastMove && !isSelected && (
               <mesh position={[position[0], boardSurfaceY, position[2]]} renderOrder={100}>
-                <boxGeometry args={[SQUARE_SIZE * 0.95, 0.03, SQUARE_SIZE * 0.95]} />
+                <boxGeometry args={[scaledSquareSize * 0.98, 0.03, scaledSquareSize * 0.98]} />
                 <meshBasicMaterial 
                   color={LAST_MOVE_COLOR} 
                   transparent 
@@ -289,7 +289,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
             {/* Check/highlighted square indicator - red box */}
             {isHighlighted && (
               <mesh position={[position[0], boardSurfaceY + 0.01, position[2]]} renderOrder={101}>
-                <boxGeometry args={[SQUARE_SIZE * 0.9, 0.03, SQUARE_SIZE * 0.9]} />
+                <boxGeometry args={[scaledSquareSize * 0.95, 0.03, scaledSquareSize * 0.95]} />
                 <meshBasicMaterial 
                   color="#ff4444" 
                   transparent 
