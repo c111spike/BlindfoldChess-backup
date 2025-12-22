@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,7 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { User, Settings as SettingsIcon, LogOut, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { User, Settings as SettingsIcon, LogOut, AlertTriangle, Trash2 } from "lucide-react";
 import type { UserSettings } from "@shared/schema";
 
 // Detect Safari/iOS browsers which don't support Web Speech API for voice input
@@ -31,6 +32,8 @@ export default function Settings() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const isVoiceInputUnsupported = useMemo(() => isSafariOrIOS(), []);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const DELETE_CONFIRMATION_PHRASE = "Delete my account";
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -81,6 +84,43 @@ export default function Settings() {
       });
     },
   });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", "/api/users/me");
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account deleted",
+        description: "Your account has been permanently deleted.",
+      });
+      window.location.href = "/";
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete account. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteAccount = () => {
+    if (deleteConfirmText === DELETE_CONFIRMATION_PHRASE) {
+      deleteAccountMutation.mutate();
+    }
+  };
 
   const handleSettingChange = (key: keyof UserSettings, value: any) => {
     updateSettingsMutation.mutate({ [key]: value });
@@ -146,6 +186,47 @@ export default function Settings() {
                   </a>
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-destructive/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Danger Zone
+              </CardTitle>
+              <CardDescription>
+                Irreversible actions that affect your account
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Deleting your account will permanently remove all your data including games, ratings, puzzles, and statistics. This action cannot be undone.
+                </AlertDescription>
+              </Alert>
+              <div className="space-y-2">
+                <Label htmlFor="delete-confirm">
+                  Type <span className="font-mono font-semibold">"{DELETE_CONFIRMATION_PHRASE}"</span> to confirm
+                </Label>
+                <Input
+                  id="delete-confirm"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={DELETE_CONFIRMATION_PHRASE}
+                  data-testid="input-delete-confirm"
+                />
+              </div>
+              <Button
+                variant="destructive"
+                disabled={deleteConfirmText !== DELETE_CONFIRMATION_PHRASE || deleteAccountMutation.isPending}
+                onClick={handleDeleteAccount}
+                data-testid="button-delete-account"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {deleteAccountMutation.isPending ? "Deleting..." : "Delete Account"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

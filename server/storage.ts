@@ -304,9 +304,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(userId: string): Promise<void> {
-    // Most tables have onDelete: "cascade" foreign key constraints,
-    // so deleting the user will automatically cascade to related records.
-    // We explicitly delete from tables that may not have cascades or have complex relationships.
+    // Delete all user data. Most tables have onDelete: "cascade" foreign key constraints,
+    // but we explicitly delete to ensure completeness and handle any complex relationships.
     
     // Delete move analysis linked to user's game analyses first
     const userAnalyses = await db.select({ id: gameAnalysis.id }).from(gameAnalysis).where(eq(gameAnalysis.userId, userId));
@@ -318,7 +317,11 @@ export class DatabaseStorage implements IStorage {
     // Delete game analysis records
     await db.delete(gameAnalysis).where(eq(gameAnalysis.userId, userId));
     
-    // Delete user-specific data that may not cascade
+    // Delete simul vs simul data (odId column maps to user_id)
+    await db.delete(simulVsSimulQueue).where(eq(simulVsSimulQueue.odId, userId));
+    await db.delete(simulVsSimulPlayers).where(eq(simulVsSimulPlayers.odId, userId));
+    
+    // Delete user-specific data
     await db.delete(puzzleSessionProgress).where(eq(puzzleSessionProgress.userId, userId));
     await db.delete(practiceHistory).where(eq(practiceHistory.userId, userId));
     await db.delete(repertoires).where(eq(repertoires.userId, userId));
@@ -333,7 +336,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(statistics).where(eq(statistics.userId, userId));
     await db.delete(userSettings).where(eq(userSettings.userId, userId));
     
-    // Finally delete the user record (cascades will handle remaining FK relationships)
+    // Finally delete the user record (cascades will handle remaining FK relationships like games, ratings, puzzles)
     await db.delete(users).where(eq(users.id, userId));
   }
 
