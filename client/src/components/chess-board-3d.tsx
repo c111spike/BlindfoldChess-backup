@@ -258,28 +258,28 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
               <meshBasicMaterial transparent opacity={0} />
             </mesh>
             
-            {/* Selection highlight - yellow box */}
+            {/* Selection highlight - yellow box - full tile size */}
             {isSelected && (
               <mesh position={[position[0], boardSurfaceY, position[2]]} renderOrder={100}>
-                <boxGeometry args={[scaledSquareSize * 0.88, 0.03, scaledSquareSize * 0.88]} />
+                <boxGeometry args={[SQUARE_SIZE * 0.95, 0.03, SQUARE_SIZE * 0.95]} />
                 <meshBasicMaterial 
                   color={SELECTED_COLOR} 
                   transparent 
-                  opacity={0.75}
+                  opacity={0.7}
                   depthTest={false}
                   depthWrite={false}
                 />
               </mesh>
             )}
             
-            {/* Last move highlight - blue box */}
+            {/* Last move highlight - blue box - full tile size */}
             {isLastMove && !isSelected && (
               <mesh position={[position[0], boardSurfaceY, position[2]]} renderOrder={100}>
-                <boxGeometry args={[scaledSquareSize * 0.88, 0.03, scaledSquareSize * 0.88]} />
+                <boxGeometry args={[SQUARE_SIZE * 0.95, 0.03, SQUARE_SIZE * 0.95]} />
                 <meshBasicMaterial 
                   color={LAST_MOVE_COLOR} 
                   transparent 
-                  opacity={0.65}
+                  opacity={0.6}
                   depthTest={false}
                   depthWrite={false}
                 />
@@ -289,7 +289,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
             {/* Check/highlighted square indicator - red box */}
             {isHighlighted && (
               <mesh position={[position[0], boardSurfaceY + 0.01, position[2]]} renderOrder={101}>
-                <boxGeometry args={[scaledSquareSize * 0.85, 0.03, scaledSquareSize * 0.85]} />
+                <boxGeometry args={[SQUARE_SIZE * 0.9, 0.03, SQUARE_SIZE * 0.9]} />
                 <meshBasicMaterial 
                   color="#ff4444" 
                   transparent 
@@ -300,14 +300,14 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
               </mesh>
             )}
             
-            {/* Legal move indicator - green sphere */}
+            {/* Legal move indicator - green dot */}
             {isLegalMove && (
-              <mesh position={[position[0], boardSurfaceY + 0.1, position[2]]} renderOrder={102}>
-                <sphereGeometry args={[0.15, 16, 16]} />
+              <mesh position={[position[0], boardSurfaceY + 0.05, position[2]]} renderOrder={102}>
+                <sphereGeometry args={[0.18, 16, 16]} />
                 <meshBasicMaterial 
                   color={LEGAL_MOVE_COLOR} 
                   transparent 
-                  opacity={0.9}
+                  opacity={0.85}
                   depthTest={false}
                   depthWrite={false}
                 />
