@@ -157,7 +157,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     
     // Scale to match our board size (8 units for the playing area)
     // The board in the model includes a border, so we scale to fit
-    const targetSize = BOARD_SIZE + 0.8; // 8 + some border
+    const targetSize = BOARD_SIZE; // 8 units to match piece grid
     const calculatedScale = targetSize / Math.max(size.x, size.z);
     
     return { 
@@ -831,8 +831,8 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
   const pieces = useMemo(() => parseFen(fen), [fen]);
   
   // Offset to center pieces on GLB board squares
-  const pieceOffsetX = -0.5;
-  const pieceOffsetZ = -0.5;
+  const pieceOffsetX = 0;
+  const pieceOffsetZ = 0;
   
   return (
     <group>
