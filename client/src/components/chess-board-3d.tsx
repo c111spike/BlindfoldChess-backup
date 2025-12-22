@@ -169,6 +169,11 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     };
   }, [boardMesh]);
 
+  // Same offset and spacing as pieces for proper alignment
+  const pieceOffsetX = 0.02;
+  const pieceOffsetZ = -0.05;
+  const spacingScale = 0.95;
+  
   // Calculate interactive squares for click detection and highlighting
   const squares = useMemo(() => {
     const result: { square: string; position: [number, number, number]; isHighlighted: boolean; isLegalMove: boolean; isLastMove: boolean; isSelected: boolean }[] = [];
@@ -182,9 +187,13 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
         const isLegalMove = legalMoveSquares.includes(square);
         const isLastMove = lastMoveSquares.includes(square);
         
+        // Apply same offset and spacing as pieces
+        const adjustedX = x * spacingScale + pieceOffsetX;
+        const adjustedZ = z * spacingScale + pieceOffsetZ;
+        
         result.push({
           square,
-          position: [x, 0.01, z],
+          position: [adjustedX, 0.01, adjustedZ],
           isHighlighted,
           isLegalMove,
           isLastMove,
@@ -220,53 +229,56 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
       />
       
       {/* Interactive overlay squares (invisible, just for clicking and highlighting) */}
-      {squares.map(({ square, position, isLegalMove, isHighlighted, isSelected, isLastMove }) => (
-        <group key={square}>
-          {/* Invisible click target */}
-          <mesh
-            position={position as [number, number, number]}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSquareClick(square);
-            }}
-          >
-            <boxGeometry args={[SQUARE_SIZE * 0.98, 0.02, SQUARE_SIZE * 0.98]} />
-            <meshStandardMaterial transparent opacity={0} />
-          </mesh>
-          
-          {/* Selection highlight */}
-          {isSelected && (
-            <mesh position={[position[0], 0.02, position[2]]}>
-              <boxGeometry args={[SQUARE_SIZE * 0.95, 0.01, SQUARE_SIZE * 0.95]} />
-              <meshStandardMaterial color={SELECTED_COLOR} transparent opacity={0.5} />
+      {squares.map(({ square, position, isLegalMove, isHighlighted, isSelected, isLastMove }) => {
+        const scaledSquareSize = SQUARE_SIZE * spacingScale;
+        return (
+          <group key={square}>
+            {/* Invisible click target */}
+            <mesh
+              position={position as [number, number, number]}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSquareClick(square);
+              }}
+            >
+              <boxGeometry args={[scaledSquareSize * 0.98, 0.02, scaledSquareSize * 0.98]} />
+              <meshStandardMaterial transparent opacity={0} />
             </mesh>
-          )}
-          
-          {/* Last move highlight */}
-          {isLastMove && !isSelected && (
-            <mesh position={[position[0], 0.02, position[2]]}>
-              <boxGeometry args={[SQUARE_SIZE * 0.95, 0.01, SQUARE_SIZE * 0.95]} />
-              <meshStandardMaterial color={LAST_MOVE_COLOR} transparent opacity={0.4} />
-            </mesh>
-          )}
-          
-          {/* Check/highlighted square indicator */}
-          {isHighlighted && (
-            <mesh position={[position[0], 0.03, position[2]]}>
-              <boxGeometry args={[SQUARE_SIZE * 0.9, 0.01, SQUARE_SIZE * 0.9]} />
-              <meshStandardMaterial color="#ff4444" transparent opacity={0.6} />
-            </mesh>
-          )}
-          
-          {/* Legal move indicator */}
-          {isLegalMove && (
-            <mesh position={[position[0], 0.03, position[2]]}>
-              <cylinderGeometry args={[0.15, 0.15, 0.02, 16]} />
-              <meshStandardMaterial color={LEGAL_MOVE_COLOR} transparent opacity={0.7} />
-            </mesh>
-          )}
-        </group>
-      ))}
+            
+            {/* Selection highlight */}
+            {isSelected && (
+              <mesh position={[position[0], 0.02, position[2]]}>
+                <boxGeometry args={[scaledSquareSize * 0.92, 0.01, scaledSquareSize * 0.92]} />
+                <meshStandardMaterial color={SELECTED_COLOR} transparent opacity={0.6} />
+              </mesh>
+            )}
+            
+            {/* Last move highlight */}
+            {isLastMove && !isSelected && (
+              <mesh position={[position[0], 0.02, position[2]]}>
+                <boxGeometry args={[scaledSquareSize * 0.92, 0.01, scaledSquareSize * 0.92]} />
+                <meshStandardMaterial color={LAST_MOVE_COLOR} transparent opacity={0.5} />
+              </mesh>
+            )}
+            
+            {/* Check/highlighted square indicator */}
+            {isHighlighted && (
+              <mesh position={[position[0], 0.03, position[2]]}>
+                <boxGeometry args={[scaledSquareSize * 0.85, 0.01, scaledSquareSize * 0.85]} />
+                <meshStandardMaterial color="#ff4444" transparent opacity={0.7} />
+              </mesh>
+            )}
+            
+            {/* Legal move indicator */}
+            {isLegalMove && (
+              <mesh position={[position[0], 0.03, position[2]]}>
+                <cylinderGeometry args={[0.18, 0.18, 0.02, 16]} />
+                <meshStandardMaterial color={LEGAL_MOVE_COLOR} transparent opacity={0.8} />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
     </group>
   );
 }
