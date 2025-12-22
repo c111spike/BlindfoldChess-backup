@@ -58,11 +58,9 @@ const PIECE_OFFSET_X = 0.02;
 const PIECE_OFFSET_Z = -0.05;
 const PIECE_SPACING_SCALE = 0.95;
 
-// Highlight positioning - adjusted for perspective view compensation
-// Highlights are lower (Y=0.35) than pieces (Y=0.60), so they appear shifted
-// We adjust Z to compensate for the camera angle (move highlights "backward" toward opponent)
+// Highlight positioning - use same values as pieces for perfect alignment
 const HIGHLIGHT_OFFSET_X = PIECE_OFFSET_X;
-const HIGHLIGHT_OFFSET_Z = PIECE_OFFSET_Z - 0.15;  // Shift backward to compensate for perspective
+const HIGHLIGHT_OFFSET_Z = PIECE_OFFSET_Z;
 const HIGHLIGHT_SPACING_SCALE = PIECE_SPACING_SCALE;
 
 const LIGHT_SQUARE_COLOR = "#f0d9b5";
@@ -207,9 +205,9 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     const calculatedScale = targetSize / Math.max(size.x, size.z);
     
     // Calculate the actual board surface Y position after scaling and offset
-    // Keep it just slightly above the board but well below the pieces (which are at Y=0.60)
+    // Use same Y as pieces (0.60) so highlights project to same screen position
     const boardOffset = -0.45;
-    const surfaceY = 0.35; // Just below pieces (at Y=0.60)
+    const surfaceY = 0.60; // Same as pieces to eliminate perspective offset
     
     return { 
       geometry: geo, 
