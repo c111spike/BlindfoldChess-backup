@@ -164,7 +164,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     // Calculate the actual board surface Y position after scaling and offset
     // Keep it just slightly above the board but well below the pieces (which are at Y=0.60)
     const boardOffset = -0.45;
-    const surfaceY = 0.05; // Just above board surface, well below pieces at Y=0.60
+    const surfaceY = 0.10; // Just above board surface, below pieces at Y=0.20
     
     return { 
       geometry: geo, 
@@ -895,7 +895,7 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
             key={pieceKey}
             type={type}
             color={color}
-            position={[x * spacingScale + pieceOffsetX, 0.60, z * spacingScale + pieceOffsetZ]}
+            position={[x * spacingScale + pieceOffsetX, 0.20, z * spacingScale + pieceOffsetZ]}
             onClick={() => onSquareClick(square)}
             nodes={nodes}
           />
