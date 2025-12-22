@@ -65,9 +65,9 @@ const HIGHLIGHT_SPACING_SCALE = PIECE_SPACING_SCALE;
 
 const LIGHT_SQUARE_COLOR = "#f0d9b5";
 const DARK_SQUARE_COLOR = "#b58863";
-const SELECTED_COLOR = "#cc0000";
+const SELECTED_COLOR = "#aaaaff";
 const LEGAL_MOVE_COLOR = "#00ff00";
-const LAST_MOVE_COLOR = "#aaaaff";
+const LAST_MOVE_COLOR = "#cc0000";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const ranks = ["1", "2", "3", "4", "5", "6", "7", "8"];
