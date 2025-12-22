@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Eye, Clock, Brain, Navigation, Crown, Puzzle, RotateCw, Book, Users } from "lucide-react";
-import heroImage from "@assets/stock_images/chess_tournament_pro_50e5cb14.jpg";
+import heroImage from "@assets/stock_images/chess_tournament_pro_044a09a4.jpg";
 
 const landingPages = [
   {
