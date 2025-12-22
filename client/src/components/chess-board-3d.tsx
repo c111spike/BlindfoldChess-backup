@@ -65,7 +65,7 @@ const HIGHLIGHT_SPACING_SCALE = PIECE_SPACING_SCALE;
 
 const LIGHT_SQUARE_COLOR = "#f0d9b5";
 const DARK_SQUARE_COLOR = "#b58863";
-const SELECTED_COLOR = "#ffff00";
+const SELECTED_COLOR = "#ff4444";
 const LEGAL_MOVE_COLOR = "#00ff00";
 const LAST_MOVE_COLOR = "#aaaaff";
 
