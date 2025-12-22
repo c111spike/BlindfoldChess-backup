@@ -2870,48 +2870,59 @@ export default function OTBMode() {
               {!inQueue ? (
                 <Card>
                   <CardContent className="pt-6 space-y-4">
-                    <h2 className="text-xl font-semibold">Find Opponent</h2>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleJoinQueue('5')}
-                        disabled={joinQueueMutation.isPending}
-                        data-testid="button-queue-blitz"
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Blitz (5+0)
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleJoinQueue('15')}
-                        disabled={joinQueueMutation.isPending}
-                        data-testid="button-queue-rapid"
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Rapid (15+30)
-                      </Button>
+                    <div>
+                      <h2 className="text-lg font-semibold mb-3">Time Control</h2>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div 
+                          className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                            timeControl === "5" 
+                              ? "border-primary bg-primary/10" 
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          onClick={() => setTimeControl("5")}
+                          data-testid="card-time-blitz"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="h-4 w-4" />
+                            <span className="font-semibold">Blitz</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">5+0</p>
+                        </div>
+                        <div 
+                          className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                            timeControl === "15" 
+                              ? "border-primary bg-primary/10" 
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          onClick={() => setTimeControl("15")}
+                          data-testid="card-time-rapid"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="h-4 w-4" />
+                            <span className="font-semibold">Rapid</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">15+30</p>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="pt-4 border-t">
                       {!showBotSelection ? (
                         <>
-                          <h3 className="text-lg font-semibold mb-4">or Start Practice Game</h3>
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Time Control</label>
-                            <Select value={timeControl} onValueChange={setTimeControl}>
-                              <SelectTrigger data-testid="select-time-control">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="5">Blitz: 5+0</SelectItem>
-                                <SelectItem value="15">Rapid: 15+30</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
                           <Button 
                             variant="default"
+                            onClick={() => handleJoinQueue(timeControl)}
+                            disabled={joinQueueMutation.isPending}
+                            className="w-full mb-3" 
+                            data-testid="button-find-opponent"
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            Find Opponent
+                          </Button>
+                          <Button 
+                            variant="outline"
                             onClick={() => setShowBotSelection(true)} 
-                            className="w-full mt-4" 
+                            className="w-full" 
                             data-testid="button-play-bot"
                           >
                             <Bot className="mr-2 h-4 w-4" />
@@ -2933,19 +2944,6 @@ export default function OTBMode() {
                               <ChevronLeft className="h-4 w-4" />
                             </Button>
                             <h3 className="text-lg font-semibold">Select Bot Difficulty</h3>
-                          </div>
-                          
-                          <div className="space-y-2 mb-4">
-                            <label className="text-sm font-medium">Time Control</label>
-                            <Select value={timeControl} onValueChange={setTimeControl}>
-                              <SelectTrigger data-testid="select-bot-time-control">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="5">Blitz: 5+0</SelectItem>
-                                <SelectItem value="15">Rapid: 15+30</SelectItem>
-                              </SelectContent>
-                            </Select>
                           </div>
                           
                           <ScrollArea className="h-[280px] pr-2">

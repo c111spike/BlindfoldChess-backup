@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
-import { User, Settings as SettingsIcon, LogOut, AlertTriangle, Trash2 } from "lucide-react";
+import { User, Settings as SettingsIcon, LogOut, AlertTriangle, Trash2, Info, ExternalLink } from "lucide-react";
 import type { UserSettings } from "@shared/schema";
 
 // Detect Safari/iOS browsers which don't support Web Speech API for voice input
@@ -154,6 +154,10 @@ export default function Settings() {
           <TabsTrigger value="preferences" data-testid="tab-preferences">
             <SettingsIcon className="mr-2 h-4 w-4" />
             Preferences
+          </TabsTrigger>
+          <TabsTrigger value="credits" data-testid="tab-credits">
+            <Info className="mr-2 h-4 w-4" />
+            Credits
           </TabsTrigger>
         </TabsList>
 
@@ -400,6 +404,82 @@ export default function Settings() {
                   </AlertDescription>
                 </Alert>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="credits" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Attribution & Credits</CardTitle>
+              <CardDescription>Third-party assets and licenses used in SimulChess</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <h3 className="font-semibold text-base">3D Chess Pieces</h3>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="flex-1">
+                    <p className="font-medium">Wooden Chess Set</p>
+                    <p className="text-sm text-muted-foreground">by cmzw on Sketchfab</p>
+                    <a 
+                      href="https://sketchfab.com/3d-models/wooden-chess-set-90151fb0fb294e56b45e52b001a884db" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      data-testid="link-3d-model-credit"
+                    >
+                      View original model
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <Badge variant="secondary">CC BY 4.0</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Licensed under Creative Commons Attribution 4.0 International. Commercial use permitted with attribution.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold text-base">Chess Engine</h3>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="flex-1">
+                    <p className="font-medium">Stockfish</p>
+                    <p className="text-sm text-muted-foreground">World's strongest open-source chess engine</p>
+                    <a 
+                      href="https://stockfishchess.org/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      data-testid="link-stockfish-credit"
+                    >
+                      stockfishchess.org
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <Badge variant="secondary">GPL-3.0</Badge>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold text-base">Chess Logic</h3>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="flex-1">
+                    <p className="font-medium">chess.js</p>
+                    <p className="text-sm text-muted-foreground">JavaScript chess library for move validation</p>
+                    <a 
+                      href="https://github.com/jhlywa/chess.js" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      data-testid="link-chessjs-credit"
+                    >
+                      GitHub Repository
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <Badge variant="secondary">BSD-2-Clause</Badge>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
