@@ -176,8 +176,9 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
   }, [boardMesh]);
 
   // Same offset and spacing as pieces for proper alignment
-  const pieceOffsetX = 0.02;
-  const pieceOffsetZ = -0.05;
+  // Adjusted to match piece positioning: right = +X, up (away) = -Z
+  const pieceOffsetX = 0.08;
+  const pieceOffsetZ = -0.12;
   const spacingScale = 0.95;
   
   // Debug logging for highlights
