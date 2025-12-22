@@ -294,7 +294,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
                 <meshBasicMaterial 
                   color={SELECTED_COLOR} 
                   transparent 
-                  opacity={0.5}
+                  opacity={0.3}
                   depthTest={false}
                   depthWrite={false}
                 />
@@ -308,7 +308,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
                 <meshBasicMaterial 
                   color={LAST_MOVE_COLOR} 
                   transparent 
-                  opacity={0.4}
+                  opacity={0.25}
                   depthTest={false}
                   depthWrite={false}
                 />
@@ -322,7 +322,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
                 <meshBasicMaterial 
                   color="#ff4444" 
                   transparent 
-                  opacity={0.5}
+                  opacity={0.3}
                   depthTest={false}
                   depthWrite={false}
                 />
@@ -336,7 +336,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
                 <meshBasicMaterial 
                   color={LEGAL_MOVE_COLOR} 
                   transparent 
-                  opacity={0.6}
+                  opacity={0.4}
                   depthTest={false}
                   depthWrite={false}
                 />
