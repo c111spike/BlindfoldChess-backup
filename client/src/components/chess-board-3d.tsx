@@ -164,7 +164,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
       geometry: geo, 
       material: mat,
       scale: calculatedScale,
-      offset: [0, -0.15, 0] as [number, number, number]
+      offset: [0, -0.35, 0] as [number, number, number]
     };
   }, [boardMesh]);
 
@@ -840,7 +840,7 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
             key={pieceKey}
             type={type}
             color={color}
-            position={[x, 0.1, z]}
+            position={[x, 0.35, z]}
             onClick={() => onSquareClick(square)}
             nodes={nodes}
           />
