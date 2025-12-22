@@ -58,11 +58,10 @@ const PIECE_OFFSET_X = 0.02;
 const PIECE_OFFSET_Z = -0.05;
 const PIECE_SPACING_SCALE = 0.95;
 
-// Highlight positioning - adjusted to align flat overlays with board squares
-// (flat geometry reveals true position, needs different values)
-const HIGHLIGHT_OFFSET_X = 0.02;
-const HIGHLIGHT_OFFSET_Z = -0.12;  // More negative = further "up" (toward back)
-const HIGHLIGHT_SPACING_SCALE = 1.0;  // Increased = spread left/right more
+// Highlight positioning - use same values as pieces for perfect alignment
+const HIGHLIGHT_OFFSET_X = PIECE_OFFSET_X;
+const HIGHLIGHT_OFFSET_Z = PIECE_OFFSET_Z;
+const HIGHLIGHT_SPACING_SCALE = PIECE_SPACING_SCALE;
 
 const LIGHT_SQUARE_COLOR = "#f0d9b5";
 const DARK_SQUARE_COLOR = "#b58863";
