@@ -156,8 +156,9 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     geo.translate(-center.x, -box.min.y, -center.z);
     
     // Scale to match our board size (8 units for the playing area)
-    // The board in the model includes a border, so we scale to fit
-    const targetSize = BOARD_SIZE; // 8 units to match piece grid
+    // The board in the model includes a border, so we need to scale larger
+    // to make the inner playing area match the 8-unit piece grid
+    const targetSize = BOARD_SIZE + 1.5; // 9.5 units to account for border
     const calculatedScale = targetSize / Math.max(size.x, size.z);
     
     return { 
