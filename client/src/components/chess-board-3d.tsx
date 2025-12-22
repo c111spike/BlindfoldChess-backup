@@ -52,11 +52,17 @@ const SQUARE_SIZE = 1;
 const BOARD_SIZE = 8 * SQUARE_SIZE;
 const PIECE_SCALE = 0.4;
 
-// Shared positioning constants - pieces and highlights MUST use the same values
-// to ensure they align with each other and the board squares
-const SHARED_OFFSET_X = 0.02;
-const SHARED_OFFSET_Z = -0.05;
-const SHARED_SPACING_SCALE = 0.95;
+// Piece positioning - these values make pieces appear centered on squares
+// (3D geometry hides small positioning errors)
+const PIECE_OFFSET_X = 0.02;
+const PIECE_OFFSET_Z = -0.05;
+const PIECE_SPACING_SCALE = 0.95;
+
+// Highlight positioning - adjusted to align flat overlays with board squares
+// (flat geometry reveals true position, needs different values)
+const HIGHLIGHT_OFFSET_X = 0.02;
+const HIGHLIGHT_OFFSET_Z = -0.12;  // More negative = further "up" (toward back)
+const HIGHLIGHT_SPACING_SCALE = 1.0;  // Increased = spread left/right more
 
 const LIGHT_SQUARE_COLOR = "#f0d9b5";
 const DARK_SQUARE_COLOR = "#b58863";
@@ -67,27 +73,36 @@ const LAST_MOVE_COLOR = "#aaaaff";
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const ranks = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
-// Shared helper to get world position for a square - used by BOTH pieces and highlights
-function getSquareWorldXZ(square: string, orientation: "white" | "black"): [number, number] {
+// Base helper to get raw square position
+function getSquareBaseXZ(square: string, orientation: "white" | "black"): [number, number] {
   const file = square[0];
   const rank = square[1];
   const fileIndex = files.indexOf(file);
   const rankIndex = ranks.indexOf(rank);
   
-  let baseX: number, baseZ: number;
   if (orientation === "white") {
-    baseX = (fileIndex - 3.5) * SQUARE_SIZE;
-    baseZ = (3.5 - rankIndex) * SQUARE_SIZE;
+    return [(fileIndex - 3.5) * SQUARE_SIZE, (3.5 - rankIndex) * SQUARE_SIZE];
   } else {
-    baseX = (3.5 - fileIndex) * SQUARE_SIZE;
-    baseZ = (3.5 - rankIndex) * SQUARE_SIZE;
+    return [(3.5 - fileIndex) * SQUARE_SIZE, (3.5 - rankIndex) * SQUARE_SIZE];
   }
-  
-  // Apply shared offset and spacing
-  const worldX = baseX * SHARED_SPACING_SCALE + SHARED_OFFSET_X;
-  const worldZ = baseZ * SHARED_SPACING_SCALE + SHARED_OFFSET_Z;
-  
-  return [worldX, worldZ];
+}
+
+// Get world position for pieces
+function getPieceWorldXZ(square: string, orientation: "white" | "black"): [number, number] {
+  const [baseX, baseZ] = getSquareBaseXZ(square, orientation);
+  return [
+    baseX * PIECE_SPACING_SCALE + PIECE_OFFSET_X,
+    baseZ * PIECE_SPACING_SCALE + PIECE_OFFSET_Z
+  ];
+}
+
+// Get world position for highlights
+function getHighlightWorldXZ(square: string, orientation: "white" | "black"): [number, number] {
+  const [baseX, baseZ] = getSquareBaseXZ(square, orientation);
+  return [
+    baseX * HIGHLIGHT_SPACING_SCALE + HIGHLIGHT_OFFSET_X,
+    baseZ * HIGHLIGHT_SPACING_SCALE + HIGHLIGHT_OFFSET_Z
+  ];
 }
 
 function squareToPosition(square: string, orientation: "white" | "black"): [number, number] {
@@ -193,7 +208,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     // Calculate the actual board surface Y position after scaling and offset
     // Keep it just slightly above the board but well below the pieces (which are at Y=0.60)
     const boardOffset = -0.45;
-    const surfaceY = 0.05; // Just above board surface
+    const surfaceY = 0.50; // Just below pieces (at Y=0.60)
     
     return { 
       geometry: geo, 
@@ -212,8 +227,8 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     for (let fileIdx = 0; fileIdx < 8; fileIdx++) {
       for (let rankIdx = 0; rankIdx < 8; rankIdx++) {
         const square = files[fileIdx] + ranks[rankIdx];
-        // Use shared positioning (same as pieces)
-        const [worldX, worldZ] = getSquareWorldXZ(square, orientation);
+        // Use highlight-specific positioning
+        const [worldX, worldZ] = getHighlightWorldXZ(square, orientation);
         const isSelected = selectedSquare === square;
         const isHighlighted = highlightedSquares.includes(square);
         const isLegalMove = legalMoveSquares.includes(square);
@@ -258,7 +273,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
       
       {/* Interactive overlay squares (invisible, just for clicking and highlighting) */}
       {squares.map(({ square, position, isLegalMove, isHighlighted, isSelected, isLastMove }) => {
-        const scaledSquareSize = SQUARE_SIZE * SHARED_SPACING_SCALE;
+        const scaledSquareSize = SQUARE_SIZE * HIGHLIGHT_SPACING_SCALE;
         return (
           <group key={square}>
             {/* Invisible click target - taller for better click detection */}
@@ -898,8 +913,8 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
   return (
     <group>
       {Array.from(pieces.entries()).map(([square, { type, color }]) => {
-        // Use shared positioning (same as highlights)
-        const [worldX, worldZ] = getSquareWorldXZ(square, orientation);
+        // Use piece-specific positioning
+        const [worldX, worldZ] = getPieceWorldXZ(square, orientation);
         const pieceKey = `${square}-${type}-${color}`;
         return (
           <GLBChessPiece
