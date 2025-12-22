@@ -291,10 +291,10 @@ interface DifficultyConfig {
 
 const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   beginner: { elo: 400, timePerMoveMs: 500, maxDepth: 2, multiPvCount: 5, stockfishNodes: 10000, mistakeProbability: 0.4, useStockfish: false },
-  novice: { elo: 600, timePerMoveMs: 800, maxDepth: 3, multiPvCount: 5, stockfishNodes: 50000, mistakeProbability: 0.25, useStockfish: false },
-  intermediate: { elo: 900, timePerMoveMs: 1200, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, mistakeProbability: 0.15, useStockfish: true },
-  club: { elo: 1200, timePerMoveMs: 1500, maxDepth: 5, multiPvCount: 4, stockfishNodes: 200000, mistakeProbability: 0.08, useStockfish: true },
-  advanced: { elo: 1500, timePerMoveMs: 2000, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, mistakeProbability: 0.04, useStockfish: true },
+  novice: { elo: 600, timePerMoveMs: 800, maxDepth: 3, multiPvCount: 5, stockfishNodes: 50000, mistakeProbability: 0.2, useStockfish: false },
+  intermediate: { elo: 900, timePerMoveMs: 1200, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, mistakeProbability: 0.1, useStockfish: true },
+  club: { elo: 1200, timePerMoveMs: 1500, maxDepth: 5, multiPvCount: 4, stockfishNodes: 200000, mistakeProbability: 0.05, useStockfish: true },
+  advanced: { elo: 1500, timePerMoveMs: 2000, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, mistakeProbability: 0.03, useStockfish: true },
   expert: { elo: 1800, timePerMoveMs: 3000, maxDepth: 8, multiPvCount: 3, stockfishNodes: 1000000, mistakeProbability: 0.02, useStockfish: true },
   master: { elo: 2000, timePerMoveMs: 4000, maxDepth: 10, multiPvCount: 3, stockfishNodes: 2000000, mistakeProbability: 0.01, useStockfish: true },
 };
