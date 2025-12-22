@@ -103,6 +103,7 @@ import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  deleteUser(userId: string): Promise<void>;
   
   createGame(game: InsertGame): Promise<Game>;
   getGame(id: string): Promise<Game | undefined>;
@@ -300,6 +301,40 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    // Most tables have onDelete: "cascade" foreign key constraints,
+    // so deleting the user will automatically cascade to related records.
+    // We explicitly delete from tables that may not have cascades or have complex relationships.
+    
+    // Delete move analysis linked to user's game analyses first
+    const userAnalyses = await db.select({ id: gameAnalysis.id }).from(gameAnalysis).where(eq(gameAnalysis.userId, userId));
+    if (userAnalyses.length > 0) {
+      const analysisIds = userAnalyses.map(a => a.id);
+      await db.delete(moveAnalysis).where(inArray(moveAnalysis.gameAnalysisId, analysisIds));
+    }
+    
+    // Delete game analysis records
+    await db.delete(gameAnalysis).where(eq(gameAnalysis.userId, userId));
+    
+    // Delete user-specific data that may not cascade
+    await db.delete(puzzleSessionProgress).where(eq(puzzleSessionProgress.userId, userId));
+    await db.delete(practiceHistory).where(eq(practiceHistory.userId, userId));
+    await db.delete(repertoires).where(eq(repertoires.userId, userId));
+    await db.delete(userAntiCheat).where(eq(userAntiCheat.userId, userId));
+    await db.delete(accuracyHistory).where(eq(accuracyHistory.userId, userId));
+    await db.delete(playerWeaknesses).where(eq(playerWeaknesses.userId, userId));
+    await db.delete(knightsTourProgress).where(eq(knightsTourProgress.userId, userId));
+    await db.delete(nPieceChallengeSolutions).where(eq(nPieceChallengeSolutions.userId, userId));
+    await db.delete(nPieceChallengeProgress).where(eq(nPieceChallengeProgress.userId, userId));
+    await db.delete(boardSpinScores).where(eq(boardSpinScores.userId, userId));
+    await db.delete(matchmakingQueues).where(eq(matchmakingQueues.userId, userId));
+    await db.delete(statistics).where(eq(statistics.userId, userId));
+    await db.delete(userSettings).where(eq(userSettings.userId, userId));
+    
+    // Finally delete the user record (cascades will handle remaining FK relationships)
+    await db.delete(users).where(eq(users.id, userId));
   }
 
   async createGame(gameData: InsertGame): Promise<Game> {
