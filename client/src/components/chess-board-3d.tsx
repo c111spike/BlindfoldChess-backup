@@ -53,10 +53,9 @@ const BOARD_SIZE = 8 * SQUARE_SIZE;
 const PIECE_SCALE = 0.4;
 
 // Shared positioning constants - MUST be identical for pieces and highlights
-// Adjusted: increased spacing scale to spread highlights, more negative Z to shift "up"
 const SHARED_OFFSET_X = 0.02;
-const SHARED_OFFSET_Z = -0.15;
-const SHARED_SPACING_SCALE = 1.0;
+const SHARED_OFFSET_Z = 0.15;
+const SHARED_SPACING_SCALE = 1.1;
 
 const LIGHT_SQUARE_COLOR = "#f0d9b5";
 const DARK_SQUARE_COLOR = "#b58863";
