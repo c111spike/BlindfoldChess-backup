@@ -208,7 +208,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     // Calculate the actual board surface Y position after scaling and offset
     // Keep it just slightly above the board but well below the pieces (which are at Y=0.60)
     const boardOffset = -0.45;
-    const surfaceY = 0.40; // Just below pieces (at Y=0.60)
+    const surfaceY = 0.35; // Just below pieces (at Y=0.60)
     
     return { 
       geometry: geo, 
