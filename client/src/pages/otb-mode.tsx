@@ -36,6 +36,7 @@ import {
   BOT_PERSONALITY_ICONS,
   getBotByConfig 
 } from "@shared/botTypes";
+import { generateBotMoveClient, getThinkTime } from "@/lib/botEngine";
 
 const INITIAL_BOARD = [
   ["r", "n", "b", "q", "k", "b", "n", "r"],
@@ -1613,19 +1614,35 @@ export default function OTBMode() {
 
   const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[]) => {
     try {
-      const response = await apiRequest("POST", "/api/bots/move", {
-        fen: currentFen,
-        botId,
-        isOtbMode: true,
-        moveHistory: moveHistorySAN || [],
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to get bot move");
+      // Parse bot ID to get difficulty and personality
+      // Format: bot_<difficulty>_<personality> where personality may contain underscores
+      const parts = botId.split('_');
+      if (parts.length < 3) {
+        throw new Error("Invalid bot ID format");
       }
       
-      const data = await response.json();
-      return data;
+      const difficulty = parts[1] as BotDifficulty;
+      // Rejoin remaining parts for personalities like 'knight_lover' or 'bishop_lover'
+      const personality = parts.slice(2).join('_') as BotPersonality;
+      
+      // Get bot's remaining time
+      const botRemainingTime = playerColor === 'white' ? blackTime * 1000 : whiteTime * 1000;
+      const moveCount = moveHistorySAN?.length || 0;
+      
+      // Use client-side bot engine with Stockfish + personality
+      const result = await generateBotMoveClient(
+        currentFen,
+        personality,
+        difficulty,
+        botRemainingTime,
+        moveCount
+      );
+      
+      if (!result) {
+        throw new Error("Bot failed to generate move");
+      }
+      
+      return result;
     } catch (error) {
       console.error("Error getting bot move:", error);
       toast({
@@ -1635,7 +1652,7 @@ export default function OTBMode() {
       });
       return null;
     }
-  }, [toast]);
+  }, [toast, playerColor, blackTime, whiteTime]);
 
   const handleStartBotGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     if (!user) return;

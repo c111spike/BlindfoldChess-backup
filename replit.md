@@ -74,6 +74,49 @@ OTB mode uses authentic over-the-board castling which requires clicking the king
 - **Bot Training System**: AI opponents with 7 personalities and 7 Elo levels (400-2000).
 - **Board Spin**: Memory and tactics training game using Stockfish for position generation.
 
+### Enhanced Client-Side Bot Engine
+The bot system uses a hybrid approach combining Lichess opening database, Stockfish WASM, and custom minimax with personality-aware move selection.
+
+**Move Selection Pipeline:**
+```
+1. Opening phase (first 15 moves)? → Query Lichess Explorer API → personality picks line
+2. Only one legal move? → Play immediately (save time)
+3. Intermediate+ difficulty? → Use Stockfish MultiPV → personality selects from top N moves
+4. Lower difficulty? → Use iterative deepening minimax with quiescence search
+5. Fallback → Random legal move
+```
+
+**Technical Features:**
+- **Lichess Opening Explorer**: Real-time API queries for master game statistics. Personality affects line selection (Aggressor → sharp gambits, Defender → solid main lines)
+- **Stockfish MultiPV**: Gets top 3-5 engine moves, then personality-based scoring selects which to play
+- **Iterative Deepening**: Time-based search with 100ms move overhead buffer to prevent flagging
+- **Quiescence Search**: Stand-pat rule with capture/check extension to prevent horizon effect blunders
+- **MVV-LVA Move Ordering**: Captures sorted by Most Valuable Victim / Least Valuable Attacker for better alpha-beta pruning
+
+**Difficulty Levels:**
+| Level | Elo | Stockfish Nodes | MultiPV | Mistake % |
+|-------|-----|-----------------|---------|-----------|
+| Beginner | 400 | - (minimax) | - | 40% |
+| Novice | 600 | - (minimax) | - | 25% |
+| Intermediate | 900 | 100K | 4 | 15% |
+| Club | 1200 | 200K | 4 | 8% |
+| Advanced | 1500 | 500K | 3 | 4% |
+| Expert | 1800 | 1M | 3 | 2% |
+| Master | 2000 | 2M | 3 | 1% |
+
+**Personality Move Selection:**
+- **Aggressor**: Bonus for captures, checks, moves toward enemy king
+- **Tactician**: Bonus for material exchanges, sacrifices, forcing moves
+- **Defender**: Bonus for castling, non-capturing moves, back-rank consolidation
+- **Positional**: Bonus for center control, pawn structure, piece development
+- **Bishop Specialist**: Bonus for bishop moves, long diagonals, trading knights
+- **Knight Specialist**: Bonus for knight moves, outpost squares, trading bishops
+- **Balanced**: Weighted toward engine's top choice
+
+**Files:**
+- `client/src/lib/botEngine.ts`: Main bot logic with MultiPV and personality selection
+- `client/src/lib/lichessOpenings.ts`: Lichess Explorer API integration with caching
+
 ### Voice Control System
 Available in Standard and Simul modes, using Web Speech API for voice announcements and commands (e.g., "knight to f3").
 
@@ -163,13 +206,6 @@ Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueu
 - Monitor Admin Performance tab for cache hit rates and response times
 
 **Future Optimization (not yet implemented)**:
-
-**Lichess Opening Database Integration**:
-- Free API at lichess.org/api for instant opening evaluations (~100ms)
-- Shows master game statistics and popular continuations
-- Cuts Stockfish workload by ~25-40% (most analyzed positions are openings)
-- **For Analysis**: Instant opening evaluations, shows "masters played this"
-- **For Bots**: Access millions of master games; personality affects line choice (aggressive → sharp lines, defensive → solid lines)
 
 **Syzygy Endgame Tablebases**:
 - 5-piece: ~1GB storage, covers most practical endgames

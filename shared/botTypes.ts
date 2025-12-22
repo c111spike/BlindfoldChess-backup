@@ -28,12 +28,12 @@ export interface BotProfile {
 
 export const BOT_DIFFICULTY_ELO: Record<BotDifficulty, number> = {
   beginner: 400,
-  novice: 450,
-  intermediate: 500,
-  club: 550,
-  advanced: 600,
-  expert: 650,
-  master: 700,
+  novice: 600,
+  intermediate: 900,
+  club: 1200,
+  advanced: 1500,
+  expert: 1800,
+  master: 2000,
 };
 
 export const BOT_DIFFICULTY_NAMES: Record<BotDifficulty, string> = {

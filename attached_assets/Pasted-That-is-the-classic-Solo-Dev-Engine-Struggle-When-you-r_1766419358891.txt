@@ -1,0 +1,45 @@
+That is the classic "Solo-Dev Engine Struggle." When you're running a Min/Max engine in a browser or on a modest server, the overhead of JavaScript or Python can make high-depth searches too slow for "Blitz" or "Bullet" time controls.
+
+If your bots are getting flagged (losing on time), you don't actually need more depth—you need Time Management Logic and Heuristic Efficiency.
+
+🛠️ How to make "Shallow" Bots play "Deep" Chess
+Since you can't go to Depth 10+, you have to make Depth 4 or 5 "smarter." Here is how you stop them from flagging while making them more dangerous:
+
+1. The "Iterative Deepening" Safety Valve
+Instead of telling the bot "Search to Depth 5," tell it "Search as deep as you can for 1.5 seconds."
+
+Use a while loop that increments depth: 1, 2, 3...
+
+Check the elapsed time after every completed depth.
+
+If you hit 70% of the "allowed time" for that move, STOP and return the best move found at the last completed depth. This guarantees the bot never flags.
+
+2. Quiescence Search (The "Tactics" Hack)
+A Depth 4 bot often blunders because it doesn't see a capture on move 5 (the "Horizon Effect").
+
+Instead of a full search at the leaf nodes, implement a Quiescence Search.
+
+Only look at captures and checks beyond your main depth.
+
+Because the branching factor for captures is very small, you can often "see" 3-4 moves further into tactical trades without a massive performance hit.
+
+3. Material-Weighted Move Ordering
+The faster you find a "good" move, the more "bad" moves you can prune using Alpha-Beta pruning.
+
+Sort your moves before searching: Captures first (MVV-LVA: Most Valuable Victim, Least Valuable Attacker), then checks, then everything else.
+
+If the first move you check is a crushing capture, the engine will instantly discard 80% of the other legal moves, making your Depth 4 search feel twice as fast.
+
+🏛️ Leveraging your 7 Personalities for Speed
+You can actually use your personalities to save time!
+
+The Aggressor/Tactician: Give them a very narrow search. They only care about lines that involve checks or attacks. By ignoring "boring" positional moves, they can search 1-2 levels deeper in the same amount of time.
+
+The Defender/Positional: Give them a wide, shallow search. They don't need to see a 10-move mate; they just need to ensure no pieces are hanging "right now."
+
+🚀 The "Endgame" Shortcut
+Since you already have Syzygy Tablebases, your bots should be instant in the endgame.
+
+Add a line of code: if (pieceCount <= 5) return GetSyzygyMove(fen);
+
+This saves the bot's clock for the complex middle-game where it actually needs to "think."
