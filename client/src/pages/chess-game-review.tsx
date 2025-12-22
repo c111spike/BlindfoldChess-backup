@@ -32,9 +32,9 @@ export default function ChessGameReview() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Chess Game Review - Psychology-Based Analysis | SimulChess</title>
-        <meta name="description" content="Go beyond engine evaluations with SimulChess Game Review. Analyze your decision-making psychology, track blindfold progress, connect to repertoire training, and replay critical moments to find the best moves." />
+        <meta name="description" content="Go beyond engine scores. SimulChess Game Review analyzes your thinking patterns, focus, and VSS Mismatch to show you WHY you blundered, not just what you missed." />
         <meta property="og:title" content="Chess Game Review - Psychology-Based Analysis | SimulChess" />
-        <meta property="og:description" content="Go beyond engine evaluations with SimulChess Game Review. Analyze your decision-making psychology and connect insights directly to training." />
+        <meta property="og:description" content="Go beyond engine scores. SimulChess Game Review analyzes your thinking patterns, focus, and VSS Mismatch to show you WHY you blundered, not just what you missed." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/chess-game-review" />
         <meta property="og:image" content="https://simulchess.com/og-review.png" />
@@ -57,7 +57,7 @@ export default function ChessGameReview() {
             <h1 className="text-3xl md:text-4xl font-bold">Game Review</h1>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Understand not just what you played, but why you played it
+            Go beyond engine scores. SimulChess Game Review analyzes your thinking patterns, focus, and VSS Mismatch to show you WHY you blundered, not just what you missed.
           </p>
         </div>
 
