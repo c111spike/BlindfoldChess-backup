@@ -719,16 +719,16 @@ function GLBChessPiece({ type, color, position, onClick, nodes }: {
     // Center the geometry at origin
     geo.translate(-center.x, -box.min.y, -center.z);
     
-    // Target heights for different piece types
+    // Target heights for different piece types (scaled down to fit board squares)
     const targetHeights: Record<string, number> = {
-      k: 1.6,
-      q: 1.4,
-      r: 0.9,
-      b: 1.2,
-      n: 1.1,
-      p: 0.8,
+      k: 1.1,
+      q: 1.0,
+      r: 0.65,
+      b: 0.85,
+      n: 0.8,
+      p: 0.55,
     };
-    const targetHeight = targetHeights[type] || 0.9;
+    const targetHeight = targetHeights[type] || 0.65;
     const calculatedScale = targetHeight / size.y;
     
     return { geometry: geo, material: mat, scale: calculatedScale };
