@@ -58,9 +58,11 @@ const PIECE_OFFSET_X = 0.02;
 const PIECE_OFFSET_Z = -0.05;
 const PIECE_SPACING_SCALE = 0.95;
 
-// Highlight positioning - use same values as pieces for perfect alignment
+// Highlight positioning - adjusted for perspective view compensation
+// Highlights are lower (Y=0.35) than pieces (Y=0.60), so they appear shifted
+// We adjust Z to compensate for the camera angle (move highlights "forward" toward player)
 const HIGHLIGHT_OFFSET_X = PIECE_OFFSET_X;
-const HIGHLIGHT_OFFSET_Z = PIECE_OFFSET_Z;
+const HIGHLIGHT_OFFSET_Z = PIECE_OFFSET_Z + 0.15;  // Shift forward to compensate for perspective
 const HIGHLIGHT_SPACING_SCALE = PIECE_SPACING_SCALE;
 
 const LIGHT_SQUARE_COLOR = "#f0d9b5";
