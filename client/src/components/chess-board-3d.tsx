@@ -839,7 +839,7 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
             key={pieceKey}
             type={type}
             color={color}
-            position={[x, 0.05, z]}
+            position={[x, -0.15, z]}
             onClick={() => onSquareClick(square)}
             nodes={nodes}
           />
