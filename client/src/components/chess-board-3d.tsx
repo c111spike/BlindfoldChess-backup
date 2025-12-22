@@ -1,7 +1,11 @@
 import { Canvas } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
 import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import * as THREE from "three";
 import { ChessBoard } from "@/components/chess-board";
+
+// Path to the wooden chess set GLB model
+const CHESS_MODEL_PATH = "/attached_assets/wooden_chess_set_1766401857181.glb";
 
 function isWebGLAvailable(): boolean {
   try {
@@ -473,14 +477,127 @@ function King({ position, color }: { position: [number, number, number]; color: 
   );
 }
 
-function ChessPiece({ type, color, position, onClick }: { 
+// GLB Model Piece - uses meshes from the loaded wooden chess set
+function GLBPiece({ type, color, position, onClick, nodes, materials }: { 
   type: string; 
   color: "w" | "b"; 
   position: [number, number, number];
   onClick: () => void;
+  nodes: Record<string, THREE.Object3D>;
+  materials: Record<string, THREE.Material>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
+  
+  // Map piece types to mesh names in the GLB model
+  // Common naming patterns: Pawn, Rook, Knight, Bishop, Queen, King
+  const pieceNameMap: Record<string, string[]> = {
+    p: ['Pawn', 'pawn', 'PAWN', 'P'],
+    r: ['Rook', 'rook', 'ROOK', 'R', 'Castle', 'castle'],
+    n: ['Knight', 'knight', 'KNIGHT', 'N', 'Horse', 'horse'],
+    b: ['Bishop', 'bishop', 'BISHOP', 'B'],
+    q: ['Queen', 'queen', 'QUEEN', 'Q'],
+    k: ['King', 'king', 'KING', 'K'],
+  };
+  
+  // Find the mesh for this piece type
+  const possibleNames = pieceNameMap[type] || [];
+  let pieceMesh: THREE.Mesh | null = null;
+  
+  for (const name of possibleNames) {
+    // Try different naming conventions
+    const variations = [
+      name,
+      `${name}_White`, `${name}_Black`,
+      `White_${name}`, `Black_${name}`,
+      `${name}001`, `${name}002`,
+      name.toLowerCase(),
+    ];
+    
+    for (const variant of variations) {
+      if (nodes[variant] && (nodes[variant] as THREE.Mesh).isMesh) {
+        pieceMesh = nodes[variant] as THREE.Mesh;
+        break;
+      }
+    }
+    if (pieceMesh) break;
+  }
+  
+  // If no GLB mesh found, fall back to null (will use primitive piece)
+  if (!pieceMesh || !pieceMesh.geometry) {
+    return null;
+  }
+  
+  const adjustedPosition: [number, number, number] = [
+    position[0],
+    position[1] + (hovered ? 0.1 : 0),
+    position[2]
+  ];
+  
+  // Wooden colors for white and black pieces
+  const pieceColor = color === "w" ? "#e8d4a8" : "#4a3728";
+  
+  // Calculate scale based on piece geometry bounds
+  const box = new THREE.Box3().setFromObject(pieceMesh);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const targetHeight = type === 'k' ? 1.7 : type === 'q' ? 1.5 : type === 'r' ? 1.0 : type === 'b' ? 1.3 : type === 'n' ? 1.2 : 0.9;
+  const scale = targetHeight / maxDim;
+  
+  return (
+    <group 
+      ref={groupRef}
+      position={adjustedPosition}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onPointerOver={() => {
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = "auto";
+      }}
+    >
+      <mesh 
+        geometry={pieceMesh.geometry.clone()} 
+        scale={[scale, scale, scale]}
+        castShadow
+      >
+        <meshStandardMaterial color={pieceColor} roughness={0.4} metalness={0.1} />
+      </mesh>
+    </group>
+  );
+}
+
+function ChessPiece({ type, color, position, onClick, useGLB = false, glbNodes, glbMaterials }: { 
+  type: string; 
+  color: "w" | "b"; 
+  position: [number, number, number];
+  onClick: () => void;
+  useGLB?: boolean;
+  glbNodes?: Record<string, THREE.Object3D>;
+  glbMaterials?: Record<string, THREE.Material>;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
+  
+  // Try GLB piece first if enabled
+  if (useGLB && glbNodes && glbMaterials) {
+    const glbPiece = (
+      <GLBPiece 
+        type={type} 
+        color={color} 
+        position={position} 
+        onClick={onClick}
+        nodes={glbNodes}
+        materials={glbMaterials}
+      />
+    );
+    if (glbPiece) return glbPiece;
+  }
   
   const adjustedPosition: [number, number, number] = [
     position[0],
@@ -528,12 +645,26 @@ function Pieces({ fen, orientation, onSquareClick }: {
 }) {
   const pieces = useMemo(() => parseFen(fen), [fen]);
   
+  // Try to load GLB model
+  let glbData: { nodes: Record<string, THREE.Object3D>; materials: Record<string, THREE.Material> } | null = null;
+  try {
+    const { nodes, materials } = useGLTF(CHESS_MODEL_PATH) as any;
+    if (nodes && Object.keys(nodes).length > 0) {
+      glbData = { nodes, materials };
+      // Log available node names on first load for debugging
+      if (typeof window !== 'undefined' && !(window as any).__glbNodesLogged) {
+        console.log('[3D Chess] GLB model loaded. Available nodes:', Object.keys(nodes));
+        (window as any).__glbNodesLogged = true;
+      }
+    }
+  } catch (e) {
+    // Model not available, will use primitive pieces
+  }
+  
   return (
     <group>
       {Array.from(pieces.entries()).map(([square, { type, color }]) => {
         const [x, z] = squareToPosition(square, orientation);
-        // Use composite key with square, type, and color to ensure React remounts
-        // meshes when piece identity changes (fixes illegal move rollback sync)
         const pieceKey = `${square}-${type}-${color}`;
         return (
           <ChessPiece
@@ -542,12 +673,16 @@ function Pieces({ fen, orientation, onSquareClick }: {
             color={color}
             position={[x, 0.05, z]}
             onClick={() => onSquareClick(square)}
+            useGLB={!!glbData}
+            glbNodes={glbData?.nodes}
+            glbMaterials={glbData?.materials}
           />
         );
       })}
     </group>
   );
 }
+
 
 function Scene({ fen, orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare, onSquareClick }: {
   fen: string;
