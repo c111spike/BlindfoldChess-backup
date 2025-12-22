@@ -44,6 +44,14 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **Simul Mode**: Multi-board management training for simultaneous exhibitions.
 - **Simul vs Simul Tournaments**: Structured events for multi-board simultaneous play.
 
+### 3D Chess Board Positioning
+The GLB wooden chess set uses these positioning parameters for perfect piece alignment:
+- **Board scale**: 9.5 units (accounts for wooden border with 8-unit playing grid)
+- **Piece Y position**: 0.60 (height above board)
+- **Offset X**: 0.02, **Offset Z**: -0.05 (centering adjustment)
+- **Spacing scale**: 0.95 (5% reduction for square alignment)
+- **Piece scale**: 90% of original GLB piece sizes
+
 ### OTB Castling Implementation
 OTB mode uses authentic over-the-board castling which requires clicking the king first, then clicking the rook (not the destination square). This simulates real tournament play where players physically pick up both pieces.
 
