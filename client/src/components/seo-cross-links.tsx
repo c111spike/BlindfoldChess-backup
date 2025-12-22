@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Eye, Trophy, Grid3X3, Waypoints, Layers, Puzzle, RotateCw, Book } from "lucide-react";
+import { Eye, Trophy, Grid3X3, Waypoints, Layers, Puzzle, RotateCw, Book, BarChart3 } from "lucide-react";
 
 const trainingModes = [
   { path: "/blindfold-chess-training", name: "Blindfold Training", icon: Eye, description: "Visualization practice" },
@@ -10,6 +10,7 @@ const trainingModes = [
   { path: "/chess-puzzles-trainer", name: "Puzzles", icon: Puzzle, description: "Tactical training" },
   { path: "/chess-board-spin", name: "Board Spin", icon: RotateCw, description: "Memory game" },
   { path: "/opening-repertoire-trainer", name: "Repertoire Trainer", icon: Book, description: "Opening mastery" },
+  { path: "/chess-game-review", name: "Game Review", icon: BarChart3, description: "Psychology analysis" },
 ];
 
 interface SEOCrossLinksProps {
