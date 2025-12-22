@@ -3660,6 +3660,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Replay the game and check each position
       const { Chess } = await import('chess.js');
       const game = new Chess();
+      
+      // Helper to normalize FEN for transposition matching
+      // Only keeps en passant square if a legal e.p. capture is actually possible
+      const normalizeFenForComparison = (fen: string): string => {
+        const parts = fen.split(' ');
+        if (parts.length < 4) return fen;
+        
+        const [position, activeColor, castling, epSquare] = parts;
+        
+        // If no e.p. square, nothing to normalize
+        if (epSquare === '-') {
+          return [position, activeColor, castling, '-'].join(' ');
+        }
+        
+        // Check if there's actually a pawn that can capture e.p.
+        // E.p. square is on rank 3 (white just pushed) or rank 6 (black just pushed)
+        // The capturing pawn must be on an adjacent file on the appropriate rank
+        const epFile = epSquare.charCodeAt(0) - 97; // 0-7 (a-h)
+        const epRank = parseInt(epSquare[1]); // 3 or 6
+        
+        // Determine which color can capture and on which rank the capturing pawn would be
+        const capturingColor = epRank === 3 ? 'b' : 'w'; // If e.p. on rank 3, black captures; on 6, white
+        const capturingRank = epRank === 3 ? 4 : 5; // Capturing pawn is on rank 4 or 5
+        
+        // Parse the position to check for pawns
+        const ranks = position.split('/');
+        const captureRankIndex = 8 - capturingRank; // FEN ranks are from 8 to 1
+        const rankStr = ranks[captureRankIndex];
+        
+        // Expand the rank string to 8 characters
+        let expandedRank = '';
+        for (const char of rankStr) {
+          if (char >= '1' && char <= '8') {
+            expandedRank += '.'.repeat(parseInt(char));
+          } else {
+            expandedRank += char;
+          }
+        }
+        
+        // Check adjacent files for capturing pawn
+        const pawnChar = capturingColor === 'w' ? 'P' : 'p';
+        let canCapture = false;
+        
+        // Check left adjacent file
+        if (epFile > 0 && expandedRank[epFile - 1] === pawnChar) {
+          canCapture = true;
+        }
+        // Check right adjacent file
+        if (epFile < 7 && expandedRank[epFile + 1] === pawnChar) {
+          canCapture = true;
+        }
+        
+        // If no pawn can capture, normalize e.p. to '-'
+        const normalizedEp = canCapture ? epSquare : '-';
+        return [position, activeColor, castling, normalizedEp].join(' ');
+      };
+      
       const deviations: Array<{
         moveNumber: number;
         ply: number;
@@ -3675,13 +3732,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (let i = 0; i < moves.length; i++) {
         const fen = game.fen();
-        const fenPosition = fen.split(' ').slice(0, 4).join(' '); // Position without move counts
+        // Normalize FEN: position + active color + castling + normalized e.p. (no move counts)
+        const fenPosition = normalizeFenForComparison(fen);
         const isPlayerMove = (playerColor === 'white') === (i % 2 === 0);
         const moveNumber = Math.floor(i / 2) + 1;
         
-        // Find repertoire lines that match this position
+        // Find repertoire lines that match this position (with normalized e.p.)
         const matchingLines = allLines.filter(l => {
-          const lineFen = l.fen.split(' ').slice(0, 4).join(' ');
+          const lineFen = normalizeFenForComparison(l.fen);
           return lineFen === fenPosition;
         });
         
