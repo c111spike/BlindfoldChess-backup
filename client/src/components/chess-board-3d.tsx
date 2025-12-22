@@ -140,10 +140,10 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
   };
   const boardMesh = nodes["Object_4"] as THREE.Mesh;
   
-  // Calculate board geometry, material and scale
-  const { geometry, material, scale, offset } = useMemo(() => {
+  // Calculate board geometry, material, scale and surface height
+  const { geometry, material, scale, offset, boardSurfaceY } = useMemo(() => {
     if (!boardMesh || !boardMesh.geometry) {
-      return { geometry: null, material: null, scale: 1, offset: [0, 0, 0] };
+      return { geometry: null, material: null, scale: 1, offset: [0, 0, 0], boardSurfaceY: 0.1 };
     }
     
     const geo = boardMesh.geometry.clone();
@@ -161,11 +161,17 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
     const targetSize = BOARD_SIZE + 1.5; // 9.5 units to account for border
     const calculatedScale = targetSize / Math.max(size.x, size.z);
     
+    // Calculate the actual board surface Y position after scaling and offset
+    const boardHeight = size.y * calculatedScale;
+    const boardOffset = -0.45;
+    const surfaceY = boardOffset + boardHeight + 0.02; // Small epsilon above surface
+    
     return { 
       geometry: geo, 
       material: mat,
       scale: calculatedScale,
-      offset: [0, -0.45, 0] as [number, number, number]
+      offset: [0, -0.45, 0] as [number, number, number],
+      boardSurfaceY: surfaceY
     };
   }, [boardMesh]);
 
@@ -238,7 +244,6 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
       {/* Interactive overlay squares (invisible, just for clicking and highlighting) */}
       {squares.map(({ square, position, isLegalMove, isHighlighted, isSelected, isLastMove }) => {
         const scaledSquareSize = SQUARE_SIZE * spacingScale;
-        const highlightY = 0.12; // Height above board surface for visibility
         return (
           <group key={square}>
             {/* Invisible click target - taller for better click detection */}
@@ -253,58 +258,58 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
               <meshBasicMaterial transparent opacity={0} />
             </mesh>
             
-            {/* Selection highlight - yellow */}
+            {/* Selection highlight - yellow box */}
             {isSelected && (
-              <mesh position={[position[0], highlightY, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
-                <planeGeometry args={[scaledSquareSize * 0.9, scaledSquareSize * 0.9]} />
+              <mesh position={[position[0], boardSurfaceY, position[2]]} renderOrder={100}>
+                <boxGeometry args={[scaledSquareSize * 0.88, 0.03, scaledSquareSize * 0.88]} />
                 <meshBasicMaterial 
                   color={SELECTED_COLOR} 
                   transparent 
-                  opacity={0.7} 
+                  opacity={0.75}
+                  depthTest={false}
                   depthWrite={false}
-                  side={THREE.DoubleSide}
                 />
               </mesh>
             )}
             
-            {/* Last move highlight - blue */}
+            {/* Last move highlight - blue box */}
             {isLastMove && !isSelected && (
-              <mesh position={[position[0], highlightY, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
-                <planeGeometry args={[scaledSquareSize * 0.9, scaledSquareSize * 0.9]} />
+              <mesh position={[position[0], boardSurfaceY, position[2]]} renderOrder={100}>
+                <boxGeometry args={[scaledSquareSize * 0.88, 0.03, scaledSquareSize * 0.88]} />
                 <meshBasicMaterial 
                   color={LAST_MOVE_COLOR} 
                   transparent 
-                  opacity={0.6} 
+                  opacity={0.65}
+                  depthTest={false}
                   depthWrite={false}
-                  side={THREE.DoubleSide}
                 />
               </mesh>
             )}
             
-            {/* Check/highlighted square indicator - red */}
+            {/* Check/highlighted square indicator - red box */}
             {isHighlighted && (
-              <mesh position={[position[0], highlightY + 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={11}>
-                <planeGeometry args={[scaledSquareSize * 0.85, scaledSquareSize * 0.85]} />
+              <mesh position={[position[0], boardSurfaceY + 0.01, position[2]]} renderOrder={101}>
+                <boxGeometry args={[scaledSquareSize * 0.85, 0.03, scaledSquareSize * 0.85]} />
                 <meshBasicMaterial 
                   color="#ff4444" 
                   transparent 
-                  opacity={0.8} 
+                  opacity={0.8}
+                  depthTest={false}
                   depthWrite={false}
-                  side={THREE.DoubleSide}
                 />
               </mesh>
             )}
             
-            {/* Legal move indicator - green dot */}
+            {/* Legal move indicator - green sphere */}
             {isLegalMove && (
-              <mesh position={[position[0], highlightY + 0.02, position[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={11}>
-                <circleGeometry args={[0.22, 16]} />
+              <mesh position={[position[0], boardSurfaceY + 0.1, position[2]]} renderOrder={102}>
+                <sphereGeometry args={[0.15, 16, 16]} />
                 <meshBasicMaterial 
                   color={LEGAL_MOVE_COLOR} 
                   transparent 
-                  opacity={0.85} 
+                  opacity={0.9}
+                  depthTest={false}
                   depthWrite={false}
-                  side={THREE.DoubleSide}
                 />
               </mesh>
             )}
