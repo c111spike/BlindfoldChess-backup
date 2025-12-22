@@ -1,7 +1,28 @@
 import { Canvas } from "@react-three/fiber";
-import { useMemo, useRef, useState, useCallback, useEffect } from "react";
+import { useGLTF } from "@react-three/drei";
+import { useMemo, useRef, useState, useCallback, useEffect, Suspense } from "react";
 import * as THREE from "three";
 import { ChessBoard } from "@/components/chess-board";
+
+// Path to the wooden chess set GLB model
+const CHESS_MODEL_PATH = "/attached_assets/wooden_chess_set_1766401857181.glb";
+
+// Mesh name mappings from the GLB file structure
+// Format: Object3D name -> child Mesh name
+const PIECE_MESH_NAMES = {
+  whitePawn: "Object_6",
+  whiteRook: "Object_16",
+  whiteKnight: "Object_10",
+  whiteBishop: "Object_20",
+  whiteQueen: "Object_14",
+  whiteKing: "Object_24",
+  blackPawn: "Object_54",
+  blackRook: "Object_8",
+  blackKnight: "Object_22",
+  blackBishop: "Object_12",
+  blackQueen: "Object_18",
+  blackKing: "Object_26",
+};
 
 function isWebGLAvailable(): boolean {
   try {
@@ -473,7 +494,111 @@ function King({ position, color }: { position: [number, number, number]; color: 
   );
 }
 
-function ChessPiece({ type, color, position, onClick }: { 
+// Get the mesh name for a piece type and color
+function getPieceMeshName(type: string, color: "w" | "b"): string {
+  const colorPrefix = color === "w" ? "white" : "black";
+  const pieceNameMap: Record<string, string> = {
+    p: "Pawn",
+    r: "Rook",
+    n: "Knight",
+    b: "Bishop",
+    q: "Queen",
+    k: "King",
+  };
+  const pieceName = pieceNameMap[type] || "Pawn";
+  const key = `${colorPrefix}${pieceName}` as keyof typeof PIECE_MESH_NAMES;
+  return PIECE_MESH_NAMES[key];
+}
+
+// GLB-based chess piece that uses the wooden chess set model
+function GLBChessPiece({ type, color, position, onClick, nodes }: { 
+  type: string; 
+  color: "w" | "b"; 
+  position: [number, number, number];
+  onClick: () => void;
+  nodes: Record<string, THREE.Object3D>;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
+  
+  const meshName = getPieceMeshName(type, color);
+  const meshNode = nodes[meshName] as THREE.Mesh;
+  
+  // Calculate geometry and scale once
+  const { geometry, scale } = useMemo(() => {
+    if (!meshNode || !meshNode.geometry) {
+      return { geometry: null, scale: 0.012 };
+    }
+    
+    const geo = meshNode.geometry.clone();
+    
+    // Calculate scale to normalize piece heights
+    const box = new THREE.Box3().setFromBufferAttribute(geo.attributes.position as THREE.BufferAttribute);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    
+    // Center the geometry at origin
+    geo.translate(-center.x, -box.min.y, -center.z);
+    
+    // Target heights for different piece types
+    const targetHeights: Record<string, number> = {
+      k: 1.6,
+      q: 1.4,
+      r: 0.9,
+      b: 1.2,
+      n: 1.1,
+      p: 0.8,
+    };
+    const targetHeight = targetHeights[type] || 0.9;
+    const calculatedScale = targetHeight / size.y;
+    
+    return { geometry: geo, scale: calculatedScale };
+  }, [meshNode, type]);
+  
+  if (!geometry) {
+    // Fallback to primitive piece if mesh not found
+    return <FallbackChessPiece type={type} color={color} position={position} onClick={onClick} />;
+  }
+  
+  const adjustedPosition: [number, number, number] = [
+    position[0],
+    position[1] + (hovered ? 0.1 : 0),
+    position[2]
+  ];
+  
+  // Use wooden colors from the model aesthetic
+  const pieceColor = color === "w" ? "#e8d4b8" : "#5a3d2b";
+  
+  return (
+    <group 
+      ref={groupRef}
+      position={adjustedPosition}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onPointerOver={() => {
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = "auto";
+      }}
+    >
+      <mesh 
+        geometry={geometry} 
+        scale={[scale, scale, scale]}
+        castShadow
+      >
+        <meshStandardMaterial color={pieceColor} roughness={0.6} metalness={0.1} />
+      </mesh>
+    </group>
+  );
+}
+
+// Fallback piece using primitive geometry (when GLB not available)
+function FallbackChessPiece({ type, color, position, onClick }: { 
   type: string; 
   color: "w" | "b"; 
   position: [number, number, number];
@@ -507,7 +632,7 @@ function ChessPiece({ type, color, position, onClick }: {
         e.stopPropagation();
         onClick();
       }}
-      onPointerOver={(e) => {
+      onPointerOver={() => {
         setHovered(true);
         document.body.style.cursor = "pointer";
       }}
@@ -521,7 +646,37 @@ function ChessPiece({ type, color, position, onClick }: {
   );
 }
 
-function Pieces({ fen, orientation, onSquareClick }: {
+// Pieces container that loads GLB and renders all pieces
+function GLBPieces({ fen, orientation, onSquareClick }: {
+  fen: string;
+  orientation: "white" | "black";
+  onSquareClick: (square: string) => void;
+}) {
+  const { nodes } = useGLTF(CHESS_MODEL_PATH) as { nodes: Record<string, THREE.Object3D> };
+  const pieces = useMemo(() => parseFen(fen), [fen]);
+  
+  return (
+    <group>
+      {Array.from(pieces.entries()).map(([square, { type, color }]) => {
+        const [x, z] = squareToPosition(square, orientation);
+        const pieceKey = `${square}-${type}-${color}`;
+        return (
+          <GLBChessPiece
+            key={pieceKey}
+            type={type}
+            color={color}
+            position={[x, 0.05, z]}
+            onClick={() => onSquareClick(square)}
+            nodes={nodes}
+          />
+        );
+      })}
+    </group>
+  );
+}
+
+// Fallback pieces container (primitive geometry)
+function FallbackPieces({ fen, orientation, onSquareClick }: {
   fen: string;
   orientation: "white" | "black";
   onSquareClick: (square: string) => void;
@@ -534,7 +689,7 @@ function Pieces({ fen, orientation, onSquareClick }: {
         const [x, z] = squareToPosition(square, orientation);
         const pieceKey = `${square}-${type}-${color}`;
         return (
-          <ChessPiece
+          <FallbackChessPiece
             key={pieceKey}
             type={type}
             color={color}
@@ -546,6 +701,22 @@ function Pieces({ fen, orientation, onSquareClick }: {
     </group>
   );
 }
+
+// Wrapper that tries GLB first, falls back to primitives
+function Pieces({ fen, orientation, onSquareClick }: {
+  fen: string;
+  orientation: "white" | "black";
+  onSquareClick: (square: string) => void;
+}) {
+  return (
+    <Suspense fallback={<FallbackPieces fen={fen} orientation={orientation} onSquareClick={onSquareClick} />}>
+      <GLBPieces fen={fen} orientation={orientation} onSquareClick={onSquareClick} />
+    </Suspense>
+  );
+}
+
+// Preload the GLB model
+useGLTF.preload(CHESS_MODEL_PATH);
 
 
 function Scene({ fen, orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare, onSquareClick }: {
