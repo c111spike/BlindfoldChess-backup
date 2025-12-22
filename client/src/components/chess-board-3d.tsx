@@ -291,7 +291,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
             {/* Selection highlight - yellow box - matches piece grid */}
             {isSelected && (
               <mesh position={[position[0], boardSurfaceY, position[2]]} renderOrder={100}>
-                <boxGeometry args={[scaledSquareSize * 0.93, 0.03, scaledSquareSize * 0.93]} />
+                <boxGeometry args={[scaledSquareSize * 0.80, 0.03, scaledSquareSize * 0.80]} />
                 <meshBasicMaterial 
                   color={SELECTED_COLOR} 
                   transparent 
@@ -305,7 +305,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
             {/* Last move highlight - blue box - matches piece grid */}
             {isLastMove && !isSelected && (
               <mesh position={[position[0], boardSurfaceY, position[2]]} renderOrder={100}>
-                <boxGeometry args={[scaledSquareSize * 0.93, 0.03, scaledSquareSize * 0.93]} />
+                <boxGeometry args={[scaledSquareSize * 0.80, 0.03, scaledSquareSize * 0.80]} />
                 <meshBasicMaterial 
                   color={LAST_MOVE_COLOR} 
                   transparent 
@@ -319,7 +319,7 @@ function GLBBoard({ orientation, highlightedSquares, legalMoveSquares, lastMoveS
             {/* Check/highlighted square indicator - red box */}
             {isHighlighted && (
               <mesh position={[position[0], boardSurfaceY + 0.01, position[2]]} renderOrder={101}>
-                <boxGeometry args={[scaledSquareSize * 0.90, 0.03, scaledSquareSize * 0.90]} />
+                <boxGeometry args={[scaledSquareSize * 0.75, 0.03, scaledSquareSize * 0.75]} />
                 <meshBasicMaterial 
                   color="#ff4444" 
                   transparent 
