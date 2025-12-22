@@ -3,9 +3,27 @@ import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Target, Clock, TrendingUp, Book, Brain, Puzzle, Gamepad2 } from "lucide-react";
+import { Trophy, Target, Clock, TrendingUp, Book, Brain, Puzzle, Gamepad2, Eye, Users } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import type { Statistics } from "@shared/schema";
+
+interface SpecialModeStats {
+  blindfold: {
+    gamesPlayed: number;
+    lastPeekTime: number | null;
+    avgPeekTime: number;
+    wins: number;
+    losses: number;
+    draws: number;
+  };
+  simulVsSimul: {
+    gamesPlayed: number;
+    wins: number;
+    losses: number;
+    draws: number;
+    winRate: number;
+  };
+}
 
 interface TrainingStats {
   repertoire: {
@@ -42,6 +60,19 @@ export default function StatisticsPage() {
     queryKey: ["/api/training-stats"],
   });
 
+  const { data: specialModeStats, isLoading: specialLoading } = useQuery<SpecialModeStats>({
+    queryKey: ["/api/special-mode-stats"],
+  });
+
+  const formatPeekTime = (seconds: number) => {
+    if (seconds < 60) {
+      return `${seconds.toFixed(1)}s`;
+    }
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.round(seconds % 60);
+    return `${mins}m ${secs}s`;
+  };
+
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -54,7 +85,7 @@ export default function StatisticsPage() {
     return Math.round(((stat.wins || 0) / total) * 100);
   };
 
-  if (isLoading || trainingLoading) {
+  if (isLoading || trainingLoading || specialLoading) {
     return (
       <div className="p-8 space-y-6">
         <Skeleton className="h-12 w-64" />
@@ -89,6 +120,8 @@ export default function StatisticsPage() {
           <TabsTrigger value="games" data-testid="tab-games">Games</TabsTrigger>
           <TabsTrigger value="repertoire" data-testid="tab-repertoire">Repertoire</TabsTrigger>
           <TabsTrigger value="challenges" data-testid="tab-challenges">Challenges</TabsTrigger>
+          <TabsTrigger value="blindfold" data-testid="tab-blindfold">Blindfold</TabsTrigger>
+          <TabsTrigger value="simul" data-testid="tab-simul">Simul vs Simul</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -463,6 +496,122 @@ export default function StatisticsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="blindfold" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Blindfold Training Statistics
+              </CardTitle>
+              <CardDescription>Track your visualization and memory training progress</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold">{specialModeStats?.blindfold.gamesPlayed || 0}</p>
+                  <p className="text-sm text-muted-foreground">Games Played</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold">
+                    {specialModeStats?.blindfold.avgPeekTime !== undefined 
+                      ? formatPeekTime(specialModeStats.blindfold.avgPeekTime)
+                      : '-'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Avg Peek Time</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold">
+                    {specialModeStats?.blindfold.lastPeekTime !== null 
+                      ? formatPeekTime(specialModeStats.blindfold.lastPeekTime)
+                      : '-'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Last Game Peek Time</p>
+                </div>
+              </div>
+
+              <div className="border-t pt-6">
+                <h4 className="text-sm font-semibold mb-4">Game Results</h4>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{specialModeStats?.blindfold.wins || 0}</p>
+                    <p className="text-xs text-muted-foreground">Wins</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">{specialModeStats?.blindfold.losses || 0}</p>
+                    <p className="text-xs text-muted-foreground">Losses</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-muted-foreground">{specialModeStats?.blindfold.draws || 0}</p>
+                    <p className="text-xs text-muted-foreground">Draws</p>
+                  </div>
+                </div>
+                {specialModeStats && specialModeStats.blindfold.gamesPlayed > 0 && (
+                  <div className="mt-4">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>Win Rate</span>
+                      <span>{Math.round((specialModeStats.blindfold.wins / specialModeStats.blindfold.gamesPlayed) * 100)}%</span>
+                    </div>
+                    <Progress 
+                      value={(specialModeStats.blindfold.wins / specialModeStats.blindfold.gamesPlayed) * 100} 
+                      className="h-2"
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="simul" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Simul vs Simul Statistics
+              </CardTitle>
+              <CardDescription>Multi-board simultaneous exhibition performance</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold">{specialModeStats?.simulVsSimul.gamesPlayed || 0}</p>
+                  <p className="text-sm text-muted-foreground">Total Games</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold">{specialModeStats?.simulVsSimul.winRate || 0}%</p>
+                  <p className="text-sm text-muted-foreground">Win Rate</p>
+                </div>
+              </div>
+
+              <div className="border-t pt-6">
+                <h4 className="text-sm font-semibold mb-4">Game Results</h4>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{specialModeStats?.simulVsSimul.wins || 0}</p>
+                    <p className="text-xs text-muted-foreground">Wins</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">{specialModeStats?.simulVsSimul.losses || 0}</p>
+                    <p className="text-xs text-muted-foreground">Losses</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-muted-foreground">{specialModeStats?.simulVsSimul.draws || 0}</p>
+                    <p className="text-xs text-muted-foreground">Draws</p>
+                  </div>
+                </div>
+                {specialModeStats && specialModeStats.simulVsSimul.gamesPlayed > 0 && (
+                  <div className="mt-4">
+                    <Progress 
+                      value={specialModeStats.simulVsSimul.winRate} 
+                      className="h-2"
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

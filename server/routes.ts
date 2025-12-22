@@ -1568,6 +1568,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/special-mode-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get blindfold stats
+      const blindfoldStats = await storage.getUserBlindfoldStats(userId);
+      
+      // Get simul vs simul stats
+      const simulVsSimulStats = await storage.getUserSimulVsSimulStats(userId);
+      
+      res.json({
+        blindfold: blindfoldStats,
+        simulVsSimul: simulVsSimulStats,
+      });
+    } catch (error) {
+      console.error("Error fetching special mode stats:", error);
+      res.status(500).json({ message: "Failed to fetch special mode stats" });
+    }
+  });
+
   app.get('/api/puzzles/random', isAuthenticated, async (req: any, res) => {
     try {
       const puzzle = await storage.getRandomPuzzle();

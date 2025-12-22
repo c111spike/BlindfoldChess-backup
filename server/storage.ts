@@ -479,6 +479,105 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
+  async getUserBlindfoldStats(userId: string): Promise<{
+    gamesPlayed: number;
+    lastPeekTime: number | null;
+    avgPeekTime: number;
+    wins: number;
+    losses: number;
+    draws: number;
+  }> {
+    const blindfoldGames = await db
+      .select()
+      .from(games)
+      .where(and(
+        or(
+          eq(games.userId, userId),
+          eq(games.whitePlayerId, userId),
+          eq(games.blackPlayerId, userId)
+        ),
+        or(
+          eq(games.blindfoldEnabled, true),
+          sql`${games.peeksUsed} > 0`
+        ),
+        eq(games.status, 'completed')
+      ))
+      .orderBy(desc(games.createdAt));
+
+    const gamesPlayed = blindfoldGames.length;
+    
+    // Calculate wins/losses/draws
+    let wins = 0, losses = 0, draws = 0;
+    for (const game of blindfoldGames) {
+      const isWhite = game.whitePlayerId === userId;
+      const isBlack = game.blackPlayerId === userId;
+      if (game.result === 'draw') {
+        draws++;
+      } else if ((game.result === 'white_win' && isWhite) || (game.result === 'black_win' && isBlack)) {
+        wins++;
+      } else if ((game.result === 'white_win' && isBlack) || (game.result === 'black_win' && isWhite)) {
+        losses++;
+      }
+    }
+
+    // Get last game's peek time (convert from milliseconds to seconds)
+    const lastPeekTimeMs = blindfoldGames.length > 0 ? (blindfoldGames[0].totalPeekTime || 0) : null;
+    const lastPeekTime = lastPeekTimeMs !== null ? lastPeekTimeMs / 1000 : null;
+
+    // Calculate average peek time (convert from milliseconds to seconds)
+    const totalPeekTimeSum = blindfoldGames.reduce((sum, g) => sum + (g.totalPeekTime || 0), 0);
+    const avgPeekTime = gamesPlayed > 0 ? (totalPeekTimeSum / gamesPlayed) / 1000 : 0;
+
+    return {
+      gamesPlayed,
+      lastPeekTime,
+      avgPeekTime,
+      wins,
+      losses,
+      draws,
+    };
+  }
+
+  async getUserSimulVsSimulStats(userId: string): Promise<{
+    gamesPlayed: number;
+    wins: number;
+    losses: number;
+    draws: number;
+    winRate: number;
+  }> {
+    // Get all simul vs simul pairings where user participated
+    const userPairings = await db
+      .select()
+      .from(simulVsSimulPairings)
+      .where(or(
+        eq(simulVsSimulPairings.whitePlayerId, userId),
+        eq(simulVsSimulPairings.blackPlayerId, userId)
+      ));
+
+    let wins = 0, losses = 0, draws = 0;
+    for (const pairing of userPairings) {
+      const isWhite = pairing.whitePlayerId === userId;
+      if (pairing.result === 'draw') {
+        draws++;
+      } else if ((pairing.result === 'white_win' && isWhite) || (pairing.result === 'black_win' && !isWhite)) {
+        wins++;
+      } else if (pairing.result === 'white_win' || pairing.result === 'black_win') {
+        losses++;
+      }
+    }
+
+    const gamesPlayed = wins + losses + draws;
+    const winRate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
+
+    return {
+      gamesPlayed,
+      wins,
+      losses,
+      draws,
+      winRate,
+    };
+  }
+
   async updateGame(id: string, data: Partial<Game>): Promise<Game> {
     const updateData = { ...data };
     if (updateData.completedAt && typeof updateData.completedAt === 'string') {

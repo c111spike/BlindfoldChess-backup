@@ -151,6 +151,11 @@ const guestMenuItems = [
     url: "/opening-repertoire-trainer",
     icon: Book,
   },
+  {
+    title: "Game Review",
+    url: "/chess-game-review",
+    icon: BarChart3,
+  },
 ];
 
 export function AppSidebar() {
