@@ -831,9 +831,10 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
   const { nodes } = useGLTF(CHESS_MODEL_PATH) as { nodes: Record<string, THREE.Object3D> };
   const pieces = useMemo(() => parseFen(fen), [fen]);
   
-  // Offset to center pieces on GLB board squares
+  // Offset and spacing scale to center pieces on GLB board squares
   const pieceOffsetX = 0.05;
   const pieceOffsetZ = 0.05;
+  const spacingScale = 0.95; // Reduce spacing between pieces slightly
   
   return (
     <group>
@@ -845,7 +846,7 @@ function GLBPieces({ fen, orientation, onSquareClick }: {
             key={pieceKey}
             type={type}
             color={color}
-            position={[x + pieceOffsetX, 0.60, z + pieceOffsetZ]}
+            position={[x * spacingScale + pieceOffsetX, 0.60, z * spacingScale + pieceOffsetZ]}
             onClick={() => onSquareClick(square)}
             nodes={nodes}
           />
