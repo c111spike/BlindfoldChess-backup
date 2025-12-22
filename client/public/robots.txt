@@ -10,6 +10,7 @@ Allow: /chess-piece-challenge
 Allow: /chess-board-spin
 Allow: /chess-puzzles-trainer
 Allow: /opening-repertoire-trainer
+Allow: /chess-game-review
 
 # Training Modes
 Allow: /otb
