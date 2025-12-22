@@ -612,9 +612,10 @@ export function ChessBoard3D({
     }
   }, [onSquareClick]);
 
+  // Camera position adjusted for better mobile accessibility - steeper angle makes center pawns easier to tap
   const cameraPosition: [number, number, number] = orientation === "white" 
-    ? [0, 10, 12]
-    : [0, 10, -12];
+    ? [0, 12, 9]
+    : [0, 12, -9];
   
   const lookAt: [number, number, number] = [0, 0, 0];
 
