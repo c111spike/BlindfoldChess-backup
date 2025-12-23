@@ -1268,7 +1268,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // Grandmaster (2300 Elo): Uses transposition tables and advanced pawn evaluation
   grandmaster: { 
     elo: 2300, timePerMoveMs: 5000, maxDepth: 12, multiPvCount: 3, stockfishNodes: 3000000, 
-    mistakeProbability: 0.0001, useStockfish: true,
+    mistakeProbability: 0.00001, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true
   },

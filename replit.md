@@ -103,7 +103,7 @@ The bot system uses a hybrid approach combining Lichess opening database, Stockf
 | Advanced | 1500 | 500K | 3 | 4% |
 | Expert | 1800 | 1M | 3 | 2% |
 | Master | 2000 | 2M | 3 | 1% |
-| Grandmaster | 2300 | 3M | 3 | 0.01% |
+| Grandmaster | 2300 | 3M | 3 | 0.001% |
 
 **Grandmaster-Exclusive Features:**
 - **Transposition Table**: 262K-entry hash table using Zobrist hashing for position caching
