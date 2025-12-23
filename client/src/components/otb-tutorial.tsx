@@ -23,8 +23,8 @@ const tutorialSteps: TutorialStep[] = [
     details: [
       "Click the handshake button before making your first move",
       "Your opponent will also offer a handshake",
-      "If you forget, the arbiter may penalize you with a time penalty",
-      "This simulates real tournament etiquette"
+      "If your opponent calls the arbiter, you'll receive a time penalty",
+      "Continued refusal may result in a forced forfeit"
     ],
     tip: "Always offer the handshake first to show good sportsmanship!"
   },
