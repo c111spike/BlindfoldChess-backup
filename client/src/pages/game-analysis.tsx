@@ -2233,12 +2233,48 @@ export default function GameAnalysisPage() {
   // Use client-side analysis results when available, otherwise fall back to server data
   const hasClientResult = !!clientAnalysis.result;
   
+  // Calculate per-phase accuracy from client-side analysis
+  const calculatePhaseAccuracies = () => {
+    if (!clientAnalysis.result) return { opening: null, middlegame: null, endgame: null };
+    
+    const clientMoves = clientAnalysis.result.moves;
+    const playerColor = game.playerColor;
+    
+    // Filter moves by player color and group by phase
+    const playerMoves = clientMoves.filter((m, idx) => 
+      (playerColor === 'white' && idx % 2 === 0) || 
+      (playerColor === 'black' && idx % 2 === 1)
+    );
+    
+    const openingMoves = playerMoves.filter(m => m.phase === 'opening');
+    const middlegameMoves = playerMoves.filter(m => m.phase === 'middlegame');
+    const endgameMoves = playerMoves.filter(m => m.phase === 'endgame');
+    
+    // Calculate accuracy from centipawn loss: accuracy = max(0, 100 - avgLoss/5)
+    const calcAccuracy = (moves: typeof playerMoves) => {
+      if (moves.length === 0) return null;
+      const avgLoss = moves.reduce((sum, m) => sum + m.normalizedCentipawnLoss, 0) / moves.length;
+      return Math.max(0, Math.min(100, 100 - (avgLoss / 5)));
+    };
+    
+    return {
+      opening: calcAccuracy(openingMoves),
+      middlegame: calcAccuracy(middlegameMoves),
+      endgame: calcAccuracy(endgameMoves),
+    };
+  };
+  
+  const phaseAccuracies = hasClientResult ? calculatePhaseAccuracies() : null;
+  
   // Create effective analysis that uses client results when available
   const analysis = hasClientResult ? {
     ...serverAnalysis,
     status: 'completed' as const,
     whiteAccuracy: clientAnalysis.result!.whiteAccuracy,
     blackAccuracy: clientAnalysis.result!.blackAccuracy,
+    openingAccuracy: phaseAccuracies?.opening ?? serverAnalysis.openingAccuracy,
+    middlegameAccuracy: phaseAccuracies?.middlegame ?? serverAnalysis.middlegameAccuracy,
+    endgameAccuracy: phaseAccuracies?.endgame ?? serverAnalysis.endgameAccuracy,
   } : serverAnalysis;
   
   // Use client-side move analysis when available
