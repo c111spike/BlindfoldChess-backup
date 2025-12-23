@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNotifications } from "@/hooks/useNotifications";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { RotateCw, Clock, Target, Trophy, Play, Sparkles } from "lucide-react";
 import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove } from "@/lib/boardSpinClient";
 import { Chess } from 'chess.js';
@@ -71,7 +71,6 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(120);
   const [spinRotation, setSpinRotation] = useState(0);
-  const [flyingPieces, setFlyingPieces] = useState<Array<{ piece: string; x: number; y: number; id: number }>>([]);
   const [score, setScore] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
   const [finalRotation, setFinalRotation] = useState(0);
@@ -104,28 +103,10 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
     
     setPhase('spinning');
     
-    const pieces: Array<{ piece: string; x: number; y: number; id: number }> = [];
-    let id = 0;
-    for (let rank = 0; rank < 8; rank++) {
-      for (let file = 0; file < 8; file++) {
-        const piece = position.board[rank][file];
-        if (piece) {
-          pieces.push({
-            piece,
-            x: file * 12.5,
-            y: rank * 12.5,
-            id: id++,
-          });
-        }
-      }
-    }
-    setFlyingPieces(pieces);
-    
-    const totalSpins = 3;
+    const totalSpins = 2;
     const finalAngle = position.rotation;
     setFinalRotation(finalAngle);
     
-    let currentRotation = 0;
     const targetRotation = totalSpins * 360 + finalAngle;
     const duration = 2000;
     const startTime = Date.now();
@@ -134,14 +115,12 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      currentRotation = eased * targetRotation;
-      setSpinRotation(currentRotation);
+      setSpinRotation(eased * targetRotation);
       
       if (progress < 1) {
         requestAnimationFrame(animateSpin);
       } else {
         setTimeout(() => {
-          setFlyingPieces([]);
           setPhase('recreate');
           setTimeLeft(120);
           recreationStartTime.current = Date.now();
@@ -219,7 +198,6 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
     setSelectedPiece(null);
     setTimeLeft(120);
     setSpinRotation(0);
-    setFlyingPieces([]);
     setScore(0);
     setAccuracy(0);
   };
@@ -232,19 +210,21 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
     };
   }, []);
 
-  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive = false) => {
+  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive = false, showLabels = true) => {
     const squares = [];
     
     for (let rank = 0; rank < 8; rank++) {
       for (let file = 0; file < 8; file++) {
         const isLight = (rank + file) % 2 === 0;
         const piece = board[rank][file];
+        const isA1 = rank === 7 && file === 0;
+        const isH8 = rank === 0 && file === 7;
         
         squares.push(
           <div
             key={`${rank}-${file}`}
             className={`
-              aspect-square flex items-center justify-center
+              aspect-square flex items-center justify-center relative
               ${isLight ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-amber-700 dark:bg-amber-800'}
               ${interactive ? 'cursor-pointer hover:brightness-110' : ''}
             `}
@@ -253,6 +233,22 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
             {piece && (
               <span className={`text-lg sm:text-xl select-none ${piece === piece.toUpperCase() ? 'text-amber-100' : 'text-amber-900'}`}>
                 {PIECE_UNICODE[piece]}
+              </span>
+            )}
+            {showLabels && isA1 && (
+              <span 
+                className="absolute bottom-0 left-0.5 text-[8px] font-bold text-amber-900 dark:text-amber-300 opacity-80"
+                style={{ transform: `rotate(${-rotation}deg)` }}
+              >
+                a1
+              </span>
+            )}
+            {showLabels && isH8 && (
+              <span 
+                className="absolute top-0 right-0.5 text-[8px] font-bold text-amber-100 dark:text-amber-400 opacity-80"
+                style={{ transform: `rotate(${-rotation}deg)` }}
+              >
+                h8
               </span>
             )}
           </div>
@@ -332,43 +328,16 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
   if (phase === 'spinning') {
     return (
       <div className="flex flex-col items-center justify-center p-4 min-h-[300px]">
-        <div 
-          className="relative w-48 h-48 sm:w-64 sm:h-64"
-          style={{ transform: `rotate(${spinRotation}deg)` }}
+        <motion.div 
+          className="relative"
+          initial={{ rotate: 0 }}
+          animate={{ rotate: spinRotation }}
+          transition={{ duration: 2, ease: "easeOut" }}
         >
-          <div className="absolute inset-0 grid grid-cols-8 border-2 border-amber-900 rounded overflow-hidden">
-            {Array(64).fill(null).map((_, i) => {
-              const row = Math.floor(i / 8);
-              const col = i % 8;
-              const isLight = (row + col) % 2 === 0;
-              return (
-                <div
-                  key={i}
-                  className={`aspect-square ${isLight ? 'bg-amber-100' : 'bg-amber-700'}`}
-                />
-              );
-            })}
-          </div>
-          
-          <AnimatePresence>
-            {flyingPieces.map((p) => (
-              <motion.div
-                key={p.id}
-                className="absolute text-xl"
-                initial={{ x: `${p.x}%`, y: `${p.y}%` }}
-                animate={{
-                  x: `${Math.random() * 100}%`,
-                  y: `${Math.random() * 100}%`,
-                }}
-                transition={{ duration: 2, ease: "easeInOut" }}
-              >
-                {PIECE_UNICODE[p.piece]}
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+          {position && renderBoard(position.board, 0, false, true)}
+        </motion.div>
         
-        <p className="text-sm text-muted-foreground mt-4">Spinning...</p>
+        <p className="text-sm text-muted-foreground mt-4">Spinning to {finalRotation}°...</p>
       </div>
     );
   }
