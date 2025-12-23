@@ -8,9 +8,9 @@ export interface HighlightColors {
 }
 
 const DEFAULT_COLORS: HighlightColors = {
-  selectedPiece: "#facc15",
-  availableMoves: "#22c55e",
-  lastMove: "#facc15",
+  selectedPiece: "#facc15", // Yellow for selected piece
+  availableMoves: "#22c55e", // Green for available moves
+  lastMove: "#f97316", // Orange for last move (distinct from selected)
 };
 
 export function useHighlightColors(): HighlightColors {

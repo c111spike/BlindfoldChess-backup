@@ -113,8 +113,8 @@ export function ChessBoard({
   customHighlightColors,
 }: ChessBoardProps) {
   const selectedColor = customHighlightColors?.selectedPiece || (highlightColor === "red" ? "#ef4444" : "#facc15");
-  const lastMoveHighlightColor = customHighlightColors?.lastMove || (highlightColor === "red" ? "#ef4444" : "#facc15");
-  const availableMovesColorValue = customHighlightColors?.availableMoves || "#000000";
+  const lastMoveHighlightColor = customHighlightColors?.lastMove || (highlightColor === "red" ? "#f97316" : "#f97316"); // Orange for last move
+  const availableMovesColorValue = customHighlightColors?.availableMoves || "#22c55e"; // Green for available moves
   const [internalSelectedSquare, setInternalSelectedSquare] = useState<string | null>(null);
   const selectedSquare = externalSelectedSquare !== null ? externalSelectedSquare : internalSelectedSquare;
   
