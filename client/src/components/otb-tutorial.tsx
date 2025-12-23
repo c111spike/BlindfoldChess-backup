@@ -72,7 +72,8 @@ const tutorialSteps: TutorialStep[] = [
       "Click the 'Call Arbiter' button to raise a dispute",
       "Choose the type of claim (illegal move, unsportsmanlike conduct, etc.)",
       "The arbiter will review and make a ruling",
-      "False claims result in a time penalty for you"
+      "1st false claim results in a time penalty",
+      "2nd false claim results in a forced forfeit"
     ],
     tip: "Only call the arbiter when you're confident about the violation."
   }
