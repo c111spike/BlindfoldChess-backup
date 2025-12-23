@@ -94,6 +94,196 @@ function clearHistory(): void {
   }
 }
 
+// ============================================
+// ZOBRIST HASHING & TRANSPOSITION TABLE
+// (Used only for Grandmaster difficulty)
+// ============================================
+
+// Zobrist random keys - initialized once at module load
+// 12 piece types (6 per color) × 64 squares + castling + en passant + side to move
+const ZOBRIST_PIECE_KEYS: bigint[][] = []; // [pieceIndex 0-11][square 0-63]
+const ZOBRIST_CASTLING: bigint[] = []; // 4 castling rights
+const ZOBRIST_EN_PASSANT: bigint[] = []; // 8 files for en passant
+let ZOBRIST_SIDE_TO_MOVE: bigint;
+
+// Simple PRNG for generating Zobrist keys (Mulberry32-based, extended to 64-bit)
+function createZobristPRNG(seed: number): () => bigint {
+  let a = seed >>> 0;
+  return function(): bigint {
+    // Generate two 32-bit numbers and combine to 64-bit
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    const low = (t ^ t >>> 14) >>> 0;
+    
+    a = a + 0x6D2B79F5 | 0;
+    t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    const high = (t ^ t >>> 14) >>> 0;
+    
+    return (BigInt(high) << 32n) | BigInt(low);
+  };
+}
+
+// Initialize Zobrist keys at module load
+(function initZobrist() {
+  const rng = createZobristPRNG(0xDEADBEEF); // Fixed seed for reproducibility
+  
+  // 12 pieces: wp, wn, wb, wr, wq, wk, bp, bn, bb, br, bq, bk
+  for (let piece = 0; piece < 12; piece++) {
+    ZOBRIST_PIECE_KEYS[piece] = [];
+    for (let square = 0; square < 64; square++) {
+      ZOBRIST_PIECE_KEYS[piece][square] = rng();
+    }
+  }
+  
+  // 4 castling rights (white kingside, white queenside, black kingside, black queenside)
+  for (let i = 0; i < 4; i++) {
+    ZOBRIST_CASTLING[i] = rng();
+  }
+  
+  // 8 en passant files (a-h)
+  for (let i = 0; i < 8; i++) {
+    ZOBRIST_EN_PASSANT[i] = rng();
+  }
+  
+  ZOBRIST_SIDE_TO_MOVE = rng();
+})();
+
+// Map piece character to index (0-11)
+function pieceToZobristIndex(piece: string, color: 'w' | 'b'): number {
+  const pieceOrder: Record<string, number> = { p: 0, n: 1, b: 2, r: 3, q: 4, k: 5 };
+  const base = color === 'w' ? 0 : 6;
+  return base + (pieceOrder[piece.toLowerCase()] ?? 0);
+}
+
+// Compute Zobrist hash for a chess position
+function computeZobristHash(game: Chess): bigint {
+  let hash = 0n;
+  const board = game.board();
+  
+  // Hash all pieces on the board
+  for (let rank = 0; rank < 8; rank++) {
+    for (let file = 0; file < 8; file++) {
+      const piece = board[rank][file];
+      if (piece) {
+        const squareIdx = rank * 8 + file;
+        const pieceIdx = pieceToZobristIndex(piece.type, piece.color);
+        hash ^= ZOBRIST_PIECE_KEYS[pieceIdx][squareIdx];
+      }
+    }
+  }
+  
+  // Hash castling rights
+  const fen = game.fen();
+  const castling = fen.split(' ')[2];
+  if (castling.includes('K')) hash ^= ZOBRIST_CASTLING[0];
+  if (castling.includes('Q')) hash ^= ZOBRIST_CASTLING[1];
+  if (castling.includes('k')) hash ^= ZOBRIST_CASTLING[2];
+  if (castling.includes('q')) hash ^= ZOBRIST_CASTLING[3];
+  
+  // Hash en passant
+  const epSquare = fen.split(' ')[3];
+  if (epSquare !== '-') {
+    const epFile = epSquare.charCodeAt(0) - 97;
+    hash ^= ZOBRIST_EN_PASSANT[epFile];
+  }
+  
+  // Hash side to move (XOR when it's black's turn)
+  if (game.turn() === 'b') {
+    hash ^= ZOBRIST_SIDE_TO_MOVE;
+  }
+  
+  return hash;
+}
+
+// Transposition table entry flags
+const TT_EXACT = 0;     // Score is exact
+const TT_LOWERBOUND = 1; // Score is a lower bound (beta cutoff)
+const TT_UPPERBOUND = 2; // Score is an upper bound (failed high)
+
+interface TTEntry {
+  hash: bigint;
+  depth: number;
+  score: number;
+  flag: number;
+  bestMove: string | null;
+  age: number; // For aging scheme
+}
+
+// Transposition table - size should be power of 2 for efficient indexing
+const TT_SIZE = 1 << 18; // ~262K entries
+const TT_MASK = BigInt(TT_SIZE - 1);
+const transpositionTable: (TTEntry | null)[] = new Array(TT_SIZE).fill(null);
+let ttAge = 0;
+
+function ttIndex(hash: bigint): number {
+  return Number(hash & TT_MASK);
+}
+
+// Store position in transposition table (depth-preferred replacement)
+function ttStore(hash: bigint, depth: number, score: number, flag: number, bestMove: string | null, plyFromRoot: number): void {
+  const idx = ttIndex(hash);
+  const existing = transpositionTable[idx];
+  
+  // Adjust mate scores for storage (store as distance from root)
+  let adjustedScore = score;
+  if (score > 90000) {
+    adjustedScore = score + plyFromRoot;
+  } else if (score < -90000) {
+    adjustedScore = score - plyFromRoot;
+  }
+  
+  // Replacement scheme: always replace if new entry has >= depth or entry is old
+  if (!existing || existing.age !== ttAge || depth >= existing.depth) {
+    transpositionTable[idx] = {
+      hash,
+      depth,
+      score: adjustedScore,
+      flag,
+      bestMove,
+      age: ttAge,
+    };
+  }
+}
+
+// Probe transposition table
+function ttProbe(hash: bigint, depth: number, alpha: number, beta: number, plyFromRoot: number): { hit: boolean; score?: number; bestMove?: string | null } {
+  const idx = ttIndex(hash);
+  const entry = transpositionTable[idx];
+  
+  if (!entry || entry.hash !== hash) {
+    return { hit: false };
+  }
+  
+  // Adjust mate scores for retrieval (adjust back from root distance)
+  let score = entry.score;
+  if (score > 90000) {
+    score = score - plyFromRoot;
+  } else if (score < -90000) {
+    score = score + plyFromRoot;
+  }
+  
+  // Only use score if depth is sufficient
+  if (entry.depth >= depth) {
+    if (entry.flag === TT_EXACT) {
+      return { hit: true, score, bestMove: entry.bestMove };
+    } else if (entry.flag === TT_LOWERBOUND && score >= beta) {
+      return { hit: true, score: beta, bestMove: entry.bestMove };
+    } else if (entry.flag === TT_UPPERBOUND && score <= alpha) {
+      return { hit: true, score: alpha, bestMove: entry.bestMove };
+    }
+  }
+  
+  // Return best move even if we can't use the score (for move ordering)
+  return { hit: false, bestMove: entry.bestMove };
+}
+
+function clearTranspositionTable(): void {
+  ttAge++;
+  // Don't clear entries - just increment age for gradual replacement
+}
+
 // MVV-LVA score: Higher = search first
 // Most Valuable Victim - Least Valuable Attacker
 function getMvvLvaScore(move: Move): number {
@@ -467,6 +657,104 @@ function evaluateMopUp(game: Chess, mopUpWeight: number): number {
 }
 
 // ============================================
+// ADVANCED PAWN STRUCTURE EVALUATION
+// (Used only for Grandmaster difficulty)
+// ============================================
+
+// Evaluate passed pawns, isolated pawns, doubled pawns
+function evaluatePawnStructure(game: Chess): number {
+  const board = game.board();
+  let score = 0;
+  
+  // Track pawns by file for each color
+  const whitePawnsByFile: number[][] = Array.from({ length: 8 }, () => []);
+  const blackPawnsByFile: number[][] = Array.from({ length: 8 }, () => []);
+  
+  // Collect pawn positions
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = board[row][col];
+      if (piece?.type === 'p') {
+        if (piece.color === 'w') {
+          whitePawnsByFile[col].push(row);
+        } else {
+          blackPawnsByFile[col].push(row);
+        }
+      }
+    }
+  }
+  
+  // Evaluate each white pawn
+  for (let col = 0; col < 8; col++) {
+    for (const row of whitePawnsByFile[col]) {
+      // Passed pawn check: no enemy pawns ahead on same file or adjacent files
+      let isPassed = true;
+      for (let checkRow = row - 1; checkRow >= 0; checkRow--) {
+        for (let checkCol = Math.max(0, col - 1); checkCol <= Math.min(7, col + 1); checkCol++) {
+          if (blackPawnsByFile[checkCol].some(r => r <= row)) {
+            isPassed = false;
+            break;
+          }
+        }
+        if (!isPassed) break;
+      }
+      if (isPassed) {
+        // Bonus increases as pawn advances (row 6 is promotion rank)
+        score += 20 + (7 - row) * 10;
+      }
+      
+      // Isolated pawn: no friendly pawns on adjacent files
+      const hasAdjacentPawn = 
+        (col > 0 && whitePawnsByFile[col - 1].length > 0) ||
+        (col < 7 && whitePawnsByFile[col + 1].length > 0);
+      if (!hasAdjacentPawn) {
+        score -= 15;
+      }
+    }
+    
+    // Doubled pawns: penalty for multiple pawns on same file
+    if (whitePawnsByFile[col].length > 1) {
+      score -= 10 * (whitePawnsByFile[col].length - 1);
+    }
+  }
+  
+  // Evaluate each black pawn
+  for (let col = 0; col < 8; col++) {
+    for (const row of blackPawnsByFile[col]) {
+      // Passed pawn check
+      let isPassed = true;
+      for (let checkRow = row + 1; checkRow < 8; checkRow++) {
+        for (let checkCol = Math.max(0, col - 1); checkCol <= Math.min(7, col + 1); checkCol++) {
+          if (whitePawnsByFile[checkCol].some(r => r >= row)) {
+            isPassed = false;
+            break;
+          }
+        }
+        if (!isPassed) break;
+      }
+      if (isPassed) {
+        score -= 20 + row * 10;
+      }
+      
+      // Isolated pawn
+      const hasAdjacentPawn = 
+        (col > 0 && blackPawnsByFile[col - 1].length > 0) ||
+        (col < 7 && blackPawnsByFile[col + 1].length > 0);
+      if (!hasAdjacentPawn) {
+        score += 15;
+      }
+    }
+    
+    // Doubled pawns
+    if (blackPawnsByFile[col].length > 1) {
+      score += 10 * (blackPawnsByFile[col].length - 1);
+    }
+  }
+  
+  return score;
+}
+
+// ============================================
 // ENHANCED POSITION EVALUATION
 // ============================================
 // Evaluation weights that scale with difficulty
@@ -475,6 +763,7 @@ interface EvalWeights {
   kingSafety: number;    // 0-100%
   mopUp: number;         // 0-100%
   useTaperedEval: boolean;
+  usePawnStructure?: boolean; // For Grandmaster
 }
 
 const DEFAULT_EVAL_WEIGHTS: EvalWeights = {
@@ -548,6 +837,11 @@ function evaluatePosition(game: Chess, weights: EvalWeights = DEFAULT_EVAL_WEIGH
   // Add mop-up heuristic (only in endgame with material advantage)
   if (weights.mopUp > 0 && phase < 128) { // Only when approaching endgame
     score += evaluateMopUp(game, weights.mopUp);
+  }
+  
+  // Add pawn structure evaluation (Grandmaster only)
+  if (weights.usePawnStructure) {
+    score += evaluatePawnStructure(game);
   }
 
   return score;
@@ -706,6 +1000,144 @@ function minimax(
     }
     return { score: minEval, bestMove };
   }
+}
+
+// ============================================
+// TT-ENHANCED MINIMAX (Grandmaster Only)
+// Uses transposition table for position caching
+// ============================================
+function minimaxWithTT(
+  game: Chess,
+  depth: number,
+  alpha: number,
+  beta: number,
+  plyFromRoot: number,
+  maxDepth: number,
+  config: MinimaxConfig
+): { score: number; bestMove?: string } {
+  // Probe transposition table
+  const hash = computeZobristHash(game);
+  const ttResult = ttProbe(hash, depth, alpha, beta, plyFromRoot);
+  
+  if (ttResult.hit && ttResult.score !== undefined) {
+    return { score: ttResult.score, bestMove: ttResult.bestMove ?? undefined };
+  }
+  
+  // Base case: use quiescence search
+  if (depth === 0) {
+    const qScore = quiescence(game, alpha, beta, 0, config.evalWeights);
+    ttStore(hash, 0, qScore, TT_EXACT, null, plyFromRoot);
+    return { score: qScore };
+  }
+  
+  // Game over check
+  if (game.isGameOver()) {
+    if (game.isCheckmate()) {
+      const mateScore = -99999 + plyFromRoot;
+      return { score: mateScore };
+    }
+    return { score: 0 }; // Draw
+  }
+
+  const moves = game.moves({ verbose: true });
+  
+  // Use TT best move for ordering if available
+  const orderedMoves = orderMoves(
+    moves, 
+    ttResult.bestMove ?? undefined,
+    maxDepth - depth,
+    config.useKillers,
+    config.useHistory
+  );
+  
+  let bestMove = orderedMoves[0]?.san;
+  let bestScore = -Infinity;
+  let flag = TT_UPPERBOUND;
+
+  for (const move of orderedMoves) {
+    game.move(move.san);
+    const result = minimaxWithTT(game, depth - 1, -beta, -alpha, plyFromRoot + 1, maxDepth, config);
+    const score = -result.score;
+    game.undo();
+    
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = move.san;
+    }
+    
+    if (score >= beta) {
+      // Beta cutoff
+      if (!move.captured && config.useKillers) {
+        storeKillerMove(maxDepth - depth, move.san);
+      }
+      if (config.useHistory) {
+        updateHistory(move.from, move.to, depth);
+      }
+      ttStore(hash, depth, beta, TT_LOWERBOUND, bestMove, plyFromRoot);
+      return { score: beta, bestMove };
+    }
+    
+    if (score > alpha) {
+      alpha = score;
+      flag = TT_EXACT;
+    }
+  }
+  
+  ttStore(hash, depth, bestScore, flag, bestMove, plyFromRoot);
+  return { score: bestScore, bestMove };
+}
+
+// Iterative deepening with TT for Grandmaster
+function iterativeDeepeningWithTT(
+  game: Chess,
+  maxTimeMs: number,
+  maxDepth: number,
+  config: DifficultyConfig
+): { bestMove: string; depth: number; score: number } {
+  const startTime = Date.now();
+  const moveOverhead = 100;
+  const timeLimit = maxTimeMs - moveOverhead;
+  
+  clearKillerMoves();
+  clearTranspositionTable();
+  
+  let bestMove = '';
+  let bestScore = 0;
+  let reachedDepth = 0;
+  
+  const minimaxConfig: MinimaxConfig = {
+    useKillers: config.useKillers,
+    useHistory: config.useHistory,
+    evalWeights: {
+      mobility: config.mobilityWeight,
+      kingSafety: config.kingSafetyWeight,
+      mopUp: config.mopUpWeight,
+      useTaperedEval: config.useTaperedEval,
+      usePawnStructure: true, // Grandmaster uses advanced pawn evaluation
+    },
+  };
+  
+  for (let depth = 1; depth <= maxDepth; depth++) {
+    const elapsed = Date.now() - startTime;
+    
+    if (elapsed > timeLimit * 0.7 && depth > 1) {
+      break;
+    }
+    
+    const result = minimaxWithTT(game, depth, -Infinity, Infinity, 0, depth, minimaxConfig);
+    
+    if (result.bestMove) {
+      bestMove = result.bestMove;
+      bestScore = result.score;
+      reachedDepth = depth;
+    }
+    
+    if (Math.abs(result.score) > 90000) {
+      break;
+    }
+  }
+  
+  return { bestMove, depth: reachedDepth, score: bestScore };
 }
 
 // Iterative deepening with time management
@@ -1089,7 +1521,10 @@ export async function generateBotMoveClient(
     console.log(`[ClientBot] Using minimax with depth ${config.maxDepth}, time ${timeBudget}ms`);
     console.log(`[ClientBot] Heuristics: killers=${config.useKillers}, history=${config.useHistory}, mobility=${config.mobilityWeight}%, kingSafety=${config.kingSafetyWeight}%, mopUp=${config.mopUpWeight}%, tapered=${config.useTaperedEval}`);
     
-    const result = iterativeDeepening(game, timeBudget, config.maxDepth, config);
+    // Use TT-enhanced search for Grandmaster difficulty
+    const result = difficulty === 'grandmaster' 
+      ? iterativeDeepeningWithTT(game, timeBudget, config.maxDepth, config)
+      : iterativeDeepening(game, timeBudget, config.maxDepth, config);
     
     if (result.bestMove) {
       const matchingMove = moves.find(m => m.san === result.bestMove);
