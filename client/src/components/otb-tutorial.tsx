@@ -38,7 +38,7 @@ const tutorialSteps: TutorialStep[] = [
       "Forgetting to press the clock keeps your timer running",
       "The clock button appears next to the timers"
     ],
-    tip: "Use the spacebar with the same hand you moved the piece with to simulate real tournament rules!"
+    tip: "Use the spacebar with the same hand you moved the piece with to simulate the one hand rule."
   },
   {
     title: "Touch-Move Rule",
