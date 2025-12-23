@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { HandshakeIcon, Clock, Gavel, MousePointer, ChevronRight, ChevronLeft, X, CheckCircle } from "lucide-react";
+import { HandshakeIcon, Clock, Gavel, MousePointer, ChevronRight, ChevronLeft, X, CheckCircle, Move } from "lucide-react";
 
 const OTB_TUTORIAL_COMPLETED_KEY = "otb_tutorial_completed";
 
@@ -51,6 +51,18 @@ const tutorialSteps: TutorialStep[] = [
       "Think before you click!"
     ],
     tip: "Plan your move mentally before selecting a piece."
+  },
+  {
+    title: "How Pieces Move",
+    icon: <Move className="h-8 w-8 text-primary" />,
+    description: "Pieces are not restricted in OTB mode, so you must know how each piece moves.",
+    details: [
+      "Unlike standard online chess, illegal moves are allowed until challenged",
+      "You are responsible for knowing how each piece moves",
+      "To castle, click the king first, then click the rook",
+      "The arbiter will only intervene if your opponent calls them"
+    ],
+    tip: "Practice your piece movement knowledge - there's no safety net here!"
   },
   {
     title: "Calling the Arbiter",
