@@ -161,8 +161,8 @@ export default function ChessGameReview() {
                 Psychology-focused coaching that analyzes <em>how</em> you think:
               </p>
               <ul className="text-sm space-y-1 text-muted-foreground">
-                <li><strong>Focus Check</strong> — Measures decision consistency (0-100%)</li>
-                <li><strong>Efficiency Factor</strong> — Time spent vs. move quality</li>
+                <li><strong>Focus Check</strong> — Measures decision consistency (0-100% with letter grade)</li>
+                <li><strong>Efficiency Factor</strong> — Time spent vs. move quality (0-100% with letter grade)</li>
                 <li><strong>Time Trouble</strong> — Detects when clock pressure hurt you</li>
                 <li><strong>Burnout Detection</strong> — Identifies late-game fatigue patterns</li>
                 <li><strong>VSS Mismatch</strong> — Spots visualization failures with replay</li>
@@ -194,13 +194,13 @@ export default function ChessGameReview() {
             <div className="p-4 rounded-lg bg-muted/30 border-l-4 border-green-500">
               <h3 className="font-semibold flex items-center gap-2 mb-2">
                 <Timer className="h-4 w-4" />
-                Efficiency Factor (0.0 - 1.0)
+                Efficiency Factor (0-100% with letter grade)
               </h3>
               <p className="text-sm text-muted-foreground">
-                Compares time spent to move quality. A score near 1.0 means you're using your 
-                time wisely—thinking longer on critical decisions and moving quickly in clear 
-                positions. Low efficiency might mean you're overthinking simple moves or 
-                rushing complex ones.
+                Compares time spent to move quality. A high score (A/B grade) means you're using your 
+                time wisely—thinking longer leads to better moves. A score around 50% (C grade) means 
+                neutral correlation. Low efficiency (D/F grade) might mean you're overthinking simple 
+                moves or rushing complex ones.
               </p>
             </div>
 

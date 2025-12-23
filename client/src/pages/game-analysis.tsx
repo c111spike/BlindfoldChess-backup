@@ -622,11 +622,39 @@ function ReviewTab({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {analysis.focusCheckScore != null ? `${(analysis.focusCheckScore * 100).toFixed(0)}%` : '--'}
+            <div className="text-2xl font-bold flex items-baseline gap-2">
+              {analysis.focusCheckScore != null ? (
+                <>
+                  <span>{analysis.focusCheckScore.toFixed(0)}%</span>
+                  <span className="text-lg text-muted-foreground">
+                    ({(() => {
+                      const score = analysis.focusCheckScore;
+                      if (score >= 97) return 'A+';
+                      if (score >= 93) return 'A';
+                      if (score >= 90) return 'A-';
+                      if (score >= 87) return 'B+';
+                      if (score >= 83) return 'B';
+                      if (score >= 80) return 'B-';
+                      if (score >= 77) return 'C+';
+                      if (score >= 73) return 'C';
+                      if (score >= 70) return 'C-';
+                      if (score >= 67) return 'D+';
+                      if (score >= 63) return 'D';
+                      if (score >= 60) return 'D-';
+                      return 'F';
+                    })()})
+                  </span>
+                </>
+              ) : '--'}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Measures consistency in move quality throughout the game
+              {analysis.focusCheckScore != null && analysis.focusCheckScore >= 80
+                ? "Excellent consistency - you maintained focus throughout the game."
+                : analysis.focusCheckScore != null && analysis.focusCheckScore >= 60
+                  ? "Decent consistency with some variation in move quality."
+                  : analysis.focusCheckScore != null
+                    ? "Your move quality varied significantly - work on maintaining focus."
+                    : "Measures consistency in move quality throughout the game"}
             </p>
           </CardContent>
         </Card>
@@ -639,15 +667,39 @@ function ReviewTab({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {analysis.efficiencyFactor != null ? analysis.efficiencyFactor.toFixed(2) : '--'}
+            <div className="text-2xl font-bold flex items-baseline gap-2">
+              {analysis.efficiencyFactor != null ? (
+                <>
+                  <span>{analysis.efficiencyFactor.toFixed(0)}%</span>
+                  <span className="text-lg text-muted-foreground">
+                    ({(() => {
+                      const score = analysis.efficiencyFactor;
+                      if (score >= 97) return 'A+';
+                      if (score >= 93) return 'A';
+                      if (score >= 90) return 'A-';
+                      if (score >= 87) return 'B+';
+                      if (score >= 83) return 'B';
+                      if (score >= 80) return 'B-';
+                      if (score >= 77) return 'C+';
+                      if (score >= 73) return 'C';
+                      if (score >= 70) return 'C-';
+                      if (score >= 67) return 'D+';
+                      if (score >= 63) return 'D';
+                      if (score >= 60) return 'D-';
+                      return 'F';
+                    })()})
+                  </span>
+                </>
+              ) : '--'}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 0.5 
+              {analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 70
                 ? "Your thinking time is being used productively - longer thinks lead to better moves."
-                : analysis.efficiencyFactor != null 
-                  ? "Move quality doesn't improve with longer thinks. You may be rushing critical positions or overthinking easy ones."
-                  : "Time spent vs. move quality correlation"}
+                : analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 50
+                  ? "Neutral correlation between thinking time and move quality."
+                  : analysis.efficiencyFactor != null
+                    ? "Move quality doesn't improve with longer thinks. You may be rushing critical positions or overthinking easy ones."
+                    : "Time spent vs. move quality correlation"}
             </p>
           </CardContent>
         </Card>
@@ -2268,6 +2320,7 @@ export default function GameAnalysisPage() {
   
   // Calculate Focus Check (consistency score) from client-side analysis
   // Measures how consistent move quality is - lower variance = higher focus
+  // Returns 0-100 scale
   const calculateFocusCheck = (): number | null => {
     if (!clientAnalysis.result) return null;
     
@@ -2282,20 +2335,23 @@ export default function GameAnalysisPage() {
     
     if (playerMoves.length < 3) return null; // Need at least 3 moves for meaningful variance
     
-    // Calculate variance of centipawn losses
+    // Calculate coefficient of variation (CV) - stdDev relative to mean
+    // This is more fair as it accounts for overall skill level
     const losses = playerMoves.map(m => m.normalizedCentipawnLoss);
     const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
     const variance = losses.reduce((sum, loss) => sum + Math.pow(loss - avgLoss, 2), 0) / losses.length;
     const stdDev = Math.sqrt(variance);
     
-    // Convert to 0-1 score: lower stdDev = higher focus
-    // Normalize: stdDev of 0 = 1.0 (perfect), stdDev of 100+ = 0.0
-    const focusScore = Math.max(0, Math.min(1, 1 - (stdDev / 100)));
+    // Use logarithmic scale for more forgiving results
+    // CV of 0 = perfect consistency (100%), CV of 2+ = very inconsistent (0%)
+    const cv = avgLoss > 0 ? stdDev / Math.max(avgLoss, 10) : 0;
+    // Map CV to 0-100: cv=0 -> 100%, cv=1 -> ~60%, cv=2 -> ~30%, cv=3+ -> ~0%
+    const focusScore = Math.max(0, Math.min(100, 100 * Math.exp(-cv * 0.8)));
     return focusScore;
   };
   
   // Calculate Efficiency Factor (time vs quality correlation)
-  // Positive = longer thinks lead to better moves, negative = opposite
+  // Returns 0-100 scale where 50 = neutral, 100 = excellent, 0 = poor
   const calculateEfficiencyFactor = (): number | null => {
     if (!clientAnalysis.result) return null;
     
@@ -2322,7 +2378,6 @@ export default function GameAnalysisPage() {
     if (playerData.length < 5) return null; // Need enough data points
     
     // Calculate Pearson correlation between time and inverse of loss
-    // Positive correlation means more time = less loss (better moves)
     const n = playerData.length;
     const avgTime = playerData.reduce((s, d) => s + d.time, 0) / n;
     const avgLoss = playerData.reduce((s, d) => s + d.loss, 0) / n;
@@ -2341,9 +2396,28 @@ export default function GameAnalysisPage() {
     
     if (denomTime === 0 || denomLoss === 0) return null;
     
-    // Negative correlation with loss = positive efficiency (more time = less loss)
+    // Correlation: -1 to +1 where negative = more time leads to less loss (good)
     const correlation = numerator / Math.sqrt(denomTime * denomLoss);
-    return -correlation; // Invert so positive = good
+    // Convert to 0-100 scale: correlation=-1 -> 100%, 0 -> 50%, +1 -> 0%
+    const efficiencyScore = Math.max(0, Math.min(100, 50 - (correlation * 50)));
+    return efficiencyScore;
+  };
+  
+  // Helper to get letter grade from percentage
+  const getLetterGrade = (score: number): string => {
+    if (score >= 97) return 'A+';
+    if (score >= 93) return 'A';
+    if (score >= 90) return 'A-';
+    if (score >= 87) return 'B+';
+    if (score >= 83) return 'B';
+    if (score >= 80) return 'B-';
+    if (score >= 77) return 'C+';
+    if (score >= 73) return 'C';
+    if (score >= 70) return 'C-';
+    if (score >= 67) return 'D+';
+    if (score >= 63) return 'D';
+    if (score >= 60) return 'D-';
+    return 'F';
   };
   
   const focusCheck = hasClientResult ? calculateFocusCheck() : null;
