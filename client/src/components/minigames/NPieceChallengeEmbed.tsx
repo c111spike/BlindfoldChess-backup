@@ -29,9 +29,10 @@ const PIECE_TYPES: PieceType[] = ["rook", "knight", "bishop", "queen", "king"];
 
 interface NPieceChallengeEmbedProps {
   onClose?: () => void;
+  hideAttackHighlights?: boolean;
 }
 
-export function NPieceChallengeEmbed({ onClose }: NPieceChallengeEmbedProps) {
+export function NPieceChallengeEmbed({ onClose, hideAttackHighlights = false }: NPieceChallengeEmbedProps) {
   const { toast } = useNotifications();
   
   const [pieceType, setPieceType] = useState<PieceType>("queen");
@@ -156,7 +157,7 @@ export function NPieceChallengeEmbed({ onClose }: NPieceChallengeEmbedProps) {
           bgColor = "bg-red-500/70 dark:bg-red-600/70";
         } else if (hasPiece) {
           bgColor = "bg-green-400/70 dark:bg-green-600/70";
-        } else if (isAttacked && !isSolved) {
+        } else if (isAttacked && !isSolved && !hideAttackHighlights) {
           bgColor = isLight ? "bg-red-200/50 dark:bg-red-900/30" : "bg-red-400/30 dark:bg-red-800/30";
         }
         

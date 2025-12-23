@@ -160,7 +160,7 @@ export function MiniGameOverlay({ open, onOpenChange, initialGame, onAnalysisCom
         ) : (
           <Suspense fallback={<GameLoading />}>
             {selectedGame === 'knights-tour' && <KnightsTourEmbed onClose={handleBack} />}
-            {selectedGame === 'n-piece' && <NPieceChallengeEmbed onClose={handleBack} />}
+            {selectedGame === 'n-piece' && <NPieceChallengeEmbed onClose={handleBack} hideAttackHighlights />}
             {selectedGame === 'board-spin' && <BoardSpinEmbed onClose={handleBack} />}
           </Suspense>
         )}
