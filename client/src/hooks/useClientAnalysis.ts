@@ -3,6 +3,7 @@ import { analyzeGameClientSide, type GameAnalysisResult, type MoveAnalysisResult
 
 interface UseClientAnalysisReturn {
   analyzing: boolean;
+  initializing: boolean;
   progress: number;
   totalMoves: number;
   result: GameAnalysisResult | null;
@@ -13,6 +14,7 @@ interface UseClientAnalysisReturn {
 
 export function useClientAnalysis(): UseClientAnalysisReturn {
   const [analyzing, setAnalyzing] = useState(false);
+  const [initializing, setInitializing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [totalMoves, setTotalMoves] = useState(0);
   const [result, setResult] = useState<GameAnalysisResult | null>(null);
@@ -20,28 +22,36 @@ export function useClientAnalysis(): UseClientAnalysisReturn {
 
   const startAnalysis = useCallback(async (moves: string[]) => {
     setAnalyzing(true);
+    setInitializing(true);
     setProgress(0);
     setTotalMoves(moves.length);
     setResult(null);
     setError(null);
 
     try {
+      console.log('[ClientAnalysis] Starting analysis for', moves.length, 'moves');
       const analysisResult = await analyzeGameClientSide(moves, (current, total) => {
+        if (current === 1) {
+          setInitializing(false);
+        }
         setProgress(current);
         setTotalMoves(total);
       });
 
+      console.log('[ClientAnalysis] Analysis complete');
       setResult(analysisResult);
     } catch (err) {
       console.error('[ClientAnalysis] Analysis failed:', err);
       setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
       setAnalyzing(false);
+      setInitializing(false);
     }
   }, []);
 
   const reset = useCallback(() => {
     setAnalyzing(false);
+    setInitializing(false);
     setProgress(0);
     setTotalMoves(0);
     setResult(null);
@@ -50,6 +60,7 @@ export function useClientAnalysis(): UseClientAnalysisReturn {
 
   return {
     analyzing,
+    initializing,
     progress,
     totalMoves,
     result,

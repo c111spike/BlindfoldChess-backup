@@ -2141,17 +2141,28 @@ export default function GameAnalysisPage() {
             {clientAnalysis.analyzing ? (
               <>
                 <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-                <h2 className="text-xl font-bold mb-2">Analyzing Locally</h2>
-                <p className="text-muted-foreground mb-2">
-                  Using your device to analyze the game...
-                </p>
-                <Progress 
-                  value={(clientAnalysis.progress / clientAnalysis.totalMoves) * 100} 
-                  className="w-64 mx-auto mb-2"
-                />
-                <p className="text-sm text-muted-foreground mb-4">
-                  Move {clientAnalysis.progress} of {clientAnalysis.totalMoves}
-                </p>
+                {clientAnalysis.initializing ? (
+                  <>
+                    <h2 className="text-xl font-bold mb-2">Loading Engine</h2>
+                    <p className="text-muted-foreground mb-4">
+                      Downloading and initializing Stockfish (~7MB)...
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-bold mb-2">Analyzing Locally</h2>
+                    <p className="text-muted-foreground mb-2">
+                      Using your device to analyze the game...
+                    </p>
+                    <Progress 
+                      value={(clientAnalysis.progress / clientAnalysis.totalMoves) * 100} 
+                      className="w-64 mx-auto mb-2"
+                    />
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Move {clientAnalysis.progress} of {clientAnalysis.totalMoves}
+                    </p>
+                  </>
+                )}
                 <Button
                   variant="outline"
                   onClick={() => setMiniGameOpen(true)}
@@ -2521,12 +2532,28 @@ export default function GameAnalysisPage() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="font-medium">Analyzing...</span>
+                  <span className="font-medium">
+                    {clientAnalysis.initializing ? 'Loading Engine...' : 'Analyzing...'}
+                  </span>
                 </div>
-                <Progress value={moves.length / gameMoves.length * 100} className="h-2" />
-                <p className="text-sm text-muted-foreground mt-2">
-                  {moves.length} of {gameMoves.length} moves analyzed
-                </p>
+                {clientAnalysis.initializing ? (
+                  <p className="text-sm text-muted-foreground">
+                    Downloading Stockfish (~7MB)
+                  </p>
+                ) : (
+                  <>
+                    <Progress 
+                      value={useClientSide 
+                        ? (clientAnalysis.progress / clientAnalysis.totalMoves * 100) 
+                        : (moves.length / gameMoves.length * 100)
+                      } 
+                      className="h-2" 
+                    />
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {useClientSide ? clientAnalysis.progress : moves.length} of {gameMoves.length} moves analyzed
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}

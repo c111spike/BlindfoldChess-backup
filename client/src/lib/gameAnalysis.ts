@@ -204,7 +204,9 @@ export async function analyzeGameClientSide(
   moves: string[],
   onProgress?: AnalysisProgressCallback
 ): Promise<GameAnalysisResult> {
+  console.log('[GameAnalysis] Initializing Stockfish WASM...');
   await clientStockfish.init();
+  console.log('[GameAnalysis] Stockfish ready, starting analysis of', moves.length, 'moves');
 
   const chess = new Chess();
   const moveResults: MoveAnalysisResult[] = [];
@@ -212,6 +214,7 @@ export async function analyzeGameClientSide(
   const blackNormalizedCPL: number[] = [];
 
   let prevAnalysis: PositionAnalysis | null = null;
+  const NODES_PER_POSITION = 200000;
 
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
@@ -221,18 +224,18 @@ export async function analyzeGameClientSide(
     const fenBefore = chess.fen();
     const isForced = isMoveForcedPosition(chess);
 
-    const analysisBefore = prevAnalysis || await clientStockfish.analyzePosition(fenBefore, 500000);
+    const analysisBefore = prevAnalysis || await clientStockfish.analyzePosition(fenBefore, NODES_PER_POSITION);
 
     const moveResult = chess.move(move);
     if (!moveResult) {
-      console.error(`Invalid move: ${move}`);
+      console.error(`[GameAnalysis] Invalid move: ${move}`);
       continue;
     }
 
     const fenAfter = chess.fen();
     const phase = determineGamePhase(chess, moveNumber);
 
-    const analysisAfter = await clientStockfish.analyzePosition(fenAfter, 500000);
+    const analysisAfter = await clientStockfish.analyzePosition(fenAfter, NODES_PER_POSITION);
 
     const evalBefore = color === 'white' ? analysisBefore.evaluation : -analysisBefore.evaluation;
     const evalAfter = color === 'white' ? -analysisAfter.evaluation : analysisAfter.evaluation;
