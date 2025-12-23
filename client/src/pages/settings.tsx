@@ -325,6 +325,87 @@ export default function Settings() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Board Highlight Colors</CardTitle>
+              <CardDescription>Customize how pieces and moves are highlighted on the board</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="selected-piece-color">Selected Piece</Label>
+                <p className="text-sm text-muted-foreground">
+                  Color used to highlight the piece you've selected
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    id="selected-piece-color"
+                    value={settings?.selectedPieceColor || "#facc15"}
+                    onChange={(e) => handleSettingChange("selectedPieceColor", e.target.value)}
+                    className="w-12 h-9 rounded border cursor-pointer"
+                    data-testid="input-selected-piece-color"
+                  />
+                  <span className="text-sm font-mono text-muted-foreground">
+                    {settings?.selectedPieceColor || "#facc15"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="available-moves-color">Available Moves</Label>
+                <p className="text-sm text-muted-foreground">
+                  Color used to show squares where the selected piece can move
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    id="available-moves-color"
+                    value={settings?.availableMovesColor || "#22c55e"}
+                    onChange={(e) => handleSettingChange("availableMovesColor", e.target.value)}
+                    className="w-12 h-9 rounded border cursor-pointer"
+                    data-testid="input-available-moves-color"
+                  />
+                  <span className="text-sm font-mono text-muted-foreground">
+                    {settings?.availableMovesColor || "#22c55e"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="last-move-color">Last Move</Label>
+                <p className="text-sm text-muted-foreground">
+                  Color used to highlight the previous move's squares
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    id="last-move-color"
+                    value={settings?.lastMoveColor || "#facc15"}
+                    onChange={(e) => handleSettingChange("lastMoveColor", e.target.value)}
+                    className="w-12 h-9 rounded border cursor-pointer"
+                    data-testid="input-last-move-color"
+                  />
+                  <span className="text-sm font-mono text-muted-foreground">
+                    {settings?.lastMoveColor || "#facc15"}
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  handleSettingChange("selectedPieceColor", "#facc15");
+                  handleSettingChange("availableMovesColor", "#22c55e");
+                  handleSettingChange("lastMoveColor", "#facc15");
+                }}
+                data-testid="button-reset-colors"
+              >
+                Reset to Defaults
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>OTB Tournament Settings</CardTitle>
               <CardDescription>Configure tournament mode behavior</CardDescription>
             </CardHeader>
