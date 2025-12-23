@@ -2887,7 +2887,7 @@ export default function GameAnalysisPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Analysis can take a few minutes. Try a quick puzzle game!
+                  Analysis can take a few minutes.  Try a quick puzzle game!
                 </p>
                 <div className="grid grid-cols-1 gap-2">
                   <Button
