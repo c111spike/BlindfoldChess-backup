@@ -480,6 +480,48 @@ export default function Settings() {
                   <Badge variant="secondary">BSD-2-Clause</Badge>
                 </div>
               </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold text-base">Opening Database</h3>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="flex-1">
+                    <p className="font-medium">Lichess Opening Explorer</p>
+                    <p className="text-sm text-muted-foreground">Opening database powered by millions of master and player games</p>
+                    <a 
+                      href="https://lichess.org/api#tag/Opening-Explorer" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      data-testid="link-lichess-credit"
+                    >
+                      lichess.org/api
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <Badge variant="secondary">AGPL-3.0</Badge>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold text-base">Endgame Tablebases</h3>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="flex-1">
+                    <p className="font-medium">Syzygy Tablebases</p>
+                    <p className="text-sm text-muted-foreground">Perfect endgame analysis for positions with up to 7 pieces</p>
+                    <a 
+                      href="https://syzygy-tables.info/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      data-testid="link-syzygy-credit"
+                    >
+                      syzygy-tables.info
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <Badge variant="secondary">Public Domain</Badge>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
