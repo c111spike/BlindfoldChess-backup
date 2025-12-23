@@ -2242,7 +2242,50 @@ export default function GameAnalysisPage() {
     );
   }
 
-  const { analysis, moves, game } = data!;
+  const { analysis: serverAnalysis, moves: serverMoves, game } = data!;
+  
+  // Use client-side analysis results when available, otherwise fall back to server data
+  const hasClientResult = !!clientAnalysis.result;
+  
+  // Create effective analysis that uses client results when available
+  const analysis = hasClientResult ? {
+    ...serverAnalysis,
+    status: 'completed' as const,
+    whiteAccuracy: clientAnalysis.result!.whiteAccuracy,
+    blackAccuracy: clientAnalysis.result!.blackAccuracy,
+  } : serverAnalysis;
+  
+  // Use client-side move analysis when available
+  const moves: MoveAnalysis[] = hasClientResult 
+    ? clientAnalysis.result!.moves.map((m, idx) => ({
+        id: String(idx),
+        gameAnalysisId: serverAnalysis.id || '',
+        moveNumber: m.moveNumber,
+        color: m.color,
+        move: m.move,
+        fen: m.fen,
+        evalBefore: m.evalBefore,
+        evalAfter: m.evalAfter,
+        bestMove: m.bestMove,
+        bestMoveEval: m.bestMoveEval,
+        centipawnLoss: Math.round(m.normalizedCentipawnLoss),
+        classification: m.classification as MoveClassification,
+        phase: m.phase as GamePhase,
+        thinkingTime: null,
+        clockTime: null,
+        isCheck: false,
+        isCapture: !!m.capturedPiece,
+        isCastle: m.move === 'O-O' || m.move === 'O-O-O',
+        missedTactics: [],
+        isCriticalMoment: false,
+        followedByBlunder: false,
+        principalVariation: m.principalVariation,
+      }))
+    : serverMoves;
+  
+  console.log('[GameAnalysis] Using analysis:', hasClientResult ? 'client-side' : 'server', 
+    'moves:', moves.length, 'status:', analysis.status);
+  
   const playerColor = game.playerColor;
 
   // Generate PGN for download
