@@ -40,6 +40,7 @@ import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, C
 import { voiceRecognition, speak, moveToSpeech } from "@/lib/voice";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
+import { SuspensionBanner } from "@/components/suspension-banner";
 import type { Game, Rating } from "@shared/schema";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
 import { 
@@ -1551,6 +1552,8 @@ export default function StandardMode() {
               </div>
             )}
           </div>
+
+          <SuspensionBanner />
 
           {!gameStarted && !gameResult ? (
             <>
