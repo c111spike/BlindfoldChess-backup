@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useClientAnalysis } from '@/hooks/useClientAnalysis';
+import { clientStockfish } from '@/lib/stockfish';
 import { SyzygyIndicator } from '@/components/syzygy-indicator';
 import { MiniGameOverlay, MiniGameType } from '@/components/minigames/MiniGameOverlay';
 import {
@@ -1388,64 +1389,52 @@ function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: str
   const [topMoves, setTopMoves] = useState<TopMove[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pendingControllerRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentFenRef = useRef<string>(fen);
+  const isCancelledRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Track the current FEN to prevent stale updates
     currentFenRef.current = fen;
+    isCancelledRef.current = false;
     
     // Cancel any pending debounce timer
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
-    }
-    
-    // Cancel any in-flight request from a previous FEN
-    if (pendingControllerRef.current) {
-      pendingControllerRef.current.abort();
-      pendingControllerRef.current = null;
     }
 
     // Clear previous moves immediately when FEN changes to avoid showing stale data
     setTopMoves([]);
     setLoading(true);
 
-    // Debounce: wait 150ms before fetching to avoid rapid consecutive requests
+    // Debounce: wait 100ms before analyzing to avoid rapid consecutive requests
     timeoutRef.current = setTimeout(() => {
-      const controller = new AbortController();
       const requestFen = fen; // Capture the FEN for this request
-      pendingControllerRef.current = controller;
       
-      const fetchTopMoves = async () => {
+      const analyzePosition = async () => {
         setError(null);
         
         try {
-          const response = await fetch('/api/analysis/top-moves', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fen: requestFen }),
-            credentials: 'include',
-            signal: controller.signal,
-          });
+          // Use client-side Stockfish for fast local analysis
+          // 100K nodes is quick (~200-500ms) while still providing good suggestions
+          const results = await clientStockfish.getTopMoves(requestFen, 3, 100000);
           
-          if (!response.ok) {
-            throw new Error('Failed to fetch top moves');
-          }
-          
-          const data = await response.json();
-          // Filter out any malformed entries
-          const validMoves = (data.moves || []).filter(
-            (m: TopMove) => m.move && typeof m.evaluation === 'number'
-          );
-          
-          // Only update state if FEN hasn't changed and this is still the current request
-          if (currentFenRef.current === requestFen && pendingControllerRef.current === controller) {
-            setTopMoves(validMoves);
+          // Only update state if FEN hasn't changed
+          if (currentFenRef.current === requestFen && !isCancelledRef.current) {
+            const moves: TopMove[] = results.map((r, idx) => ({
+              rank: idx + 1,
+              move: r.move,
+              uci: r.move,
+              evaluation: r.evaluation,
+              isMate: r.isMate,
+              mateIn: r.mateIn,
+            }));
+            setTopMoves(moves);
             setLoading(false);
           }
         } catch (err: any) {
-          if (err.name !== 'AbortError' && currentFenRef.current === requestFen && pendingControllerRef.current === controller) {
+          if (currentFenRef.current === requestFen && !isCancelledRef.current) {
+            console.error('[EngineSuggestions] Error:', err);
             setError('Unable to load engine suggestions');
             setTopMoves([]);
             setLoading(false);
@@ -1453,17 +1442,14 @@ function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: str
         }
       };
 
-      fetchTopMoves();
-    }, 150);
+      analyzePosition();
+    }, 100);
     
-    // Cleanup: abort pending request and clear timeout when FEN changes
+    // Cleanup: cancel pending and clear timeout when FEN changes
     return () => {
+      isCancelledRef.current = true;
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
-      }
-      if (pendingControllerRef.current) {
-        pendingControllerRef.current.abort();
-        pendingControllerRef.current = null;
       }
     };
   }, [fen]);
