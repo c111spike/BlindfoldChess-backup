@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { User, Settings as SettingsIcon, LogOut, AlertTriangle, Trash2, Info, ExternalLink, BookOpen } from "lucide-react";
 import type { UserSettings } from "@shared/schema";
 import { OTB_TUTORIAL_COMPLETED_KEY } from "@/components/otb-tutorial";
+import { REPERTOIRE_TUTORIAL_COMPLETED_KEY } from "@/components/repertoire-tutorial";
 
 // Detect Safari/iOS browsers which don't support Web Speech API for voice input
 // SSR-safe: only runs in browser environment
@@ -36,11 +37,14 @@ export default function Settings() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const DELETE_CONFIRMATION_PHRASE = "Delete my account";
   const [otbTutorialSeen, setOtbTutorialSeen] = useState(true);
+  const [repertoireTutorialSeen, setRepertoireTutorialSeen] = useState(true);
 
-  // Check if OTB tutorial has been completed
+  // Check if tutorials have been completed
   useEffect(() => {
-    const completed = localStorage.getItem(OTB_TUTORIAL_COMPLETED_KEY);
-    setOtbTutorialSeen(completed === "true");
+    const otbCompleted = localStorage.getItem(OTB_TUTORIAL_COMPLETED_KEY);
+    setOtbTutorialSeen(otbCompleted === "true");
+    const repertoireCompleted = localStorage.getItem(REPERTOIRE_TUTORIAL_COMPLETED_KEY);
+    setRepertoireTutorialSeen(repertoireCompleted === "true");
   }, []);
 
   const handleResetOTBTutorial = () => {
@@ -49,6 +53,15 @@ export default function Settings() {
     toast({
       title: "Tutorial Reset",
       description: "The OTB tutorial will show again when you next visit OTB mode.",
+    });
+  };
+
+  const handleResetRepertoireTutorial = () => {
+    localStorage.removeItem(REPERTOIRE_TUTORIAL_COMPLETED_KEY);
+    setRepertoireTutorialSeen(false);
+    toast({
+      title: "Tutorial Reset",
+      description: "The Repertoire tutorial will show again when you next visit the Repertoire Trainer.",
     });
   };
   
@@ -248,15 +261,15 @@ export default function Settings() {
         <p className="text-muted-foreground">Manage your account and preferences</p>
       </div>
 
-      <Tabs defaultValue="account" className="space-y-6">
+      <Tabs defaultValue="preferences" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="account" data-testid="tab-account">
-            <User className="mr-2 h-4 w-4" />
-            Account
-          </TabsTrigger>
           <TabsTrigger value="preferences" data-testid="tab-preferences">
             <SettingsIcon className="mr-2 h-4 w-4" />
             Preferences
+          </TabsTrigger>
+          <TabsTrigger value="account" data-testid="tab-account">
+            <User className="mr-2 h-4 w-4" />
+            Account
           </TabsTrigger>
           <TabsTrigger value="credits" data-testid="tab-credits">
             <Info className="mr-2 h-4 w-4" />
@@ -559,6 +572,25 @@ export default function Settings() {
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
                   {otbTutorialSeen ? "Replay Tutorial" : "Not Yet Viewed"}
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Repertoire Trainer Tutorial</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Learn how to build and practice your opening repertoires
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetRepertoireTutorial}
+                  disabled={!repertoireTutorialSeen}
+                  data-testid="button-replay-repertoire-tutorial"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  {repertoireTutorialSeen ? "Replay Tutorial" : "Not Yet Viewed"}
                 </Button>
               </div>
             </CardContent>

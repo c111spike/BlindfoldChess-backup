@@ -21,6 +21,7 @@ import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { Chess } from "chess.js";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { RepertoireTutorial, useRepertoireTutorial } from "@/components/repertoire-tutorial";
 import type { Opening, Repertoire, RepertoireLine, PracticeHistory } from "@shared/schema";
 
 type PracticeHistoryWithLine = PracticeHistory & { line: RepertoireLine };
@@ -38,6 +39,12 @@ export default function RepertoireTrainer() {
   const [newRepertoireName, setNewRepertoireName] = useState("");
   const [newRepertoireColor, setNewRepertoireColor] = useState<"white" | "black">("white");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  const { showTutorial, setShowTutorial, triggerTutorial, markComplete } = useRepertoireTutorial();
+
+  useEffect(() => {
+    triggerTutorial();
+  }, [triggerTutorial]);
 
   const { data: repertoires, isLoading: repertoiresLoading } = useQuery<Repertoire[]>({
     queryKey: ["/api/repertoires"],
@@ -156,6 +163,11 @@ export default function RepertoireTrainer() {
       <Helmet>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
+      <RepertoireTutorial
+        open={showTutorial}
+        onOpenChange={setShowTutorial}
+        onComplete={markComplete}
+      />
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Training</div>
