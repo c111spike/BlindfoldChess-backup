@@ -1743,7 +1743,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const userVote = await storage.getUserPuzzleVote(userId, puzzle.id);
       
-      res.json({ ...puzzle, userVote: userVote?.voteType || null });
+      // Get creator info if available
+      let creatorUsername: string | null = null;
+      if (puzzle.creatorId && !puzzle.isAnonymous) {
+        const creator = await storage.getUser(puzzle.creatorId);
+        creatorUsername = creator?.username || null;
+      }
+      
+      res.json({ 
+        ...puzzle, 
+        userVote: userVote?.voteType || null,
+        creatorUsername
+      });
     } catch (error) {
       console.error("Error fetching puzzle:", error);
       res.status(500).json({ message: "Failed to fetch puzzle" });

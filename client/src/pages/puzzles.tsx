@@ -35,7 +35,11 @@ import {
   Puzzle as PuzzleIcon,
   Eye,
   RotateCcw,
-  Flag
+  Flag,
+  User,
+  BookOpen,
+  Youtube,
+  HelpCircle
 } from "lucide-react";
 import type { Puzzle } from "@shared/schema";
 
@@ -896,6 +900,32 @@ function TrainTab() {
                       <p className="text-xs text-muted-foreground mt-2">
                         You voted: {(puzzle as any).userVote === 'up' ? 'Good' : 'Poor'} (click again to remove)
                       </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Creator Attribution */}
+                {puzzle && (
+                  <div className="p-4 rounded-lg border bg-muted/30">
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Uploaded by</span>
+                      <span className="font-medium">
+                        {puzzle.isAnonymous ? 'Anonymous' : ((puzzle as any).creatorUsername || 'Unknown')}
+                      </span>
+                    </div>
+                    {puzzle.sourceType && puzzle.sourceType !== 'created' && (
+                      <div className="flex items-center gap-2 text-sm mt-2">
+                        {puzzle.sourceType === 'book' && <BookOpen className="h-4 w-4 text-muted-foreground" />}
+                        {puzzle.sourceType === 'youtube' && <Youtube className="h-4 w-4 text-muted-foreground" />}
+                        {puzzle.sourceType === 'other' && <HelpCircle className="h-4 w-4 text-muted-foreground" />}
+                        <span className="text-muted-foreground">
+                          {puzzle.sourceType === 'book' ? 'From book:' : 
+                           puzzle.sourceType === 'youtube' ? 'From YouTube:' : 
+                           'Source:'}
+                        </span>
+                        <span className="font-medium">{puzzle.sourceName || 'Not specified'}</span>
+                      </div>
                     )}
                   </div>
                 )}
