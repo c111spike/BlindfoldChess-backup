@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -57,6 +57,7 @@ function GameSelector({ onSelect }: { onSelect: (game: MiniGame) => void }) {
             key={game.id}
             className="cursor-pointer hover-elevate transition-all"
             onClick={() => onSelect(game.id)}
+            data-testid={`card-game-${game.id}`}
           >
             <CardContent className="p-4 flex items-center gap-4">
               <div className={`p-2 rounded-lg bg-muted ${game.color}`}>
@@ -85,6 +86,13 @@ function GameLoading() {
 
 export function MiniGameOverlay({ open, onOpenChange, onAnalysisComplete }: MiniGameOverlayProps) {
   const [selectedGame, setSelectedGame] = useState<MiniGame>(null);
+  
+  // Reset selectedGame when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setSelectedGame(null);
+    }
+  }, [open]);
   
   const handleClose = () => {
     setSelectedGame(null);

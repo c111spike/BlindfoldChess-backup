@@ -1952,7 +1952,7 @@ export default function GameAnalysisPage() {
   const [autoStarted, setAutoStarted] = useState(false);
   const [useClientSide, setUseClientSide] = useState(false);
   const [miniGameOpen, setMiniGameOpen] = useState(false);
-  const [miniGamePromptDismissed, setMiniGamePromptDismissed] = useState(false);
+  const [miniGamePromptShown, setMiniGamePromptShown] = useState(false);
   
   const clientAnalysis = useClientAnalysis();
 
@@ -2117,30 +2117,30 @@ export default function GameAnalysisPage() {
     startAnalysisMutation.isPending;
 
   // Show mini-game prompt when analysis starts (after a short delay to not be too intrusive)
+  // Only show once per analysis session
   useEffect(() => {
-    if (isAnalyzing && !miniGamePromptDismissed && !miniGameOpen) {
+    if (isAnalyzing && !miniGamePromptShown && !miniGameOpen) {
       const timer = setTimeout(() => {
-        if (!miniGamePromptDismissed) {
-          toast({
-            title: 'Play While You Wait',
-            description: 'Analysis takes a bit. Try a quick puzzle game!',
-            action: (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setMiniGameOpen(true)}
-                data-testid="button-open-minigame-toast"
-              >
-                <Gamepad2 className="w-4 h-4 mr-1" />
-                Play
-              </Button>
-            ),
-          });
-        }
+        setMiniGamePromptShown(true);
+        toast({
+          title: 'Play While You Wait',
+          description: 'Analysis takes a bit. Try a quick puzzle game!',
+          action: (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setMiniGameOpen(true)}
+              data-testid="button-open-minigame-toast"
+            >
+              <Gamepad2 className="w-4 h-4 mr-1" />
+              Play
+            </Button>
+          ),
+        });
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [isAnalyzing, miniGamePromptDismissed, miniGameOpen, toast]);
+  }, [isAnalyzing, miniGamePromptShown, miniGameOpen, toast]);
 
   // Notify when analysis completes if mini-game is open
   const prevIsAnalyzing = useRef(isAnalyzing);
@@ -2262,12 +2262,7 @@ export default function GameAnalysisPage() {
         
         <MiniGameOverlay 
           open={miniGameOpen} 
-          onOpenChange={(open) => {
-            setMiniGameOpen(open);
-            if (!open) {
-              setMiniGamePromptDismissed(true);
-            }
-          }}
+          onOpenChange={setMiniGameOpen}
         />
       </div>
     );
@@ -2599,12 +2594,7 @@ export default function GameAnalysisPage() {
       
       <MiniGameOverlay 
         open={miniGameOpen} 
-        onOpenChange={(open) => {
-          setMiniGameOpen(open);
-          if (!open) {
-            setMiniGamePromptDismissed(true);
-          }
-        }}
+        onOpenChange={setMiniGameOpen}
       />
     </div>
   );
