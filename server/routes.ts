@@ -7,7 +7,6 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema, insertPuzzleSchema, insertPuzzleVoteSchema, insertPuzzleReportSchema } from "@shared/schema";
 import { createQueueManager } from "./queueManager";
 import { generatePosition, calculateScore, getAllDifficulties } from "./positionGenerator";
-import { stockfishService } from "./stockfish";
 import { generateBotMove, calculateBotThinkTime } from "./botEngine";
 import { BOTS, getBotById } from "../shared/botTypes";
 import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
@@ -1938,106 +1937,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin Stockfish analysis for puzzle verification
-  app.post('/api/admin/puzzles/:id/analyze', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const { moveIndex } = req.body;
-      const puzzle = await storage.getPuzzle(req.params.id);
-      
-      if (!puzzle) {
-        return res.status(404).json({ message: "Puzzle not found" });
-      }
-      
-      // Get the solution moves
-      const solutionMoves = puzzle.solution as string[];
-      if (!solutionMoves || solutionMoves.length === 0) {
-        return res.status(400).json({ message: "Puzzle has no solution moves" });
-      }
-      
-      // Determine which move to analyze (default to first)
-      const idx = typeof moveIndex === 'number' ? moveIndex : 0;
-      if (idx < 0 || idx >= solutionMoves.length) {
-        return res.status(400).json({ message: "Invalid move index" });
-      }
-      
-      // Build position at the move index
-      const chess = new Chess(puzzle.fen);
-      for (let i = 0; i < idx; i++) {
-        const move = chess.move(solutionMoves[i]);
-        if (!move) {
-          return res.status(400).json({ message: `Invalid move at index ${i}: ${solutionMoves[i]}` });
-        }
-      }
-      
-      const fenToAnalyze = chess.fen();
-      const moveToCheck = solutionMoves[idx];
-      
-      // Analyze the position with Stockfish
-      const analysis = await stockfishService.analyzePosition(fenToAnalyze, 2000000, true);
-      
-      // Convert the solution move to UCI format for comparison
-      const moveResult = chess.move(moveToCheck);
-      if (!moveResult) {
-        return res.status(400).json({ message: `Invalid solution move: ${moveToCheck}` });
-      }
-      const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
-      chess.undo(); // Undo so position is correct
-      
-      // Compare with Stockfish's best move
-      const isBestMove = analysis.bestMove === uciMove;
-      
-      // Get top 3 moves for more context
-      const topMoves = await stockfishService.getTopMoves(fenToAnalyze, 3, 2000000);
-      
-      // Find where the solution move ranks
-      const moveRank = topMoves.findIndex(m => m.move === uciMove) + 1;
-      
-      // Classify the move
-      let classification = 'Unknown';
-      if (isBestMove) {
-        classification = 'Best';
-      } else if (moveRank === 2) {
-        classification = 'Good';
-      } else if (moveRank === 3) {
-        classification = 'Okay';
-      } else {
-        // Calculate centipawn loss if we can
-        const bestEval = analysis.evaluation;
-        const solutionMoveAnalysis = topMoves.find(m => m.move === uciMove);
-        if (solutionMoveAnalysis) {
-          const cpLoss = Math.abs((bestEval - solutionMoveAnalysis.evaluation) * 100);
-          if (cpLoss <= 20) classification = 'Good';
-          else if (cpLoss <= 50) classification = 'Inaccuracy';
-          else if (cpLoss <= 100) classification = 'Mistake';
-          else classification = 'Blunder';
-        } else {
-          classification = 'Not in top moves';
-        }
-      }
-      
-      res.json({
-        fen: fenToAnalyze,
-        moveIndex: idx,
-        solutionMove: moveToCheck,
-        solutionMoveUci: uciMove,
-        stockfishBestMove: analysis.bestMove,
-        evaluation: analysis.evaluation,
-        isMate: analysis.isMate,
-        mateIn: analysis.mateIn,
-        isBestMove,
-        classification,
-        topMoves: topMoves.map(m => ({
-          move: m.move,
-          evaluation: m.evaluation,
-          isMate: m.isMate,
-          mateIn: m.mateIn,
-        })),
-        principalVariation: analysis.principalVariation,
-      });
-    } catch (error) {
-      console.error("Error analyzing puzzle:", error);
-      res.status(500).json({ message: "Failed to analyze puzzle" });
-    }
+  // Admin Stockfish analysis for puzzle verification - DEPRECATED: Use client-side Stockfish
+  app.post('/api/admin/puzzles/:id/analyze', isAuthenticated, isAdmin, async (_req: any, res) => {
+    res.status(410).json({ 
+      message: "Server-side Stockfish analysis has been deprecated. Please use client-side analysis.",
+      deprecated: true
+    });
   });
 
   app.post('/api/admin/reports/:id/resolve', isAuthenticated, isAdmin, async (req: any, res) => {
@@ -2051,128 +1956,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Puzzle creator Stockfish verification with caching
-  // This endpoint is for puzzle creators to verify their puzzle moves and cache the results
-  app.post('/api/puzzles/verify-move', isAuthenticated, async (req: any, res) => {
-    try {
-      const { fen, move } = req.body;
-      
-      if (!fen || !move) {
-        return res.status(400).json({ message: "FEN and move are required" });
-      }
-      
-      // Validate FEN
-      let chess: any;
-      try {
-        chess = new Chess(fen);
-      } catch (e) {
-        return res.status(400).json({ message: "Invalid FEN position" });
-      }
-      
-      // Convert move to UCI format
-      const moveResult = chess.move(move);
-      if (!moveResult) {
-        return res.status(400).json({ message: `Invalid move: ${move}` });
-      }
-      const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
-      chess.undo();
-      
-      const nodes = 500000; // Reduced from 2M for faster puzzle verification
-      
-      // Check cache first
-      let cached = await analysisQueueManager.getCachedPosition(fen, nodes);
-      let analysis: { evaluation: number; bestMove: string; isMate: boolean; mateIn?: number; principalVariation?: string[]; depth: number };
-      let fromCache = false;
-      
-      if (cached) {
-        analysis = {
-          evaluation: cached.evaluation,
-          bestMove: cached.bestMove,
-          isMate: cached.isMate,
-          mateIn: cached.mateIn,
-          principalVariation: cached.principalVariation,
-          depth: cached.depth,
-        };
-        fromCache = true;
-      } else {
-        // Analyze with Stockfish
-        const stockfishResult = await stockfishService.analyzePosition(fen, nodes, true);
-        analysis = {
-          evaluation: stockfishResult.evaluation,
-          bestMove: stockfishResult.bestMove,
-          isMate: stockfishResult.isMate,
-          mateIn: stockfishResult.mateIn,
-          principalVariation: stockfishResult.principalVariation,
-          depth: stockfishResult.depth,
-        };
-        
-        // Get best move evaluation for caching
-        const bestMoveEval = stockfishResult.evaluation;
-        
-        // Cache the result
-        await analysisQueueManager.cachePosition(fen, nodes, {
-          evaluation: stockfishResult.evaluation,
-          bestMove: stockfishResult.bestMove,
-          bestMoveEval: bestMoveEval,
-          principalVariation: stockfishResult.principalVariation || [],
-          depth: stockfishResult.depth,
-          isMate: stockfishResult.isMate,
-          mateIn: stockfishResult.mateIn,
-        });
-      }
-      
-      // Compare with submitted move
-      const isBestMove = analysis.bestMove === uciMove;
-      
-      // Get top moves for context (also cached separately would be ideal, but for now just get them)
-      const topMoves = await stockfishService.getTopMoves(fen, 3, nodes);
-      
-      // Find where the submitted move ranks
-      const moveRank = topMoves.findIndex(m => m.move === uciMove) + 1;
-      
-      // Classify the move
-      let classification = 'Unknown';
-      if (isBestMove) {
-        classification = 'Best';
-      } else if (moveRank === 2) {
-        classification = 'Good';
-      } else if (moveRank === 3) {
-        classification = 'Okay';
-      } else {
-        const solutionMoveAnalysis = topMoves.find(m => m.move === uciMove);
-        if (solutionMoveAnalysis) {
-          const cpLoss = Math.abs((analysis.evaluation - solutionMoveAnalysis.evaluation) * 100);
-          if (cpLoss <= 20) classification = 'Good';
-          else if (cpLoss <= 50) classification = 'Inaccuracy';
-          else if (cpLoss <= 100) classification = 'Mistake';
-          else classification = 'Blunder';
-        } else {
-          classification = 'Not in top moves';
-        }
-      }
-      
-      res.json({
-        fen,
-        move,
-        moveUci: uciMove,
-        stockfishBestMove: analysis.bestMove,
-        evaluation: analysis.evaluation,
-        isMate: analysis.isMate,
-        mateIn: analysis.mateIn,
-        isBestMove,
-        classification,
-        fromCache,
-        topMoves: topMoves.map(m => ({
-          move: m.move,
-          evaluation: m.evaluation,
-          isMate: m.isMate,
-          mateIn: m.mateIn,
-        })),
-      });
-    } catch (error) {
-      console.error("Error verifying puzzle move:", error);
-      res.status(500).json({ message: "Failed to verify move" });
-    }
+  // Puzzle creator Stockfish verification - DEPRECATED: Use client-side Stockfish
+  app.post('/api/puzzles/verify-move', isAuthenticated, async (_req: any, res) => {
+    res.status(410).json({ 
+      message: "Server-side Stockfish analysis has been deprecated. Please use client-side analysis.",
+      deprecated: true
+    });
   });
 
   // ========== ANTI-CHEAT SYSTEM ==========
@@ -2594,103 +2383,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/boardspin/bestmove', async (req, res) => {
-    try {
-      const { fen } = req.body;
-      
-      if (!fen) {
-        return res.status(400).json({ message: "FEN is required" });
-      }
-      
-      // Parse FEN to get turn and board
-      const fenParts = fen.split(' ');
-      const boardPart = fenParts[0];
-      const turn = fenParts[1]; // 'w' or 'b'
-      
-      console.log(`[BoardSpin] Getting best move for FEN: ${fen}`);
-      console.log(`[BoardSpin] Turn: ${turn === 'w' ? 'White' : 'Black'}`);
-      
-      const result = await stockfishService.getBestMove(fen, 15);
-      
-      // In drawn/equal positions, Stockfish may not prioritize captures since all moves
-      // lead to the same drawn result. For Board Spin, we want the "human sensible" best
-      // move which is to capture material when possible.
-      let finalBestMove = result.bestMove;
-      const evaluation = result.evaluation ?? 0;
-      
-      // Check if position is drawn/nearly equal (evaluation within ±0.5 pawns)
-      if (Math.abs(evaluation) <= 0.5) {
-        try {
-          const chess = new Chess(fen);
-          const moves = chess.moves({ verbose: true });
-          
-          // Find captures - these are objectively "better" moves for human intuition
-          const captures = moves.filter(m => m.captured);
-          
-          if (captures.length > 0) {
-            // Sort captures by value of captured piece (Q > R > B/N > P)
-            const pieceValues: Record<string, number> = { q: 9, r: 5, b: 3, n: 3, p: 1 };
-            captures.sort((a, b) => {
-              const aVal = pieceValues[a.captured!] || 0;
-              const bVal = pieceValues[b.captured!] || 0;
-              return bVal - aVal;
-            });
-            
-            // Use the highest-value capture as the best move
-            const bestCapture = captures[0];
-            const captureMoveUci = bestCapture.from + bestCapture.to + (bestCapture.promotion || '');
-            
-            // Only override if Stockfish's move is NOT a capture
-            const stockfishMoveIsCapture = moves.some(m => 
-              m.from + m.to === result.bestMove.substring(0, 4) && m.captured
-            );
-            
-            if (!stockfishMoveIsCapture) {
-              console.log(`[BoardSpin] Position is drawn (eval: ${evaluation}), overriding Stockfish move ${result.bestMove} with capture ${captureMoveUci}`);
-              finalBestMove = captureMoveUci;
-            }
-          }
-        } catch (chessError) {
-          console.error('[BoardSpin] Error checking for captures:', chessError);
-          // Fall back to Stockfish's move
-        }
-      }
-      
-      // Validate that the best move is for the correct color
-      const fromSquare = finalBestMove.substring(0, 2);
-      const fromFile = fromSquare.charCodeAt(0) - 'a'.charCodeAt(0);
-      const fromRank = 8 - parseInt(fromSquare[1]);
-      
-      // Parse board to find piece on from square
-      const rows = boardPart.split('/');
-      let pieceOnFromSquare = '';
-      let fileIdx = 0;
-      for (const char of rows[fromRank]) {
-        if (/\d/.test(char)) {
-          fileIdx += parseInt(char);
-        } else {
-          if (fileIdx === fromFile) {
-            pieceOnFromSquare = char;
-            break;
-          }
-          fileIdx++;
-        }
-      }
-      
-      const pieceIsWhite = pieceOnFromSquare === pieceOnFromSquare.toUpperCase();
-      const turnIsWhite = turn === 'w';
-      
-      console.log(`[BoardSpin] Best move: ${finalBestMove}, Piece: ${pieceOnFromSquare}, PieceIsWhite: ${pieceIsWhite}, TurnIsWhite: ${turnIsWhite}`);
-      
-      if (pieceIsWhite !== turnIsWhite) {
-        console.error(`[BoardSpin] MISMATCH: Turn is ${turn} but piece ${pieceOnFromSquare} is ${pieceIsWhite ? 'white' : 'black'}`);
-      }
-      
-      res.json({ ...result, bestMove: finalBestMove, turn });
-    } catch (error) {
-      console.error("Error getting best move:", error);
-      res.status(500).json({ message: "Failed to get best move" });
-    }
+  // Board Spin best move - DEPRECATED: Use client-side Stockfish via boardSpinClient.ts
+  app.post('/api/boardspin/bestmove', async (_req, res) => {
+    res.status(410).json({ 
+      message: "Server-side Stockfish analysis has been deprecated. Please use client-side analysis.",
+      deprecated: true
+    });
   });
 
   app.post('/api/boardspin/validate-move', async (req, res) => {
@@ -3167,53 +2865,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get top 3 engine moves for a position
-  app.post('/api/analysis/top-moves', isAuthenticated, async (req: any, res) => {
-    try {
-      const { fen } = req.body;
-      
-      if (!fen || typeof fen !== 'string') {
-        return res.status(400).json({ message: "FEN position is required" });
-      }
-      
-      const topMoves = await stockfishService.getTopMoves(fen, 3);
-      
-      // Convert UCI moves to SAN for display
-      const { Chess } = await import('chess.js');
-      const chess = new Chess(fen);
-      
-      const formattedMoves = topMoves.map((move, index) => {
-        let san = move.move;
-        try {
-          // Try to convert UCI to SAN
-          const result = chess.move({
-            from: move.move.slice(0, 2),
-            to: move.move.slice(2, 4),
-            promotion: move.move.length > 4 ? move.move[4] : undefined,
-          });
-          if (result) {
-            san = result.san;
-            chess.undo();
-          }
-        } catch {
-          // Keep UCI format if conversion fails
-        }
-        
-        return {
-          rank: index + 1,
-          move: san,
-          uci: move.move,
-          evaluation: move.evaluation,
-          isMate: move.isMate,
-          mateIn: move.mateIn,
-        };
-      });
-      
-      res.json({ moves: formattedMoves });
-    } catch (error) {
-      console.error("Error getting top moves:", error);
-      res.status(500).json({ message: "Failed to get top moves" });
-    }
+  // Get top 3 engine moves for a position - DEPRECATED: Use client-side Stockfish via gameAnalysis.ts
+  app.post('/api/analysis/top-moves', isAuthenticated, async (_req: any, res) => {
+    res.status(410).json({ 
+      message: "Server-side Stockfish analysis has been deprecated. Please use client-side analysis.",
+      deprecated: true
+    });
   });
 
   // VSS Interactive Training - Validate user's move against best move

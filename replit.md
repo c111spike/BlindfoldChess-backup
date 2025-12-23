@@ -199,18 +199,22 @@ The platform uses a hybrid client-side + server-side Stockfish architecture for 
 - Trade-offs: ~2x slower than native Stockfish, 7MB WASM download, device-dependent performance
 - Files: `client/src/lib/boardSpinClient.ts`
 
-**Server-Side Stockfish (Secondary)**:
-Server-side Stockfish analysis managed by `analysisService.ts` and `analysisQueueManager.ts`, with adaptive scaling (2M nodes per position, adaptive to 1M under load), PostgreSQL caching, and performance monitoring via an Admin Performance Dashboard.
+**Server-Side Stockfish (REMOVED)**:
+Server-side Stockfish has been completely removed as of December 2025. All analysis now runs client-side using WebAssembly for infinite scalability and zero server load. The following server endpoints now return HTTP 410 (deprecated):
+- `/api/admin/puzzles/:id/analyze`
+- `/api/puzzles/verify-move` 
+- `/api/boardspin/bestmove`
+- `/api/analysis/top-moves`
 
 **PostgreSQL Position Cache**:
 - Position evaluations cached in `position_cache` table with 30-day TTL via `expiresAt` column
 - Automatic TTL extension on cache hits (positions stay cached as long as they're used)
 - Files: `server/analysisQueueManager.ts`, `shared/schema.ts`
+- Note: Cache is still available for future use but no longer populated by server-side Stockfish
 
 **Scaling Capacity**:
 - Client-side analysis: Unlimited concurrent users (no server load)
-- Server-side with PostgreSQL cache: Efficient caching with indexed lookups
-- Monitor Admin Performance tab for cache hit rates and response times
+- No server-side engine processing required
 
 **Future Optimization (not yet implemented)**:
 

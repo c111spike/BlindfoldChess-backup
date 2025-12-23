@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Chess } from "chess.js";
+import { clientStockfish } from "@/lib/stockfish";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -331,35 +332,62 @@ export default function PuzzleCreator() {
     }
   };
 
-  // Stockfish verification mutation
-  const verifyMoveMutation = useMutation({
-    mutationFn: async ({ fen, move, moveIndex }: { fen: string; move: string; moveIndex: number }) => {
-      const res = await apiRequest("POST", "/api/puzzles/verify-move", { fen, move });
-      return { ...(await res.json()), moveIndex };
-    },
-    onMutate: ({ moveIndex }) => {
-      setVerifyingMoveIndex(moveIndex);
-    },
-    onSuccess: (data) => {
+  // Client-side Stockfish verification
+  const verifyMoveClientSide = async (fen: string, move: string, moveIndex: number) => {
+    setVerifyingMoveIndex(moveIndex);
+    
+    try {
+      // Validate the move first
+      const chess = new Chess(fen);
+      const moveResult = chess.move(move);
+      if (!moveResult) {
+        throw new Error(`Invalid move: ${move}`);
+      }
+      const uciMove = moveResult.from + moveResult.to + (moveResult.promotion || '');
+      chess.undo();
+      
+      // Analyze position with client-side Stockfish
+      const analysis = await clientStockfish.analyzePosition(fen, 2000000);
+      const topMoves = await clientStockfish.getTopMoves(fen, 3, 2000000);
+      
+      // Check if submitted move is the best move
+      const isBestMove = analysis.bestMove === uciMove;
+      
+      // Find where the solution move ranks
+      const moveRank = topMoves.findIndex(m => m.move === uciMove) + 1;
+      
+      // Classify the move
+      let classification = 'Unknown';
+      if (isBestMove) {
+        classification = 'Best';
+      } else if (moveRank === 2) {
+        classification = 'Good';
+      } else if (moveRank === 3) {
+        classification = 'Okay';
+      } else if (moveRank > 0) {
+        classification = 'Suboptimal';
+      } else {
+        classification = 'Poor';
+      }
+      
       setMoveVerifications(prev => ({
         ...prev,
-        [data.moveIndex]: {
-          classification: data.classification,
-          isBestMove: data.isBestMove,
-          stockfishBestMove: data.stockfishBestMove,
-          evaluation: data.evaluation,
-          isMate: data.isMate,
-          mateIn: data.mateIn,
-          fromCache: data.fromCache,
+        [moveIndex]: {
+          classification,
+          isBestMove,
+          stockfishBestMove: analysis.bestMove,
+          evaluation: analysis.evaluation,
+          isMate: analysis.isMate,
+          mateIn: analysis.mateIn,
+          fromCache: false,
         },
       }));
-      setVerifyingMoveIndex(null);
-    },
-    onError: (error: any) => {
+    } catch (error: any) {
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
+    } finally {
       setVerifyingMoveIndex(null);
-    },
-  });
+    }
+  };
 
   // Build FEN at a given move index (position after moves 0..index-1)
   const getFenAtMoveIndex = (moveIndex: number): string | null => {
@@ -397,7 +425,7 @@ export default function PuzzleCreator() {
       return;
     }
     
-    verifyMoveMutation.mutate({ fen, move, moveIndex });
+    verifyMoveClientSide(fen, move, moveIndex);
   };
 
   const addHint = () => {

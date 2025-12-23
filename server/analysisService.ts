@@ -1,4 +1,3 @@
-import { stockfishService, type MoveAnalysisResult } from './stockfish';
 import { storage } from './storage';
 import { Chess } from 'chess.js';
 import type { 
@@ -9,6 +8,26 @@ import type {
   InsertGameAnalysis,
   InsertMoveAnalysis 
 } from '@shared/schema';
+
+// MoveAnalysisResult type for compatibility with existing code structure
+interface MoveAnalysisResult {
+  move: string;
+  moveNumber: number;
+  color: 'white' | 'black';
+  fen: string;
+  normalizedEvalBefore: number;
+  normalizedEvalAfter: number;
+  bestMove: string;
+  bestMoveEval: number;
+  centipawnLoss: number;
+  normalizedCentipawnLoss: number;
+  isBestMove: boolean;
+  principalVariation?: string[];
+  movedPiece: string;
+  capturedPiece?: string;
+  isMateAfter?: boolean;
+  mateInAfter?: number;
+}
 
 interface AnalysisProgress {
   gameId: string;
@@ -301,200 +320,22 @@ function generateImprovementSuggestions(
   return suggestions.slice(0, 4);
 }
 
-export async function analyzeGame(gameId: string, userId: string): Promise<GameAnalysis | null> {
+/**
+ * Server-side game analysis is DEPRECATED.
+ * All game analysis now runs client-side using Stockfish WebAssembly.
+ * This function now only returns existing completed analyses.
+ * For new analysis, use the client-side useClientAnalysis hook.
+ */
+export async function analyzeGame(gameId: string, _userId: string): Promise<GameAnalysis | null> {
+  // Only return existing completed analyses
   const existingAnalysis = await storage.getGameAnalysis(gameId);
   if (existingAnalysis && existingAnalysis.status === 'completed') {
     return existingAnalysis;
   }
 
-  const game = await storage.getGame(gameId);
-  if (!game || !game.moves || game.moves.length === 0) {
-    console.error('Game not found or has no moves:', gameId);
-    return null;
-  }
-
-  analysisQueue.set(gameId, {
-    gameId,
-    currentMove: 0,
-    totalMoves: game.moves.length,
-    status: 'processing'
-  });
-
-  try {
-    const analysisRecord = await storage.createGameAnalysis({
-      gameId,
-      userId,
-      status: 'processing',
-    });
-
-    const moveResults = await stockfishService.analyzeGame(game.moves as string[]);
-    
-    const chess = new Chess();
-    const classifications: MoveClassification[] = [];
-    const phases: GamePhase[] = [];
-    const whiteNormalizedCPL: number[] = [];
-    const blackNormalizedCPL: number[] = [];
-    
-    for (let i = 0; i < moveResults.length; i++) {
-      const result = moveResults[i];
-      const prevResult = i > 0 ? moveResults[i - 1] : null;
-      
-      const isForced = isMoveForcedPosition(chess);
-      const preMoveFen = chess.fen();
-      chess.move(result.move);
-      
-      const isSacrifice = detectSacrifice(result, prevResult, preMoveFen);
-      const evalSwing = (result.normalizedEvalAfter - result.normalizedEvalBefore) * 100;
-      const isCheckmate = chess.isCheckmate();
-      const deliversMate = isCheckmate || (result.isMateAfter && result.mateInAfter !== undefined && result.mateInAfter >= 0);
-      
-      const adjustedCentipawnLoss = isCheckmate ? 0 : result.centipawnLoss;
-      const adjustedNormalizedCPL = isCheckmate ? 0 : result.normalizedCentipawnLoss;
-      
-      const classificationContext: ClassificationContext = {
-        centipawnLoss: adjustedCentipawnLoss,
-        normalizedCentipawnLoss: adjustedNormalizedCPL,
-        isBestMove: result.isBestMove,
-        isForced,
-        isSacrifice,
-        evalSwing,
-        deliversMate,
-        evalAfter: result.normalizedEvalAfter,
-      };
-      
-      const classification = classifyMove(classificationContext);
-      const phase = determineGamePhase(chess, result.moveNumber);
-      
-      classifications.push(classification);
-      phases.push(phase);
-      
-      if (result.color === 'white') {
-        whiteNormalizedCPL.push(adjustedNormalizedCPL);
-      } else {
-        blackNormalizedCPL.push(adjustedNormalizedCPL);
-      }
-
-      const thinkingTime = game.thinkingTimes?.[i] || null;
-      const clockTime = game.clockTimes?.[i] || null;
-
-      await storage.createMoveAnalysis({
-        gameAnalysisId: analysisRecord.id,
-        moveNumber: result.moveNumber,
-        color: result.color,
-        move: result.move,
-        fen: result.fen,
-        evalBefore: result.normalizedEvalBefore,
-        evalAfter: result.normalizedEvalAfter,
-        bestMove: result.bestMove,
-        bestMoveEval: result.bestMoveEval,
-        centipawnLoss: adjustedNormalizedCPL,
-        classification,
-        phase,
-        thinkingTime,
-        clockTime,
-        isCriticalMoment: false,
-        principalVariation: result.principalVariation,
-      });
-
-      analysisQueue.set(gameId, {
-        ...analysisQueue.get(gameId)!,
-        currentMove: i + 1
-      });
-    }
-
-    const criticalMoments = detectCriticalMoments(moveResults);
-    const biggestSwings = findBiggestSwings(moveResults);
-    const whiteAccuracy = calculateAccuracy(whiteNormalizedCPL);
-    const blackAccuracy = calculateAccuracy(blackNormalizedCPL);
-    
-    const openingCPL = moveResults
-      .filter((_, i) => phases[i] === 'opening')
-      .map(r => r.normalizedCentipawnLoss);
-    const middlegameCPL = moveResults
-      .filter((_, i) => phases[i] === 'middlegame')
-      .map(r => r.normalizedCentipawnLoss);
-    const endgameCPL = moveResults
-      .filter((_, i) => phases[i] === 'endgame')
-      .map(r => r.normalizedCentipawnLoss);
-
-    const timeTroubleStart = detectTimeTroubleStart(
-      game.thinkingTimes as number[] || [],
-      game.clockTimes as number[] || [],
-      game.timeControl
-    );
-    
-    const burnoutDetected = detectBurnout(
-      moveResults.map(r => r.normalizedCentipawnLoss),
-      moveResults.length
-    );
-
-    const efficiencyFactor = calculateEfficiencyFactor(
-      game.thinkingTimes as number[] || [],
-      moveResults.map(r => r.normalizedCentipawnLoss)
-    );
-
-    const focusCheckScore = calculateFocusCheckScore(
-      moveResults.map(r => r.normalizedCentipawnLoss),
-      moveResults
-    );
-
-    const vssMismatchAlerts = detectVSSMismatch(moveResults);
-
-    const improvementSuggestions = generateImprovementSuggestions(
-      classifications,
-      phases,
-      timeTroubleStart,
-      burnoutDetected
-    );
-
-    const updatedAnalysis = await storage.updateGameAnalysis(analysisRecord.id, {
-      status: 'completed',
-      whiteAccuracy,
-      blackAccuracy,
-      openingAccuracy: calculateAccuracy(openingCPL),
-      middlegameAccuracy: calculateAccuracy(middlegameCPL),
-      endgameAccuracy: calculateAccuracy(endgameCPL),
-      totalCentipawnLoss: moveResults.reduce((a, b) => a + b.normalizedCentipawnLoss, 0),
-      averageCentipawnLoss: moveResults.reduce((a, b) => a + b.normalizedCentipawnLoss, 0) / moveResults.length,
-      criticalMoments,
-      biggestSwings,
-      timeTroubleStartMove: timeTroubleStart,
-      burnoutDetected,
-      focusCheckScore,
-      efficiencyFactor,
-      vssMismatchAlerts,
-      improvementSuggestions,
-      analyzedAt: new Date(),
-    });
-
-    analysisQueue.set(gameId, {
-      ...analysisQueue.get(gameId)!,
-      status: 'completed'
-    });
-
-    await storage.recordAccuracyHistory(
-      userId,
-      gameId,
-      game.playerColor === 'white' ? whiteAccuracy : blackAccuracy,
-      game.ratingChange || undefined,
-      game.mode
-    );
-
-    return updatedAnalysis;
-  } catch (error) {
-    console.error('Error analyzing game:', error);
-    analysisQueue.set(gameId, {
-      ...analysisQueue.get(gameId)!,
-      status: 'failed'
-    });
-    
-    const existingRecord = await storage.getGameAnalysis(gameId);
-    if (existingRecord) {
-      await storage.updateGameAnalysis(existingRecord.id, { status: 'failed' });
-    }
-    
-    return null;
-  }
+  // Server-side analysis is no longer supported - throw an error
+  console.warn('[DEPRECATED] Server-side Stockfish analysis requested for game:', gameId);
+  throw new Error('Server-side Stockfish analysis has been deprecated. Please use client-side analysis.');
 }
 
 export function getAnalysisProgress(gameId: string): AnalysisProgress | null {
