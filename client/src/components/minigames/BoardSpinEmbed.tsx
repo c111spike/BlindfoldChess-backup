@@ -258,7 +258,7 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
     
     return (
       <div 
-        className="grid grid-cols-8 w-full max-w-sm aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
+        className="grid grid-cols-8 w-full max-w-[240px] aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
         style={{ transform: `rotate(${rotation}deg)` }}
       >
         {squares}
