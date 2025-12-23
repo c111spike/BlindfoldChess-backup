@@ -290,6 +290,10 @@ export const userSettings = pgTable("user_settings", {
   blindfoldShowCoordinates: boolean("blindfold_show_coordinates").default(false),
   otbPerspective3d: boolean("otb_perspective_3d").default(false),
   otbNotationPractice: boolean("otb_notation_practice").default(false),
+  selectedPieceColor: varchar("selected_piece_color").default("#facc15"),
+  availableMovesColor: varchar("available_moves_color").default("#22c55e"),
+  lastMoveColor: varchar("last_move_color").default("#facc15"),
+  otbTiltAngle: real("otb_tilt_angle").default(45),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
