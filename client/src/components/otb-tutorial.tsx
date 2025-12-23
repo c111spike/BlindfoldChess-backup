@@ -33,12 +33,12 @@ const tutorialSteps: TutorialStep[] = [
     icon: <Clock className="h-8 w-8 text-primary" />,
     description: "Unlike online chess, OTB players must manually press the clock after making a move.",
     details: [
-      "After moving a piece, click the clock to end your turn",
+      "After moving a piece, click the clock or press the spacebar",
       "Your time only stops when you press the clock",
       "Forgetting to press the clock keeps your timer running",
       "The clock button appears next to the timers"
     ],
-    tip: "Get into the habit of Move → Clock for every turn!"
+    tip: "Use the spacebar with the same hand you moved the piece with to simulate real tournament rules!"
   },
   {
     title: "Touch-Move Rule",
