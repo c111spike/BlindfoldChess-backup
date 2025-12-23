@@ -71,7 +71,7 @@ OTB mode uses authentic over-the-board castling which requires clicking the king
 
 ### Training Tools
 - **Training Notes System**: In-game notes based on chess principles.
-- **Bot Training System**: AI opponents with 7 personalities and 7 Elo levels (400-2000).
+- **Bot Training System**: AI opponents with 7 personalities and 8 Elo levels (400-2300).
 - **Board Spin**: Memory and tactics training game using Stockfish for position generation.
 
 ### Enhanced Client-Side Bot Engine
@@ -103,6 +103,13 @@ The bot system uses a hybrid approach combining Lichess opening database, Stockf
 | Advanced | 1500 | 500K | 3 | 4% |
 | Expert | 1800 | 1M | 3 | 2% |
 | Master | 2000 | 2M | 3 | 1% |
+| Grandmaster | 2300 | 3M | 3 | 0.01% |
+
+**Grandmaster-Exclusive Features:**
+- **Transposition Table**: 262K-entry hash table using Zobrist hashing for position caching
+- **Advanced Pawn Structure**: Passed pawn bonuses, isolated/doubled pawn penalties
+- **Enhanced Mate Detection**: Mate distance adjustment for optimal mating sequences
+- **Deeper Search**: Up to depth 12 with TT-accelerated iterative deepening
 
 **Personality Move Selection:**
 - **Aggressor**: Bonus for captures, checks, moves toward enemy king
