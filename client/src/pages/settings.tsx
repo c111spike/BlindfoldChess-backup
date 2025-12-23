@@ -15,8 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
-import { User, Settings as SettingsIcon, LogOut, AlertTriangle, Trash2, Info, ExternalLink } from "lucide-react";
+import { User, Settings as SettingsIcon, LogOut, AlertTriangle, Trash2, Info, ExternalLink, BookOpen } from "lucide-react";
 import type { UserSettings } from "@shared/schema";
+import { OTB_TUTORIAL_COMPLETED_KEY } from "@/components/otb-tutorial";
 
 // Detect Safari/iOS browsers which don't support Web Speech API for voice input
 // SSR-safe: only runs in browser environment
@@ -34,6 +35,22 @@ export default function Settings() {
   const isVoiceInputUnsupported = useMemo(() => isSafariOrIOS(), []);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const DELETE_CONFIRMATION_PHRASE = "Delete my account";
+  const [otbTutorialSeen, setOtbTutorialSeen] = useState(true);
+
+  // Check if OTB tutorial has been completed
+  useEffect(() => {
+    const completed = localStorage.getItem(OTB_TUTORIAL_COMPLETED_KEY);
+    setOtbTutorialSeen(completed === "true");
+  }, []);
+
+  const handleResetOTBTutorial = () => {
+    localStorage.removeItem(OTB_TUTORIAL_COMPLETED_KEY);
+    setOtbTutorialSeen(false);
+    toast({
+      title: "Tutorial Reset",
+      description: "The OTB tutorial will show again when you next visit OTB mode.",
+    });
+  };
   
   // Local state for color pickers to avoid toast spam during drag
   const [localColors, setLocalColors] = useState<{
@@ -524,6 +541,25 @@ export default function Settings() {
                   onCheckedChange={(checked) => handleSettingChange("autoQueen", checked)}
                   data-testid="switch-auto-queen"
                 />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>OTB Tutorial</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Learn handshake, clock, touch-move, and arbiter features
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetOTBTutorial}
+                  disabled={!otbTutorialSeen}
+                  data-testid="button-replay-otb-tutorial"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  {otbTutorialSeen ? "Replay Tutorial" : "Not Yet Viewed"}
+                </Button>
               </div>
             </CardContent>
           </Card>

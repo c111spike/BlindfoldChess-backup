@@ -70,7 +70,7 @@ export default function OTBMode() {
   const { toast } = useNotifications();
   const [, setLocation] = useLocation();
   const highlightColors = useHighlightColors();
-  const { showTutorial, setShowTutorial, triggerTutorial, hasSeenTutorial } = useOTBTutorial();
+  const { showTutorial, setShowTutorial, triggerTutorial, hasSeenTutorial, markComplete } = useOTBTutorial();
   
   const { data: userSettings } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
@@ -4013,6 +4013,7 @@ export default function OTBMode() {
       <OTBTutorial
         open={showTutorial}
         onOpenChange={setShowTutorial}
+        onComplete={markComplete}
       />
     </div>
   );
