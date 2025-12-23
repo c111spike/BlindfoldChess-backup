@@ -49,6 +49,9 @@ interface TrainingStats {
     boardsCompleted: number;
     bestTime: number | null;
   };
+  puzzles: {
+    uploaded: number;
+  };
 }
 
 export default function StatisticsPage() {
@@ -492,6 +495,22 @@ export default function StatisticsPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">Best Time</p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Puzzle className="h-5 w-5" />
+                  Puzzle Contributions
+                </CardTitle>
+                <CardDescription>Your puzzle uploads to the community</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold" data-testid="text-puzzles-uploaded">{trainingStats?.puzzles?.uploaded || 0}</p>
+                  <p className="text-xs text-muted-foreground">Puzzles Uploaded</p>
                 </div>
               </CardContent>
             </Card>

@@ -1552,6 +1552,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get N-Piece Challenge stats
       const nPieceProgress = await storage.getNPieceOverallProgress(userId);
       
+      // Get puzzle upload count
+      const puzzlesUploaded = await storage.getUserPuzzleUploadCount(userId);
+      
       res.json({
         repertoire: {
           totalRepertoires: repertoires.length,
@@ -1577,6 +1580,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalCompleted: knightsTourProgress.totalCompleted,
           boardsCompleted: knightsTourProgress.boardsCompleted,
           bestTime,
+        },
+        puzzles: {
+          uploaded: puzzlesUploaded,
         },
       });
     } catch (error) {
@@ -1679,11 +1685,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/puzzles', isAuthenticated, async (req: any, res) => {
     try {
-      const { type, difficulty, creatorId, sortBy, limit, offset, isVerified } = req.query;
-      const puzzles = await storage.getPuzzles({
+      const { type, difficulty, creatorId, creatorUsername, sortBy, limit, offset, isVerified } = req.query;
+      const puzzles = await storage.getPuzzlesWithCreators({
         type,
         difficulty,
         creatorId,
+        creatorUsername,
         sortBy: sortBy || 'newest',
         limit: limit ? parseInt(limit) : 20,
         offset: offset ? parseInt(offset) : 0,

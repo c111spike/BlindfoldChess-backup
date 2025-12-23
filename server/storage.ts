@@ -104,7 +104,7 @@ import {
   type InsertAdminNotification,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, ne, or, sql, inArray, ilike } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -141,7 +141,9 @@ export interface IStorage {
   getPuzzle(id: string): Promise<Puzzle | undefined>;
   getPuzzleByShareCode(shareCode: string): Promise<Puzzle | undefined>;
   getPuzzles(options: { type?: string; difficulty?: string; creatorId?: string; sortBy?: string; limit?: number; offset?: number; isVerified?: boolean }): Promise<Puzzle[]>;
+  getPuzzlesWithCreators(options: { type?: string; difficulty?: string; creatorId?: string; creatorUsername?: string; sortBy?: string; limit?: number; offset?: number; isVerified?: boolean }): Promise<(Puzzle & { creatorUsername?: string | null })[]>;
   getUserCreatedPuzzles(userId: string): Promise<Puzzle[]>;
+  getUserPuzzleUploadCount(userId: string): Promise<number>;
   updatePuzzle(id: string, data: Partial<Puzzle>): Promise<Puzzle>;
   deletePuzzle(id: string): Promise<void>;
   checkDuplicatePuzzle(fen: string): Promise<Puzzle | undefined>;
@@ -856,6 +858,87 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(puzzles)
       .where(eq(puzzles.creatorId, userId))
       .orderBy(desc(puzzles.createdAt));
+  }
+
+  async getUserPuzzleUploadCount(userId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(puzzles)
+      .where(and(
+        eq(puzzles.creatorId, userId),
+        eq(puzzles.isRemoved, false)
+      ));
+    return Number(result[0]?.count || 0);
+  }
+
+  async getPuzzlesWithCreators(options: { 
+    type?: string; 
+    difficulty?: string; 
+    creatorId?: string; 
+    creatorUsername?: string;
+    sortBy?: string; 
+    limit?: number; 
+    offset?: number; 
+    isVerified?: boolean 
+  }): Promise<(Puzzle & { creatorUsername?: string | null })[]> {
+    let conditions: any[] = [eq(puzzles.isRemoved, false)];
+    
+    if (options.type) conditions.push(eq(puzzles.puzzleType, options.type as any));
+    if (options.difficulty) conditions.push(eq(puzzles.difficulty, options.difficulty as any));
+    if (options.creatorId) conditions.push(eq(puzzles.creatorId, options.creatorId));
+    if (options.isVerified !== undefined) conditions.push(eq(puzzles.isVerified, options.isVerified));
+
+    // Build the query with left join
+    let baseQuery = db
+      .select()
+      .from(puzzles)
+      .leftJoin(users, eq(puzzles.creatorId, users.id))
+      .where(and(...conditions));
+
+    // If filtering by creator name, search in firstName and lastName
+    if (options.creatorUsername) {
+      baseQuery = db
+        .select()
+        .from(puzzles)
+        .leftJoin(users, eq(puzzles.creatorId, users.id))
+        .where(and(
+          ...conditions,
+          or(
+            ilike(users.firstName, `%${options.creatorUsername}%`),
+            ilike(users.lastName, `%${options.creatorUsername}%`)
+          )
+        ));
+    }
+
+    let query = baseQuery as any;
+
+    if (options.sortBy === 'newest') {
+      query = query.orderBy(desc(puzzles.createdAt));
+    } else if (options.sortBy === 'popular') {
+      query = query.orderBy(desc(puzzles.upvotes));
+    } else if (options.sortBy === 'rating') {
+      query = query.orderBy(desc(puzzles.rating));
+    }
+
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    if (options.offset) {
+      query = query.offset(options.offset);
+    }
+
+    const results = await query;
+    
+    // Map results to include creatorUsername from the joined users table
+    // Combine firstName and lastName for display
+    return results.map((row: any) => {
+      const firstName = row.users?.firstName || '';
+      const lastName = row.users?.lastName || '';
+      const displayName = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
+      return {
+        ...row.puzzles,
+        creatorUsername: row.puzzles.isAnonymous ? null : displayName,
+      };
+    });
   }
 
   async updatePuzzle(id: string, data: Partial<Puzzle>): Promise<Puzzle> {

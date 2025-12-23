@@ -39,8 +39,11 @@ import {
   User,
   BookOpen,
   Youtube,
-  HelpCircle
+  HelpCircle,
+  Search,
+  X
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import type { Puzzle } from "@shared/schema";
 
 const REPORT_REASONS = [
@@ -144,7 +147,7 @@ function MiniChessboard({ fen, size = 120 }: { fen: string; size?: number }) {
   );
 }
 
-function PuzzleCard({ puzzle, onVote, onReport }: { puzzle: Puzzle & { userVote?: string | null }; onVote: (type: string) => void; onReport: (puzzleId: string) => void }) {
+function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick }: { puzzle: Puzzle & { userVote?: string | null; creatorUsername?: string | null }; onVote: (type: string) => void; onReport: (puzzleId: string) => void; onCreatorClick?: (creatorId: string, creatorUsername: string) => void }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -211,6 +214,21 @@ function PuzzleCard({ puzzle, onVote, onReport }: { puzzle: Puzzle & { userVote?
                 <Clock className="h-3 w-3" />
                 {puzzle.solveCount || 0} solves
               </span>
+              {puzzle.creatorUsername && (
+                <span 
+                  className="flex items-center gap-1 cursor-pointer hover:text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (puzzle.creatorId && onCreatorClick) {
+                      onCreatorClick(puzzle.creatorId, puzzle.creatorUsername as string);
+                    }
+                  }}
+                  data-testid={`link-creator-${puzzle.id}`}
+                >
+                  <User className="h-3 w-3" />
+                  {puzzle.creatorUsername}
+                </span>
+              )}
             </div>
           </div>
           
@@ -966,24 +984,46 @@ function BrowseTab() {
   const [puzzleType, setPuzzleType] = useState("all");
   const [difficulty, setDifficulty] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+  const [creatorSearch, setCreatorSearch] = useState("");
+  const [activeCreatorFilter, setActiveCreatorFilter] = useState<{id?: string; username?: string} | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportPuzzleId, setReportPuzzleId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   
-  const { data: puzzles, isLoading } = useQuery<Puzzle[]>({
-    queryKey: ["/api/puzzles", puzzleType, difficulty, sortBy],
+  const { data: puzzles, isLoading } = useQuery<(Puzzle & { creatorUsername?: string | null })[]>({
+    queryKey: ["/api/puzzles", puzzleType, difficulty, sortBy, activeCreatorFilter?.id, activeCreatorFilter?.username],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (puzzleType !== "all") params.set("type", puzzleType);
       if (difficulty !== "all") params.set("difficulty", difficulty);
       params.set("sortBy", sortBy);
+      if (activeCreatorFilter?.id) params.set("creatorId", activeCreatorFilter.id);
+      if (activeCreatorFilter?.username) params.set("creatorUsername", activeCreatorFilter.username);
       const url = `/api/puzzles${params.toString() ? `?${params.toString()}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch puzzles');
       return res.json();
     },
   });
+  
+  const handleCreatorClick = (creatorId: string, creatorUsername: string) => {
+    setActiveCreatorFilter({ id: creatorId, username: creatorUsername });
+    setCreatorSearch(creatorUsername);
+  };
+  
+  const clearCreatorFilter = () => {
+    setActiveCreatorFilter(null);
+    setCreatorSearch("");
+  };
+  
+  const handleCreatorSearchSubmit = () => {
+    if (creatorSearch.trim()) {
+      setActiveCreatorFilter({ username: creatorSearch.trim() });
+    } else {
+      clearCreatorFilter();
+    }
+  };
   
   const voteMutation = useMutation({
     mutationFn: async ({ puzzleId, voteType }: { puzzleId: string; voteType: string }) => {
@@ -1077,7 +1117,49 @@ function BrowseTab() {
               ))}
             </SelectContent>
           </Select>
+          
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Input
+                placeholder="Search by creator..."
+                value={creatorSearch}
+                onChange={(e) => setCreatorSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreatorSearchSubmit()}
+                className="w-[180px] pr-8"
+                data-testid="input-creator-search"
+              />
+              {activeCreatorFilter && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute right-0 top-0 h-full w-8"
+                  onClick={clearCreatorFilter}
+                  data-testid="button-clear-creator-filter"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={handleCreatorSearchSubmit}
+              data-testid="button-search-creator"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+        
+        {activeCreatorFilter && (
+          <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg">
+            <User className="h-4 w-4" />
+            <span className="text-sm">Showing puzzles by: <strong>{activeCreatorFilter.username || activeCreatorFilter.id}</strong></span>
+            <Button size="sm" variant="ghost" onClick={clearCreatorFilter} data-testid="button-clear-filter-banner">
+              Clear filter
+            </Button>
+          </div>
+        )}
         
         {isLoading ? (
           <div className="space-y-4">
@@ -1101,9 +1183,10 @@ function BrowseTab() {
             {puzzles.map((puzzle) => (
               <PuzzleCard
                 key={puzzle.id}
-                puzzle={puzzle as Puzzle & { userVote?: string | null }}
+                puzzle={puzzle as Puzzle & { userVote?: string | null; creatorUsername?: string | null }}
                 onVote={(type) => handleVote(puzzle.id, type)}
                 onReport={handleReport}
+                onCreatorClick={handleCreatorClick}
               />
             ))}
           </div>
