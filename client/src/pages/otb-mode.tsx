@@ -39,6 +39,7 @@ import {
   getBotByConfig 
 } from "@shared/botTypes";
 import { generateBotMoveClient, getThinkTime } from "@/lib/botEngine";
+import { OTBTutorial, useOTBTutorial } from "@/components/otb-tutorial";
 
 const INITIAL_BOARD = [
   ["r", "n", "b", "q", "k", "b", "n", "r"],
@@ -69,6 +70,7 @@ export default function OTBMode() {
   const { toast } = useNotifications();
   const [, setLocation] = useLocation();
   const highlightColors = useHighlightColors();
+  const { showTutorial, setShowTutorial, triggerTutorial, hasSeenTutorial } = useOTBTutorial();
   
   const { data: userSettings } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
@@ -253,6 +255,13 @@ export default function OTBMode() {
       setNotationPractice(false);
     }
   }, [timeControl]);
+
+  // Trigger OTB tutorial on first visit
+  useEffect(() => {
+    if (!hasSeenTutorial) {
+      triggerTutorial();
+    }
+  }, [hasSeenTutorial, triggerTutorial]);
 
   const squareToIndices = (square: string): { rank: number; file: number } => {
     const file = FILES.indexOf(square[0]);
@@ -4000,6 +4009,11 @@ export default function OTBMode() {
           </p>
         </DialogContent>
       </Dialog>
+
+      <OTBTutorial
+        open={showTutorial}
+        onOpenChange={setShowTutorial}
+      />
     </div>
   );
 }
