@@ -96,6 +96,12 @@ import {
   type PracticeHistory,
   type InsertPracticeHistory,
   type PuzzleSessionProgress,
+  suspensionHistory,
+  adminNotifications,
+  type SuspensionHistory,
+  type InsertSuspensionHistory,
+  type AdminNotification,
+  type InsertAdminNotification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ne, or, sql, inArray } from "drizzle-orm";
@@ -280,6 +286,24 @@ export interface IStorage {
   getOrCreatePracticeHistory(userId: string, repertoireLineId: string): Promise<PracticeHistory>;
   updatePracticeHistory(id: string, data: Partial<PracticeHistory>): Promise<PracticeHistory>;
   getDuePracticeLines(userId: string, repertoireId?: string, limit?: number): Promise<(PracticeHistory & { line: RepertoireLine })[]>;
+  
+  // Suspension System
+  createSuspension(suspension: InsertSuspensionHistory): Promise<SuspensionHistory>;
+  getUserSuspensions(userId: string): Promise<SuspensionHistory[]>;
+  getActiveSuspension(userId: string): Promise<SuspensionHistory | undefined>;
+  hasAnySuspensionHistory(userId: string): Promise<boolean>;
+  liftSuspension(suspensionId: string, liftedById: string, reason?: string): Promise<SuspensionHistory>;
+  
+  // Admin Notifications
+  createAdminNotification(notification: InsertAdminNotification): Promise<AdminNotification>;
+  getUnreadAdminNotifications(): Promise<AdminNotification[]>;
+  getAllAdminNotifications(limit?: number): Promise<AdminNotification[]>;
+  markAdminNotificationRead(id: string, readById: string): Promise<AdminNotification>;
+  markAllAdminNotificationsRead(readById: string): Promise<void>;
+  
+  // Admin Game History
+  getUserGameHistory(userId: string, limit?: number, offset?: number): Promise<Game[]>;
+  getUserGameCount(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2830,6 +2854,130 @@ export class DatabaseStorage implements IStorage {
       ...r.practiceHistory,
       line: r.line,
     }));
+  }
+
+  // ========== SUSPENSION SYSTEM ==========
+  
+  async createSuspension(suspension: InsertSuspensionHistory): Promise<SuspensionHistory> {
+    const [created] = await db.insert(suspensionHistory).values(suspension).returning();
+    
+    // Update the user's suspendedUntil field for quick checks
+    // For permanent suspensions (no endDate), use a far-future sentinel date
+    const suspendedUntil = suspension.endDate || new Date('2099-12-31T23:59:59Z');
+    await db.update(users).set({ suspendedUntil }).where(eq(users.id, suspension.userId));
+    
+    return created;
+  }
+
+  async getUserSuspensions(userId: string): Promise<SuspensionHistory[]> {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    return db.select().from(suspensionHistory)
+      .where(and(
+        eq(suspensionHistory.userId, userId),
+        sql`${suspensionHistory.startDate} >= ${thirtyDaysAgo}`
+      ))
+      .orderBy(desc(suspensionHistory.startDate));
+  }
+
+  async getActiveSuspension(userId: string): Promise<SuspensionHistory | undefined> {
+    const now = new Date();
+    const [active] = await db.select().from(suspensionHistory)
+      .where(and(
+        eq(suspensionHistory.userId, userId),
+        sql`${suspensionHistory.liftedAt} IS NULL`,
+        or(
+          sql`${suspensionHistory.endDate} IS NULL`, // permanent
+          sql`${suspensionHistory.endDate} > ${now}` // not yet expired
+        )
+      ))
+      .orderBy(desc(suspensionHistory.startDate))
+      .limit(1);
+    return active;
+  }
+
+  async hasAnySuspensionHistory(userId: string): Promise<boolean> {
+    const [result] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(suspensionHistory)
+      .where(eq(suspensionHistory.userId, userId));
+    return (result?.count || 0) > 0;
+  }
+
+  async liftSuspension(suspensionId: string, liftedById: string, reason?: string): Promise<SuspensionHistory> {
+    const [updated] = await db.update(suspensionHistory)
+      .set({ 
+        liftedById, 
+        liftedAt: new Date(), 
+        liftReason: reason 
+      })
+      .where(eq(suspensionHistory.id, suspensionId))
+      .returning();
+    
+    if (!updated) {
+      throw new Error(`Suspension with id ${suspensionId} not found`);
+    }
+    
+    // Clear the user's suspendedUntil field
+    await db.update(users).set({ suspendedUntil: null }).where(eq(users.id, updated.userId));
+    
+    return updated;
+  }
+
+  // ========== ADMIN NOTIFICATIONS ==========
+  
+  async createAdminNotification(notification: InsertAdminNotification): Promise<AdminNotification> {
+    const [created] = await db.insert(adminNotifications).values(notification).returning();
+    return created;
+  }
+
+  async getUnreadAdminNotifications(): Promise<AdminNotification[]> {
+    return db.select().from(adminNotifications)
+      .where(eq(adminNotifications.isRead, false))
+      .orderBy(desc(adminNotifications.createdAt));
+  }
+
+  async getAllAdminNotifications(limit?: number): Promise<AdminNotification[]> {
+    return db.select().from(adminNotifications)
+      .orderBy(desc(adminNotifications.createdAt))
+      .limit(limit || 50);
+  }
+
+  async markAdminNotificationRead(id: string, readById: string): Promise<AdminNotification> {
+    const [updated] = await db.update(adminNotifications)
+      .set({ isRead: true, readById, readAt: new Date() })
+      .where(eq(adminNotifications.id, id))
+      .returning();
+    return updated;
+  }
+
+  async markAllAdminNotificationsRead(readById: string): Promise<void> {
+    await db.update(adminNotifications)
+      .set({ isRead: true, readById, readAt: new Date() })
+      .where(eq(adminNotifications.isRead, false));
+  }
+
+  // ========== ADMIN GAME HISTORY ==========
+  
+  async getUserGameHistory(userId: string, limit?: number, offset?: number): Promise<Game[]> {
+    return db.select().from(games)
+      .where(or(
+        eq(games.userId, userId),
+        eq(games.whitePlayerId, userId),
+        eq(games.blackPlayerId, userId)
+      ))
+      .orderBy(desc(games.createdAt))
+      .limit(limit || 50)
+      .offset(offset || 0);
+  }
+
+  async getUserGameCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(games)
+      .where(or(
+        eq(games.userId, userId),
+        eq(games.whitePlayerId, userId),
+        eq(games.blackPlayerId, userId)
+      ));
+    return result?.count || 0;
   }
 }
 

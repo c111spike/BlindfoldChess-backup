@@ -1176,3 +1176,94 @@ export const insertPracticeHistorySchema = createInsertSchema(practiceHistory).o
   id: true,
   createdAt: true,
 });
+
+// ========== SUSPENSION SYSTEM ==========
+
+// Suspension reason enum
+export const suspensionReasonEnum = pgEnum("suspension_reason", [
+  "cheating",
+  "harassment",
+  "inappropriate_content",
+  "sandbagging",
+  "boosting",
+  "multiple_accounts",
+  "other",
+]);
+
+// Suspension history - tracks all past and current suspensions
+export const suspensionHistory = pgTable("suspension_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  reason: suspensionReasonEnum("reason").notNull(),
+  details: text("details"),
+  startDate: timestamp("start_date").defaultNow().notNull(),
+  endDate: timestamp("end_date"), // null = permanent
+  durationDays: integer("duration_days"), // convenience field
+  issuedById: varchar("issued_by_id")
+    .references(() => users.id, { onDelete: "set null" }),
+  liftedById: varchar("lifted_by_id")
+    .references(() => users.id, { onDelete: "set null" }),
+  liftedAt: timestamp("lifted_at"),
+  liftReason: text("lift_reason"),
+  relatedReportId: varchar("related_report_id")
+    .references(() => cheatReports.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("suspension_history_user_idx").on(table.userId),
+  activeIdx: index("suspension_history_active_idx").on(table.endDate),
+}));
+
+// Admin notification types
+export const adminNotificationTypeEnum = pgEnum("admin_notification_type", [
+  "suspended_user_reported",
+  "high_priority_report",
+  "system_alert",
+]);
+
+// Admin notifications - alerts for admins about important events
+export const adminNotifications = pgTable("admin_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: adminNotificationTypeEnum("type").notNull(),
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  relatedUserId: varchar("related_user_id")
+    .references(() => users.id, { onDelete: "cascade" }),
+  relatedReportId: varchar("related_report_id")
+    .references(() => cheatReports.id, { onDelete: "cascade" }),
+  metadata: jsonb("metadata").$type<Record<string, any>>().default({}),
+  isRead: boolean("is_read").default(false),
+  readById: varchar("read_by_id")
+    .references(() => users.id, { onDelete: "set null" }),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  unreadIdx: index("admin_notifications_unread_idx").on(table.isRead),
+  typeIdx: index("admin_notifications_type_idx").on(table.type),
+  createdIdx: index("admin_notifications_created_idx").on(table.createdAt),
+}));
+
+// Type exports for suspension system
+export type SuspensionReason = typeof suspensionReasonEnum.enumValues[number];
+export type SuspensionHistory = typeof suspensionHistory.$inferSelect;
+export type InsertSuspensionHistory = typeof suspensionHistory.$inferInsert;
+export type AdminNotificationType = typeof adminNotificationTypeEnum.enumValues[number];
+export type AdminNotification = typeof adminNotifications.$inferSelect;
+export type InsertAdminNotification = typeof adminNotifications.$inferInsert;
+
+export const insertSuspensionHistorySchema = createInsertSchema(suspensionHistory).omit({
+  id: true,
+  liftedById: true,
+  liftedAt: true,
+  liftReason: true,
+  createdAt: true,
+});
+
+export const insertAdminNotificationSchema = createInsertSchema(adminNotifications).omit({
+  id: true,
+  isRead: true,
+  readById: true,
+  readAt: true,
+  createdAt: true,
+});
