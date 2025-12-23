@@ -9,9 +9,14 @@ export function useAuth() {
     retry: false,
   });
 
+  const isSuspended = user?.suspendedUntil ? new Date(user.suspendedUntil) > new Date() : false;
+  const suspendedUntil = user?.suspendedUntil ? new Date(user.suspendedUntil) : null;
+
   return {
     user,
     isLoading: isLoading && !isError,
     isAuthenticated: !!user,
+    isSuspended,
+    suspendedUntil,
   };
 }

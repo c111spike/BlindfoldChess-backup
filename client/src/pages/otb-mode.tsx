@@ -40,6 +40,7 @@ import {
 } from "@shared/botTypes";
 import { generateBotMoveClient, getThinkTime } from "@/lib/botEngine";
 import { OTBTutorial, useOTBTutorial } from "@/components/otb-tutorial";
+import { SuspensionBanner } from "@/components/suspension-banner";
 
 const INITIAL_BOARD = [
   ["r", "n", "b", "q", "k", "b", "n", "r"],
@@ -2919,6 +2920,8 @@ export default function OTBMode() {
             <h1 className="text-2xl font-bold">OTB Tournament Mode</h1>
             <p className="text-sm text-muted-foreground">Free movement · Arbiter resolves disputes</p>
           </div>
+
+          <SuspensionBanner />
 
           {!gameStarted && !gameResult ? (
             <>

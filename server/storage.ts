@@ -2870,13 +2870,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserSuspensions(userId: string): Promise<SuspensionHistory[]> {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     return db.select().from(suspensionHistory)
-      .where(and(
-        eq(suspensionHistory.userId, userId),
-        sql`${suspensionHistory.startDate} >= ${thirtyDaysAgo}`
-      ))
-      .orderBy(desc(suspensionHistory.startDate));
+      .where(eq(suspensionHistory.userId, userId))
+      .orderBy(desc(suspensionHistory.startDate))
+      .limit(50);
   }
 
   async getActiveSuspension(userId: string): Promise<SuspensionHistory | undefined> {
@@ -2965,7 +2962,7 @@ export class DatabaseStorage implements IStorage {
         eq(games.blackPlayerId, userId)
       ))
       .orderBy(desc(games.createdAt))
-      .limit(limit || 50)
+      .limit(Math.min(limit || 50, 50))
       .offset(offset || 0);
   }
 

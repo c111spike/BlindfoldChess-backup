@@ -37,7 +37,10 @@ import {
   RotateCcw,
   Cpu,
   Play,
-  ExternalLink
+  ExternalLink,
+  Bell,
+  History,
+  Ban
 } from "lucide-react";
 import { ChessBoard } from "@/components/chess-board";
 import { Chess } from "chess.js";
@@ -65,6 +68,34 @@ interface AntiCheatStats {
     low: number;
   };
   unresolvedReports: number;
+}
+
+interface AdminNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  relatedUserId: string | null;
+  relatedReportId: string | null;
+  metadata: Record<string, any>;
+  isRead: boolean;
+  readById: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+interface SuspensionHistory {
+  id: string;
+  userId: string;
+  reason: string;
+  details: string | null;
+  startDate: string;
+  endDate: string | null;
+  durationDays: number | null;
+  issuedById: string | null;
+  liftedById: string | null;
+  liftedAt: string | null;
+  liftReason: string | null;
 }
 
 interface PerformanceStats {
@@ -410,6 +441,35 @@ export default function AdminPage() {
     enabled: isAdmin && activeTab === "puzzle-review",
   });
 
+  // Admin notifications
+  const { data: notifications, isLoading: notificationsLoading, refetch: refetchNotifications } = useQuery<AdminNotification[]>({
+    queryKey: ["/api/admin/notifications"],
+    enabled: isAdmin,
+  });
+
+  const unreadNotificationsCount = notifications?.filter(n => !n.isRead).length || 0;
+
+  const markNotificationReadMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const res = await apiRequest("POST", `/api/admin/notifications/${notificationId}/read`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/notifications"] });
+    },
+  });
+
+  const markAllNotificationsReadMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/notifications/mark-all-read");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/notifications"] });
+      toast({ title: "All notifications marked as read" });
+    },
+  });
+
   // Filter puzzles based on search
   const filteredPuzzles = allPuzzles?.filter(p => {
     if (!puzzleSearchQuery) return true;
@@ -701,6 +761,15 @@ export default function AdminPage() {
           <TabsTrigger value="puzzle-review" data-testid="tab-puzzle-review">
             <Cpu className="h-4 w-4 mr-2" />
             Puzzle Review
+          </TabsTrigger>
+          <TabsTrigger value="notifications" data-testid="tab-notifications" className="relative">
+            <Bell className="h-4 w-4 mr-2" />
+            Notifications
+            {unreadNotificationsCount > 0 && (
+              <Badge variant="destructive" className="ml-2 h-5 min-w-5 px-1 text-xs">
+                {unreadNotificationsCount}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -1959,6 +2028,94 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Admin Notifications</h3>
+            {unreadNotificationsCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => markAllNotificationsReadMutation.mutate()}
+                disabled={markAllNotificationsReadMutation.isPending}
+                data-testid="button-mark-all-read"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Mark All Read
+              </Button>
+            )}
+          </div>
+
+          {notificationsLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-20" />)}
+            </div>
+          ) : !notifications?.length ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Notifications</h3>
+                <p className="text-muted-foreground">You're all caught up!</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {notifications.map(notification => (
+                <Card 
+                  key={notification.id} 
+                  className={notification.isRead ? "opacity-60" : "border-l-4 border-l-orange-500"}
+                  data-testid={`notification-${notification.id}`}
+                >
+                  <CardContent className="py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {notification.type === 'suspended_user_reported' && (
+                            <Badge variant="destructive" className="text-xs">
+                              <History className="h-3 w-3 mr-1" />
+                              Repeat Offender
+                            </Badge>
+                          )}
+                          {notification.type === 'high_priority_report' && (
+                            <Badge variant="secondary" className="text-xs">High Priority</Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(notification.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <h4 className="font-semibold">{notification.title}</h4>
+                        <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+                        
+                        {notification.relatedUserId && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <Link href={`/profile/${notification.relatedUserId}`}>
+                              <Button variant="link" size="sm" className="p-0 h-auto" data-testid="link-view-user">
+                                <Eye className="h-3 w-3 mr-1" />
+                                View User
+                              </Button>
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {!notification.isRead && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => markNotificationReadMutation.mutate(notification.id)}
+                          disabled={markNotificationReadMutation.isPending}
+                          data-testid="button-mark-read"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

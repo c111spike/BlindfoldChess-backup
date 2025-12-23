@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
 import type { UserSettings } from "@shared/schema";
+import { SuspensionBanner } from "@/components/suspension-banner";
 
 interface SimulVsSimulBoard {
   pairingId: string;
@@ -1263,6 +1264,7 @@ export default function SimulVsSimulMode() {
                       Round-robin where everyone plays everyone simultaneously
                     </p>
                   </div>
+                  <SuspensionBanner />
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Number of Boards (per player)</label>
                     <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
