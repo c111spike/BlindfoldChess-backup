@@ -1951,10 +1951,12 @@ export default function GameAnalysisPage() {
   };
 
   const isSharedView = !!shareCode;
-  const [autoStarted, setAutoStarted] = useState(false);
   const [useClientSide, setUseClientSide] = useState(false);
   const [miniGameOpen, setMiniGameOpen] = useState(false);
   const [initialMiniGame, setInitialMiniGame] = useState<MiniGameType>(null);
+  
+  // Track if we've already started client-side analysis to prevent duplicates
+  const hasStartedClientAnalysis = useRef(false);
   
   const clientAnalysis = useClientAnalysis();
 
@@ -1993,40 +1995,14 @@ export default function GameAnalysisPage() {
     return fens;
   }, [gameMoves]);
 
-  const startAnalysisMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/analysis/start/${gameId}`);
-      return response.json();
-    },
-    onSuccess: (result) => {
-      if (result.status === 'started') {
-        toast({ title: 'Analysis started', description: 'This usually takes 15-30 seconds...' });
-        setTimeout(() => refetch(), 1000);
-      } else if (result.status === 'already_completed') {
-        refetch();
-      }
-    },
-    onError: () => {
-      toast({ title: 'Failed to start analysis', variant: 'destructive' });
-    },
-  });
-
+  // Auto-start client-side analysis when there's an error fetching from server
   useEffect(() => {
-    if (!isSharedView && gameId && error && !autoStarted && !startAnalysisMutation.isPending) {
-      setAutoStarted(true);
-      toast({ title: 'Starting analysis...', description: 'This usually takes 15-30 seconds' });
-      startAnalysisMutation.mutate();
+    if (!isSharedView && gameId && error && gameMoves.length > 0 && !hasStartedClientAnalysis.current && !clientAnalysis.analyzing && !clientAnalysis.result) {
+      hasStartedClientAnalysis.current = true;
+      setUseClientSide(true);
+      clientAnalysis.startAnalysis(gameMoves);
     }
-  }, [error, gameId, isSharedView, autoStarted, startAnalysisMutation.isPending]);
-
-  useEffect(() => {
-    if (autoStarted && error) {
-      const pollInterval = setInterval(() => {
-        refetch();
-      }, 3000);
-      return () => clearInterval(pollInterval);
-    }
-  }, [autoStarted, error, refetch]);
+  }, [error, gameId, isSharedView, gameMoves.length, clientAnalysis.analyzing, clientAnalysis.result]);
 
   const shareAnalysisMutation = useMutation({
     mutationFn: async () => {
@@ -2103,20 +2079,19 @@ export default function GameAnalysisPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameMoves.length]);
 
-  // Auto-start analysis when status is 'not_started' - must be before early returns
+  // Auto-start client-side analysis when status is 'not_started' - must be before early returns
   useEffect(() => {
-    if (data?.analysis?.status === 'not_started' && !autoStarted && !startAnalysisMutation.isPending && !isSharedView && gameId) {
-      setAutoStarted(true);
-      toast({ title: 'Starting analysis...', description: 'This usually takes 15-30 seconds' });
-      startAnalysisMutation.mutate();
+    if (data?.analysis?.status === 'not_started' && !isSharedView && gameId && gameMoves.length > 0 && !hasStartedClientAnalysis.current && !clientAnalysis.analyzing && !clientAnalysis.result) {
+      hasStartedClientAnalysis.current = true;
+      setUseClientSide(true);
+      clientAnalysis.startAnalysis(gameMoves);
     }
-  }, [data?.analysis?.status, autoStarted, startAnalysisMutation.isPending, isSharedView, gameId]);
+  }, [data?.analysis?.status, isSharedView, gameId, gameMoves.length, clientAnalysis.analyzing, clientAnalysis.result]);
 
-  // Track if analysis is in progress (server or client)
+  // Track if analysis is in progress (client-side or server processing)
   const isAnalyzing = clientAnalysis.analyzing || 
     data?.analysis?.status === 'processing' || 
-    (autoStarted && !data?.analysis) ||
-    startAnalysisMutation.isPending;
+    (hasStartedClientAnalysis.current && !clientAnalysis.result && !data?.analysis);
 
   // Auto-advance to move 1 when analysis starts (so user sees analysis in action)
   const hasAutoAdvanced = useRef(false);
@@ -2175,60 +2150,21 @@ export default function GameAnalysisPage() {
                   Play While You Wait
                 </Button>
               </>
-            ) : autoStarted || startAnalysisMutation.isPending ? (
-              <>
-                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-                <h2 className="text-xl font-bold mb-2">Analyzing Your Game</h2>
-                <p className="text-muted-foreground mb-4">
-                  Stockfish is evaluating each move. This usually takes 15-30 seconds...
-                </p>
-                <div className="flex flex-col gap-2 items-center">
-                  <Button
-                    variant="outline"
-                    onClick={() => setMiniGameOpen(true)}
-                    data-testid="button-play-while-waiting-server"
-                  >
-                    <Gamepad2 className="w-4 h-4 mr-2" />
-                    Play While You Wait
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setUseClientSide(true);
-                      clientAnalysis.startAnalysis(gameMoves);
-                    }}
-                    disabled={gameMoves.length === 0}
-                    data-testid="button-analyze-locally"
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Analyze Locally Instead
-                  </Button>
-                </div>
-              </>
             ) : (
               <>
                 <h2 className="text-xl font-bold mb-4">Analysis Not Found</h2>
                 <div className="flex flex-col gap-2 items-center">
-                  {!isSharedView && gameId && (
-                    <Button 
-                      onClick={() => startAnalysisMutation.mutate()}
-                      disabled={startAnalysisMutation.isPending}
-                      data-testid="button-start-analysis"
-                    >
-                      Start Server Analysis
-                    </Button>
-                  )}
-                  {gameMoves.length > 0 && (
+                  {gameMoves.length > 0 && !hasStartedClientAnalysis.current && (
                     <Button
-                      variant="secondary"
                       onClick={() => {
+                        hasStartedClientAnalysis.current = true;
                         setUseClientSide(true);
                         clientAnalysis.startAnalysis(gameMoves);
                       }}
-                      data-testid="button-analyze-locally-alt"
+                      data-testid="button-start-analysis"
                     >
                       <Zap className="w-4 h-4 mr-2" />
-                      Analyze Locally (Faster)
+                      Start Analysis
                     </Button>
                   )}
                 </div>
