@@ -2594,7 +2594,12 @@ export default function GameAnalysisPage() {
       
       <MiniGameOverlay 
         open={miniGameOpen} 
-        onOpenChange={setMiniGameOpen}
+        onOpenChange={(open) => {
+          setMiniGameOpen(open);
+          if (!open) {
+            setMiniGamePromptDismissed(true);
+          }
+        }}
       />
     </div>
   );
