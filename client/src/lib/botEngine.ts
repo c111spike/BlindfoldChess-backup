@@ -685,21 +685,20 @@ function evaluatePawnStructure(game: Chess): number {
   }
   
   // Evaluate each white pawn
+  // White pawns advance from row 6 (rank 2) toward row 0 (rank 8)
   for (let col = 0; col < 8; col++) {
     for (const row of whitePawnsByFile[col]) {
-      // Passed pawn check: no enemy pawns ahead on same file or adjacent files
+      // Passed pawn check: no enemy pawns ahead (lower row numbers) on same or adjacent files
       let isPassed = true;
-      for (let checkRow = row - 1; checkRow >= 0; checkRow--) {
-        for (let checkCol = Math.max(0, col - 1); checkCol <= Math.min(7, col + 1); checkCol++) {
-          if (blackPawnsByFile[checkCol].some(r => r <= row)) {
-            isPassed = false;
-            break;
-          }
+      for (let checkCol = Math.max(0, col - 1); checkCol <= Math.min(7, col + 1); checkCol++) {
+        // Check if any black pawn exists ahead of this white pawn (row < current row)
+        if (blackPawnsByFile[checkCol].some(r => r < row)) {
+          isPassed = false;
+          break;
         }
-        if (!isPassed) break;
       }
       if (isPassed) {
-        // Bonus increases as pawn advances (row 6 is promotion rank)
+        // Bonus increases as pawn advances (row 1 is one step from promotion)
         score += 20 + (7 - row) * 10;
       }
       
@@ -719,20 +718,20 @@ function evaluatePawnStructure(game: Chess): number {
   }
   
   // Evaluate each black pawn
+  // Black pawns advance from row 1 (rank 7) toward row 7 (rank 1)
   for (let col = 0; col < 8; col++) {
     for (const row of blackPawnsByFile[col]) {
-      // Passed pawn check
+      // Passed pawn check: no enemy pawns ahead (higher row numbers) on same or adjacent files
       let isPassed = true;
-      for (let checkRow = row + 1; checkRow < 8; checkRow++) {
-        for (let checkCol = Math.max(0, col - 1); checkCol <= Math.min(7, col + 1); checkCol++) {
-          if (whitePawnsByFile[checkCol].some(r => r >= row)) {
-            isPassed = false;
-            break;
-          }
+      for (let checkCol = Math.max(0, col - 1); checkCol <= Math.min(7, col + 1); checkCol++) {
+        // Check if any white pawn exists ahead of this black pawn (row > current row)
+        if (whitePawnsByFile[checkCol].some(r => r > row)) {
+          isPassed = false;
+          break;
         }
-        if (!isPassed) break;
       }
       if (isPassed) {
+        // Bonus increases as pawn advances (row 6 is one step from promotion)
         score -= 20 + row * 10;
       }
       
