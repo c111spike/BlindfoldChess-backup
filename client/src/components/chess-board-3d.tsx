@@ -1,4 +1,4 @@
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { useMemo, useRef, useState, useCallback, useEffect, Suspense } from "react";
 import * as THREE from "three";
@@ -983,7 +983,29 @@ function Pieces({ fen, orientation, onSquareClick }: {
 useGLTF.preload(CHESS_MODEL_PATH);
 
 
-function Scene({ fen, orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare, onSquareClick }: {
+// Camera controller that updates camera position when tilt changes
+function CameraController({ tiltAngle, orientation }: { tiltAngle: number; orientation: "white" | "black" }) {
+  const { camera } = useThree();
+  
+  useEffect(() => {
+    const tiltRadians = (tiltAngle * Math.PI) / 180;
+    const cameraDistance = 13;
+    const cameraY = cameraDistance * Math.sin(tiltRadians);
+    const cameraZ = cameraDistance * Math.cos(tiltRadians);
+    
+    const newPosition = orientation === "white" 
+      ? new THREE.Vector3(0, cameraY, cameraZ)
+      : new THREE.Vector3(0, cameraY, -cameraZ);
+    
+    camera.position.copy(newPosition);
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+  }, [tiltAngle, orientation, camera]);
+  
+  return null;
+}
+
+function Scene({ fen, orientation, highlightedSquares, legalMoveSquares, lastMoveSquares, selectedSquare, onSquareClick, tiltAngle }: {
   fen: string;
   orientation: "white" | "black";
   highlightedSquares: string[];
@@ -991,9 +1013,13 @@ function Scene({ fen, orientation, highlightedSquares, legalMoveSquares, lastMov
   lastMoveSquares: string[];
   selectedSquare: string | null;
   onSquareClick: (square: string) => void;
+  tiltAngle: number;
 }) {
   return (
     <>
+      {/* Camera controller for dynamic tilt updates */}
+      <CameraController tiltAngle={tiltAngle} orientation={orientation} />
+      
       {/* Lighting */}
       <ambientLight intensity={0.5} />
       <directionalLight
@@ -1121,6 +1147,7 @@ export function ChessBoard3D({
           lastMoveSquares={lastMoveSquares}
           selectedSquare={selectedSquare}
           onSquareClick={handleSquareClick}
+          tiltAngle={localTilt}
         />
       </Canvas>
     </div>
