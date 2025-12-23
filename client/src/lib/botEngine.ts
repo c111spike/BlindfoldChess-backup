@@ -1265,9 +1265,9 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true
   },
-  // Grandmaster (2300 Elo): Uses transposition tables and advanced pawn evaluation
+  // Grandmaster (2500 Elo): Uses transposition tables and advanced pawn evaluation
   grandmaster: { 
-    elo: 2300, timePerMoveMs: 5000, maxDepth: 12, multiPvCount: 3, stockfishNodes: 3000000, 
+    elo: 2500, timePerMoveMs: 5000, maxDepth: 12, multiPvCount: 3, stockfishNodes: 3000000, 
     mistakeProbability: 0.00001, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true
@@ -1291,6 +1291,17 @@ function selectMoveByPersonality(
   
   const config = DIFFICULTY_CONFIG[difficulty];
   
+  // CRITICAL: For Master/Grandmaster level, immediately return any winning mate
+  // This ensures forced mates are never missed due to personality scoring
+  // Note: isMate=true, evaluation>0 means WE deliver mate; evaluation<0 means we GET mated
+  if (difficulty === 'grandmaster' || difficulty === 'master' || difficulty === 'expert') {
+    const winningMate = topMoves.find(m => m.isMate && m.evaluation > 0);
+    if (winningMate) {
+      console.log(`[ClientBot] Found forced mate in ${winningMate.mateIn}! Playing ${winningMate.move} immediately.`);
+      return winningMate;
+    }
+  }
+  
   // Higher difficulty = more likely to pick the best move
   // Lower difficulty = more personality influence
   const personalityInfluence = Math.max(0.2, 1 - (config.elo / 2500));
@@ -1306,6 +1317,24 @@ function selectMoveByPersonality(
     
     // Base score from Stockfish (higher index = lower engine ranking)
     let score = (topMoves.length - index) * 100;
+    
+    // CRITICAL: Mate evaluations get extreme scores that can't be outranked
+    // Winning mates (evaluation > 0) get huge positive scores
+    // Losing mates (evaluation < 0) get huge negative scores
+    if (candidate.isMate) {
+      if (candidate.evaluation > 0) {
+        // Winning mate: 100000 base score, shorter mates rank higher
+        const mateDistance = candidate.mateIn || 1;
+        score = 100000 - mateDistance;
+        console.log(`[ClientBot] Winning mate in ${mateDistance} detected for ${candidate.move}, score: ${score}`);
+      } else {
+        // This move leads to us getting mated - avoid it
+        const mateDistance = candidate.mateIn || 1;
+        score = -100000 - mateDistance;
+        console.log(`[ClientBot] Losing mate in ${mateDistance} detected for ${candidate.move}, score: ${score}`);
+      }
+      return { candidate, score };
+    }
     
     if (!move) return { candidate, score };
     
