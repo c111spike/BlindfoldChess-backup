@@ -3509,6 +3509,48 @@ export default function OTBMode() {
 
               {/* Board with OTB controls on right side */}
               <div className="flex gap-1">
+                {/* Left Tilt Control Column - only shown in 3D perspective mode */}
+                {perspective3d && (
+                  <div 
+                    className="flex flex-col"
+                    style={{ width: 'calc(100% * 2 / 12)', aspectRatio: '2 / 8' }}
+                  >
+                    {/* Empty space (1 tile) */}
+                    <div style={{ height: '12.5%' }} />
+                    
+                    {/* Empty space (1 tile) */}
+                    <div style={{ height: '12.5%' }} />
+                    
+                    {/* Tilt slider (4 tiles tall x 2 tiles wide) - same height as clock */}
+                    <div
+                      className="w-full rounded-lg border-4 border-muted-foreground/30 bg-muted/50 flex flex-col items-center justify-center gap-2"
+                      style={{ height: '50%' }}
+                      data-testid="tilt-slider-container"
+                    >
+                      <span className="text-sm font-bold text-muted-foreground">Tilt</span>
+                      <input
+                        type="range"
+                        min="20"
+                        max="70"
+                        value={tiltAngle}
+                        onChange={(e) => handleTiltChange(Number(e.target.value))}
+                        className="h-24 w-3 appearance-none bg-muted-foreground/30 rounded-full cursor-pointer [writing-mode:vertical-lr] [-webkit-appearance:slider-vertical]"
+                        style={{
+                          WebkitAppearance: 'slider-vertical',
+                        }}
+                        data-testid="input-tilt-slider"
+                      />
+                      <span className="text-xs text-muted-foreground">{tiltAngle}°</span>
+                    </div>
+                    
+                    {/* Empty space (1 tile) */}
+                    <div style={{ height: '12.5%' }} />
+                    
+                    {/* Empty space (1 tile) */}
+                    <div style={{ height: '12.5%' }} />
+                  </div>
+                )}
+                
                 <PerspectiveChessBoard 
                   fen={fen}
                   orientation={playerColor}

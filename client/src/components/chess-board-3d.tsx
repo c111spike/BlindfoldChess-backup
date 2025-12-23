@@ -1101,27 +1101,6 @@ export function ChessBoard3D({
 
   return (
     <div className={`relative w-full aspect-square ${className}`} data-testid="chess-board-3d">
-      {onTiltChange && (
-        <div 
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-1"
-          data-testid="tilt-slider-container"
-        >
-          <span className="text-xs text-white/70 font-medium">Tilt</span>
-          <input
-            type="range"
-            min="20"
-            max="70"
-            value={localTilt}
-            onChange={(e) => handleTiltChange(Number(e.target.value))}
-            className="h-32 w-2 appearance-none bg-white/20 rounded-full cursor-pointer [writing-mode:vertical-lr] [-webkit-appearance:slider-vertical]"
-            style={{
-              WebkitAppearance: 'slider-vertical',
-            }}
-            data-testid="input-tilt-slider"
-          />
-          <span className="text-xs text-white/70">{localTilt}°</span>
-        </div>
-      )}
       <Canvas
         shadows
         camera={{
