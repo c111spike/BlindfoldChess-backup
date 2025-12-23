@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +34,15 @@ export default function Settings() {
   const isVoiceInputUnsupported = useMemo(() => isSafariOrIOS(), []);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const DELETE_CONFIRMATION_PHRASE = "Delete my account";
+  
+  // Local state for color pickers to avoid toast spam during drag
+  const [localColors, setLocalColors] = useState<{
+    selectedPieceColor?: string;
+    availableMovesColor?: string;
+    lastMoveColor?: string;
+  }>({});
+  const colorDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingColorUpdateRef = useRef<Partial<UserSettings> | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -125,6 +134,83 @@ export default function Settings() {
   const handleSettingChange = (key: keyof UserSettings, value: any) => {
     updateSettingsMutation.mutate({ [key]: value });
   };
+
+  // Helper to flush pending color updates (used by debounce and unmount)
+  const flushColorUpdate = useCallback(async () => {
+    if (pendingColorUpdateRef.current) {
+      const dataToSave = pendingColorUpdateRef.current;
+      pendingColorUpdateRef.current = null;
+      try {
+        await apiRequest("PATCH", "/api/settings", dataToSave);
+        queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+        toast({
+          title: "Settings updated",
+          description: "Your color preferences have been saved.",
+        });
+        setLocalColors({}); // Clear local overrides
+      } catch (error) {
+        // Handle unauthorized errors like the main mutation does
+        if (isUnauthorizedError(error as Error)) {
+          toast({
+            title: "Unauthorized",
+            description: "You are logged out. Logging in again...",
+            variant: "destructive",
+          });
+          setTimeout(() => {
+            window.location.href = "/api/login";
+          }, 500);
+          return;
+        }
+        toast({
+          title: "Error",
+          description: "Failed to update color settings",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [toast]);
+
+  // Debounced handler for color pickers - shows single toast after drag ends
+  const handleColorChange = useCallback((key: keyof typeof localColors, value: string) => {
+    // Update local state immediately for responsive UI
+    setLocalColors(prev => ({ ...prev, [key]: value }));
+    
+    // Clear any pending debounce
+    if (colorDebounceRef.current) {
+      clearTimeout(colorDebounceRef.current);
+    }
+    
+    // Store the pending update
+    pendingColorUpdateRef.current = { 
+      ...pendingColorUpdateRef.current, 
+      [key]: value 
+    };
+    
+    // Debounce the actual save - only fires after 500ms of no changes
+    colorDebounceRef.current = setTimeout(() => {
+      flushColorUpdate();
+    }, 500);
+  }, [flushColorUpdate]);
+
+  // Flush pending color changes on unmount to avoid silent data loss
+  useEffect(() => {
+    return () => {
+      if (colorDebounceRef.current) {
+        clearTimeout(colorDebounceRef.current);
+      }
+      // Flush any pending changes synchronously on unmount
+      if (pendingColorUpdateRef.current) {
+        const dataToSave = pendingColorUpdateRef.current;
+        pendingColorUpdateRef.current = null;
+        // Fire and forget - can't await in cleanup
+        apiRequest("PATCH", "/api/settings", dataToSave).then(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+        }).catch(() => {
+          // Silently fail on unmount - user is navigating away
+        });
+      }
+    };
+  }, []);
 
   if (settingsLoading || authLoading) {
     return (
@@ -338,13 +424,13 @@ export default function Settings() {
                   <input
                     type="color"
                     id="selected-piece-color"
-                    value={settings?.selectedPieceColor || "#facc15"}
-                    onChange={(e) => handleSettingChange("selectedPieceColor", e.target.value)}
+                    value={localColors.selectedPieceColor ?? settings?.selectedPieceColor ?? "#facc15"}
+                    onChange={(e) => handleColorChange("selectedPieceColor", e.target.value)}
                     className="w-12 h-9 rounded border cursor-pointer"
                     data-testid="input-selected-piece-color"
                   />
                   <span className="text-sm font-mono text-muted-foreground">
-                    {settings?.selectedPieceColor || "#facc15"}
+                    {localColors.selectedPieceColor ?? settings?.selectedPieceColor ?? "#facc15"}
                   </span>
                 </div>
               </div>
@@ -358,13 +444,13 @@ export default function Settings() {
                   <input
                     type="color"
                     id="available-moves-color"
-                    value={settings?.availableMovesColor || "#22c55e"}
-                    onChange={(e) => handleSettingChange("availableMovesColor", e.target.value)}
+                    value={localColors.availableMovesColor ?? settings?.availableMovesColor ?? "#22c55e"}
+                    onChange={(e) => handleColorChange("availableMovesColor", e.target.value)}
                     className="w-12 h-9 rounded border cursor-pointer"
                     data-testid="input-available-moves-color"
                   />
                   <span className="text-sm font-mono text-muted-foreground">
-                    {settings?.availableMovesColor || "#22c55e"}
+                    {localColors.availableMovesColor ?? settings?.availableMovesColor ?? "#22c55e"}
                   </span>
                 </div>
               </div>
@@ -378,13 +464,13 @@ export default function Settings() {
                   <input
                     type="color"
                     id="last-move-color"
-                    value={settings?.lastMoveColor || "#facc15"}
-                    onChange={(e) => handleSettingChange("lastMoveColor", e.target.value)}
+                    value={localColors.lastMoveColor ?? settings?.lastMoveColor ?? "#facc15"}
+                    onChange={(e) => handleColorChange("lastMoveColor", e.target.value)}
                     className="w-12 h-9 rounded border cursor-pointer"
                     data-testid="input-last-move-color"
                   />
                   <span className="text-sm font-mono text-muted-foreground">
-                    {settings?.lastMoveColor || "#facc15"}
+                    {localColors.lastMoveColor ?? settings?.lastMoveColor ?? "#facc15"}
                   </span>
                 </div>
               </div>
