@@ -2090,9 +2090,36 @@ export default function GameAnalysisPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameMoves.length]);
 
-  // Auto-start client-side analysis when status is 'not_started' - must be before early returns
+  // Auto-start client-side analysis when analysis is not completed - must be before early returns
   useEffect(() => {
-    if (data?.analysis?.status === 'not_started' && !isSharedView && gameId && gameMoves.length > 0 && !hasStartedClientAnalysis.current && !clientAnalysis.analyzing && !clientAnalysis.result) {
+    const status = data?.analysis?.status;
+    console.log('[GameAnalysis] Auto-start check:', {
+      status,
+      isSharedView,
+      gameId,
+      movesLength: gameMoves.length,
+      hasStarted: hasStartedClientAnalysis.current,
+      isAnalyzing: clientAnalysis.analyzing,
+      hasResult: !!clientAnalysis.result
+    });
+    
+    // Start client-side analysis if:
+    // - Analysis is not completed (could be 'not_started', 'processing', or undefined)
+    // - Not in shared view mode
+    // - We have a gameId and moves
+    // - Haven't already started
+    // - Not currently analyzing
+    // - Don't already have a result
+    const shouldStart = status !== 'completed' && 
+      !isSharedView && 
+      gameId && 
+      gameMoves.length > 0 && 
+      !hasStartedClientAnalysis.current && 
+      !clientAnalysis.analyzing && 
+      !clientAnalysis.result;
+    
+    if (shouldStart) {
+      console.log('[GameAnalysis] Starting client-side analysis for', gameMoves.length, 'moves');
       hasStartedClientAnalysis.current = true;
       setUseClientSide(true);
       clientAnalysis.startAnalysis(gameMoves);
