@@ -1957,8 +1957,19 @@ export default function GameAnalysisPage() {
   
   // Track if we've already started client-side analysis to prevent duplicates
   const hasStartedClientAnalysis = useRef(false);
+  // Track gameId to reset analysis state when navigating to a different game
+  const prevGameId = useRef<string | null>(null);
   
   const clientAnalysis = useClientAnalysis();
+  
+  // Reset analysis state when gameId changes (navigating to a different game)
+  useEffect(() => {
+    if (gameId && prevGameId.current && prevGameId.current !== gameId) {
+      hasStartedClientAnalysis.current = false;
+      clientAnalysis.reset();
+    }
+    prevGameId.current = gameId || null;
+  }, [gameId, clientAnalysis.reset]);
 
   const { data, isLoading, error, refetch } = useQuery<AnalysisData>({
     queryKey: isSharedView ? ['/api/analysis/shared', shareCode] : ['/api/analysis', gameId],
@@ -2298,6 +2309,25 @@ export default function GameAnalysisPage() {
             <Download className="w-4 h-4 mr-2" />
             Download PGN
           </Button>
+          {!isSharedView && (analysis.status === 'completed' || clientAnalysis.result) && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                hasStartedClientAnalysis.current = true;
+                clientAnalysis.reset();
+                setUseClientSide(true);
+                // Small delay to allow reset to complete before starting new analysis
+                setTimeout(() => {
+                  clientAnalysis.startAnalysis(gameMoves);
+                }, 50);
+              }}
+              disabled={clientAnalysis.analyzing}
+              data-testid="button-reanalyze"
+            >
+              <RotateCw className="w-4 h-4 mr-2" />
+              Re-analyze
+            </Button>
+          )}
           {!isSharedView && analysis.status === 'completed' && (
             <Button
               variant="outline"
