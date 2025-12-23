@@ -2266,6 +2266,89 @@ export default function GameAnalysisPage() {
   
   const phaseAccuracies = hasClientResult ? calculatePhaseAccuracies() : null;
   
+  // Calculate Focus Check (consistency score) from client-side analysis
+  // Measures how consistent move quality is - lower variance = higher focus
+  const calculateFocusCheck = (): number | null => {
+    if (!clientAnalysis.result) return null;
+    
+    const clientMoves = clientAnalysis.result.moves;
+    const playerColor = game.playerColor;
+    
+    // Filter player's moves
+    const playerMoves = clientMoves.filter((m, idx) => 
+      (playerColor === 'white' && idx % 2 === 0) || 
+      (playerColor === 'black' && idx % 2 === 1)
+    );
+    
+    if (playerMoves.length < 3) return null; // Need at least 3 moves for meaningful variance
+    
+    // Calculate variance of centipawn losses
+    const losses = playerMoves.map(m => m.normalizedCentipawnLoss);
+    const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
+    const variance = losses.reduce((sum, loss) => sum + Math.pow(loss - avgLoss, 2), 0) / losses.length;
+    const stdDev = Math.sqrt(variance);
+    
+    // Convert to 0-1 score: lower stdDev = higher focus
+    // Normalize: stdDev of 0 = 1.0 (perfect), stdDev of 100+ = 0.0
+    const focusScore = Math.max(0, Math.min(1, 1 - (stdDev / 100)));
+    return focusScore;
+  };
+  
+  // Calculate Efficiency Factor (time vs quality correlation)
+  // Positive = longer thinks lead to better moves, negative = opposite
+  const calculateEfficiencyFactor = (): number | null => {
+    if (!clientAnalysis.result) return null;
+    
+    // Check if we have thinking time data from the game
+    const thinkingTimes = game.thinkingTimes as number[] | null;
+    if (!thinkingTimes || thinkingTimes.length === 0) return null;
+    
+    const clientMoves = clientAnalysis.result.moves;
+    const playerColor = game.playerColor;
+    
+    // Get player's moves with their thinking times
+    const playerData: { time: number; loss: number }[] = [];
+    clientMoves.forEach((m, idx) => {
+      const isPlayerMove = (playerColor === 'white' && idx % 2 === 0) || 
+                           (playerColor === 'black' && idx % 2 === 1);
+      if (isPlayerMove && thinkingTimes[idx] != null) {
+        playerData.push({
+          time: thinkingTimes[idx],
+          loss: m.normalizedCentipawnLoss
+        });
+      }
+    });
+    
+    if (playerData.length < 5) return null; // Need enough data points
+    
+    // Calculate Pearson correlation between time and inverse of loss
+    // Positive correlation means more time = less loss (better moves)
+    const n = playerData.length;
+    const avgTime = playerData.reduce((s, d) => s + d.time, 0) / n;
+    const avgLoss = playerData.reduce((s, d) => s + d.loss, 0) / n;
+    
+    let numerator = 0;
+    let denomTime = 0;
+    let denomLoss = 0;
+    
+    for (const d of playerData) {
+      const timeDiff = d.time - avgTime;
+      const lossDiff = d.loss - avgLoss;
+      numerator += timeDiff * lossDiff;
+      denomTime += timeDiff * timeDiff;
+      denomLoss += lossDiff * lossDiff;
+    }
+    
+    if (denomTime === 0 || denomLoss === 0) return null;
+    
+    // Negative correlation with loss = positive efficiency (more time = less loss)
+    const correlation = numerator / Math.sqrt(denomTime * denomLoss);
+    return -correlation; // Invert so positive = good
+  };
+  
+  const focusCheck = hasClientResult ? calculateFocusCheck() : null;
+  const efficiencyFactor = hasClientResult ? calculateEfficiencyFactor() : null;
+  
   // Create effective analysis that uses client results when available
   const analysis = hasClientResult ? {
     ...serverAnalysis,
@@ -2275,6 +2358,8 @@ export default function GameAnalysisPage() {
     openingAccuracy: phaseAccuracies?.opening ?? serverAnalysis.openingAccuracy,
     middlegameAccuracy: phaseAccuracies?.middlegame ?? serverAnalysis.middlegameAccuracy,
     endgameAccuracy: phaseAccuracies?.endgame ?? serverAnalysis.endgameAccuracy,
+    focusCheckScore: focusCheck ?? serverAnalysis.focusCheckScore,
+    efficiencyFactor: efficiencyFactor ?? serverAnalysis.efficiencyFactor,
   } : serverAnalysis;
   
   // Use client-side move analysis when available
