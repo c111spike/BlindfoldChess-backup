@@ -306,18 +306,40 @@ export async function analyzeGameClientSide(
     }
   }
 
-  const classifications = moveResults.map(m => m.classification);
-  const phases = moveResults.map(m => m.phase);
+  console.log('[GameAnalysis] Loop complete, calculating results...');
+  
+  try {
+    const classifications = moveResults.map(m => m.classification);
+    const phases = moveResults.map(m => m.phase);
 
-  return {
-    moves: moveResults,
-    whiteAccuracy: calculateAccuracy(whiteNormalizedCPL),
-    blackAccuracy: calculateAccuracy(blackNormalizedCPL),
-    criticalMoments: detectCriticalMoments(moveResults),
-    improvementSuggestions: generateImprovementSuggestions(classifications, phases),
-    timeTroubleStart: null,
-    burnoutDetected: false,
-    focusCheckScore: 1,
-    efficiencyFactor: 1,
-  };
+    console.log('[GameAnalysis] Calculating accuracies...');
+    const whiteAccuracy = calculateAccuracy(whiteNormalizedCPL);
+    const blackAccuracy = calculateAccuracy(blackNormalizedCPL);
+    
+    console.log('[GameAnalysis] Detecting critical moments...');
+    const criticalMoments = detectCriticalMoments(moveResults);
+    
+    console.log('[GameAnalysis] Generating suggestions...');
+    const suggestions = generateImprovementSuggestions(classifications, phases);
+
+    console.log('[GameAnalysis] Building final result with', moveResults.length, 'analyzed moves');
+    
+    const result: GameAnalysisResult = {
+      moves: moveResults,
+      whiteAccuracy,
+      blackAccuracy,
+      criticalMoments,
+      improvementSuggestions: suggestions,
+      timeTroubleStart: null,
+      burnoutDetected: false,
+      focusCheckScore: 1,
+      efficiencyFactor: 1,
+    };
+    
+    console.log('[GameAnalysis] Analysis complete! Returning result.');
+    return result;
+  } catch (err) {
+    console.error('[GameAnalysis] Error in post-loop calculations:', err);
+    throw err;
+  }
 }
