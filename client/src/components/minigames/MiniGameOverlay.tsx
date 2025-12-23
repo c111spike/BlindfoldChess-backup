@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,9 +11,12 @@ const BoardSpinEmbed = lazy(() => import('./BoardSpinEmbed').then(m => ({ defaul
 
 type MiniGame = 'knights-tour' | 'n-piece' | 'board-spin' | null;
 
+export type MiniGameType = 'knights-tour' | 'n-piece' | 'board-spin' | null;
+
 interface MiniGameOverlayProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialGame?: MiniGameType;
   onAnalysisComplete?: () => void;
 }
 
@@ -84,13 +87,30 @@ function GameLoading() {
   );
 }
 
-export function MiniGameOverlay({ open, onOpenChange, onAnalysisComplete }: MiniGameOverlayProps) {
+export function MiniGameOverlay({ open, onOpenChange, initialGame, onAnalysisComplete }: MiniGameOverlayProps) {
   const [selectedGame, setSelectedGame] = useState<MiniGame>(null);
+  const prevOpen = useRef(false);
+  const lastAppliedInitialGame = useRef<MiniGameType | undefined>(undefined);
   
-  // Reset selectedGame when dialog closes
+  // Set initial game when:
+  // 1. Dialog transitions from closed to open with initialGame set, OR
+  // 2. initialGame changes while dialog is open (user clicked different game button)
+  useEffect(() => {
+    if (open && initialGame && initialGame !== lastAppliedInitialGame.current) {
+      setSelectedGame(initialGame);
+      lastAppliedInitialGame.current = initialGame;
+    } else if (open && !prevOpen.current && !initialGame) {
+      // Opening without initialGame - keep selector
+      lastAppliedInitialGame.current = undefined;
+    }
+    prevOpen.current = open;
+  }, [open, initialGame]);
+  
+  // Reset selectedGame and tracking when dialog closes
   useEffect(() => {
     if (!open) {
       setSelectedGame(null);
+      lastAppliedInitialGame.current = undefined;
     }
   }, [open]);
   

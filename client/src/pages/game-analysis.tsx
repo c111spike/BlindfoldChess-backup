@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useClientAnalysis } from '@/hooks/useClientAnalysis';
 import { SyzygyIndicator } from '@/components/syzygy-indicator';
-import { MiniGameOverlay } from '@/components/minigames/MiniGameOverlay';
+import { MiniGameOverlay, MiniGameType } from '@/components/minigames/MiniGameOverlay';
 import {
   ChevronLeft,
   ChevronRight,
@@ -46,6 +46,8 @@ import {
   Download,
   GraduationCap,
   Gamepad2,
+  RotateCw,
+  Crown,
 } from 'lucide-react';
 import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase } from '@shared/schema';
 
@@ -1952,7 +1954,7 @@ export default function GameAnalysisPage() {
   const [autoStarted, setAutoStarted] = useState(false);
   const [useClientSide, setUseClientSide] = useState(false);
   const [miniGameOpen, setMiniGameOpen] = useState(false);
-  const [miniGamePromptShown, setMiniGamePromptShown] = useState(false);
+  const [initialMiniGame, setInitialMiniGame] = useState<MiniGameType>(null);
   
   const clientAnalysis = useClientAnalysis();
 
@@ -2116,31 +2118,6 @@ export default function GameAnalysisPage() {
     (autoStarted && !data?.analysis) ||
     startAnalysisMutation.isPending;
 
-  // Show mini-game prompt when analysis starts (after a short delay to not be too intrusive)
-  // Only show once per analysis session
-  useEffect(() => {
-    if (isAnalyzing && !miniGamePromptShown && !miniGameOpen) {
-      const timer = setTimeout(() => {
-        setMiniGamePromptShown(true);
-        toast({
-          title: 'Play While You Wait',
-          description: 'Analysis takes a bit. Try a quick puzzle game!',
-          action: (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setMiniGameOpen(true)}
-              data-testid="button-open-minigame-toast"
-            >
-              <Gamepad2 className="w-4 h-4 mr-1" />
-              Play
-            </Button>
-          ),
-        });
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [isAnalyzing, miniGamePromptShown, miniGameOpen, toast]);
 
   // Notify when analysis completes if mini-game is open
   const prevIsAnalyzing = useRef(isAnalyzing);
@@ -2262,7 +2239,11 @@ export default function GameAnalysisPage() {
         
         <MiniGameOverlay 
           open={miniGameOpen} 
-          onOpenChange={setMiniGameOpen}
+          onOpenChange={(open) => {
+            setMiniGameOpen(open);
+            if (!open) setInitialMiniGame(null);
+          }}
+          initialGame={initialMiniGame}
         />
       </div>
     );
@@ -2589,6 +2570,51 @@ export default function GameAnalysisPage() {
               />
             </CardContent>
           </Card>
+          
+          {isAnalyzing && (
+            <Card data-testid="card-play-while-waiting">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Gamepad2 className="w-4 h-4" />
+                  Play While You Wait
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Analysis takes a few minutes. Try a quick puzzle game!
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => { setInitialMiniGame('n-piece'); setMiniGameOpen(true); }}
+                    data-testid="button-minigame-npiece"
+                  >
+                    <Target className="w-4 h-4 mr-2 text-blue-500" />
+                    N-Piece Challenge
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => { setInitialMiniGame('board-spin'); setMiniGameOpen(true); }}
+                    data-testid="button-minigame-boardspin"
+                  >
+                    <RotateCw className="w-4 h-4 mr-2 text-green-500" />
+                    Board Spin
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => { setInitialMiniGame('knights-tour'); setMiniGameOpen(true); }}
+                    data-testid="button-minigame-knights"
+                  >
+                    <Crown className="w-4 h-4 mr-2 text-yellow-500" />
+                    Knight's Tour
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
       
@@ -2596,10 +2622,9 @@ export default function GameAnalysisPage() {
         open={miniGameOpen} 
         onOpenChange={(open) => {
           setMiniGameOpen(open);
-          if (!open) {
-            setMiniGamePromptDismissed(true);
-          }
+          if (!open) setInitialMiniGame(null);
         }}
+        initialGame={initialMiniGame}
       />
     </div>
   );
