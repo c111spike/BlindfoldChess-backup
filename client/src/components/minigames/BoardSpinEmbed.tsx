@@ -231,7 +231,7 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
             onClick={interactive ? () => handleSquareClick(rank, file) : undefined}
           >
             {piece && (
-              <span className={`text-lg sm:text-xl select-none ${piece === piece.toUpperCase() ? 'text-amber-100' : 'text-amber-900'}`}>
+              <span className={`text-lg sm:text-2xl select-none ${piece === piece.toUpperCase() ? 'text-white drop-shadow-md' : 'text-gray-900 dark:text-gray-950'}`}>
                 {PIECE_UNICODE[piece]}
               </span>
             )}
@@ -258,7 +258,7 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
     
     return (
       <div 
-        className="grid grid-cols-8 w-full max-w-xs aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
+        className="grid grid-cols-8 w-full max-w-sm aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
         style={{ transform: `rotate(${rotation}deg)` }}
       >
         {squares}
