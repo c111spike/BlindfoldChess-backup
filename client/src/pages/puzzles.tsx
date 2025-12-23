@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
+import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chess } from "chess.js";
 import { Button } from "@/components/ui/button";
@@ -314,6 +315,7 @@ function PuzzleOfTheDay() {
 
 function TrainTab() {
   const { toast } = useToast();
+  const highlightColors = useHighlightColors();
   const [solved, setSolved] = useState<boolean | null>(null);
   const [currentFen, setCurrentFen] = useState<string | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
@@ -648,6 +650,7 @@ function TrainTab() {
               onSquareClick={handleSquareClick}
               selectedSquare={selectedSquare}
               legalMoveSquares={legalMoves}
+              customHighlightColors={highlightColors}
             />
           </div>
         )}

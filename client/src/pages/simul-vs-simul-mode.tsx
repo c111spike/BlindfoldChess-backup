@@ -5,6 +5,7 @@ import { Chess } from "chess.js";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Label } from "@/components/ui/label";
 import { ChessBoard } from "@/components/chess-board";
@@ -63,6 +64,7 @@ export default function SimulVsSimulMode() {
   const { user } = useAuth();
   const { toast } = useNotifications();
   const [, setLocation] = useLocation();
+  const highlightColors = useHighlightColors();
   
   const [gameStarted, setGameStarted] = useState(false);
   const [boardCount, setBoardCount] = useState("5");
@@ -1443,6 +1445,7 @@ export default function SimulVsSimulMode() {
                 selectedSquare={selectedSquare}
                 legalMoveSquares={legalMoves}
                 lastMoveSquares={activeGame.lastMove ? [activeGame.lastMove.from, activeGame.lastMove.to] : []}
+                customHighlightColors={highlightColors}
               />
             </div>
             {activeGame.result !== 'ongoing' && (

@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChessBoard } from "@/components/chess-board";
 import { useToast } from "@/hooks/use-toast";
+import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   ThumbsUp, 
@@ -56,6 +57,7 @@ export default function PuzzleSolve() {
   const [, params] = useRoute("/puzzle/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const highlightColors = useHighlightColors();
   
   const puzzleId = params?.id;
   
@@ -321,6 +323,7 @@ export default function PuzzleSolve() {
                 onSquareClick={handleSquareClick}
                 selectedSquare={selectedSquare}
                 legalMoveSquares={legalMoves}
+                customHighlightColors={highlightColors}
               />
             </div>
             

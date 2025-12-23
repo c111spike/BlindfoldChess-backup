@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Book, Plus, Search, ChevronRight, Play, Trash2, CheckCircle, XCircle, RotateCcw, ArrowLeft, RefreshCw } from "lucide-react";
 import { ChessBoard } from "@/components/chess-board";
+import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { Chess } from "chess.js";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,7 @@ type ViewMode = "list" | "browse" | "train";
 
 export default function RepertoireTrainer() {
   const { toast } = useToast();
+  const highlightColors = useHighlightColors();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [ecoFilter, setEcoFilter] = useState("");
@@ -373,6 +375,7 @@ export default function RepertoireTrainer() {
 
 function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: () => void }) {
   const { toast } = useToast();
+  const highlightColors = useHighlightColors();
   const [game] = useState(() => new Chess());
   const [currentFen, setCurrentFen] = useState(game.fen());
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
@@ -626,6 +629,7 @@ function TrainingView({ repertoire, onBack }: { repertoire: Repertoire; onBack: 
               orientation={repertoire.color as "white" | "black"}
               onMove={handleMove}
               interactionMode={isUserTurn && !feedback ? "free" : "viewOnly"}
+              customHighlightColors={highlightColors}
               data-testid="chessboard-training"
             />
           </div>

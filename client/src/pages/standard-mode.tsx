@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,6 +74,7 @@ export default function StandardMode() {
   const { user } = useAuth();
   const { toast } = useNotifications();
   const [, setLocation] = useLocation();
+  const highlightColors = useHighlightColors();
   
   const { data: playerRatings } = useQuery<Rating>({
     queryKey: ["/api/ratings"],
@@ -1941,6 +1943,7 @@ export default function StandardMode() {
                         onPremove={setPremove}
                         arrowDrawMode={arrowDrawMode}
                         noCard={true}
+                        customHighlightColors={highlightColors}
                       />
                       
                       {isBlindfold && !isPeeking && (
