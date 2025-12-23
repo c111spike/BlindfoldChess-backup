@@ -3,15 +3,96 @@ import { clientStockfish, TopMoveResult } from './stockfish';
 import { getLichessOpeningMoves, selectOpeningMoveByPersonality, isOpeningPhase } from './lichessOpenings';
 import type { BotPersonality, BotDifficulty } from '@shared/botTypes';
 
-// Piece values for MVV-LVA ordering
+// Piece values for MVV-LVA ordering (opening/middlegame values)
 const PIECE_VALUES: Record<string, number> = {
   p: 100,
-  n: 300,
-  b: 320,
+  n: 320,
+  b: 330,
   r: 500,
   q: 900,
   k: 20000,
 };
+
+// Endgame piece values (knights less valuable, rooks more valuable)
+const PIECE_VALUES_ENDGAME: Record<string, number> = {
+  p: 120,  // Pawns more valuable in endgame
+  n: 280,  // Knights less effective in open positions
+  b: 350,  // Bishops shine in endgames
+  r: 550,  // Rooks dominate open files
+  q: 950,
+  k: 20000,
+};
+
+// ============================================
+// KILLER MOVE HEURISTIC
+// ============================================
+// Stores moves that caused beta cutoffs at each depth
+// killerMoves[depth] = [move1, move2]
+const MAX_DEPTH = 20;
+const killerMoves: (string | null)[][] = Array.from({ length: MAX_DEPTH }, () => [null, null]);
+
+function storeKillerMove(depth: number, move: string): void {
+  if (depth >= MAX_DEPTH) return;
+  // Don't store duplicates
+  if (killerMoves[depth][0] === move) return;
+  // Shift existing killer to slot 2
+  killerMoves[depth][1] = killerMoves[depth][0];
+  killerMoves[depth][0] = move;
+}
+
+function isKillerMove(depth: number, move: string): boolean {
+  if (depth >= MAX_DEPTH) return false;
+  return killerMoves[depth][0] === move || killerMoves[depth][1] === move;
+}
+
+function clearKillerMoves(): void {
+  for (let i = 0; i < MAX_DEPTH; i++) {
+    killerMoves[i][0] = null;
+    killerMoves[i][1] = null;
+  }
+}
+
+// ============================================
+// HISTORY HEURISTIC
+// ============================================
+// Global table tracking moves that cause cutoffs
+// history[fromSquareIndex][toSquareIndex] = score
+const historyTable: number[][] = Array.from({ length: 64 }, () => Array(64).fill(0));
+
+function squareToIndex(square: string): number {
+  const file = square.charCodeAt(0) - 97; // a=0, h=7
+  const rank = parseInt(square[1]) - 1;   // 1=0, 8=7
+  return rank * 8 + file;
+}
+
+function updateHistory(from: string, to: string, depth: number): void {
+  const fromIdx = squareToIndex(from);
+  const toIdx = squareToIndex(to);
+  // Score increases with depth squared (deeper cutoffs are more valuable)
+  historyTable[fromIdx][toIdx] += depth * depth;
+  // Prevent overflow by scaling down periodically
+  if (historyTable[fromIdx][toIdx] > 10000) {
+    for (let i = 0; i < 64; i++) {
+      for (let j = 0; j < 64; j++) {
+        historyTable[i][j] = Math.floor(historyTable[i][j] / 2);
+      }
+    }
+  }
+}
+
+function getHistoryScore(from: string, to: string): number {
+  const fromIdx = squareToIndex(from);
+  const toIdx = squareToIndex(to);
+  return historyTable[fromIdx][toIdx];
+}
+
+function clearHistory(): void {
+  for (let i = 0; i < 64; i++) {
+    for (let j = 0; j < 64; j++) {
+      historyTable[i][j] = 0;
+    }
+  }
+}
 
 // MVV-LVA score: Higher = search first
 // Most Valuable Victim - Least Valuable Attacker
@@ -25,12 +106,45 @@ function getMvvLvaScore(move: Move): number {
   return victimValue * 10 - attackerValue;
 }
 
-// Sort moves for better alpha-beta pruning
-function orderMoves(moves: Move[], bestMoveFromPrevious?: string): Move[] {
-  const scored = moves.map(m => ({
-    move: m,
-    score: getMvvLvaScore(m) + (m.san.includes('+') ? 50 : 0) + (m.san.includes('#') ? 10000 : 0),
-  }));
+// Enhanced move ordering with killer moves and history heuristic
+function orderMoves(
+  moves: Move[], 
+  bestMoveFromPrevious?: string,
+  currentDepth?: number,
+  useKillers: boolean = true,
+  useHistory: boolean = true
+): Move[] {
+  const scored = moves.map(m => {
+    let score = 0;
+    
+    // 1. Captures (MVV-LVA)
+    score += getMvvLvaScore(m);
+    
+    // 2. Checks and checkmates
+    if (m.san.includes('#')) score += 100000;
+    else if (m.san.includes('+')) score += 500;
+    
+    // 3. Killer moves (moves that caused cutoffs at this depth)
+    if (useKillers && currentDepth !== undefined && isKillerMove(currentDepth, m.san)) {
+      // Only boost if not already a capture (captures already scored higher)
+      if (!m.captured) score += 800;
+    }
+    
+    // 4. History heuristic (moves that caused cutoffs across the search)
+    if (useHistory) {
+      const histScore = getHistoryScore(m.from, m.to);
+      // Scale history score to be meaningful but not overwhelming
+      score += Math.min(histScore / 10, 400);
+    }
+    
+    // 5. Promotions
+    if (m.promotion) {
+      const promoValue = PIECE_VALUES[m.promotion] || 0;
+      score += promoValue;
+    }
+    
+    return { move: m, score };
+  });
   
   scored.sort((a, b) => b.score - a.score);
   
@@ -46,7 +160,9 @@ function orderMoves(moves: Move[], bestMoveFromPrevious?: string): Move[] {
   return scored.map(s => s.move);
 }
 
-// Position evaluation with piece-square tables
+// ============================================
+// PIECE-SQUARE TABLES (Opening/Middlegame)
+// ============================================
 const PST: Record<string, number[][]> = {
   p: [
     [0, 0, 0, 0, 0, 0, 0, 0],
@@ -98,6 +214,7 @@ const PST: Record<string, number[][]> = {
     [-10, 0, 5, 0, 0, 0, 0, -10],
     [-20, -10, -10, -5, -5, -10, -10, -20],
   ],
+  // King in middlegame: wants to castle and stay safe
   k: [
     [-30, -40, -40, -50, -50, -40, -40, -30],
     [-30, -40, -40, -50, -50, -40, -40, -30],
@@ -110,32 +227,342 @@ const PST: Record<string, number[][]> = {
   ],
 };
 
-function evaluatePosition(game: Chess): number {
+// ============================================
+// ENDGAME PIECE-SQUARE TABLE FOR KING
+// ============================================
+// In endgame, king wants to be active and centralized
+const PST_KING_ENDGAME: number[][] = [
+  [-50, -40, -30, -20, -20, -30, -40, -50],
+  [-30, -20, -10, 0, 0, -10, -20, -30],
+  [-30, -10, 20, 30, 30, 20, -10, -30],
+  [-30, -10, 30, 40, 40, 30, -10, -30],
+  [-30, -10, 30, 40, 40, 30, -10, -30],
+  [-30, -10, 20, 30, 30, 20, -10, -30],
+  [-30, -30, 0, 0, 0, 0, -30, -30],
+  [-50, -30, -30, -30, -30, -30, -30, -50],
+];
+
+// ============================================
+// EVALUATION HELPER FUNCTIONS
+// ============================================
+
+// Calculate game phase (0 = endgame, 256 = opening/middlegame)
+// Based on non-pawn material
+function calculateGamePhase(game: Chess): number {
   const board = game.board();
+  let phase = 0;
+  
+  // Phase values: N=1, B=1, R=2, Q=4
+  const phaseValues: Record<string, number> = { n: 1, b: 1, r: 2, q: 4 };
+  const maxPhase = 24; // 2*4 + 4*2 + 4*1 + 4*1 = 24
+  
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = board[row][col];
+      if (piece && piece.type !== 'p' && piece.type !== 'k') {
+        phase += phaseValues[piece.type] || 0;
+      }
+    }
+  }
+  
+  // Normalize to 0-256 range
+  return Math.floor((phase * 256) / maxPhase);
+}
+
+// Find king position for a color
+function findKingPosition(game: Chess, color: 'w' | 'b'): { row: number; col: number } | null {
+  const board = game.board();
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = board[row][col];
+      if (piece && piece.type === 'k' && piece.color === color) {
+        return { row, col };
+      }
+    }
+  }
+  return null;
+}
+
+// Manhattan distance between two squares
+function manhattanDistance(r1: number, c1: number, r2: number, c2: number): number {
+  return Math.abs(r1 - r2) + Math.abs(c1 - c2);
+}
+
+// Distance from edge (0 = edge, 3 = center)
+function distanceFromEdge(row: number, col: number): number {
+  const rowDist = Math.min(row, 7 - row);
+  const colDist = Math.min(col, 7 - col);
+  return Math.min(rowDist, colDist);
+}
+
+// ============================================
+// MOBILITY EVALUATION
+// ============================================
+function evaluateMobility(game: Chess, mobilityWeight: number): number {
+  if (mobilityWeight === 0) return 0;
+  
+  const currentTurn = game.turn();
+  
+  // Count moves for current side
+  const currentMoves = game.moves().length;
+  
+  // Switch turns to count opponent moves
+  // This is a bit of a hack but works for mobility counting
+  const fen = game.fen();
+  const parts = fen.split(' ');
+  parts[1] = currentTurn === 'w' ? 'b' : 'w';
+  const oppFen = parts.join(' ');
+  
+  try {
+    const oppGame = new Chess(oppFen);
+    const oppMoves = oppGame.moves().length;
+    
+    // Mobility score: difference in available moves
+    const mobilityDiff = currentMoves - oppMoves;
+    
+    // White to move: positive is good for white
+    // Black to move: positive is good for black, so negate for white's perspective
+    const score = currentTurn === 'w' ? mobilityDiff : -mobilityDiff;
+    
+    return score * mobilityWeight;
+  } catch {
+    // If FEN manipulation fails, just return current side's mobility
+    return (currentTurn === 'w' ? currentMoves : -currentMoves) * mobilityWeight * 0.5;
+  }
+}
+
+// ============================================
+// KING SAFETY EVALUATION
+// ============================================
+function evaluateKingSafety(game: Chess, kingSafetyWeight: number): number {
+  if (kingSafetyWeight === 0) return 0;
+  
+  const board = game.board();
+  let whiteKingSafety = 0;
+  let blackKingSafety = 0;
+  
+  const whiteKing = findKingPosition(game, 'w');
+  const blackKing = findKingPosition(game, 'b');
+  
+  if (!whiteKing || !blackKing) return 0;
+  
+  // Pawn shield evaluation (for castled kings)
+  function evaluatePawnShield(kingRow: number, kingCol: number, color: 'w' | 'b'): number {
+    let shield = 0;
+    const pawnRow = color === 'w' ? kingRow - 1 : kingRow + 1;
+    
+    // Check pawns in front of king
+    for (let c = Math.max(0, kingCol - 1); c <= Math.min(7, kingCol + 1); c++) {
+      if (pawnRow >= 0 && pawnRow <= 7) {
+        const piece = board[pawnRow][c];
+        if (piece && piece.type === 'p' && piece.color === color) {
+          shield += 15; // Bonus for pawn shield
+        }
+      }
+    }
+    return shield;
+  }
+  
+  // Open file near king penalty
+  function evaluateOpenFilesNearKing(kingCol: number, color: 'w' | 'b'): number {
+    let penalty = 0;
+    
+    for (let c = Math.max(0, kingCol - 1); c <= Math.min(7, kingCol + 1); c++) {
+      let hasFriendlyPawn = false;
+      let hasEnemyPawn = false;
+      
+      for (let r = 0; r < 8; r++) {
+        const piece = board[r][c];
+        if (piece && piece.type === 'p') {
+          if (piece.color === color) hasFriendlyPawn = true;
+          else hasEnemyPawn = true;
+        }
+      }
+      
+      // Semi-open file (no friendly pawn): -15
+      // Open file (no pawns): -25
+      if (!hasFriendlyPawn && !hasEnemyPawn) penalty -= 25;
+      else if (!hasFriendlyPawn) penalty -= 15;
+    }
+    
+    return penalty;
+  }
+  
+  // White king safety
+  if (whiteKing.row >= 6) { // King on back ranks (castled)
+    whiteKingSafety += evaluatePawnShield(whiteKing.row, whiteKing.col, 'w');
+    whiteKingSafety += evaluateOpenFilesNearKing(whiteKing.col, 'w');
+  } else {
+    // King in center is bad in opening/middlegame
+    whiteKingSafety -= 30;
+  }
+  
+  // Black king safety
+  if (blackKing.row <= 1) { // King on back ranks (castled)
+    blackKingSafety += evaluatePawnShield(blackKing.row, blackKing.col, 'b');
+    blackKingSafety += evaluateOpenFilesNearKing(blackKing.col, 'b');
+  } else {
+    blackKingSafety -= 30;
+  }
+  
+  return (whiteKingSafety - blackKingSafety) * kingSafetyWeight / 100;
+}
+
+// ============================================
+// MOP-UP ENDGAME HEURISTIC
+// ============================================
+// In winning endgames, push enemy king to edge and bring your king close
+function evaluateMopUp(game: Chess, mopUpWeight: number): number {
+  if (mopUpWeight === 0) return 0;
+  
+  const board = game.board();
+  
+  // Count material to determine if we're in a mop-up situation
+  let whiteMaterial = 0;
+  let blackMaterial = 0;
+  
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = board[row][col];
+      if (piece && piece.type !== 'k') {
+        const value = PIECE_VALUES[piece.type] || 0;
+        if (piece.color === 'w') whiteMaterial += value;
+        else blackMaterial += value;
+      }
+    }
+  }
+  
+  // Only apply mop-up if one side has significant material advantage
+  const materialDiff = whiteMaterial - blackMaterial;
+  const threshold = 400; // About a rook advantage
+  
+  if (Math.abs(materialDiff) < threshold) return 0;
+  
+  const whiteKing = findKingPosition(game, 'w');
+  const blackKing = findKingPosition(game, 'b');
+  
+  if (!whiteKing || !blackKing) return 0;
+  
   let score = 0;
+  
+  if (materialDiff > threshold) {
+    // White is winning - push black king to edge, bring white king close
+    const blackEdgeDist = distanceFromEdge(blackKing.row, blackKing.col);
+    const kingDistance = manhattanDistance(whiteKing.row, whiteKing.col, blackKing.row, blackKing.col);
+    
+    // Reward pushing enemy king to edge (3 = center, 0 = edge)
+    score += (3 - blackEdgeDist) * 20;
+    // Reward bringing our king closer (max distance = 14, min = 1)
+    score += (14 - kingDistance) * 5;
+  } else if (materialDiff < -threshold) {
+    // Black is winning - push white king to edge, bring black king close
+    const whiteEdgeDist = distanceFromEdge(whiteKing.row, whiteKing.col);
+    const kingDistance = manhattanDistance(whiteKing.row, whiteKing.col, blackKing.row, blackKing.col);
+    
+    score -= (3 - whiteEdgeDist) * 20;
+    score -= (14 - kingDistance) * 5;
+  }
+  
+  return score * mopUpWeight / 100;
+}
+
+// ============================================
+// ENHANCED POSITION EVALUATION
+// ============================================
+// Evaluation weights that scale with difficulty
+interface EvalWeights {
+  mobility: number;      // 0-100%
+  kingSafety: number;    // 0-100%
+  mopUp: number;         // 0-100%
+  useTaperedEval: boolean;
+}
+
+const DEFAULT_EVAL_WEIGHTS: EvalWeights = {
+  mobility: 100,
+  kingSafety: 100,
+  mopUp: 100,
+  useTaperedEval: true,
+};
+
+function evaluatePosition(game: Chess, weights: EvalWeights = DEFAULT_EVAL_WEIGHTS): number {
+  const board = game.board();
+  const phase = calculateGamePhase(game);
+  const endgamePhase = 256 - phase; // 0 in opening, 256 in endgame
+  
+  let mgScore = 0; // Middlegame score
+  let egScore = 0; // Endgame score
 
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
       const piece = board[row][col];
       if (piece) {
-        const pieceValue = PIECE_VALUES[piece.type];
-        const pst = PST[piece.type];
-        const tableRow = piece.color === 'w' ? 7 - row : row;
-        const positionValue = pst ? pst[tableRow][col] : 0;
+        const mgPieceValue = PIECE_VALUES[piece.type];
+        const egPieceValue = weights.useTaperedEval ? PIECE_VALUES_ENDGAME[piece.type] : mgPieceValue;
         
-        const totalValue = pieceValue + positionValue;
-        score += piece.color === 'w' ? totalValue : -totalValue;
+        // Get PST values
+        const tableRow = piece.color === 'w' ? 7 - row : row;
+        let mgPositionValue = 0;
+        let egPositionValue = 0;
+        
+        if (piece.type === 'k') {
+          mgPositionValue = PST.k[tableRow][col];
+          egPositionValue = weights.useTaperedEval ? PST_KING_ENDGAME[tableRow][col] : mgPositionValue;
+        } else {
+          const pst = PST[piece.type];
+          mgPositionValue = pst ? pst[tableRow][col] : 0;
+          egPositionValue = mgPositionValue; // Same PST for non-king pieces
+        }
+        
+        const mgTotal = mgPieceValue + mgPositionValue;
+        const egTotal = egPieceValue + egPositionValue;
+        
+        if (piece.color === 'w') {
+          mgScore += mgTotal;
+          egScore += egTotal;
+        } else {
+          mgScore -= mgTotal;
+          egScore -= egTotal;
+        }
       }
     }
+  }
+  
+  // Tapered evaluation: blend mg and eg scores based on phase
+  let score: number;
+  if (weights.useTaperedEval) {
+    score = ((mgScore * phase) + (egScore * endgamePhase)) / 256;
+  } else {
+    score = mgScore;
+  }
+  
+  // Add mobility score
+  if (weights.mobility > 0) {
+    score += evaluateMobility(game, weights.mobility / 100 * 3); // Scale factor of 3 per move
+  }
+  
+  // Add king safety (more important in middlegame)
+  if (weights.kingSafety > 0 && phase > 64) { // Only in non-endgame
+    score += evaluateKingSafety(game, weights.kingSafety);
+  }
+  
+  // Add mop-up heuristic (only in endgame with material advantage)
+  if (weights.mopUp > 0 && phase < 128) { // Only when approaching endgame
+    score += evaluateMopUp(game, weights.mopUp);
   }
 
   return score;
 }
 
 // Quiescence search with stand-pat rule
-function quiescence(game: Chess, alpha: number, beta: number, depth: number = 0): number {
+function quiescence(
+  game: Chess, 
+  alpha: number, 
+  beta: number, 
+  depth: number = 0,
+  evalWeights: EvalWeights = DEFAULT_EVAL_WEIGHTS
+): number {
   // Stand-pat: evaluate current position without forcing captures
-  const standPat = evaluatePosition(game);
+  const standPat = evaluatePosition(game, evalWeights);
   
   // Beta cutoff: position is already too good
   if (standPat >= beta) {
@@ -161,7 +588,7 @@ function quiescence(game: Chess, alpha: number, beta: number, depth: number = 0)
   
   for (const move of orderedMoves) {
     game.move(move.san);
-    const score = -quiescence(game, -beta, -alpha, depth + 1);
+    const score = -quiescence(game, -beta, -alpha, depth + 1, evalWeights);
     game.undo();
     
     if (score >= beta) {
@@ -175,20 +602,36 @@ function quiescence(game: Chess, alpha: number, beta: number, depth: number = 0)
   return alpha;
 }
 
-// Minimax with alpha-beta pruning and quiescence
+// Enhanced minimax with alpha-beta pruning, killer moves, and history heuristic
+interface MinimaxConfig {
+  useKillers: boolean;
+  useHistory: boolean;
+  evalWeights: EvalWeights;
+}
+
+const DEFAULT_MINIMAX_CONFIG: MinimaxConfig = {
+  useKillers: true,
+  useHistory: true,
+  evalWeights: DEFAULT_EVAL_WEIGHTS,
+};
+
 function minimax(
   game: Chess,
   depth: number,
   alpha: number,
   beta: number,
   maximizing: boolean,
-  bestMoveFromPrevious?: string
+  bestMoveFromPrevious?: string,
+  maxDepth?: number,
+  config: MinimaxConfig = DEFAULT_MINIMAX_CONFIG
 ): { score: number; bestMove?: string } {
+  const currentDepth = maxDepth !== undefined ? maxDepth - depth : depth;
+  
   if (depth === 0) {
-    // Use quiescence search at leaf nodes
+    // Use quiescence search at leaf nodes with difficulty-scaled evaluation
     const qScore = maximizing 
-      ? quiescence(game, alpha, beta)
-      : -quiescence(game, -beta, -alpha);
+      ? quiescence(game, alpha, beta, 0, config.evalWeights)
+      : -quiescence(game, -beta, -alpha, 0, config.evalWeights);
     return { score: qScore };
   }
   
@@ -200,7 +643,13 @@ function minimax(
   }
 
   const moves = game.moves({ verbose: true });
-  const orderedMoves = orderMoves(moves, bestMoveFromPrevious);
+  const orderedMoves = orderMoves(
+    moves, 
+    bestMoveFromPrevious, 
+    currentDepth,
+    config.useKillers,
+    config.useHistory
+  );
   
   let bestMove = orderedMoves[0]?.san;
 
@@ -208,30 +657,52 @@ function minimax(
     let maxEval = -Infinity;
     for (const move of orderedMoves) {
       game.move(move.san);
-      const result = minimax(game, depth - 1, alpha, beta, false);
+      const result = minimax(game, depth - 1, alpha, beta, false, undefined, maxDepth, config);
       game.undo();
       
       if (result.score > maxEval) {
         maxEval = result.score;
         bestMove = move.san;
       }
+      
+      if (result.score >= beta) {
+        // Beta cutoff - store killer move and update history
+        if (!move.captured && config.useKillers) {
+          storeKillerMove(currentDepth, move.san);
+        }
+        if (config.useHistory) {
+          updateHistory(move.from, move.to, depth);
+        }
+        return { score: beta, bestMove };
+      }
+      
       alpha = Math.max(alpha, result.score);
-      if (beta <= alpha) break;
     }
     return { score: maxEval, bestMove };
   } else {
     let minEval = Infinity;
     for (const move of orderedMoves) {
       game.move(move.san);
-      const result = minimax(game, depth - 1, alpha, beta, true);
+      const result = minimax(game, depth - 1, alpha, beta, true, undefined, maxDepth, config);
       game.undo();
       
       if (result.score < minEval) {
         minEval = result.score;
         bestMove = move.san;
       }
+      
+      if (result.score <= alpha) {
+        // Alpha cutoff - store killer move and update history
+        if (!move.captured && config.useKillers) {
+          storeKillerMove(currentDepth, move.san);
+        }
+        if (config.useHistory) {
+          updateHistory(move.from, move.to, depth);
+        }
+        return { score: alpha, bestMove };
+      }
+      
       beta = Math.min(beta, result.score);
-      if (beta <= alpha) break;
     }
     return { score: minEval, bestMove };
   }
@@ -241,17 +712,34 @@ function minimax(
 function iterativeDeepening(
   game: Chess,
   maxTimeMs: number,
-  maxDepth: number = 10
+  maxDepth: number = 10,
+  config?: DifficultyConfig
 ): { bestMove: string; depth: number; score: number } {
   const startTime = Date.now();
   const moveOverhead = 100; // Buffer for network latency
   const timeLimit = maxTimeMs - moveOverhead;
+  
+  // Clear killer moves and history for new search
+  clearKillerMoves();
+  // Don't clear history - it accumulates across moves for better ordering
   
   let bestMove = '';
   let bestScore = 0;
   let reachedDepth = 0;
   
   const maximizing = game.turn() === 'w';
+  
+  // Build minimax config from difficulty config
+  const minimaxConfig: MinimaxConfig = config ? {
+    useKillers: config.useKillers,
+    useHistory: config.useHistory,
+    evalWeights: {
+      mobility: config.mobilityWeight,
+      kingSafety: config.kingSafetyWeight,
+      mopUp: config.mopUpWeight,
+      useTaperedEval: config.useTaperedEval,
+    },
+  } : DEFAULT_MINIMAX_CONFIG;
   
   for (let depth = 1; depth <= maxDepth; depth++) {
     const elapsed = Date.now() - startTime;
@@ -261,7 +749,7 @@ function iterativeDeepening(
       break;
     }
     
-    const result = minimax(game, depth, -Infinity, Infinity, maximizing, bestMove);
+    const result = minimax(game, depth, -Infinity, Infinity, maximizing, bestMove, depth, minimaxConfig);
     
     if (result.bestMove) {
       bestMove = result.bestMove;
@@ -278,7 +766,7 @@ function iterativeDeepening(
   return { bestMove, depth: reachedDepth, score: bestScore };
 }
 
-// Difficulty settings
+// Difficulty settings with evaluation weights
 interface DifficultyConfig {
   elo: number;
   timePerMoveMs: number;
@@ -287,16 +775,65 @@ interface DifficultyConfig {
   stockfishNodes: number;
   mistakeProbability: number;
   useStockfish: boolean;
+  // New evaluation weights (0-100%)
+  useKillers: boolean;       // Use killer move heuristic
+  useHistory: boolean;       // Use history heuristic
+  mobilityWeight: number;    // Mobility evaluation weight (0-100)
+  kingSafetyWeight: number;  // King safety evaluation weight (0-100)
+  mopUpWeight: number;       // Mop-up endgame weight (0-100)
+  useTaperedEval: boolean;   // Use tapered evaluation
 }
 
 const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
-  beginner: { elo: 400, timePerMoveMs: 500, maxDepth: 2, multiPvCount: 5, stockfishNodes: 10000, mistakeProbability: 0.4, useStockfish: false },
-  novice: { elo: 600, timePerMoveMs: 1000, maxDepth: 3, multiPvCount: 5, stockfishNodes: 50000, mistakeProbability: 0.2, useStockfish: false },
-  intermediate: { elo: 900, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, mistakeProbability: 0.1, useStockfish: true },
-  club: { elo: 1200, timePerMoveMs: 2000, maxDepth: 5, multiPvCount: 4, stockfishNodes: 200000, mistakeProbability: 0.01, useStockfish: true },
-  advanced: { elo: 1500, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, mistakeProbability: 0.005, useStockfish: true },
-  expert: { elo: 1800, timePerMoveMs: 3000, maxDepth: 8, multiPvCount: 3, stockfishNodes: 1000000, mistakeProbability: 0.001, useStockfish: true },
-  master: { elo: 2000, timePerMoveMs: 4000, maxDepth: 10, multiPvCount: 3, stockfishNodes: 2000000, mistakeProbability: 0.00025, useStockfish: true },
+  // Beginner (400 Elo): No advanced heuristics, basic evaluation
+  beginner: { 
+    elo: 400, timePerMoveMs: 500, maxDepth: 2, multiPvCount: 5, stockfishNodes: 10000, 
+    mistakeProbability: 0.4, useStockfish: false,
+    useKillers: false, useHistory: false,
+    mobilityWeight: 0, kingSafetyWeight: 0, mopUpWeight: 0, useTaperedEval: false
+  },
+  // Novice (600 Elo): Minimal heuristics, slight mobility awareness
+  novice: { 
+    elo: 600, timePerMoveMs: 1000, maxDepth: 3, multiPvCount: 5, stockfishNodes: 50000, 
+    mistakeProbability: 0.2, useStockfish: false,
+    useKillers: false, useHistory: false,
+    mobilityWeight: 20, kingSafetyWeight: 10, mopUpWeight: 0, useTaperedEval: false
+  },
+  // Intermediate (900 Elo): Basic search heuristics, growing positional awareness
+  intermediate: { 
+    elo: 900, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
+    mistakeProbability: 0.1, useStockfish: true,
+    useKillers: true, useHistory: false,
+    mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false
+  },
+  // Club (1200 Elo): Full search heuristics, decent evaluation
+  club: { 
+    elo: 1200, timePerMoveMs: 2000, maxDepth: 5, multiPvCount: 4, stockfishNodes: 200000, 
+    mistakeProbability: 0.01, useStockfish: true,
+    useKillers: true, useHistory: true,
+    mobilityWeight: 60, kingSafetyWeight: 50, mopUpWeight: 50, useTaperedEval: true
+  },
+  // Advanced (1500 Elo): Strong heuristics, good evaluation
+  advanced: { 
+    elo: 1500, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
+    mistakeProbability: 0.005, useStockfish: true,
+    useKillers: true, useHistory: true,
+    mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true
+  },
+  // Expert (1800 Elo): Full strength heuristics
+  expert: { 
+    elo: 1800, timePerMoveMs: 3000, maxDepth: 8, multiPvCount: 3, stockfishNodes: 1000000, 
+    mistakeProbability: 0.001, useStockfish: true,
+    useKillers: true, useHistory: true,
+    mobilityWeight: 90, kingSafetyWeight: 90, mopUpWeight: 90, useTaperedEval: true
+  },
+  // Master (2000 Elo): Maximum strength
+  master: { 
+    elo: 2000, timePerMoveMs: 4000, maxDepth: 10, multiPvCount: 3, stockfishNodes: 2000000, 
+    mistakeProbability: 0.00025, useStockfish: true,
+    useKillers: true, useHistory: true,
+    mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true
+  },
 };
 
 // Personality-based move selection from MultiPV candidates
@@ -541,10 +1078,11 @@ export async function generateBotMoveClient(
       }
     }
     
-    // Fallback: Use iterative deepening minimax
+    // Fallback: Use iterative deepening minimax with enhanced heuristics
     console.log(`[ClientBot] Using minimax with depth ${config.maxDepth}, time ${timeBudget}ms`);
+    console.log(`[ClientBot] Heuristics: killers=${config.useKillers}, history=${config.useHistory}, mobility=${config.mobilityWeight}%, kingSafety=${config.kingSafetyWeight}%, mopUp=${config.mopUpWeight}%, tapered=${config.useTaperedEval}`);
     
-    const result = iterativeDeepening(game, timeBudget, config.maxDepth);
+    const result = iterativeDeepening(game, timeBudget, config.maxDepth, config);
     
     if (result.bestMove) {
       const matchingMove = moves.find(m => m.san === result.bestMove);
