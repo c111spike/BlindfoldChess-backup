@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import { clientStockfish, type PositionAnalysis } from './stockfish';
+import { clientStockfish, type PositionAnalysis, type TopMoveResult } from './stockfish';
 
 export type MoveClassification = 
   | 'genius' 
@@ -38,6 +38,7 @@ export interface MoveAnalysisResult {
   isCheckmate: boolean;
   classification: MoveClassification;
   phase: GamePhase;
+  topMoves?: TopMoveResult[];
 }
 
 export interface GameAnalysisResult {
@@ -225,6 +226,10 @@ export async function analyzeGameClientSide(
     const isForced = isMoveForcedPosition(chess);
 
     const analysisBefore = prevAnalysis || await clientStockfish.analyzePosition(fenBefore, NODES_PER_POSITION);
+    
+    // Get top 3 moves for this position (cached for instant display during review)
+    // Use fewer nodes for faster analysis since we already have the best move from analysisBefore
+    const topMoves = await clientStockfish.getTopMoves(fenBefore, 3, 100000);
 
     const moveResult = chess.move(move);
     if (!moveResult) {
@@ -294,6 +299,7 @@ export async function analyzeGameClientSide(
       isCheckmate,
       classification,
       phase,
+      topMoves,
     });
 
     prevAnalysis = {

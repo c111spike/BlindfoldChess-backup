@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useClientAnalysis } from '@/hooks/useClientAnalysis';
-import { clientStockfish } from '@/lib/stockfish';
+import { clientStockfish, type TopMoveResult } from '@/lib/stockfish';
 import { SyzygyIndicator } from '@/components/syzygy-indicator';
 import { MiniGameOverlay, MiniGameType } from '@/components/minigames/MiniGameOverlay';
 import {
@@ -1437,7 +1437,15 @@ interface TopMove {
   mateIn?: number;
 }
 
-function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: string }) {
+function EngineSuggestions({ 
+  fen, 
+  playerColor,
+  cachedTopMoves 
+}: { 
+  fen: string; 
+  playerColor: string;
+  cachedTopMoves?: TopMoveResult[];
+}) {
   const [topMoves, setTopMoves] = useState<TopMove[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1446,6 +1454,22 @@ function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: str
   const isCancelledRef = useRef<boolean>(false);
 
   useEffect(() => {
+    // If we have cached top moves from the analysis, use them instantly
+    if (cachedTopMoves && cachedTopMoves.length > 0) {
+      const moves: TopMove[] = cachedTopMoves.map((r, idx) => ({
+        rank: idx + 1,
+        move: r.move,
+        uci: r.move,
+        evaluation: r.evaluation,
+        isMate: r.isMate,
+        mateIn: r.mateIn,
+      }));
+      setTopMoves(moves);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    
     // Track the current FEN to prevent stale updates
     currentFenRef.current = fen;
     isCancelledRef.current = false;
@@ -1504,7 +1528,7 @@ function EngineSuggestions({ fen, playerColor }: { fen: string; playerColor: str
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [fen]);
+  }, [fen, cachedTopMoves]);
 
   const formatEval = (move: TopMove) => {
     if (move.isMate) {
@@ -2803,7 +2827,11 @@ export default function GameAnalysisPage() {
               )}
               
               {analysis.status === 'completed' && (
-                <EngineSuggestions fen={preMoveFen()} playerColor={playerColor} />
+                <EngineSuggestions 
+                  fen={preMoveFen()} 
+                  playerColor={playerColor} 
+                  cachedTopMoves={currentMoveIndex >= 0 ? clientAnalysis.result?.moves[currentMoveIndex]?.topMoves : undefined}
+                />
               )}
             </TabsContent>
             
