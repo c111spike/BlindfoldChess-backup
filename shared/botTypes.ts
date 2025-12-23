@@ -15,7 +15,7 @@ export type BotDifficulty =
   | "advanced"    // ~600 Elo
   | "expert"      // ~650 Elo
   | "master"      // ~700 Elo
-  | "grandmaster"; // ~2200-2400 Elo
+  | "grandmaster"; // ~2500 Elo
 
 export interface BotProfile {
   id: string;
@@ -35,7 +35,7 @@ export const BOT_DIFFICULTY_ELO: Record<BotDifficulty, number> = {
   advanced: 1500,
   expert: 1800,
   master: 2000,
-  grandmaster: 2300,
+  grandmaster: 2500,
 };
 
 export const BOT_DIFFICULTY_NAMES: Record<BotDifficulty, string> = {
