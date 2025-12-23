@@ -294,14 +294,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { timeControl, queueType } = req.body;
       
-      // Check if user is banned or suspended
+      // Check if user is banned or suspended (suspended users can still play bots and training modes)
       const userRecord = await storage.getUser(userId);
       if (userRecord?.isBanned) {
         return res.status(403).json({ message: "Your account has been banned. You cannot join games." });
       }
       if (userRecord?.suspendedUntil && new Date(userRecord.suspendedUntil) > new Date()) {
         const suspendedUntil = new Date(userRecord.suspendedUntil).toLocaleDateString();
-        return res.status(403).json({ message: `Your account is suspended until ${suspendedUntil}. You cannot join games.` });
+        return res.status(403).json({ 
+          message: `Your account is suspended until ${suspendedUntil}. You cannot play against other players, but you can still play against bots and use all training modes.`,
+          suspendedUntil: userRecord.suspendedUntil,
+          isSoftSuspension: true
+        });
       }
 
       // Extract time control from queueType if provided (e.g., 'otb_blitz' -> 'blitz')
@@ -559,6 +563,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { boardCount = 5 } = req.body;
+
+      // Check if user is banned or suspended (suspended users cannot play human vs human)
+      const userRecord = await storage.getUser(userId);
+      if (userRecord?.isBanned) {
+        return res.status(403).json({ message: "Your account has been banned. You cannot join games." });
+      }
+      if (userRecord?.suspendedUntil && new Date(userRecord.suspendedUntil) > new Date()) {
+        const suspendedUntil = new Date(userRecord.suspendedUntil).toLocaleDateString();
+        return res.status(403).json({ 
+          message: `Your account is suspended until ${suspendedUntil}. You cannot play against other players, but you can still play against bots and use all training modes.`,
+          suspendedUntil: userRecord.suspendedUntil,
+          isSoftSuspension: true
+        });
+      }
 
       // Check if already in an active match
       const existingMatch = await storage.getActiveSimulVsSimulMatchForUser(userId);
@@ -1736,6 +1754,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       
+      // Check if user is suspended (suspended users cannot create puzzles, but can still solve them)
+      const userRecord = await storage.getUser(userId);
+      if (userRecord?.suspendedUntil && new Date(userRecord.suspendedUntil) > new Date()) {
+        const suspendedUntil = new Date(userRecord.suspendedUntil).toLocaleDateString();
+        return res.status(403).json({ 
+          message: `Your account is suspended until ${suspendedUntil}. You cannot create new puzzles, but you can still solve existing puzzles.`,
+          suspendedUntil: userRecord.suspendedUntil,
+          isSoftSuspension: true
+        });
+      }
+      
       const existingPuzzle = await storage.checkDuplicatePuzzle(req.body.fen);
       if (existingPuzzle) {
         return res.status(400).json({ message: "A puzzle with this position already exists" });
@@ -1988,6 +2017,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reason,
         details: details || null,
       });
+      
+      // Check if reported user has any suspension history - if so, alert admins
+      const hasSuspensionHistory = await storage.hasAnySuspensionHistory(reportedUserId);
+      if (hasSuspensionHistory) {
+        const reportedUser = await storage.getUser(reportedUserId);
+        await storage.createAdminNotification({
+          type: 'suspended_user_reported',
+          title: 'Previously Suspended User Reported',
+          message: `User "${reportedUser?.username || reportedUserId}" has been reported again. This user has a prior suspension history. Reason: ${reason}`,
+          relatedUserId: reportedUserId,
+          relatedReportId: report.id,
+          metadata: { reason, gameId: gameId || null },
+        });
+      }
       
       res.json(report);
     } catch (error) {
@@ -2267,6 +2310,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Admin: Get user's game history with pagination
+  app.get('/api/admin/users/:userId/games', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const [games, totalCount] = await Promise.all([
+        storage.getUserGameHistory(userId, limit, offset),
+        storage.getUserGameCount(userId)
+      ]);
+      
+      res.json({ games, totalCount, limit, offset });
+    } catch (error) {
+      console.error("Error fetching user game history:", error);
+      res.status(500).json({ message: "Failed to fetch game history" });
+    }
+  });
+
+  // Admin: Get user's suspension history (last 30 days)
+  app.get('/api/admin/users/:userId/suspensions', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const suspensions = await storage.getUserSuspensions(userId);
+      const activeSuspension = await storage.getActiveSuspension(userId);
+      res.json({ suspensions, activeSuspension });
+    } catch (error) {
+      console.error("Error fetching user suspensions:", error);
+      res.status(500).json({ message: "Failed to fetch suspension history" });
+    }
+  });
+
+  // Admin: Get all admin notifications
+  app.get('/api/admin/notifications', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const unreadOnly = req.query.unread === 'true';
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const notifications = unreadOnly 
+        ? await storage.getUnreadAdminNotifications()
+        : await storage.getAllAdminNotifications(limit);
+      
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching admin notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  // Admin: Mark notification as read
+  app.post('/api/admin/notifications/:id/read', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const notification = await storage.markAdminNotificationRead(req.params.id, adminId);
+      res.json(notification);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  // Admin: Mark all notifications as read
+  app.post('/api/admin/notifications/mark-all-read', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      await storage.markAllAdminNotificationsRead(adminId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark notifications as read" });
+    }
+  });
+
+  // Admin: Create a suspension with detailed tracking
+  app.post('/api/admin/users/:userId/suspend-detailed', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { reason, details, durationDays, relatedReportId } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ message: "Suspension reason is required" });
+      }
+      
+      const endDate = durationDays ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000) : undefined;
+      
+      const suspension = await storage.createSuspension({
+        userId,
+        reason,
+        details: details || null,
+        durationDays: durationDays || null,
+        endDate: endDate || null,
+        issuedById: adminId,
+        relatedReportId: relatedReportId || null,
+      });
+      
+      res.json(suspension);
+    } catch (error) {
+      console.error("Error creating suspension:", error);
+      res.status(500).json({ message: "Failed to create suspension" });
+    }
+  });
+
+  // Admin: Lift a suspension early
+  app.post('/api/admin/suspensions/:id/lift', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { reason } = req.body;
+      
+      const suspension = await storage.liftSuspension(req.params.id, adminId, reason);
+      res.json(suspension);
+    } catch (error) {
+      console.error("Error lifting suspension:", error);
+      res.status(500).json({ message: "Failed to lift suspension" });
     }
   });
 
