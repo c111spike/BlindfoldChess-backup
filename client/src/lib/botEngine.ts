@@ -1513,6 +1513,32 @@ function selectMoveByPersonality(
         if (move.san.includes('#')) score += 1000;
         // Love sacrifices (giving up material for attack)
         if (move.captured && move.piece !== 'p') score += 50 * personalityInfluence;
+        
+        // PAWN STORM FOR TACTICS: Storms open files for rooks/queens
+        // Tactician loves when pawn advances create attacking opportunities
+        if (move.piece === 'p') {
+          const toRank = parseInt(move.to[1]);
+          const toFile = move.to[0];
+          const enemyKing = findKingPosition(game, game.turn() === 'w' ? 'b' : 'w');
+          if (enemyKing) {
+            const enemyKingFile = String.fromCharCode(97 + enemyKing.col);
+            const adjacentFiles = [
+              String.fromCharCode(enemyKingFile.charCodeAt(0) - 1),
+              enemyKingFile,
+              String.fromCharCode(enemyKingFile.charCodeAt(0) + 1)
+            ];
+            // Bonus for pawn storms that will open files for heavy pieces
+            if (adjacentFiles.includes(toFile)) {
+              // 1.5x storm bonus - loves opening files for tactics
+              const stormBonus = (game.turn() === 'w' ? toRank - 2 : 9 - toRank) * 25 * personalityInfluence;
+              score += stormBonus * 1.5;
+            }
+          }
+        }
+        // Lever positions are tactical gold - pawn exchanges open lines
+        if (move.piece === 'p' && move.captured === 'p') {
+          score += 40 * personalityInfluence; // Pawn exchanges create open files
+        }
         break;
         
       case 'defensive':
@@ -1557,6 +1583,53 @@ function selectMoveByPersonality(
         if ((move.piece === 'n' || move.piece === 'b') && move.from.includes(game.turn() === 'w' ? '1' : '8')) {
           score += 40 * personalityInfluence;
         }
+        
+        // PAWN STRUCTURE AWARENESS: Positional player values intact structures
+        if (move.piece === 'p') {
+          const myKing = findKingPosition(game, game.turn());
+          if (myKing) {
+            const kingFile = String.fromCharCode(97 + myKing.col);
+            const shieldFiles = [
+              String.fromCharCode(kingFile.charCodeAt(0) - 1),
+              kingFile,
+              String.fromCharCode(kingFile.charCodeAt(0) + 1)
+            ];
+            const fromFile = move.from[0];
+            // Slight penalty for breaking own pawn shield (values structure)
+            if (shieldFiles.includes(fromFile)) {
+              score -= 30 * personalityInfluence;
+            }
+          }
+          // Penalty only for captures that create doubled pawns
+          // (capturing onto a file where we already have a pawn)
+          if (move.captured) {
+            const toFile = move.to[0];
+            const board = game.board();
+            const myColor = game.turn();
+            let hasPawnOnFile = false;
+            for (let r = 0; r < 8; r++) {
+              const col = toFile.charCodeAt(0) - 97;
+              const piece = board[r][col];
+              if (piece && piece.type === 'p' && piece.color === myColor) {
+                // Check it's not the pawn we're moving
+                const fromCol = move.from[0].charCodeAt(0) - 97;
+                const fromRow = 8 - parseInt(move.from[1]);
+                if (r !== fromRow || col !== fromCol) {
+                  hasPawnOnFile = true;
+                  break;
+                }
+              }
+            }
+            if (hasPawnOnFile) {
+              score -= 25 * personalityInfluence; // Dislikes creating doubled pawns
+            }
+          }
+        }
+        // PROPHYLAXIS: Aware of enemy pawn storms, values defensive preparation
+        // Bonus for moves that consolidate defense against incoming storms
+        if (move.san === 'O-O' || move.san === 'O-O-O') {
+          score += 30 * personalityInfluence; // Castling is positionally important
+        }
         break;
         
       case 'bishop_lover':
@@ -1566,6 +1639,20 @@ function selectMoveByPersonality(
         if (move.piece === 'b' && longDiagonals.includes(move.to)) score += 40 * personalityInfluence;
         // Prefer trading knights for bishops
         if (move.captured === 'n' && move.piece !== 'n') score += 30 * personalityInfluence;
+        
+        // PAWN STORMS OPEN DIAGONALS: Bishop lover likes pawn advances that clear diagonals
+        if (move.piece === 'p') {
+          const toFile = move.to[0];
+          // Central pawn advances open diagonals for bishops
+          if (['d', 'e'].includes(toFile)) {
+            score += 25 * personalityInfluence; // Central pawn pushes open bishop lines
+          }
+          // Fianchetto-supporting moves (b3/g3 or b6/g6)
+          const fianchettoSquares = game.turn() === 'w' ? ['b3', 'g3'] : ['b6', 'g6'];
+          if (fianchettoSquares.includes(move.to)) {
+            score += 35 * personalityInfluence; // Love fianchetto setups
+          }
+        }
         break;
         
       case 'knight_lover':
@@ -1575,6 +1662,28 @@ function selectMoveByPersonality(
         if (move.piece === 'n' && outposts.includes(move.to)) score += 50 * personalityInfluence;
         // Prefer trading bishops for knights
         if (move.captured === 'b' && move.piece !== 'b') score += 30 * personalityInfluence;
+        
+        // CLOSED POSITIONS FAVOR KNIGHTS: Dislikes pawn advances that open the position
+        if (move.piece === 'p') {
+          // Penalty for pawn exchanges (opens the position, bad for knights)
+          if (move.captured === 'p') {
+            score -= 25 * personalityInfluence; // Dislikes opening pawn structures
+          }
+          // Central pawn pushes past 4th rank open the game too much
+          const toFile = move.to[0];
+          const toRank = parseInt(move.to[1]);
+          if (['d', 'e'].includes(toFile)) {
+            const advancedRank = game.turn() === 'w' ? 5 : 4;
+            if ((game.turn() === 'w' && toRank >= advancedRank) || 
+                (game.turn() === 'b' && toRank <= advancedRank)) {
+              score -= 20 * personalityInfluence; // Prefers blocked center for knight maneuvers
+            }
+          }
+        }
+        // Knights love maneuvering in closed positions - bonus for knight repositioning
+        if (move.piece === 'n' && !move.captured) {
+          score += 15 * personalityInfluence; // Values quiet knight moves
+        }
         break;
         
       case 'balanced':
