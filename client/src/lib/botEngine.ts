@@ -522,8 +522,11 @@ function evaluateMobility(game: Chess, mobilityWeight: number): number {
 }
 
 // ============================================
-// KING SAFETY EVALUATION
+// KING SAFETY EVALUATION (Enhanced with GM features)
 // ============================================
+// Starting material for scaling (Queen=900, 2Rooks=1000, 2Bishops=660, 2Knights=640, 8Pawns=800)
+const STARTING_MATERIAL = 4000; // Per side (excluding king)
+
 function evaluateKingSafety(game: Chess, kingSafetyWeight: number): number {
   if (kingSafetyWeight === 0) return 0;
   
@@ -536,17 +539,66 @@ function evaluateKingSafety(game: Chess, kingSafetyWeight: number): number {
   
   if (!whiteKing || !blackKing) return 0;
   
+  // Count material for GM Scaling Factor
+  let whiteMaterial = 0;
+  let blackMaterial = 0;
+  let whiteHasQueen = false;
+  let blackHasQueen = false;
+  
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = board[row][col];
+      if (piece && piece.type !== 'k') {
+        const value = PIECE_VALUES[piece.type] || 0;
+        if (piece.color === 'w') {
+          whiteMaterial += value;
+          if (piece.type === 'q') whiteHasQueen = true;
+        } else {
+          blackMaterial += value;
+          if (piece.type === 'q') blackHasQueen = true;
+        }
+      }
+    }
+  }
+  
+  // GM Scaling Factor: King safety matters less when queens are off or material is low
+  // White's king safety scales with black's attacking material (and vice versa)
+  const whiteScalingFactor = blackMaterial / STARTING_MATERIAL;
+  const blackScalingFactor = whiteMaterial / STARTING_MATERIAL;
+  
+  // Extra reduction if opponent has no queen (primary attacker)
+  const whiteQueenFactor = blackHasQueen ? 1.0 : 0.5;
+  const blackQueenFactor = whiteHasQueen ? 1.0 : 0.5;
+  
+  // Detect opposite-side castling (kings on opposite wings)
+  const whiteKingSide = whiteKing.col >= 4 ? 'kingside' : 'queenside';
+  const blackKingSide = blackKing.col >= 4 ? 'kingside' : 'queenside';
+  const oppositeSideCastling = whiteKingSide !== blackKingSide && 
+    whiteKing.row >= 6 && blackKing.row <= 1; // Both castled
+  
   // Pawn shield evaluation (for castled kings)
   function evaluatePawnShield(kingRow: number, kingCol: number, color: 'w' | 'b'): number {
     let shield = 0;
-    const pawnRow = color === 'w' ? kingRow - 1 : kingRow + 1;
+    const direction = color === 'w' ? -1 : 1;
     
-    // Check pawns in front of king
+    // Check 2nd and 3rd rank pawns in front of king
     for (let c = Math.max(0, kingCol - 1); c <= Math.min(7, kingCol + 1); c++) {
-      if (pawnRow >= 0 && pawnRow <= 7) {
-        const piece = board[pawnRow][c];
+      // Ideal pawn position (2nd rank from king's perspective)
+      const idealRow = kingRow + direction;
+      // Advanced pawn position (3rd rank)
+      const advancedRow = kingRow + direction * 2;
+      
+      if (idealRow >= 0 && idealRow <= 7) {
+        const piece = board[idealRow][c];
         if (piece && piece.type === 'p' && piece.color === color) {
-          shield += 15; // Bonus for pawn shield
+          shield += 20; // Strong bonus for pawn on 2nd rank
+        }
+      }
+      
+      if (advancedRow >= 0 && advancedRow <= 7) {
+        const piece = board[advancedRow][c];
+        if (piece && piece.type === 'p' && piece.color === color) {
+          shield += 10; // Smaller bonus for pawn on 3rd rank (slightly advanced)
         }
       }
     }
@@ -569,10 +621,60 @@ function evaluateKingSafety(game: Chess, kingSafetyWeight: number): number {
         }
       }
       
-      // Semi-open file (no friendly pawn): -15
-      // Open file (no pawns): -25
-      if (!hasFriendlyPawn && !hasEnemyPawn) penalty -= 25;
-      else if (!hasFriendlyPawn) penalty -= 15;
+      // Semi-open file (no friendly pawn): -25
+      // Open file (no pawns): -60 (rooks can attack king)
+      if (!hasFriendlyPawn && !hasEnemyPawn) penalty -= 60;
+      else if (!hasFriendlyPawn) penalty -= 25;
+    }
+    
+    return penalty;
+  }
+  
+  // Pawn storm detection: enemy pawns advancing toward our king
+  function evaluatePawnStorm(kingRow: number, kingCol: number, color: 'w' | 'b'): number {
+    let penalty = 0;
+    const enemyColor = color === 'w' ? 'b' : 'w';
+    
+    // For white king, enemy pawns advance from low rows to high rows
+    // For black king, enemy pawns advance from high rows to low rows
+    for (let c = Math.max(0, kingCol - 1); c <= Math.min(7, kingCol + 1); c++) {
+      let highestEnemyPawnRank = -1;
+      let ourShieldPawnRow = -1;
+      
+      for (let r = 0; r < 8; r++) {
+        const piece = board[r][c];
+        if (piece && piece.type === 'p') {
+          if (piece.color === enemyColor) {
+            // Convert row to "rank toward king" (0-7 scale where higher = closer to king)
+            const rankTowardKing = color === 'w' ? r : (7 - r);
+            if (rankTowardKing > highestEnemyPawnRank) {
+              highestEnemyPawnRank = rankTowardKing;
+            }
+          } else if (piece.color === color) {
+            // Track our shield pawn for lever detection
+            const distFromKing = Math.abs(r - kingRow);
+            if (distFromKing <= 2) {
+              ourShieldPawnRow = r;
+            }
+          }
+        }
+      }
+      
+      // Penalty for enemy pawns past halfway (rank 4+)
+      // Rank 4 = 20, Rank 5 = 40, Rank 6 = 60
+      if (highestEnemyPawnRank >= 4) {
+        penalty -= (highestEnemyPawnRank - 3) * 20;
+      }
+      
+      // LEVER DETECTION: Enemy pawn directly contacts our shield pawn
+      // This means a pawn break is imminent, spike the penalty
+      if (ourShieldPawnRow !== -1 && highestEnemyPawnRank >= 4) {
+        const enemyPawnRow = color === 'w' ? highestEnemyPawnRank : (7 - highestEnemyPawnRank);
+        const rowDiff = Math.abs(enemyPawnRow - ourShieldPawnRow);
+        if (rowDiff <= 1) {
+          penalty -= 30; // Lever bonus: imminent file opening
+        }
+      }
     }
     
     return penalty;
@@ -582,20 +684,51 @@ function evaluateKingSafety(game: Chess, kingSafetyWeight: number): number {
   if (whiteKing.row >= 6) { // King on back ranks (castled)
     whiteKingSafety += evaluatePawnShield(whiteKing.row, whiteKing.col, 'w');
     whiteKingSafety += evaluateOpenFilesNearKing(whiteKing.col, 'w');
-  } else {
+    whiteKingSafety += evaluatePawnStorm(whiteKing.row, whiteKing.col, 'w');
+  } else if (whiteKing.row >= 4) {
     // King in center is bad in opening/middlegame
     whiteKingSafety -= 30;
   }
+  // King in endgame position (active) - no penalty
   
   // Black king safety
   if (blackKing.row <= 1) { // King on back ranks (castled)
     blackKingSafety += evaluatePawnShield(blackKing.row, blackKing.col, 'b');
     blackKingSafety += evaluateOpenFilesNearKing(blackKing.col, 'b');
-  } else {
+    blackKingSafety += evaluatePawnStorm(blackKing.row, blackKing.col, 'b');
+  } else if (blackKing.row <= 3) {
     blackKingSafety -= 30;
   }
   
+  // Apply GM Scaling Factor: reduce king safety importance as material decreases
+  whiteKingSafety *= whiteScalingFactor * whiteQueenFactor;
+  blackKingSafety *= blackScalingFactor * blackQueenFactor;
+  
+  // Opposite-side castling bonus: both sides should value attacking more
+  // (This is handled in personality scoring, but we note it here)
+  
   return (whiteKingSafety - blackKingSafety) * kingSafetyWeight / 100;
+}
+
+// Helper to detect if position has opposite-side castling (used by personality scoring)
+function detectOppositeSideCastling(game: Chess): boolean {
+  const board = game.board();
+  const whiteKing = findKingPosition(game, 'w');
+  const blackKing = findKingPosition(game, 'b');
+  
+  if (!whiteKing || !blackKing) return false;
+  
+  // Check if both kings are castled (on back ranks)
+  const whiteCastled = whiteKing.row >= 6;
+  const blackCastled = blackKing.row <= 1;
+  
+  if (!whiteCastled || !blackCastled) return false;
+  
+  // Check if on opposite sides
+  const whiteKingSide = whiteKing.col >= 4; // true = kingside
+  const blackKingSide = blackKing.col >= 4;
+  
+  return whiteKingSide !== blackKingSide;
 }
 
 // ============================================
@@ -1338,6 +1471,9 @@ function selectMoveByPersonality(
     
     if (!move) return { candidate, score };
     
+    // Detect opposite-side castling for GM awareness
+    const isOppositeSideCastling = detectOppositeSideCastling(game);
+    
     // Apply personality bonuses
     switch (personality) {
       case 'aggressive':
@@ -1346,6 +1482,29 @@ function selectMoveByPersonality(
         // Prefer moves toward enemy king side
         if (game.turn() === 'w' && parseInt(move.to[1]) >= 5) score += 40 * personalityInfluence;
         if (game.turn() === 'b' && parseInt(move.to[1]) <= 4) score += 40 * personalityInfluence;
+        
+        // PAWN STORM BONUS (3x multiplier for Aggressor)
+        // Bonus for advancing pawns on the enemy king's flank
+        if (move.piece === 'p') {
+          const toRank = parseInt(move.to[1]);
+          const toFile = move.to[0];
+          // Get enemy king position to determine attack direction
+          const enemyKing = findKingPosition(game, game.turn() === 'w' ? 'b' : 'w');
+          if (enemyKing) {
+            const enemyKingFile = String.fromCharCode(97 + enemyKing.col);
+            const adjacentFiles = [
+              String.fromCharCode(enemyKingFile.charCodeAt(0) - 1),
+              enemyKingFile,
+              String.fromCharCode(enemyKingFile.charCodeAt(0) + 1)
+            ];
+            // Pawn advancing on enemy king's flank
+            if (adjacentFiles.includes(toFile)) {
+              // 3x storm bonus for Aggressor
+              const stormBonus = (game.turn() === 'w' ? toRank - 2 : 9 - toRank) * 30 * personalityInfluence;
+              score += stormBonus * 3;
+            }
+          }
+        }
         break;
         
       case 'tactician':
@@ -1365,6 +1524,26 @@ function selectMoveByPersonality(
         const backRank = game.turn() === 'w' ? '1' : '8';
         if (move.to.includes(backRank) || move.to.includes(game.turn() === 'w' ? '2' : '7')) {
           score += 25 * personalityInfluence;
+        }
+        
+        // PAWN SHIELD BONUS (2x multiplier for Defender)
+        // "Iron Fortress" - heavily penalize moving shield pawns (f,g,h for kingside or a,b,c for queenside)
+        if (move.piece === 'p') {
+          const myKing = findKingPosition(game, game.turn());
+          if (myKing) {
+            const kingFile = String.fromCharCode(97 + myKing.col);
+            const shieldFiles = [
+              String.fromCharCode(kingFile.charCodeAt(0) - 1),
+              kingFile,
+              String.fromCharCode(kingFile.charCodeAt(0) + 1)
+            ];
+            const fromFile = move.from[0];
+            // Penalize moving pawns in front of our own king (breaks shield)
+            if (shieldFiles.includes(fromFile)) {
+              // Negative bonus = penalty (2x for Defender)
+              score -= 60 * personalityInfluence * 2;
+            }
+          }
         }
         break;
         
@@ -1400,7 +1579,27 @@ function selectMoveByPersonality(
         
       case 'balanced':
       default:
-        // Slight preference for the engine's top choice
+        // Grandmaster-level awareness: In opposite-side castling, value pawn storms more
+        if (isOppositeSideCastling && move.piece === 'p') {
+          const toRank = parseInt(move.to[1]);
+          const toFile = move.to[0];
+          // Get enemy king position
+          const enemyKing = findKingPosition(game, game.turn() === 'w' ? 'b' : 'w');
+          if (enemyKing) {
+            const enemyKingFile = String.fromCharCode(97 + enemyKing.col);
+            const adjacentFiles = [
+              String.fromCharCode(enemyKingFile.charCodeAt(0) - 1),
+              enemyKingFile,
+              String.fromCharCode(enemyKingFile.charCodeAt(0) + 1)
+            ];
+            // In opposite-side castling, pawn storms are safe and strong
+            if (adjacentFiles.includes(toFile)) {
+              // GM recognizes racing dynamics - boost storm value
+              const stormBonus = (game.turn() === 'w' ? toRank - 2 : 9 - toRank) * 25 * personalityInfluence;
+              score += stormBonus * 1.5; // 1.5x bonus in opposite-side castling positions
+            }
+          }
+        }
         break;
     }
     
