@@ -3513,7 +3513,7 @@ export default function OTBMode() {
                 {perspective3d && (
                   <div 
                     className="flex flex-col"
-                    style={{ width: 'calc(100% * 2 / 12)', aspectRatio: '2 / 8' }}
+                    style={{ width: 'calc(100% * 2 / 10)', aspectRatio: '2 / 8' }}
                   >
                     {/* Empty space (1 tile) */}
                     <div style={{ height: '12.5%' }} />
