@@ -2423,6 +2423,59 @@ export default function GameAnalysisPage() {
   const focusCheck = hasClientResult ? calculateFocusCheck() : null;
   const efficiencyFactor = hasClientResult ? calculateEfficiencyFactor() : null;
   
+  // Calculate VSS Mismatch alerts - moves where player misjudged position when they had time
+  // VSS = Visualization-Speed-Sync - detecting when you rushed a critical decision
+  const calculateVSSMismatchAlerts = (): number[] => {
+    if (!clientAnalysis.result) return [];
+    
+    const clientMoves = clientAnalysis.result.moves;
+    const playerColor = game.playerColor;
+    const thinkingTimes = game.thinkingTimes as number[] | null;
+    
+    // Calculate average thinking time for comparison
+    const playerThinkTimes: number[] = [];
+    if (thinkingTimes) {
+      clientMoves.forEach((_, idx) => {
+        const isPlayerMove = (playerColor === 'white' && idx % 2 === 0) || 
+                             (playerColor === 'black' && idx % 2 === 1);
+        if (isPlayerMove && thinkingTimes[idx] != null) {
+          playerThinkTimes.push(thinkingTimes[idx]);
+        }
+      });
+    }
+    const avgThinkTime = playerThinkTimes.length > 0 
+      ? playerThinkTimes.reduce((a, b) => a + b, 0) / playerThinkTimes.length 
+      : 5; // Default 5 seconds if no data
+    
+    const mismatchPlyIndices: number[] = [];
+    
+    clientMoves.forEach((m, idx) => {
+      const isPlayerMove = (playerColor === 'white' && idx % 2 === 0) || 
+                           (playerColor === 'black' && idx % 2 === 1);
+      
+      if (!isPlayerMove) return;
+      
+      // Check if this was a significant error (blunder or mistake)
+      const isSignificantError = m.classification === 'blunder' || m.classification === 'mistake';
+      if (!isSignificantError) return;
+      
+      // Check if player spent less than average time (rushed)
+      // Or if they had time remaining on their clock
+      const moveThinkTime = thinkingTimes?.[idx] ?? avgThinkTime;
+      const rushedMove = moveThinkTime < avgThinkTime * 0.7; // Less than 70% of average
+      
+      // A VSS mismatch is when you made a significant error quickly
+      // (you misjudged the position's complexity)
+      if (rushedMove || m.normalizedCentipawnLoss > 150) {
+        mismatchPlyIndices.push(idx);
+      }
+    });
+    
+    return mismatchPlyIndices;
+  };
+  
+  const vssMismatchAlerts = hasClientResult ? calculateVSSMismatchAlerts() : null;
+  
   // Create effective analysis that uses client results when available
   const analysis = hasClientResult ? {
     ...serverAnalysis,
@@ -2434,6 +2487,7 @@ export default function GameAnalysisPage() {
     endgameAccuracy: phaseAccuracies?.endgame ?? serverAnalysis.endgameAccuracy,
     focusCheckScore: focusCheck ?? serverAnalysis.focusCheckScore,
     efficiencyFactor: efficiencyFactor ?? serverAnalysis.efficiencyFactor,
+    vssMismatchAlerts: vssMismatchAlerts ?? serverAnalysis.vssMismatchAlerts,
   } : serverAnalysis;
   
   // Use client-side move analysis when available
