@@ -6,7 +6,9 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { UserSettings } from "@shared/schema";
 import { ChessBoard } from "@/components/chess-board";
 import { PerspectiveChessBoard } from "@/components/perspective-chess-board";
 import { NotationInput } from "@/components/notation-input";
@@ -66,6 +68,33 @@ export default function OTBMode() {
   const { user } = useAuth();
   const { toast } = useNotifications();
   const [, setLocation] = useLocation();
+  const highlightColors = useHighlightColors();
+  
+  const { data: userSettings } = useQuery<UserSettings>({
+    queryKey: ["/api/settings"],
+  });
+  
+  const [tiltAngle, setTiltAngle] = useState(45);
+  
+  useEffect(() => {
+    if (userSettings?.otbTiltAngle) {
+      setTiltAngle(userSettings.otbTiltAngle);
+    }
+  }, [userSettings?.otbTiltAngle]);
+  
+  const saveTiltMutation = useMutation({
+    mutationFn: async (newTilt: number) => {
+      await apiRequest("PATCH", "/api/settings", { otbTiltAngle: newTilt });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+    },
+  });
+  
+  const handleTiltChange = useCallback((newTilt: number) => {
+    setTiltAngle(newTilt);
+    saveTiltMutation.mutate(newTilt);
+  }, [saveTiltMutation]);
   const [game, setGame] = useState<Chess | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);
@@ -3492,6 +3521,9 @@ export default function OTBMode() {
                   onSquareClick={handleSquareClick}
                   highlightColor="red"
                   perspective3d={perspective3d}
+                  customHighlightColors={highlightColors}
+                  tiltAngle={tiltAngle}
+                  onTiltChange={perspective3d ? handleTiltChange : undefined}
                 />
                 
                 {/* OTB Control Column - 2 tiles wide, 8 tiles tall */}

@@ -36,6 +36,12 @@ function isWebGLAvailable(): boolean {
   }
 }
 
+interface HighlightColors {
+  selectedPiece?: string;
+  availableMoves?: string;
+  lastMove?: string;
+}
+
 interface ChessBoard3DProps {
   fen?: string;
   orientation?: "white" | "black";
@@ -46,6 +52,9 @@ interface ChessBoard3DProps {
   onSquareClick?: (square: string) => void;
   onMove?: (from: string, to: string) => boolean;
   className?: string;
+  customHighlightColors?: HighlightColors;
+  tiltAngle?: number;
+  onTiltChange?: (angle: number) => void;
 }
 
 const SQUARE_SIZE = 1;
@@ -1024,12 +1033,20 @@ export function ChessBoard3D({
   onSquareClick,
   onMove,
   className = "",
+  customHighlightColors,
+  tiltAngle = 45,
+  onTiltChange,
 }: ChessBoard3DProps) {
   const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
+  const [localTilt, setLocalTilt] = useState(tiltAngle);
   
   useEffect(() => {
     setWebglSupported(isWebGLAvailable());
   }, []);
+
+  useEffect(() => {
+    setLocalTilt(tiltAngle);
+  }, [tiltAngle]);
   
   const handleSquareClick = useCallback((square: string) => {
     if (onSquareClick) {
@@ -1037,10 +1054,23 @@ export function ChessBoard3D({
     }
   }, [onSquareClick]);
 
-  // Camera position adjusted for better mobile accessibility - steeper angle and closer zoom makes pieces easier to tap
+  const handleTiltChange = useCallback((newTilt: number) => {
+    setLocalTilt(newTilt);
+    if (onTiltChange) {
+      onTiltChange(newTilt);
+    }
+  }, [onTiltChange]);
+
+  // Camera position based on tilt angle (20-70 degrees range)
+  // Convert tilt angle to camera position
+  const tiltRadians = (localTilt * Math.PI) / 180;
+  const cameraDistance = 13;
+  const cameraY = cameraDistance * Math.sin(tiltRadians);
+  const cameraZ = cameraDistance * Math.cos(tiltRadians);
+  
   const cameraPosition: [number, number, number] = orientation === "white" 
-    ? [0, 11, 7]
-    : [0, 11, -7];
+    ? [0, cameraY, cameraZ]
+    : [0, cameraY, -cameraZ];
   
   const lookAt: [number, number, number] = [0, 0, 0];
 
@@ -1064,12 +1094,34 @@ export function ChessBoard3D({
         onMove={onMove}
         className={className}
         noCard={true}
+        customHighlightColors={customHighlightColors}
       />
     );
   }
 
   return (
-    <div className={`w-full aspect-square ${className}`} data-testid="chess-board-3d">
+    <div className={`relative w-full aspect-square ${className}`} data-testid="chess-board-3d">
+      {onTiltChange && (
+        <div 
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-1"
+          data-testid="tilt-slider-container"
+        >
+          <span className="text-xs text-white/70 font-medium">Tilt</span>
+          <input
+            type="range"
+            min="20"
+            max="70"
+            value={localTilt}
+            onChange={(e) => handleTiltChange(Number(e.target.value))}
+            className="h-32 w-2 appearance-none bg-white/20 rounded-full cursor-pointer [writing-mode:vertical-lr] [-webkit-appearance:slider-vertical]"
+            style={{
+              WebkitAppearance: 'slider-vertical',
+            }}
+            data-testid="input-tilt-slider"
+          />
+          <span className="text-xs text-white/70">{localTilt}°</span>
+        </div>
+      )}
       <Canvas
         shadows
         camera={{

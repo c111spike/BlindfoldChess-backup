@@ -129,21 +129,24 @@ export default function OTBTournamentSimulator() {
             motion of reaching across to tap a physical clock after completing your move.
           </p>
 
-          <h3>Visual Realism: True Perspective Fixed 3D View</h3>
+          <h3>Visual Realism: Adjustable 3D Perspective</h3>
           <p>
             Stop training on a flat 2D grid that looks nothing like a real tournament table. In an actual event, 
-            you see the board from a fixed, angled perspective. Our <strong>Fixed 3D Perspective</strong> mimics 
-            the exact eye-level of a seated player.
+            you see the board from an angled perspective that varies based on your height and seating position. 
+            Our <strong>Adjustable 3D Perspective</strong> lets you customize the viewing angle with a tilt slider 
+            to match your real-world playing position.
           </p>
 
           <p>
             <strong>The Benefit:</strong> Most online players struggle to see "long diagonals" or knight forks on 
-            a real board because the spatial geometry is different.
+            a real board because the spatial geometry is different. Different players sit at different heights and 
+            distances from the board — our adjustable tilt accommodates everyone.
           </p>
 
           <p>
-            <strong>The Result:</strong> By locking the camera in a realistic 3D position, you build the specific 
-            spatial awareness needed to spot tactics in a physical environment.
+            <strong>The Result:</strong> By adjusting the camera to your preferred 3D angle, you build the specific 
+            spatial awareness needed to spot tactics in a physical environment, personalized to how you actually 
+            see the board.
           </p>
 
           <h3>OTB Castling: The King-Rook Sequence</h3>

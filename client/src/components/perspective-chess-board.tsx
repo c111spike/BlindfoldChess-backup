@@ -1,6 +1,12 @@
 import { ChessBoard } from "@/components/chess-board";
 import { ChessBoard3D } from "@/components/chess-board-3d";
 
+interface HighlightColors {
+  selectedPiece?: string;
+  availableMoves?: string;
+  lastMove?: string;
+}
+
 interface PerspectiveBoardProps {
   fen?: string;
   orientation?: "white" | "black";
@@ -23,6 +29,9 @@ interface PerspectiveBoardProps {
   arrowDrawMode?: boolean;
   highlightColor?: "yellow" | "red";
   perspective3d?: boolean;
+  customHighlightColors?: HighlightColors;
+  tiltAngle?: number;
+  onTiltChange?: (angle: number) => void;
 }
 
 export function PerspectiveChessBoard({
@@ -30,10 +39,13 @@ export function PerspectiveChessBoard({
   className = "",
   lastMove,
   lastMoveSquares: propLastMoveSquares,
+  customHighlightColors,
+  tiltAngle,
+  onTiltChange,
   ...props
 }: PerspectiveBoardProps) {
   if (!perspective3d) {
-    return <ChessBoard {...props} lastMove={lastMove} lastMoveSquares={propLastMoveSquares} className={className} />;
+    return <ChessBoard {...props} lastMove={lastMove} lastMoveSquares={propLastMoveSquares} className={className} customHighlightColors={customHighlightColors} />;
   }
 
   // Use prop lastMoveSquares if provided, otherwise derive from lastMove
@@ -52,6 +64,9 @@ export function PerspectiveChessBoard({
       onSquareClick={props.onSquareClick}
       onMove={props.onMove}
       className={className}
+      customHighlightColors={customHighlightColors}
+      tiltAngle={tiltAngle}
+      onTiltChange={onTiltChange}
     />
   );
 }

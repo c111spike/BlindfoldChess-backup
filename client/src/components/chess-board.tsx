@@ -12,6 +12,12 @@ interface Premove {
   to: string;
 }
 
+interface HighlightColors {
+  selectedPiece?: string;
+  availableMoves?: string;
+  lastMove?: string;
+}
+
 interface ChessBoardProps {
   fen?: string;
   orientation?: "white" | "black";
@@ -34,6 +40,7 @@ interface ChessBoardProps {
   onPremove?: (premove: Premove | null) => void;
   arrowDrawMode?: boolean;
   highlightColor?: "yellow" | "red";
+  customHighlightColors?: HighlightColors;
 }
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -103,7 +110,11 @@ export function ChessBoard({
   onPremove,
   arrowDrawMode = false,
   highlightColor = "yellow",
+  customHighlightColors,
 }: ChessBoardProps) {
+  const selectedColor = customHighlightColors?.selectedPiece || (highlightColor === "red" ? "#ef4444" : "#facc15");
+  const lastMoveHighlightColor = customHighlightColors?.lastMove || (highlightColor === "red" ? "#ef4444" : "#facc15");
+  const availableMovesColorValue = customHighlightColors?.availableMoves || "#000000";
   const [internalSelectedSquare, setInternalSelectedSquare] = useState<string | null>(null);
   const selectedSquare = externalSelectedSquare !== null ? externalSelectedSquare : internalSelectedSquare;
   
@@ -473,6 +484,13 @@ export function ChessBoard({
               const isLegalCapture = isLegalMove && piece !== null;
               const isPendingArrowStart = pendingArrowStart === square;
 
+              const hexToRgba = (hex: string, alpha: number) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+              };
+
               return (
                 <div
                   key={square}
@@ -483,16 +501,23 @@ export function ChessBoard({
                     relative flex items-center justify-center cursor-pointer
                     ${getSquareColor(fileIndex, rankIndex)}
                     ${isHighlighted ? "ring-2 ring-primary ring-inset" : ""}
-                    ${isSelected && !isLocked ? (highlightColor === "red" ? "ring-4 ring-red-400 ring-inset" : "ring-4 ring-yellow-400 ring-inset") : ""}
-                    ${isLocked ? (highlightColor === "red" ? "ring-4 ring-red-500 ring-inset" : "ring-4 ring-yellow-500 ring-inset") : ""}
-                    ${isLastMove ? (highlightColor === "red" ? "bg-opacity-80 after:absolute after:inset-0 after:bg-red-400/30" : "bg-opacity-80 after:absolute after:inset-0 after:bg-yellow-400/30") : ""}
                     ${isPremove ? "bg-opacity-80 after:absolute after:inset-0 after:bg-blue-500/40" : ""}
                     ${isPendingArrowStart ? "ring-4 ring-orange-400 ring-inset" : ""}
                     hover-elevate
                   `}
+                  style={{
+                    ...(isSelected && !isLocked ? { boxShadow: `inset 0 0 0 4px ${selectedColor}` } : {}),
+                    ...(isLocked ? { boxShadow: `inset 0 0 0 4px ${selectedColor}` } : {}),
+                  }}
                 >
+                  {isLastMove && (
+                    <div 
+                      className="absolute inset-0 pointer-events-none" 
+                      style={{ backgroundColor: hexToRgba(lastMoveHighlightColor, 0.3) }}
+                    />
+                  )}
                   {piece && (
-                    <span className={`text-3xl sm:text-4xl md:text-5xl select-none ${
+                    <span className={`text-3xl sm:text-4xl md:text-5xl select-none relative z-10 ${
                       piece === piece.toUpperCase() ? "text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]" : "text-black"
                     }`}>
                       {PIECE_SYMBOLS[piece]}
@@ -500,10 +525,16 @@ export function ChessBoard({
                   )}
                   
                   {isLegalMove && !isLegalCapture && (
-                    <div className="absolute w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-black/20 pointer-events-none" />
+                    <div 
+                      className="absolute w-3 h-3 sm:w-4 sm:h-4 rounded-full pointer-events-none z-10" 
+                      style={{ backgroundColor: hexToRgba(availableMovesColorValue, 0.4) }}
+                    />
                   )}
                   {isLegalCapture && (
-                    <div className="absolute inset-0 rounded-full border-[3px] sm:border-4 border-black/20 pointer-events-none" />
+                    <div 
+                      className="absolute inset-0 rounded-full pointer-events-none z-10" 
+                      style={{ border: `3px solid ${hexToRgba(availableMovesColorValue, 0.5)}` }}
+                    />
                   )}
                   
                   {showCoordinates && fileIndex === 0 && (
