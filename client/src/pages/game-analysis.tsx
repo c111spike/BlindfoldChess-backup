@@ -2118,6 +2118,14 @@ export default function GameAnalysisPage() {
     (autoStarted && !data?.analysis) ||
     startAnalysisMutation.isPending;
 
+  // Auto-advance to move 1 when analysis starts (so user sees analysis in action)
+  const hasAutoAdvanced = useRef(false);
+  useEffect(() => {
+    if (isAnalyzing && gameMoves.length > 0 && currentMoveIndex === -1 && !hasAutoAdvanced.current) {
+      hasAutoAdvanced.current = true;
+      setCurrentMoveIndex(0);
+    }
+  }, [isAnalyzing, gameMoves.length, currentMoveIndex]);
 
   // Notify when analysis completes if mini-game is open
   const prevIsAnalyzing = useRef(isAnalyzing);
