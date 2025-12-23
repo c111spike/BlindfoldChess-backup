@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -34,7 +35,8 @@ import {
   Loader2,
   Sparkles,
   Undo2,
-  MousePointerClick
+  MousePointerClick,
+  EyeOff
 } from "lucide-react";
 
 interface MoveVerification {
@@ -156,6 +158,7 @@ export default function PuzzleCreator() {
   
   const [sourceType, setSourceType] = useState("");
   const [sourceName, setSourceName] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
   
   // Stockfish verification state
@@ -459,6 +462,7 @@ export default function PuzzleCreator() {
         hints,
         sourceType,
         sourceName: sourceName || null,
+        isAnonymous,
         whoToMove,
         themes: [],
       });
@@ -1045,6 +1049,26 @@ export default function PuzzleCreator() {
                     />
                   </div>
                 )}
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <EyeOff className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <Label htmlFor="anonymous-toggle" className="text-sm font-medium cursor-pointer">
+                        Submit Anonymously
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Your username won't be shown to other players
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="anonymous-toggle"
+                    checked={isAnonymous}
+                    onCheckedChange={setIsAnonymous}
+                    data-testid="switch-anonymous"
+                  />
+                </div>
 
                 <div className="p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Puzzle Summary</h4>
