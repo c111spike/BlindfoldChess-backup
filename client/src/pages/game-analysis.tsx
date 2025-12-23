@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useClientAnalysis } from '@/hooks/useClientAnalysis';
 import { SyzygyIndicator } from '@/components/syzygy-indicator';
+import { MiniGameOverlay } from '@/components/minigames/MiniGameOverlay';
 import {
   ChevronLeft,
   ChevronRight,
@@ -44,6 +45,7 @@ import {
   Plus,
   Download,
   GraduationCap,
+  Gamepad2,
 } from 'lucide-react';
 import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase } from '@shared/schema';
 
@@ -1949,6 +1951,8 @@ export default function GameAnalysisPage() {
   const isSharedView = !!shareCode;
   const [autoStarted, setAutoStarted] = useState(false);
   const [useClientSide, setUseClientSide] = useState(false);
+  const [miniGameOpen, setMiniGameOpen] = useState(false);
+  const [miniGamePromptDismissed, setMiniGamePromptDismissed] = useState(false);
   
   const clientAnalysis = useClientAnalysis();
 
@@ -2106,6 +2110,50 @@ export default function GameAnalysisPage() {
     }
   }, [data?.analysis?.status, autoStarted, startAnalysisMutation.isPending, isSharedView, gameId]);
 
+  // Track if analysis is in progress (server or client)
+  const isAnalyzing = clientAnalysis.analyzing || 
+    data?.analysis?.status === 'processing' || 
+    (autoStarted && !data?.analysis) ||
+    startAnalysisMutation.isPending;
+
+  // Show mini-game prompt when analysis starts (after a short delay to not be too intrusive)
+  useEffect(() => {
+    if (isAnalyzing && !miniGamePromptDismissed && !miniGameOpen) {
+      const timer = setTimeout(() => {
+        if (!miniGamePromptDismissed) {
+          toast({
+            title: 'Play While You Wait',
+            description: 'Analysis takes a bit. Try a quick puzzle game!',
+            action: (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setMiniGameOpen(true)}
+                data-testid="button-open-minigame-toast"
+              >
+                <Gamepad2 className="w-4 h-4 mr-1" />
+                Play
+              </Button>
+            ),
+          });
+        }
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isAnalyzing, miniGamePromptDismissed, miniGameOpen, toast]);
+
+  // Notify when analysis completes if mini-game is open
+  const prevIsAnalyzing = useRef(isAnalyzing);
+  useEffect(() => {
+    if (prevIsAnalyzing.current && !isAnalyzing && miniGameOpen) {
+      toast({
+        title: 'Analysis Complete!',
+        description: 'Your game analysis is ready to view.',
+      });
+    }
+    prevIsAnalyzing.current = isAnalyzing;
+  }, [isAnalyzing, miniGameOpen, toast]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -2130,9 +2178,17 @@ export default function GameAnalysisPage() {
                   value={(clientAnalysis.progress / clientAnalysis.totalMoves) * 100} 
                   className="w-64 mx-auto mb-2"
                 />
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mb-4">
                   Move {clientAnalysis.progress} of {clientAnalysis.totalMoves}
                 </p>
+                <Button
+                  variant="outline"
+                  onClick={() => setMiniGameOpen(true)}
+                  data-testid="button-play-while-waiting-local"
+                >
+                  <Gamepad2 className="w-4 h-4 mr-2" />
+                  Play While You Wait
+                </Button>
               </>
             ) : autoStarted || startAnalysisMutation.isPending ? (
               <>
@@ -2141,19 +2197,28 @@ export default function GameAnalysisPage() {
                 <p className="text-muted-foreground mb-4">
                   Stockfish is evaluating each move. This usually takes 15-30 seconds...
                 </p>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setUseClientSide(true);
-                    clientAnalysis.startAnalysis(gameMoves);
-                  }}
-                  disabled={gameMoves.length === 0}
-                  className="mt-2"
-                  data-testid="button-analyze-locally"
-                >
-                  <Zap className="w-4 h-4 mr-2" />
-                  Analyze Locally Instead
-                </Button>
+                <div className="flex flex-col gap-2 items-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setMiniGameOpen(true)}
+                    data-testid="button-play-while-waiting-server"
+                  >
+                    <Gamepad2 className="w-4 h-4 mr-2" />
+                    Play While You Wait
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setUseClientSide(true);
+                      clientAnalysis.startAnalysis(gameMoves);
+                    }}
+                    disabled={gameMoves.length === 0}
+                    data-testid="button-analyze-locally"
+                  >
+                    <Zap className="w-4 h-4 mr-2" />
+                    Analyze Locally Instead
+                  </Button>
+                </div>
               </>
             ) : (
               <>
@@ -2194,6 +2259,16 @@ export default function GameAnalysisPage() {
             </Button>
           </CardContent>
         </Card>
+        
+        <MiniGameOverlay 
+          open={miniGameOpen} 
+          onOpenChange={(open) => {
+            setMiniGameOpen(open);
+            if (!open) {
+              setMiniGamePromptDismissed(true);
+            }
+          }}
+        />
       </div>
     );
   }
@@ -2521,6 +2596,16 @@ export default function GameAnalysisPage() {
           </Card>
         </div>
       </div>
+      
+      <MiniGameOverlay 
+        open={miniGameOpen} 
+        onOpenChange={(open) => {
+          setMiniGameOpen(open);
+          if (!open) {
+            setMiniGamePromptDismissed(true);
+          }
+        }}
+      />
     </div>
   );
 }
