@@ -1764,6 +1764,19 @@ export async function generateBotMoveClient(
   
   const config = DIFFICULTY_CONFIG[difficulty];
   
+  // Tactician depth/nodes bonus: Tactics require seeing 1-2 moves further to "land"
+  // Lower difficulties get +2 depth, higher get +1 (they already have high depth)
+  // For Stockfish: 50% more nodes to find deeper tactical lines
+  const isTactician = personality === 'tactician';
+  const tacticianDepthBonus = isTactician ? (config.maxDepth <= 4 ? 2 : 1) : 0;
+  const tacticianNodeMultiplier = isTactician ? 1.5 : 1.0;
+  const effectiveMaxDepth = config.maxDepth + tacticianDepthBonus;
+  const effectiveStockfishNodes = Math.floor(config.stockfishNodes * tacticianNodeMultiplier);
+  
+  if (isTactician) {
+    console.log(`[ClientBot] Tactician bonus: depth +${tacticianDepthBonus} (${config.maxDepth} → ${effectiveMaxDepth}), nodes x1.5 (${config.stockfishNodes} → ${effectiveStockfishNodes})`);
+  }
+  
   // Calculate time budget
   let timeBudget = config.timePerMoveMs;
   if (remainingTimeMs !== undefined) {
@@ -1823,9 +1836,9 @@ export async function generateBotMoveClient(
     // Phase 2: Engine evaluation
     // Use Stockfish for intermediate+ difficulty
     if (config.useStockfish) {
-      console.log(`[ClientBot] Using Stockfish with ${config.stockfishNodes} nodes, MultiPV ${config.multiPvCount}`);
+      console.log(`[ClientBot] Using Stockfish with ${effectiveStockfishNodes} nodes, MultiPV ${config.multiPvCount}`);
       
-      const topMoves = await clientStockfish.getTopMoves(fen, config.multiPvCount, config.stockfishNodes);
+      const topMoves = await clientStockfish.getTopMoves(fen, config.multiPvCount, effectiveStockfishNodes);
       
       if (topMoves.length > 0) {
         const selected = selectMoveByPersonality(game, topMoves, personality, difficulty);
@@ -1854,13 +1867,13 @@ export async function generateBotMoveClient(
     }
     
     // Fallback: Use iterative deepening minimax with enhanced heuristics
-    console.log(`[ClientBot] Using minimax with depth ${config.maxDepth}, time ${timeBudget}ms`);
+    console.log(`[ClientBot] Using minimax with depth ${effectiveMaxDepth}, time ${timeBudget}ms`);
     console.log(`[ClientBot] Heuristics: killers=${config.useKillers}, history=${config.useHistory}, mobility=${config.mobilityWeight}%, kingSafety=${config.kingSafetyWeight}%, mopUp=${config.mopUpWeight}%, tapered=${config.useTaperedEval}`);
     
     // Use TT-enhanced search for Grandmaster difficulty
     const result = difficulty === 'grandmaster' 
-      ? iterativeDeepeningWithTT(game, timeBudget, config.maxDepth, config)
-      : iterativeDeepening(game, timeBudget, config.maxDepth, config);
+      ? iterativeDeepeningWithTT(game, timeBudget, effectiveMaxDepth, config)
+      : iterativeDeepening(game, timeBudget, effectiveMaxDepth, config);
     
     if (result.bestMove) {
       const matchingMove = moves.find(m => m.san === result.bestMove);
