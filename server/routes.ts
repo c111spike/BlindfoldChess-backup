@@ -5074,6 +5074,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             });
           }
+        } else if (data.type === 'post_game_handshake_offer') {
+          // Post-game courtesy handshake (no penalties, just good sportsmanship)
+          const matchId = data.matchId;
+          const userId = ws.userId;
+          
+          if (!matchId || !userId) return;
+          
+          console.log(`[Post-Game Handshake] Player ${userId} offered post-game handshake in match ${matchId}`);
+          
+          const roomUsers = matchRooms.get(matchId);
+          if (roomUsers) {
+            roomUsers.forEach((roomUserId) => {
+              if (roomUserId !== userId) {
+                const opponentWs = userConnections.get(roomUserId);
+                if (opponentWs && opponentWs.readyState === WebSocket.OPEN) {
+                  opponentWs.send(JSON.stringify({
+                    type: 'post_game_handshake_offer',
+                    matchId: matchId,
+                  }));
+                }
+              }
+            });
+          }
         } else if (data.type === 'offer_draw') {
           const matchId = data.matchId;
           const userId = ws.userId;

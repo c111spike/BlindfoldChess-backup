@@ -76,6 +76,7 @@ interface UseWebSocketOptions {
   onArbiterCall?: (data: ArbiterCallData) => void;
   onArbiterRuling?: (data: ArbiterRulingData) => void;
   onHandshakeOffer?: (data: { matchId: string }) => void;
+  onPostGameHandshakeOffer?: (data: { matchId: string }) => void;
   onOpponentDisconnected?: (data: { matchId: string; gracePeriod: number }) => void;
   onOpponentReconnected?: (data: { matchId: string }) => void;
 }
@@ -97,6 +98,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onArbiterCall,
     onArbiterRuling,
     onHandshakeOffer,
+    onPostGameHandshakeOffer,
     onOpponentDisconnected,
     onOpponentReconnected,
   } = options;
@@ -119,6 +121,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const onArbiterCallRef = useRef(onArbiterCall);
   const onArbiterRulingRef = useRef(onArbiterRuling);
   const onHandshakeOfferRef = useRef(onHandshakeOffer);
+  const onPostGameHandshakeOfferRef = useRef(onPostGameHandshakeOffer);
   const onOpponentDisconnectedRef = useRef(onOpponentDisconnected);
   const onOpponentReconnectedRef = useRef(onOpponentReconnected);
   
@@ -137,6 +140,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onArbiterCallRef.current = onArbiterCall;
     onArbiterRulingRef.current = onArbiterRuling;
     onHandshakeOfferRef.current = onHandshakeOffer;
+    onPostGameHandshakeOfferRef.current = onPostGameHandshakeOffer;
     onOpponentDisconnectedRef.current = onOpponentDisconnected;
     onOpponentReconnectedRef.current = onOpponentReconnected;
   });
@@ -302,6 +306,13 @@ export function useWebSocket(options: UseWebSocketOptions) {
           case 'handshake_offer':
             if (onHandshakeOfferRef.current) {
               onHandshakeOfferRef.current({
+                matchId: message.matchId,
+              });
+            }
+            break;
+          case 'post_game_handshake_offer':
+            if (onPostGameHandshakeOfferRef.current) {
+              onPostGameHandshakeOfferRef.current({
                 matchId: message.matchId,
               });
             }
@@ -473,6 +484,15 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
+  const sendPostGameHandshakeOffer = useCallback((matchId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'post_game_handshake_offer', 
+        matchId,
+      }));
+    }
+  }, []);
+
   const sendPlayerAway = useCallback((matchId: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ 
@@ -523,6 +543,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     sendArbiterRuling,
     sendGameEnd,
     sendHandshakeOffer,
+    sendPostGameHandshakeOffer,
     sendPlayerAway,
     sendPlayerBack,
   };

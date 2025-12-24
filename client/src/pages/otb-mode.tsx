@@ -152,6 +152,11 @@ export default function OTBMode() {
   const [opponentHandshakeBeforeFirstMove, setOpponentHandshakeBeforeFirstMove] = useState(false);
   const [opponentHandshakeViolation, setOpponentHandshakeViolation] = useState(false);
   
+  // Post-game handshake state (courtesy gesture after game ends)
+  const [postGameHandshakeOffered, setPostGameHandshakeOffered] = useState(false);
+  const [opponentPostGameHandshakeOffered, setOpponentPostGameHandshakeOffered] = useState(false);
+  const [postGameHandshakeComplete, setPostGameHandshakeComplete] = useState(false);
+  
   const [touchedPiece, setTouchedPiece] = useState<string | null>(null);
   const [lockedPiece, setLockedPiece] = useState<string | null>(null); // Touch-move: piece must be moved if it has legal moves
   const [mobileScoreSheetOpen, setMobileScoreSheetOpen] = useState(false);
@@ -965,6 +970,9 @@ export default function OTBMode() {
       setMyHandshakeBeforeFirstMove(false);
       setOpponentHandshakeBeforeFirstMove(false);
       setOpponentHandshakeViolation(false);
+      setPostGameHandshakeOffered(false);
+      setOpponentPostGameHandshakeOffered(false);
+      setPostGameHandshakeComplete(false);
       setTouchedPiece(null);
       setArbiterResult(null);
       setHasMadeMove(false);
@@ -1026,7 +1034,28 @@ export default function OTBMode() {
     }
   }, [matchId, toast]);
 
-  const { sendMove, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, sendRematchRequest, sendRematchResponse, sendDrawOffer, sendDrawResponse, joinMatch, isConnected, isAuthenticated, sendPlayerAway, sendPlayerBack } = useWebSocket({
+  // Handler for post-game handshake offer from opponent
+  const handlePostGameHandshakeOffer = useCallback((data: { matchId: string }) => {
+    if (data.matchId !== matchIdRef.current) return;
+    console.log('[OTB] Received post-game handshake offer from opponent');
+    setOpponentPostGameHandshakeOffered(true);
+    
+    // If we already offered, mark as complete
+    if (postGameHandshakeOffered) {
+      setPostGameHandshakeComplete(true);
+      toast({
+        title: "Good Game!",
+        description: "You and your opponent shook hands.",
+      });
+    } else {
+      toast({
+        title: "Handshake Offered",
+        description: "Your opponent is offering a post-game handshake.",
+      });
+    }
+  }, [postGameHandshakeOffered, toast]);
+
+  const { sendMove, sendArbiterCall, sendArbiterRuling, sendGameEnd, sendHandshakeOffer, sendPostGameHandshakeOffer, sendRematchRequest, sendRematchResponse, sendDrawOffer, sendDrawResponse, joinMatch, isConnected, isAuthenticated, sendPlayerAway, sendPlayerBack } = useWebSocket({
     userId: user?.id,
     matchId: matchId || undefined,
     onMove: handleOpponentMove,
@@ -1034,6 +1063,7 @@ export default function OTBMode() {
     onArbiterRuling: handleArbiterRuling,
     onGameEnd: handleOpponentGameEnd,
     onHandshakeOffer: handleOpponentHandshake,
+    onPostGameHandshakeOffer: handlePostGameHandshakeOffer,
     onJoinedMatch: handleJoinedMatch,
     onRematchRequest: handleRematchRequest,
     onRematchResponse: handleRematchResponse,
@@ -1249,6 +1279,9 @@ export default function OTBMode() {
           setMyHandshakeBeforeFirstMove(false);
           setOpponentHandshakeBeforeFirstMove(false);
           setOpponentHandshakeViolation(false);
+          setPostGameHandshakeOffered(false);
+          setOpponentPostGameHandshakeOffered(false);
+          setPostGameHandshakeComplete(false);
           setTouchedPiece(null);
           setHasMadeMove(false);
           setPendingCheckmate(null);
@@ -1655,6 +1688,9 @@ export default function OTBMode() {
     setMyHandshakeBeforeFirstMove(false);
     setOpponentHandshakeBeforeFirstMove(false);
     setOpponentHandshakeViolation(false);
+    setPostGameHandshakeOffered(false);
+    setOpponentPostGameHandshakeOffered(false);
+    setPostGameHandshakeComplete(false);
     setTouchedPiece(null);
     setOpponentName("Practice Partner");
     setOpponentId(null);
@@ -1760,6 +1796,9 @@ export default function OTBMode() {
     setMyHandshakeBeforeFirstMove(false);
     setOpponentHandshakeBeforeFirstMove(true);
     setOpponentHandshakeViolation(false);
+    setPostGameHandshakeOffered(false);
+    setOpponentPostGameHandshakeOffered(false);
+    setPostGameHandshakeComplete(false);
     setTouchedPiece(null);
     setIsBotGame(true);
     setSelectedBot(bot);
@@ -3386,6 +3425,61 @@ export default function OTBMode() {
                         </div>
                       </div>
                       
+                      {/* Post-game Handshake (PvP only) - courtesy gesture */}
+                      {!isBotGame && matchId && !postGameHandshakeComplete && (
+                        <div className="flex items-center gap-2">
+                          {opponentPostGameHandshakeOffered && !postGameHandshakeOffered ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setPostGameHandshakeOffered(true);
+                                setPostGameHandshakeComplete(true);
+                                sendPostGameHandshakeOffer(matchId);
+                                toast({
+                                  title: "Good Game!",
+                                  description: "You and your opponent shook hands.",
+                                });
+                              }}
+                              data-testid="button-accept-postgame-handshake"
+                            >
+                              <HandshakeIcon className="mr-2 h-4 w-4" />
+                              Accept Handshake
+                            </Button>
+                          ) : postGameHandshakeOffered && !opponentPostGameHandshakeOffered ? (
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                              <HandshakeIcon className="h-4 w-4" />
+                              <span>Handshake offered...</span>
+                            </div>
+                          ) : !postGameHandshakeOffered && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setPostGameHandshakeOffered(true);
+                                sendPostGameHandshakeOffer(matchId);
+                                toast({
+                                  title: "Handshake Offered",
+                                  description: "Waiting for opponent to shake hands...",
+                                });
+                              }}
+                              data-testid="button-offer-postgame-handshake"
+                            >
+                              <HandshakeIcon className="mr-2 h-4 w-4" />
+                              Offer Handshake
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Post-game handshake complete message */}
+                      {!isBotGame && matchId && postGameHandshakeComplete && (
+                        <div className="flex items-center gap-2 text-green-500 text-sm">
+                          <HandshakeIcon className="h-4 w-4" />
+                          <span>Good game! Handshake complete.</span>
+                        </div>
+                      )}
+                      
                       {/* Rematch status for PvP */}
                       {!isBotGame && matchId && (
                         <div className="text-sm">
@@ -3511,6 +3605,9 @@ export default function OTBMode() {
                             setMyHandshakeBeforeFirstMove(false);
                             setOpponentHandshakeBeforeFirstMove(false);
                             setOpponentHandshakeViolation(false);
+                            setPostGameHandshakeOffered(false);
+                            setOpponentPostGameHandshakeOffered(false);
+                            setPostGameHandshakeComplete(false);
                             setTouchedPiece(null);
                             setArbiterResult(null);
                             setRestoredGame(false);
