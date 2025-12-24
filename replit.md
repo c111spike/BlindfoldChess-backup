@@ -51,6 +51,8 @@ Provides two tabbed modes for game analysis:
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.
 - **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles.
+  - Optional YouTube video URL support for all puzzle source types (educational supplementary content)
+  - YouTube URLs normalized to canonical format to prevent duplicate video submissions across different URL formats
 
 ### Infrastructure
 - **Cloudflare CDN**: Configured for performance and caching.
