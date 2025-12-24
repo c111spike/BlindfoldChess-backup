@@ -158,8 +158,31 @@ export default function PuzzleCreator() {
   
   const [sourceType, setSourceType] = useState("");
   const [sourceName, setSourceName] = useState("");
+  const [youtubeVideoUrl, setYoutubeVideoUrl] = useState("");
+  const [youtubeUrlError, setYoutubeUrlError] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
+  
+  // Validate YouTube URL format
+  const validateYoutubeUrl = (url: string): boolean => {
+    if (!url.trim()) return true; // Empty is valid (optional field)
+    const youtubePatterns = [
+      /^https?:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/,
+      /^https?:\/\/youtu\.be\/[\w-]+/,
+      /^https?:\/\/(www\.)?youtube\.com\/shorts\/[\w-]+/,
+      /^https?:\/\/(www\.)?youtube\.com\/embed\/[\w-]+/,
+    ];
+    return youtubePatterns.some(pattern => pattern.test(url));
+  };
+  
+  const handleYoutubeUrlChange = (url: string) => {
+    setYoutubeVideoUrl(url);
+    if (url.trim() && !validateYoutubeUrl(url)) {
+      setYoutubeUrlError("Please enter a valid YouTube URL (youtube.com or youtu.be)");
+    } else {
+      setYoutubeUrlError("");
+    }
+  };
   
   // Stockfish verification state
   const [moveVerifications, setMoveVerifications] = useState<Record<number, MoveVerification>>({});
@@ -462,6 +485,7 @@ export default function PuzzleCreator() {
         hints,
         sourceType,
         sourceName: sourceName || null,
+        youtubeVideoUrl: youtubeVideoUrl.trim() || null,
         isAnonymous,
         whoToMove,
         themes: [],
@@ -486,7 +510,7 @@ export default function PuzzleCreator() {
 
   const canProceedToStep2 = board.some(row => row.some(cell => cell !== null));
   const canProceedToStep3 = puzzleType && difficulty && solutionMoves.some(m => m.trim());
-  const canSubmit = sourceType && hasPermission;
+  const canSubmit = sourceType && hasPermission && !youtubeUrlError;
 
   const hasPieces = board.some(row => row.some(cell => cell !== null));
 
@@ -1033,7 +1057,7 @@ export default function PuzzleCreator() {
                   <div className="space-y-2">
                     <Label htmlFor="sourceName">
                       {sourceType === "book" ? "Book Title" : 
-                       sourceType === "youtube" ? "YouTube Channel/Video" : 
+                       sourceType === "youtube" ? "YouTube Channel Name" : 
                        "Source Description"}
                     </Label>
                     <Input
@@ -1047,6 +1071,29 @@ export default function PuzzleCreator() {
                       }
                       data-testid="input-source-name"
                     />
+                  </div>
+                )}
+
+                {sourceType && (
+                  <div className="space-y-2">
+                    <Label htmlFor="youtubeVideoUrl" className="flex items-center gap-2">
+                      <Youtube className="h-4 w-4" />
+                      YouTube Video Link (Optional)
+                    </Label>
+                    <Input
+                      id="youtubeVideoUrl"
+                      value={youtubeVideoUrl}
+                      onChange={(e) => handleYoutubeUrlChange(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className={youtubeUrlError ? "border-destructive" : ""}
+                      data-testid="input-youtube-url"
+                    />
+                    {youtubeUrlError && (
+                      <p className="text-sm text-destructive">{youtubeUrlError}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Link to a YouTube video that explains or features this puzzle
+                    </p>
                   </div>
                 )}
 
