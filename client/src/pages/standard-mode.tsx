@@ -136,7 +136,7 @@ export default function StandardMode() {
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
   const [isBotGame, setIsBotGame] = useState(false);
   const [botThinking, setBotThinking] = useState(false);
-  const [botTimeControl, setBotTimeControl] = useState<"blitz" | "rapid">("blitz");
+  const [botTimeControl, setBotTimeControl] = useState<"blitz" | "rapid" | "practice">("blitz");
   const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
   const [selectedBotPersonality, setSelectedBotPersonality] = useState<BotProfile | null>(null);
   
@@ -946,8 +946,9 @@ export default function StandardMode() {
       : colorChoice;
     setPlayerColor(assignedColor);
     
-    const seconds = botTimeControl === "blitz" ? 300 : 900;
-    const inc = botTimeControl === "blitz" ? 0 : 10;
+    // Practice mode uses a very large time value (effectively no limit)
+    const seconds = botTimeControl === "practice" ? 99999999 : (botTimeControl === "blitz" ? 300 : 900);
+    const inc = botTimeControl === "practice" ? 0 : (botTimeControl === "blitz" ? 0 : 10);
     setWhiteTime(seconds);
     setBlackTime(seconds);
     whiteTimeRef.current = seconds;
@@ -959,12 +960,13 @@ export default function StandardMode() {
     setOpponentRating(bot.elo);
     setPlayerName(user.firstName || "Player");
     
-    // Set player rating for display using correct category
-    const botRatingCategory = botTimeControl === "blitz" ? "blitz" : "rapid";
+    // Set player rating for display using correct category (practice uses blitz pool for display only)
+    const botRatingCategory = botTimeControl === "rapid" ? "rapid" : "blitz";
     const currentPlayerRating = playerRatings?.[botRatingCategory] || 1200;
     setPlayerRating(currentPlayerRating);
     
-    const mode = botTimeControl === "blitz" ? "standard_blitz" : "standard_rapid";
+    // Practice mode uses a special mode that won't affect ratings
+    const mode = botTimeControl === "practice" ? "standard_practice" : (botTimeControl === "blitz" ? "standard_blitz" : "standard_rapid");
     
     createGameMutation.mutate({
       mode,
@@ -1708,7 +1710,7 @@ export default function StandardMode() {
                           <h2 className="text-lg md:text-xl font-semibold">Select Difficulty</h2>
                         </div>
                         
-                        <div className="flex gap-2 mb-4">
+                        <div className="flex flex-wrap gap-2 mb-4">
                           <Button
                             variant={botTimeControl === "blitz" ? "default" : "outline"}
                             size="sm"
@@ -1726,6 +1728,15 @@ export default function StandardMode() {
                           >
                             <Clock className="mr-1 h-3 w-3" />
                             Rapid (15+0)
+                          </Button>
+                          <Button
+                            variant={botTimeControl === "practice" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setBotTimeControl("practice")}
+                            data-testid="button-bot-practice"
+                          >
+                            <InfinityIcon className="mr-1 h-3 w-3" />
+                            Practice
                           </Button>
                         </div>
                         
@@ -1923,7 +1934,7 @@ export default function StandardMode() {
                       <div className={`text-2xl font-mono font-bold ${
                         game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "text-foreground" : "text-muted-foreground"
                       }`} data-testid={playerColor === "white" ? "text-black-time" : "text-white-time"}>
-                        {formatTime(playerColor === "white" ? blackTime : whiteTime)}
+                        {timeControl >= 99999 ? "∞" : formatTime(playerColor === "white" ? blackTime : whiteTime)}
                       </div>
                     </div>
                   </CardContent>
@@ -2082,7 +2093,7 @@ export default function StandardMode() {
                       <div className={`text-2xl font-mono font-bold ${
                         game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "text-foreground" : "text-muted-foreground"
                       }`} data-testid={playerColor === "white" ? "text-white-time" : "text-black-time"}>
-                        {formatTime(playerColor === "white" ? whiteTime : blackTime)}
+                        {timeControl >= 99999 ? "∞" : formatTime(playerColor === "white" ? whiteTime : blackTime)}
                       </div>
                     </div>
                   </CardContent>

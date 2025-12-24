@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3, Crown, Shuffle, MessageSquareWarning, Ban, FileText, X, RotateCcw, Loader2 } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, AlertTriangle, Settings, Gavel, XCircle, CheckCircle, Trophy, Bot, ChevronLeft, BarChart3, Crown, Shuffle, MessageSquareWarning, Ban, FileText, X, RotateCcw, Loader2, Infinity as InfinityIcon } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -196,6 +196,7 @@ export default function OTBMode() {
   const [botThinking, setBotThinking] = useState(false);
   const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
   const [selectedBotPersonality, setSelectedBotPersonality] = useState<BotProfile | null>(null);
+  const [botTimeControl, setBotTimeControl] = useState<"blitz" | "rapid" | "practice">("blitz");
   
   // Rematch state
   const [rematchRequested, setRematchRequested] = useState(false);
@@ -1764,8 +1765,10 @@ export default function OTBMode() {
   const handleStartBotGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     if (!user) return;
     
-    const minutes = parseInt(timeControl);
-    const seconds = minutes * 60;
+    // Use botTimeControl for bot games instead of general timeControl
+    const isPracticeMode = botTimeControl === "practice";
+    const minutes = isPracticeMode ? 99999999 : (botTimeControl === "blitz" ? 5 : 15);
+    const seconds = isPracticeMode ? 99999999 : minutes * 60;
     
     setWhiteTime(seconds);
     setBlackTime(seconds);
@@ -1818,8 +1821,9 @@ export default function OTBMode() {
     setOpponentId(null);
     setOpponentRating(bot.elo);
     
-    const mode = minutes <= 3 ? "otb_bullet" : minutes <= 10 ? "otb_blitz" : "otb_rapid";
-    const gameIncrement = getIncrementForTimeControl(timeControl);
+    // Practice mode uses a special mode that won't affect ratings
+    const mode = isPracticeMode ? "otb_practice" : (botTimeControl === "blitz" ? "otb_blitz" : "otb_rapid");
+    const gameIncrement = isPracticeMode ? 0 : (botTimeControl === "rapid" ? 30 : 0);
     setIncrement(gameIncrement);
     
     createGameMutation.mutate({
@@ -3092,7 +3096,37 @@ export default function OTBMode() {
                             <h3 className="text-lg font-semibold">Select Bot Difficulty</h3>
                           </div>
                           
-                          <ScrollArea className="h-[280px] pr-2">
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            <Button
+                              variant={botTimeControl === "blitz" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setBotTimeControl("blitz")}
+                              data-testid="button-bot-blitz"
+                            >
+                              <Clock className="mr-1 h-3 w-3" />
+                              Blitz (5+0)
+                            </Button>
+                            <Button
+                              variant={botTimeControl === "rapid" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setBotTimeControl("rapid")}
+                              data-testid="button-bot-rapid"
+                            >
+                              <Clock className="mr-1 h-3 w-3" />
+                              Rapid (15+30)
+                            </Button>
+                            <Button
+                              variant={botTimeControl === "practice" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setBotTimeControl("practice")}
+                              data-testid="button-bot-practice"
+                            >
+                              <InfinityIcon className="mr-1 h-3 w-3" />
+                              Practice
+                            </Button>
+                          </div>
+                          
+                          <ScrollArea className="h-[240px] pr-2">
                             <div className="grid grid-cols-1 gap-2">
                               {ALL_DIFFICULTIES.map((difficulty) => (
                                 <Card 
@@ -3659,7 +3693,7 @@ export default function OTBMode() {
                     <div className={`text-2xl font-mono font-bold ${
                       clockTurn !== playerColor ? "text-foreground" : "text-muted-foreground"
                     }`} data-testid={playerColor === "white" ? "text-black-time" : "text-white-time"}>
-                      {formatTime(playerColor === "white" ? blackTime : whiteTime)}
+                      {whiteTime >= 99999 ? "∞" : formatTime(playerColor === "white" ? blackTime : whiteTime)}
                     </div>
                   </div>
                 </CardContent>
@@ -3830,7 +3864,7 @@ export default function OTBMode() {
                     <div className={`text-2xl font-mono font-bold ${
                       clockTurn === playerColor ? "text-foreground" : "text-muted-foreground"
                     }`} data-testid={playerColor === "white" ? "text-white-time" : "text-black-time"}>
-                      {formatTime(playerColor === "white" ? whiteTime : blackTime)}
+                      {whiteTime >= 99999 ? "∞" : formatTime(playerColor === "white" ? whiteTime : blackTime)}
                     </div>
                   </div>
                 </CardContent>
