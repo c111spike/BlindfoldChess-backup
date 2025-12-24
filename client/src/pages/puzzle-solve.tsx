@@ -27,7 +27,9 @@ import {
   ChevronRight,
   ChevronLeft,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Youtube,
+  ExternalLink
 } from "lucide-react";
 import type { Puzzle } from "@shared/schema";
 
@@ -422,6 +424,19 @@ export default function PuzzleSolve() {
                          puzzle.sourceName || "Other"}
                       </span>
                     </p>
+                  )}
+                  {puzzle.youtubeVideoUrl && (
+                    <a
+                      href={puzzle.youtubeVideoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-primary hover:underline"
+                      data-testid="link-youtube-video"
+                    >
+                      <Youtube className="h-4 w-4 text-red-500" />
+                      <span>Watch Video</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                   )}
                 </div>
                 

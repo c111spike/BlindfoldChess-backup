@@ -1810,23 +1810,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Validate and check for duplicate YouTube URL
-      const youtubeVideoUrl = req.body.youtubeVideoUrl?.trim();
+      let youtubeVideoUrl = req.body.youtubeVideoUrl?.trim();
       if (youtubeVideoUrl) {
-        const youtubePatterns = [
-          /^https?:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/,
-          /^https?:\/\/youtu\.be\/[\w-]+/,
-          /^https?:\/\/(www\.)?youtube\.com\/shorts\/[\w-]+/,
-          /^https?:\/\/(www\.)?youtube\.com\/embed\/[\w-]+/,
-        ];
-        const isValidYoutubeUrl = youtubePatterns.some(pattern => pattern.test(youtubeVideoUrl));
-        if (!isValidYoutubeUrl) {
+        // Extract video ID from various YouTube URL formats
+        const extractYoutubeVideoId = (url: string): string | null => {
+          const patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+          ];
+          for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match) return match[1];
+          }
+          return null;
+        };
+        
+        const videoId = extractYoutubeVideoId(youtubeVideoUrl);
+        if (!videoId) {
           return res.status(400).json({ message: "Invalid YouTube URL. Please use a valid youtube.com or youtu.be link." });
         }
+        
+        // Normalize to canonical format for consistent storage and comparison
+        youtubeVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
         
         const existingYoutubeUrlPuzzle = await storage.checkDuplicateYoutubeUrl(youtubeVideoUrl);
         if (existingYoutubeUrlPuzzle) {
           return res.status(400).json({ message: "This YouTube video is already linked to another puzzle" });
         }
+        
+        // Update the request body with normalized URL
+        req.body.youtubeVideoUrl = youtubeVideoUrl;
       }
       
       const puzzleData = insertPuzzleSchema.parse({
