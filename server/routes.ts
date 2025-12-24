@@ -11,6 +11,7 @@ import { generateBotMove, calculateBotThinkTime } from "./botEngine";
 import { BOTS, getBotById } from "../shared/botTypes";
 import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
 import { analysisQueueManager } from "./analysisQueueManager";
+import { memoryCache, CACHE_KEYS, CACHE_TTL } from "./memoryCache";
 
 const { queueManager } = createQueueManager();
 
@@ -165,32 +166,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get('/api/stats/platform', async (req, res) => {
     try {
-      const [gameStats, blindfoldCount, trainingCounts, simulVsSimulCount] = await Promise.all([
-        storage.getGameStatistics(),
-        storage.getBlindfoldGameCount(),
-        storage.getTrainingChallengesCounts(),
-        storage.getCompletedSimulVsSimulPairingCount()
-      ]);
-      
-      // Convert array to object with mode as key
-      const statsByMode: Record<string, number> = {};
-      for (const stat of gameStats) {
-        statsByMode[stat.mode] = stat.count;
-      }
+      // Use in-memory cache for expensive aggregate queries (30 second TTL)
+      const cachedStats = await memoryCache.getOrFetch(
+        CACHE_KEYS.GAME_STATISTICS,
+        async () => {
+          const [gameStats, blindfoldCount, trainingCounts, simulVsSimulCount] = await Promise.all([
+            storage.getGameStatistics(),
+            storage.getBlindfoldGameCount(),
+            storage.getTrainingChallengesCounts(),
+            storage.getCompletedSimulVsSimulPairingCount()
+          ]);
+          
+          // Convert array to object with mode as key
+          const statsByMode: Record<string, number> = {};
+          for (const stat of gameStats) {
+            statsByMode[stat.mode] = stat.count;
+          }
+          
+          return {
+            totalGames: {
+              simulVsSimul: simulVsSimulCount,
+              otb: statsByMode['otb'] || 0,
+              standard: statsByMode['standard'] || 0,
+              blindfold: blindfoldCount,
+            },
+            trainingChallenges: {
+              boardSpin: trainingCounts.boardSpin,
+              nPiece: trainingCounts.nPiece,
+              knightsTour: trainingCounts.knightsTour,
+            }
+          };
+        },
+        CACHE_TTL.STATISTICS
+      );
       
       res.json({
         onlinePlayers: authenticatedUsers.size,
-        totalGames: {
-          simulVsSimul: simulVsSimulCount,
-          otb: statsByMode['otb'] || 0,
-          standard: statsByMode['standard'] || 0,
-          blindfold: blindfoldCount,
-        },
-        trainingChallenges: {
-          boardSpin: trainingCounts.boardSpin,
-          nPiece: trainingCounts.nPiece,
-          knightsTour: trainingCounts.knightsTour,
-        }
+        ...cachedStats,
       });
     } catch (error) {
       console.error("Error fetching platform stats:", error);
@@ -280,6 +292,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           console.log('[PATCH /api/games/:id] Queue entries cleaned up');
         }
+      }
+      
+      // Invalidate platform stats cache when a game is completed
+      if (isGameComplete) {
+        memoryCache.invalidate(CACHE_KEYS.GAME_STATISTICS);
       }
       
       res.json(updatedGame);
@@ -2608,6 +2625,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeSpent: timeSpent || null,
       });
       
+      // Invalidate leaderboard cache when new score is saved
+      memoryCache.invalidatePrefix('boardspin:leaderboard');
+      
       res.json(savedScore);
     } catch (error) {
       console.error("Error saving Board Spin score:", error);
@@ -2618,9 +2638,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/boardspin/leaderboard', async (req, res) => {
     try {
       const { difficulty, limit } = req.query;
-      const leaderboard = await storage.getBoardSpinLeaderboard(
-        difficulty as string | undefined,
-        limit ? parseInt(limit as string) : 10
+      const cacheKey = CACHE_KEYS.BOARD_SPIN_LEADERBOARD(difficulty as string || 'all');
+      
+      const leaderboard = await memoryCache.getOrFetch(
+        cacheKey,
+        async () => storage.getBoardSpinLeaderboard(
+          difficulty as string | undefined,
+          limit ? parseInt(limit as string) : 10
+        ),
+        CACHE_TTL.LEADERBOARD
       );
       res.json(leaderboard);
     } catch (error) {
@@ -3659,6 +3685,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const disconnectTimers = new Map<string, NodeJS.Timeout>();
   const DISCONNECT_GRACE_PERIOD = 30000; // 30 seconds
   
+  // ============ WEBSOCKET HEALTH CHECKS ============
+  // Ping/pong mechanism to detect dead connections
+  const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+  const CONNECTION_TIMEOUT = 35000; // 35 seconds (must be > HEARTBEAT_INTERVAL)
+  
+  interface ExtendedWebSocket extends WebSocket {
+    isAlive?: boolean;
+    userId?: string;
+    matchId?: string;
+    lastPong?: number;
+  }
+  
+  // Heartbeat interval - ping all clients every 30 seconds
+  const heartbeatInterval = setInterval(() => {
+    wss.clients.forEach((ws: ExtendedWebSocket) => {
+      if (ws.isAlive === false) {
+        // Connection didn't respond to last ping, terminate it
+        console.log(`[WS Health] Terminating unresponsive connection${ws.userId ? ` for user ${ws.userId}` : ''}`);
+        return ws.terminate();
+      }
+      
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, HEARTBEAT_INTERVAL);
+  
+  // Cleanup on server close
+  wss.on('close', () => {
+    clearInterval(heartbeatInterval);
+  });
+  
+  // Log WebSocket stats periodically (every 5 minutes)
+  setInterval(() => {
+    const stats = {
+      totalConnections: wss.clients.size,
+      authenticatedUsers: authenticatedUsers.size,
+      activeMatchRooms: matchRooms.size,
+      pendingDisconnects: disconnectTimers.size,
+    };
+    console.log('[WS Stats]', stats);
+  }, 300000);
+  // ============ END WEBSOCKET HEALTH CHECKS ============
+  
   // Track processed rematch requests to prevent duplicate handling
   const processedRematches = new Set<string>();
   
@@ -4379,8 +4448,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // ============ END SIMUL VS SIMUL DATA STRUCTURES ============
 
-  wss.on('connection', (ws: WebSocket & { userId?: string; matchId?: string }) => {
+  wss.on('connection', (ws: ExtendedWebSocket) => {
     console.log('WebSocket client connected');
+    
+    // Mark connection as alive on connect
+    ws.isAlive = true;
+    ws.lastPong = Date.now();
+    
+    // Handle pong responses for health check
+    ws.on('pong', () => {
+      ws.isAlive = true;
+      ws.lastPong = Date.now();
+    });
 
     ws.on('message', async (message: string) => {
       try {
