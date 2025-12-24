@@ -147,6 +147,7 @@ export interface IStorage {
   updatePuzzle(id: string, data: Partial<Puzzle>): Promise<Puzzle>;
   deletePuzzle(id: string): Promise<void>;
   checkDuplicatePuzzle(fen: string): Promise<Puzzle | undefined>;
+  checkDuplicateYoutubeUrl(youtubeVideoUrl: string): Promise<Puzzle | undefined>;
   
   createPuzzleVote(vote: InsertPuzzleVote): Promise<PuzzleVote>;
   getUserPuzzleVote(userId: string, puzzleId: string): Promise<PuzzleVote | undefined>;
@@ -956,6 +957,17 @@ export class DatabaseStorage implements IStorage {
     const fenPosition = fen.split(' ')[0];
     const allPuzzles = await db.select().from(puzzles).where(eq(puzzles.isRemoved, false));
     return allPuzzles.find(p => p.fen.split(' ')[0] === fenPosition);
+  }
+
+  async checkDuplicateYoutubeUrl(youtubeVideoUrl: string): Promise<Puzzle | undefined> {
+    if (!youtubeVideoUrl) return undefined;
+    const [puzzle] = await db.select().from(puzzles)
+      .where(and(
+        eq(puzzles.youtubeVideoUrl, youtubeVideoUrl),
+        eq(puzzles.isRemoved, false)
+      ))
+      .limit(1);
+    return puzzle;
   }
 
   async createPuzzleVote(voteData: InsertPuzzleVote): Promise<PuzzleVote> {

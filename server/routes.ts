@@ -1809,6 +1809,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "A puzzle with this position already exists" });
       }
       
+      // Validate and check for duplicate YouTube URL
+      const youtubeVideoUrl = req.body.youtubeVideoUrl?.trim();
+      if (youtubeVideoUrl) {
+        const youtubePatterns = [
+          /^https?:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/,
+          /^https?:\/\/youtu\.be\/[\w-]+/,
+          /^https?:\/\/(www\.)?youtube\.com\/shorts\/[\w-]+/,
+          /^https?:\/\/(www\.)?youtube\.com\/embed\/[\w-]+/,
+        ];
+        const isValidYoutubeUrl = youtubePatterns.some(pattern => pattern.test(youtubeVideoUrl));
+        if (!isValidYoutubeUrl) {
+          return res.status(400).json({ message: "Invalid YouTube URL. Please use a valid youtube.com or youtu.be link." });
+        }
+        
+        const existingYoutubeUrlPuzzle = await storage.checkDuplicateYoutubeUrl(youtubeVideoUrl);
+        if (existingYoutubeUrlPuzzle) {
+          return res.status(400).json({ message: "This YouTube video is already linked to another puzzle" });
+        }
+      }
+      
       const puzzleData = insertPuzzleSchema.parse({
         ...req.body,
         creatorId: userId,
