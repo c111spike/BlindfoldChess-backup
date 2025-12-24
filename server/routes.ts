@@ -3854,19 +3854,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     player1Id: string;
     player2Id: string;
     createdAt: number; // Timestamp for cleanup
+    finalized: boolean; // True after cleanup has run - prevents late offers
   }
   const postGameHandshakeState = new Map<string, PostGameHandshakeState>();
   
+  // Track which players have been credited for handshakes in each match
+  // This prevents cleanup from resetting streaks for players who already offered
+  const creditedHandshakes = new Map<string, Set<string>>(); // matchId -> Set<userId>
+  
+  // Track finalized matches to reject late offers after cleanup
+  // Uses timestamps for 5-minute expiry to prevent memory bloat
+  const finalizedMatchHandshakes = new Map<string, number>(); // matchId -> timestamp
+  const FINALIZED_REGISTRY_EXPIRY = 5 * 60 * 1000; // 5 minutes
+  
   // Cleanup stale post-game handshake states after 2 minutes (covers rematch scenarios)
   const POST_GAME_HANDSHAKE_TIMEOUT = 120000;
-  setInterval(() => {
+  
+  // Helper function to finalize handshake state - resets streaks for non-participants
+  async function finalizePostGameHandshake(matchId: string) {
+    // Check if already finalized (via persistent registry)
+    if (finalizedMatchHandshakes.has(matchId)) {
+      console.log(`[Post-Game Handshake] Match ${matchId} already finalized, skipping`);
+      return;
+    }
+    
+    // Mark as finalized in persistent registry (survives state cleanup)
+    finalizedMatchHandshakes.set(matchId, Date.now());
+    
+    const pgState = postGameHandshakeState.get(matchId);
+    
+    // Get set of credited players for this match
+    const credited = creditedHandshakes.get(matchId) || new Set<string>();
+    
+    if (pgState) {
+      // State exists - reset streak for players who didn't participate
+      if (pgState.player1Id && !credited.has(pgState.player1Id)) {
+        console.log(`[Post-Game Handshake] Resetting streak for player ${pgState.player1Id} (didn't handshake)`);
+        await storage.breakHandshakeStreak(pgState.player1Id);
+      }
+      if (pgState.player2Id && !credited.has(pgState.player2Id)) {
+        console.log(`[Post-Game Handshake] Resetting streak for player ${pgState.player2Id} (didn't handshake)`);
+        await storage.breakHandshakeStreak(pgState.player2Id);
+      }
+    } else {
+      // No state exists - fetch match to get player IDs and reset both streaks
+      // This handles the case where neither player offered a handshake
+      try {
+        const match = await storage.getMatch(matchId);
+        if (match) {
+          if (match.player1Id && !credited.has(match.player1Id)) {
+            console.log(`[Post-Game Handshake] Resetting streak for player ${match.player1Id} (no handshake state)`);
+            await storage.breakHandshakeStreak(match.player1Id);
+          }
+          if (match.player2Id && !credited.has(match.player2Id)) {
+            console.log(`[Post-Game Handshake] Resetting streak for player ${match.player2Id} (no handshake state)`);
+            await storage.breakHandshakeStreak(match.player2Id);
+          }
+        }
+      } catch (err) {
+        console.error(`[Post-Game Handshake] Error fetching match ${matchId}:`, err);
+      }
+    }
+    
+    // Clean up tracking data (but finalized registry persists for 5 minutes)
+    postGameHandshakeState.delete(matchId);
+    creditedHandshakes.delete(matchId);
+  }
+  
+  setInterval(async () => {
     const now = Date.now();
+    
+    // Cleanup stale post-game handshake states
+    const matchesToCleanup: string[] = [];
     postGameHandshakeState.forEach((state, matchId) => {
       if (now - state.createdAt > POST_GAME_HANDSHAKE_TIMEOUT) {
-        console.log(`[Post-Game Handshake] Cleaning up stale state for match ${matchId}`);
-        postGameHandshakeState.delete(matchId);
+        matchesToCleanup.push(matchId);
       }
     });
+    
+    for (const matchId of matchesToCleanup) {
+      console.log(`[Post-Game Handshake] Cleaning up stale state for match ${matchId}`);
+      try {
+        await finalizePostGameHandshake(matchId);
+      } catch (err) {
+        console.error(`[Post-Game Handshake] Error finalizing state for match ${matchId}:`, err);
+      }
+    }
+    
+    // Prune expired entries from finalized registry
+    const expiredFinalized: string[] = [];
+    finalizedMatchHandshakes.forEach((timestamp, matchId) => {
+      if (now - timestamp > FINALIZED_REGISTRY_EXPIRY) {
+        expiredFinalized.push(matchId);
+      }
+    });
+    for (const matchId of expiredFinalized) {
+      finalizedMatchHandshakes.delete(matchId);
+    }
   }, 30000); // Check every 30 seconds
 
   // ============ SIMUL VS SIMUL DATA STRUCTURES ============
@@ -5097,7 +5181,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         } else if (data.type === 'post_game_handshake_offer') {
-          // Post-game courtesy handshake (no penalties, just good sportsmanship)
+          // Post-game courtesy handshake - each player is responsible for their own sportsmanship
+          // Offering/accepting increments streak, not participating resets streak
           const matchId = data.matchId;
           const userId = ws.userId;
           
@@ -5105,67 +5190,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`[Post-Game Handshake] Player ${userId} offered post-game handshake in match ${matchId}`);
           
+          // Check if match handshakes were already finalized (prevents late offers after cleanup)
+          if (finalizedMatchHandshakes.has(matchId)) {
+            console.log(`[Post-Game Handshake] Match ${matchId} already finalized, rejecting late offer from ${userId}`);
+            return;
+          }
+          
+          // Check if player was already credited for this match (prevents double-counting)
+          const credited = creditedHandshakes.get(matchId);
+          if (credited?.has(userId)) {
+            console.log(`[Post-Game Handshake] Player ${userId} already credited for match ${matchId}`);
+            return;
+          }
+          
           // Get or create post-game handshake state
           let pgState = postGameHandshakeState.get(matchId);
           const roomUsers = matchRooms.get(matchId);
           
           if (!pgState) {
+            // Get match to know both player IDs
+            const match = await storage.getMatch(matchId);
+            if (!match) {
+              console.log(`[Post-Game Handshake] Match ${matchId} not found`);
+              return;
+            }
+            
             pgState = {
               player1Offered: false,
               player2Offered: false,
-              player1Id: userId, // First player to offer becomes player1
-              player2Id: "",
+              player1Id: match.player1Id,
+              player2Id: match.player2Id,
               createdAt: Date.now(),
+              finalized: false,
             };
             postGameHandshakeState.set(matchId, pgState);
           }
           
-          // Track this player's offer by their userId directly
-          if (userId === pgState.player1Id) {
-            pgState.player1Offered = true;
-          } else if (!pgState.player2Id || userId === pgState.player2Id) {
-            // Assign as player2 if not yet assigned, or mark their offer
-            pgState.player2Id = userId;
-            pgState.player2Offered = true;
+          // Check if this player already offered (prevent double-counting)
+          const isPlayer1 = userId === pgState.player1Id;
+          const isPlayer2 = userId === pgState.player2Id;
+          const alreadyOffered = (isPlayer1 && pgState.player1Offered) || (isPlayer2 && pgState.player2Offered);
+          
+          if (alreadyOffered) {
+            console.log(`[Post-Game Handshake] Player ${userId} already offered in match ${matchId}`);
+            return;
           }
           
-          // If both players offered, record the handshake and award streak
-          if (pgState.player1Offered && pgState.player2Offered) {
-            console.log(`[Post-Game Handshake] Mutual handshake complete in match ${matchId}`);
-            
-            // Record handshakes for both players
-            storage.recordHandshake(pgState.player1Id).then((result1) => {
-              console.log(`[Post-Game Handshake] Player ${pgState!.player1Id} streak: ${result1.streak}`);
-              // Notify player of badge if earned
-              if (result1.badges.includes("sportsman") && result1.streak === 10) {
-                const player1Ws = userConnections.get(pgState!.player1Id);
-                if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
-                  player1Ws.send(JSON.stringify({
-                    type: 'badge_earned',
-                    badge: 'sportsman',
-                    message: 'Sportsman badge earned! 10 consecutive post-game handshakes.',
-                  }));
-                }
-              }
-            });
-            
-            storage.recordHandshake(pgState.player2Id).then((result2) => {
-              console.log(`[Post-Game Handshake] Player ${pgState!.player2Id} streak: ${result2.streak}`);
-              // Notify player of badge if earned
-              if (result2.badges.includes("sportsman") && result2.streak === 10) {
-                const player2Ws = userConnections.get(pgState!.player2Id);
-                if (player2Ws && player2Ws.readyState === WebSocket.OPEN) {
-                  player2Ws.send(JSON.stringify({
-                    type: 'badge_earned',
-                    badge: 'sportsman',
-                    message: 'Sportsman badge earned! 10 consecutive post-game handshakes.',
-                  }));
-                }
-              }
-            });
-            
-            // Clean up state
-            postGameHandshakeState.delete(matchId);
+          // Mark this player as having offered
+          if (isPlayer1) {
+            pgState.player1Offered = true;
+          } else if (isPlayer2) {
+            pgState.player2Offered = true;
+          } else {
+            console.log(`[Post-Game Handshake] Player ${userId} not in match ${matchId}`);
+            return;
+          }
+          
+          // Track that this player has been credited
+          if (!creditedHandshakes.has(matchId)) {
+            creditedHandshakes.set(matchId, new Set<string>());
+          }
+          creditedHandshakes.get(matchId)!.add(userId);
+          
+          // IMMEDIATELY record handshake for the player who offered (increment their streak)
+          const result = await storage.recordHandshake(userId);
+          console.log(`[Post-Game Handshake] Player ${userId} streak: ${result.streak}`);
+          
+          // Notify player of badge if earned (exactly at 10)
+          if (result.badges.includes("sportsman") && result.streak === 10) {
+            const playerWs = userConnections.get(userId);
+            if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+              playerWs.send(JSON.stringify({
+                type: 'badge_earned',
+                badge: 'sportsman',
+                message: 'Sportsman badge earned! 10 consecutive post-game handshakes.',
+              }));
+            }
           }
           
           // Notify opponent of the handshake offer
@@ -6091,11 +6191,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (!matchId || !userId) return;
           
-          // Clear post-game handshake state when rematch is requested
-          if (postGameHandshakeState.has(matchId)) {
-            console.log(`[Post-Game Handshake] Clearing state on rematch request for match ${matchId}`);
-            postGameHandshakeState.delete(matchId);
-          }
+          // Finalize post-game handshake when rematch is requested (resets streaks for non-participants)
+          // Always call to ensure finalized registry is populated, blocking late offers
+          console.log(`[Post-Game Handshake] Finalizing state on rematch request for match ${matchId}`);
+          await finalizePostGameHandshake(matchId);
           
           const roomUsers = matchRooms.get(matchId);
           console.log('[WS request_rematch] Room users:', roomUsers ? Array.from(roomUsers) : 'NO ROOM FOUND');
@@ -6189,10 +6288,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
             // If declined, clean up match state and notify both players
             if (!accepted) {
-              // Clear post-game handshake state
-              if (postGameHandshakeState.has(matchId)) {
-                postGameHandshakeState.delete(matchId);
-              }
+              // Finalize post-game handshake (resets streaks for non-participants)
+              // Always call to ensure finalized registry is populated, blocking late offers
+              await finalizePostGameHandshake(matchId);
               // Finalize match in database if not already completed
               if (currentMatch.status !== 'completed') {
                 await storage.updateMatch(matchId, {
@@ -6322,10 +6420,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               opponentName: player1Name,
             });
             
-            // Clear post-game handshake state from old match before creating new one
-            if (postGameHandshakeState.has(matchId)) {
-              postGameHandshakeState.delete(matchId);
-            }
+            // Finalize post-game handshake from old match before creating new one
+            // Always call to ensure finalized registry is populated, blocking late offers
+            await finalizePostGameHandshake(matchId);
             
             // Create match with BOTH game IDs (required for completeMatch rating calculation)
             const newMatch = await storage.createMatch({
