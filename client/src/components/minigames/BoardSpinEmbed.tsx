@@ -58,9 +58,10 @@ type GamePhase = 'select' | 'memorize' | 'spinning' | 'recreate' | 'bonus' | 're
 
 interface BoardSpinEmbedProps {
   onClose?: () => void;
+  onGameComplete?: () => void;
 }
 
-export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
+export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps) {
   const { toast } = useNotifications();
   const [phase, setPhase] = useState<GamePhase>('select');
   const [difficulty, setDifficulty] = useState<string>('easy');
@@ -163,6 +164,7 @@ export function BoardSpinEmbed({ onClose }: BoardSpinEmbedProps) {
       setScore(result.score);
       setAccuracy(result.accuracy);
       setPhase('results');
+      onGameComplete?.();
     } catch (error) {
       toast({
         title: "Error",
