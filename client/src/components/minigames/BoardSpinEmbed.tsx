@@ -58,7 +58,7 @@ type GamePhase = 'select' | 'memorize' | 'spinning' | 'recreate' | 'bonus' | 're
 
 interface BoardSpinEmbedProps {
   onClose?: () => void;
-  onGameComplete?: () => void;
+  onGameComplete?: (accuracy: number) => void;
 }
 
 export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps) {
@@ -164,7 +164,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
       setScore(result.score);
       setAccuracy(result.accuracy);
       setPhase('results');
-      onGameComplete?.();
+      onGameComplete?.(result.accuracy);
     } catch (error) {
       toast({
         title: "Error",

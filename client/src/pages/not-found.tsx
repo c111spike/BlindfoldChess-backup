@@ -7,10 +7,18 @@ import { Helmet } from "react-helmet-async";
 import { BoardSpinEmbed } from "@/components/minigames/BoardSpinEmbed";
 import { motion, AnimatePresence } from "framer-motion";
 
+function getEncouragementMessage(accuracy: number): string {
+  if (accuracy === 100) return "Nice focus!";
+  if (accuracy >= 67) return "Good job!";
+  if (accuracy >= 34) return "Not bad!";
+  return "Nice try!";
+}
+
 export default function NotFound() {
   const [, setLocation] = useLocation();
   const [hasPlayed, setHasPlayed] = useState(false);
   const [showGame, setShowGame] = useState(false);
+  const [lastAccuracy, setLastAccuracy] = useState(0);
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
@@ -70,7 +78,7 @@ export default function NotFound() {
                   >
                     <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400 font-medium mb-3">
                       <Sparkles className="h-4 w-4" />
-                      Nice focus! Ready for real training?
+                      {getEncouragementMessage(lastAccuracy)} Ready for more training?
                       <Sparkles className="h-4 w-4" />
                     </div>
                     <Button 
@@ -100,7 +108,10 @@ export default function NotFound() {
                 <CardContent className="p-2 sm:p-4">
                   <BoardSpinEmbed 
                     onClose={() => setShowGame(false)}
-                    onGameComplete={() => setHasPlayed(true)}
+                    onGameComplete={(accuracy) => {
+                      setLastAccuracy(accuracy);
+                      setHasPlayed(true);
+                    }}
                   />
                 </CardContent>
               </Card>
