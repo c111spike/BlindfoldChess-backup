@@ -162,6 +162,7 @@ export default function OTBMode() {
   const [pendingCheckmate, setPendingCheckmate] = useState<{
     winner: "white" | "black";
     countdown: number;
+    isIllegalMove: boolean;
   } | null>(null);
   const [legalChessGame, setLegalChessGame] = useState<Chess | null>(null);
   const [opponentName, setOpponentName] = useState<string>("Opponent");
@@ -504,11 +505,42 @@ export default function OTBMode() {
       
       setLastMoveSquares([data.from, data.to]);
       
+      // Validate opponent's move legality for king capture differentiation
+      let opponentMoveWasLegal = false;
+      if (legalChessGameRef.current) {
+        try {
+          const testGame = new Chess(legalChessGameRef.current.fen());
+          const moveResult = testGame.move({
+            from: data.from,
+            to: data.to,
+            promotion: data.promotion?.toLowerCase() as 'q' | 'r' | 'b' | 'n' | undefined,
+          });
+          opponentMoveWasLegal = !!moveResult;
+        } catch {
+          opponentMoveWasLegal = false;
+        }
+      }
+      
+      // Handle king capture (opponent capturing our king)
       if (data.captured?.toLowerCase() === "k") {
-        setPendingCheckmate({
-          winner: data.captured === "K" ? "black" : "white",
-          countdown: 5,
-        });
+        const checkmateWinner = data.captured === "K" ? "black" : "white";
+        
+        if (opponentMoveWasLegal) {
+          // Legal checkmate by opponent - end game immediately
+          console.log('[OTB] Opponent legal king capture - ending game immediately');
+          setGameResult(checkmateWinner === "white" ? "white_win" : "black_win");
+          if (handleGameEndRef.current) {
+            handleGameEndRef.current(checkmateWinner === "white" ? "white_win" : "black_win");
+          }
+        } else {
+          // Illegal move leading to checkmate - give us 30 seconds to call arbiter
+          console.log('[OTB] Opponent illegal king capture - 30 second arbiter window');
+          setPendingCheckmate({
+            winner: checkmateWinner,
+            countdown: 30,
+            isIllegalMove: true,
+          });
+        }
       }
       
       // Update legalChessGame from the received FEN and check for checkmate/stalemate
@@ -2176,6 +2208,9 @@ export default function OTBMode() {
     // Track if this move ends the game (checkmate/stalemate/draw)
     let gameEndingResult: "white_win" | "black_win" | "draw" | null = null;
     
+    // Track if the move was legal (for king capture differentiation)
+    let moveWasLegal = false;
+    
     // Helper to generate SAN from current board state (before move was applied)
     const generateSanFromBoardState = (): string => {
       // Reconstruct FEN from board state before the move
@@ -2201,6 +2236,7 @@ export default function OTBMode() {
         if (sanMoveResult) {
           moveNotation = sanMoveResult.san;
           newFenFromChess = newLegalGame.fen();
+          moveWasLegal = true; // Move validated by chess.js
           if (matchId) {
             setLegalChessGame(newLegalGame);
             
@@ -2279,11 +2315,24 @@ export default function OTBMode() {
       });
     }
     
+    // Handle king capture (checkmate in OTB mode)
     if (captured?.toLowerCase() === "k") {
-      setPendingCheckmate({
-        winner: captured === "K" ? "black" : "white",
-        countdown: 5,
-      });
+      const checkmateWinner = captured === "K" ? "black" : "white";
+      
+      if (moveWasLegal) {
+        // Legal checkmate - end game immediately, no arbiter window needed
+        console.log('[OTB] Legal king capture - ending game immediately');
+        setGameResult(checkmateWinner === "white" ? "white_win" : "black_win");
+        handleGameEnd(checkmateWinner === "white" ? "white_win" : "black_win");
+      } else {
+        // Illegal move leading to checkmate - give opponent 30 seconds to call arbiter
+        console.log('[OTB] Illegal king capture - 30 second arbiter window');
+        setPendingCheckmate({
+          winner: checkmateWinner,
+          countdown: 30,
+          isIllegalMove: true,
+        });
+      }
     }
     
     saveGameState();
