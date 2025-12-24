@@ -1,7 +1,8 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Info, Target, Eye, Zap, Scale, Cpu, ArrowLeft, ArrowRight } from "lucide-react";
+import { Info, Target, Eye, Zap, Scale, Cpu, ArrowLeft, ArrowRight, Code2 } from "lucide-react";
+import { SiReplit, SiCloudflare, SiPostgresql } from "react-icons/si";
 
 export default function About() {
   return (
@@ -124,6 +125,40 @@ export default function About() {
                   <li><strong>Stockfish Integration:</strong> Every game is analyzed to show you not just the "Best Move," but your Efficiency Factor and Burnout Levels.</li>
                   <li><strong>OpenID Authentication:</strong> Secure, seamless login via Replit ensures your data is safe while giving you access to a high-performance training environment.</li>
                 </ul>
+              </section>
+
+              {/* Built With - Tech Stack Transparency */}
+              <section>
+                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2" data-testid="text-built-with-heading">
+                  <Code2 className="h-5 w-5 text-primary" />
+                  Built With
+                </h2>
+                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-built-with-description">
+                  SimulChess is built by a solo developer passionate about bridging the online-to-OTB gap. 
+                  Here's the technology stack powering your training:
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-lg border text-center" data-testid="tech-replit">
+                    <SiReplit className="h-8 w-8 mx-auto mb-2 text-orange-500" />
+                    <p className="font-medium text-sm">Replit</p>
+                    <p className="text-xs text-muted-foreground">Development & Hosting</p>
+                  </div>
+                  <div className="p-4 rounded-lg border text-center" data-testid="tech-cloudflare">
+                    <SiCloudflare className="h-8 w-8 mx-auto mb-2 text-orange-400" />
+                    <p className="font-medium text-sm">Cloudflare</p>
+                    <p className="text-xs text-muted-foreground">CDN & Security</p>
+                  </div>
+                  <div className="p-4 rounded-lg border text-center" data-testid="tech-postgresql">
+                    <SiPostgresql className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+                    <p className="font-medium text-sm">PostgreSQL</p>
+                    <p className="text-xs text-muted-foreground">Neon Serverless DB</p>
+                  </div>
+                  <div className="p-4 rounded-lg border text-center" data-testid="tech-stockfish">
+                    <Cpu className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                    <p className="font-medium text-sm">Stockfish</p>
+                    <p className="text-xs text-muted-foreground">Client-Side WASM</p>
+                  </div>
+                </div>
               </section>
 
               {/* Call to Action */}
