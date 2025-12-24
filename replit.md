@@ -57,6 +57,23 @@ Provides two tabbed modes for game analysis:
 - **PostgreSQL Scaling Optimizations**: Database indexes, connection pooling, and in-memory caching for high-concurrency.
 - **Stockfish Scaling**: Primarily client-side via WebAssembly for infinite scalability.
 
+### In-Memory Caching System (`server/memoryCache.ts`)
+A TTL-based cache for frequently accessed data to reduce database load:
+
+**Cache Keys:**
+- `stats:platform` (30s TTL) - Platform-wide statistics
+- `leaderboard:{mode}` (60s TTL) - Rating leaderboards by mode
+- `boardspin:leaderboard:{difficulty}` (60s TTL) - Board Spin high scores
+- `stats:training` (30s TTL) - Training challenge counts
+- `puzzles:count` (120s TTL) - Puzzle counts
+
+**Centralized Invalidation Helpers:**
+- `invalidateCaches.puzzles()` - Clears puzzle and training counts
+- `invalidateCaches.training()` - Clears training stats, game stats, and board spin leaderboards
+- `invalidateCaches.gameComplete()` - Clears game stats and all rating leaderboards
+
+**All mutation endpoints use these helpers** to ensure cache consistency on writes.
+
 ### Design System
 - **Typography**: Defined scale, monospace for notation.
 - **Spacing**: 4px base unit system.

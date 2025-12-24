@@ -151,3 +151,28 @@ export const CACHE_TTL = {
   ONLINE_USERS: 10,     // 10 seconds for online count
   PUZZLE_DATA: 120,     // 2 minutes for puzzle counts
 };
+
+/**
+ * Centralized cache invalidation helpers
+ * Use these to ensure all related caches are cleared together
+ */
+export const invalidateCaches = {
+  /** Call when any puzzle is created, updated, deleted, or its visibility changes */
+  puzzles(): void {
+    memoryCache.invalidate(CACHE_KEYS.PUZZLE_COUNT);
+    memoryCache.invalidate(CACHE_KEYS.TRAINING_COUNTS);
+  },
+  
+  /** Call when any training challenge is completed (Board Spin, N-Piece, Knight's Tour) */
+  training(): void {
+    memoryCache.invalidate(CACHE_KEYS.TRAINING_COUNTS);
+    memoryCache.invalidate(CACHE_KEYS.GAME_STATISTICS);
+    memoryCache.invalidatePrefix('boardspin:leaderboard');
+  },
+  
+  /** Call when a game is completed (affects ratings and leaderboards) */
+  gameComplete(): void {
+    memoryCache.invalidate(CACHE_KEYS.GAME_STATISTICS);
+    memoryCache.invalidatePrefix('leaderboard:');
+  },
+};

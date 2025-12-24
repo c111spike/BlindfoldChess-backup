@@ -11,7 +11,7 @@ import { generateBotMove, calculateBotThinkTime } from "./botEngine";
 import { BOTS, getBotById } from "../shared/botTypes";
 import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
 import { analysisQueueManager } from "./analysisQueueManager";
-import { memoryCache, CACHE_KEYS, CACHE_TTL } from "./memoryCache";
+import { memoryCache, CACHE_KEYS, CACHE_TTL, invalidateCaches } from "./memoryCache";
 
 const { queueManager } = createQueueManager();
 
@@ -294,9 +294,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Invalidate platform stats cache when a game is completed
+      // Invalidate caches when a game is completed (ratings change)
       if (isGameComplete) {
-        memoryCache.invalidate(CACHE_KEYS.GAME_STATISTICS);
+        invalidateCaches.gameComplete();
       }
       
       res.json(updatedGame);
@@ -1693,6 +1693,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUserPuzzleSolveStreak(userId, false);
       }
       
+      // Invalidate training/puzzle caches when puzzle is attempted
+      invalidateCaches.puzzles();
+      
       res.json(attempt);
     } catch (error) {
       console.error("Error creating puzzle attempt:", error);
@@ -1815,6 +1818,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.updateUserPuzzleReputation(userId, 5);
       
+      // Invalidate puzzle caches when new puzzle is created
+      invalidateCaches.puzzles();
+      
       res.json(puzzle);
     } catch (error) {
       console.error("Error creating puzzle:", error);
@@ -1837,6 +1843,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updatedPuzzle = await storage.updatePuzzle(req.params.id, req.body);
+      
+      // Invalidate puzzle caches on any update (visibility may change)
+      invalidateCaches.puzzles();
+      
       res.json(updatedPuzzle);
     } catch (error) {
       console.error("Error updating puzzle:", error);
@@ -1859,6 +1869,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await storage.deletePuzzle(req.params.id);
+      
+      // Invalidate puzzle caches
+      invalidateCaches.puzzles();
+      
       res.json({ message: "Puzzle deleted" });
     } catch (error) {
       console.error("Error deleting puzzle:", error);
@@ -1890,9 +1904,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingVote) {
         if (existingVote.voteType === voteType) {
           await storage.deletePuzzleVote(existingVote.id);
+          // Invalidate puzzle caches (vote removal affects reputation metrics)
+          invalidateCaches.puzzles();
           return res.json({ message: "Vote removed" });
         } else {
           const vote = await storage.updatePuzzleVote(existingVote.id, voteType);
+          // Invalidate puzzle caches (vote change affects reputation metrics)
+          invalidateCaches.puzzles();
           return res.json(vote);
         }
       }
@@ -1902,6 +1920,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         puzzleId,
         voteType,
       });
+      
+      // Invalidate puzzle caches (votes affect reputation metrics)
+      invalidateCaches.puzzles();
       
       res.json(vote);
     } catch (error) {
@@ -1931,6 +1952,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reason,
         description,
       });
+      
+      // Invalidate puzzle caches (reports affect visibility/counts)
+      invalidateCaches.puzzles();
       
       res.json(report);
     } catch (error) {
@@ -1975,6 +1999,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/puzzles/:id/verify', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const puzzle = await storage.updatePuzzle(req.params.id, { isVerified: true, isFlagged: false });
+      
+      // Invalidate puzzle caches
+      invalidateCaches.puzzles();
+      
       res.json(puzzle);
     } catch (error) {
       console.error("Error verifying puzzle:", error);
@@ -1985,6 +2013,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/puzzles/:id/remove', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const puzzle = await storage.updatePuzzle(req.params.id, { isRemoved: true });
+      
+      // Invalidate puzzle caches
+      invalidateCaches.puzzles();
+      
       res.json(puzzle);
     } catch (error) {
       console.error("Error removing puzzle:", error);
@@ -1995,6 +2027,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/puzzles/:id/unflag', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const puzzle = await storage.updatePuzzle(req.params.id, { isFlagged: false, reportCount: 0 });
+      
+      // Invalidate puzzle caches
+      invalidateCaches.puzzles();
+      
       res.json(puzzle);
     } catch (error) {
       console.error("Error unflagging puzzle:", error);
@@ -2014,6 +2050,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const report = await storage.resolvePuzzleReport(req.params.id, userId);
+      
+      // Invalidate puzzle caches (report resolution may affect visibility)
+      invalidateCaches.puzzles();
+      
       res.json(report);
     } catch (error) {
       console.error("Error resolving report:", error);
@@ -2625,8 +2665,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeSpent: timeSpent || null,
       });
       
-      // Invalidate leaderboard cache when new score is saved
-      memoryCache.invalidatePrefix('boardspin:leaderboard');
+      // Invalidate training caches when new score is saved
+      invalidateCaches.training();
       
       res.json(savedScore);
     } catch (error) {
@@ -2727,6 +2767,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         solutionIndex: 0, // Will be set by storage
       });
       
+      // Invalidate training caches
+      invalidateCaches.training();
+      
       res.json({ 
         isNew: result.isNew, 
         solutionIndex: result.solution.solutionIndex 
@@ -2767,6 +2810,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseInt(boardSize),
         completionTime
       );
+      
+      // Invalidate training caches
+      invalidateCaches.training();
       
       res.json({ progress });
     } catch (error) {
