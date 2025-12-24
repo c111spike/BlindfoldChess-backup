@@ -40,7 +40,8 @@ import {
   ExternalLink,
   Bell,
   History,
-  Ban
+  Ban,
+  Youtube
 } from "lucide-react";
 import { ChessBoard } from "@/components/chess-board";
 import { Chess } from "chess.js";
@@ -606,6 +607,20 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/puzzles/flagged"] });
       toast({ title: "Puzzle Removed", description: "The puzzle has been removed." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const removeYoutubeLinkMutation = useMutation({
+    mutationFn: async (puzzleId: string) => {
+      if (!isAdmin) throw new Error("Unauthorized");
+      return apiRequest("POST", `/api/admin/puzzles/${puzzleId}/remove-youtube`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/puzzles/flagged"] });
+      toast({ title: "YouTube Link Removed", description: "The YouTube link has been removed from the puzzle." });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -1471,7 +1486,7 @@ export default function AdminPage() {
                         <p className="text-sm text-muted-foreground">
                           Type: {puzzle.puzzleType} | Difficulty: {puzzle.difficulty}
                         </p>
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <Badge variant="secondary">
                             <TrendingUp className="h-3 w-3 mr-1" />
                             {puzzle.upvotes || 0} upvotes
@@ -1482,10 +1497,21 @@ export default function AdminPage() {
                           <Badge variant="outline">
                             {puzzle.reportCount || 0} reports
                           </Badge>
+                          {puzzle.youtubeVideoUrl && (
+                            <a 
+                              href={puzzle.youtubeVideoUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-xs text-red-500 hover:underline"
+                            >
+                              <Youtube className="h-3 w-3" />
+                              Video Link
+                            </a>
+                          )}
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Link href={`/puzzle/${puzzle.id}`}>
                           <Button
                             variant="outline"
@@ -1516,6 +1542,18 @@ export default function AdminPage() {
                           <XCircle className="h-4 w-4 mr-1" />
                           Remove
                         </Button>
+                        {puzzle.youtubeVideoUrl && puzzle.reports?.some(r => r.reason === 'bad_youtube_link') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeYoutubeLinkMutation.mutate(puzzle.id)}
+                            disabled={removeYoutubeLinkMutation.isPending}
+                            data-testid={`button-remove-youtube-${puzzle.id}`}
+                          >
+                            <Youtube className="h-4 w-4 mr-1 text-red-500" />
+                            Remove Video Link
+                          </Button>
+                        )}
                       </div>
                     </div>
                     
