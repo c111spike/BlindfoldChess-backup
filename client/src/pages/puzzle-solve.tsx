@@ -51,6 +51,7 @@ const REPORT_REASONS = [
   { value: "incorrect_solution", label: "Incorrect Solution" },
   { value: "duplicate", label: "Duplicate Puzzle" },
   { value: "impossible", label: "Impossible Position" },
+  { value: "bad_youtube_link", label: "Wrong YouTube Link" },
   { value: "inappropriate", label: "Inappropriate Content" },
   { value: "other", label: "Other" },
 ];

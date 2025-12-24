@@ -2070,6 +2070,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Remove YouTube link from puzzle (admin action for bad link reports)
+  app.post('/api/admin/puzzles/:id/remove-youtube', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const puzzleId = req.params.id;
+      const userId = req.user.claims.sub;
+      
+      // Remove the YouTube link
+      const puzzle = await storage.updatePuzzle(puzzleId, { youtubeVideoUrl: null });
+      
+      // Resolve all bad_youtube_link reports for this puzzle
+      await storage.resolveYoutubeLinkReports(puzzleId, userId);
+      
+      // Invalidate puzzle caches
+      invalidateCaches.puzzles();
+      
+      res.json({ message: "YouTube link removed successfully", puzzle });
+    } catch (error) {
+      console.error("Error removing YouTube link:", error);
+      res.status(500).json({ message: "Failed to remove YouTube link" });
+    }
+  });
+
   // Admin Stockfish analysis for puzzle verification - DEPRECATED: Use client-side Stockfish
   app.post('/api/admin/puzzles/:id/analyze', isAuthenticated, isAdmin, async (_req: any, res) => {
     res.status(410).json({ 

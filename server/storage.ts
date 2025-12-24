@@ -157,6 +157,7 @@ export interface IStorage {
   createPuzzleReport(report: InsertPuzzleReport): Promise<PuzzleReport>;
   getPuzzleReports(puzzleId?: string, isResolved?: boolean): Promise<PuzzleReport[]>;
   resolvePuzzleReport(id: string, resolvedById: string): Promise<PuzzleReport>;
+  resolveYoutubeLinkReports(puzzleId: string, resolvedById: string): Promise<void>;
   
   getFlaggedPuzzles(): Promise<Puzzle[]>;
   getFlaggedPuzzlesWithReports(): Promise<(Puzzle & { reports: PuzzleReport[] })[]>;
@@ -1100,6 +1101,16 @@ export class DatabaseStorage implements IStorage {
       .where(eq(puzzleReports.id, id))
       .returning();
     return report;
+  }
+
+  async resolveYoutubeLinkReports(puzzleId: string, resolvedById: string): Promise<void> {
+    await db.update(puzzleReports)
+      .set({ isResolved: true, resolvedById, resolvedAt: new Date() })
+      .where(and(
+        eq(puzzleReports.puzzleId, puzzleId),
+        eq(puzzleReports.reason, 'bad_youtube_link'),
+        eq(puzzleReports.isResolved, false)
+      ));
   }
 
   async getFlaggedPuzzles(): Promise<Puzzle[]> {
