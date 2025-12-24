@@ -1,0 +1,116 @@
+Back to Home
+
+
+
+Contact Us
+
+Get in touch with SimulChess
+
+Have questions, feedback, or need assistance? Reach out to us through any of the channels below. We typically respond to email inquiries within 48 hours.
+
+
+
+Discord Community
+
+Join our Discord server for real-time support, game discussions, and community updates. This is the fastest way to get help or find a practice partner.
+
+
+
+Join Discord
+
+
+
+Email Support
+
+For account-specific issues, legal inquiries, or detailed bug reports, please email us directly.
+
+
+
+simulchess.com@gmail.com
+
+Frequently Asked Questions
+
+
+
+How do I report a bug effectively?
+
+To help us fix issues quickly, please include:
+
+Browser & Device: (e.g., Chrome on Windows 11)
+
+Steps to Reproduce: What were you clicking when it happened?
+
+Screenshots: A picture of the error or the board state is incredibly helpful.
+
+Game Link: If the bug happened during a specific game, please include the URL.
+
+
+
+How do I report a player for cheating?
+
+Fair play is our priority. If you suspect an opponent used engine assistance:
+
+Click the Report button on their profile or in the post-game summary.
+
+Our anti-cheat system will analyze the move accuracy against Stockfish evaluations.
+
+For high-stakes events, you can email evidence to our support team.
+
+Note: To maintain the integrity of our detection methods, we do not disclose specific details of our internal reviews.
+
+
+
+How does the arbiter system work?
+
+In OTB Tournament Mode, our virtual arbiter enforces official FIDE rules to simulate real tournament conditions. The arbiter monitors for touch-move violations, illegal moves, and proper clock management. First-time illegal moves result in a 2-minute time penalty; a second offense means immediate forfeit. This system helps you develop the discipline needed for serious over-the-board competition.
+
+
+
+Can I suggest a new feature?
+
+Absolutely! Most of our training modes—like Board Spin and Simul vs Simul—evolved from community feedback. Post your ideas in the #suggestions channel on our Discord or send us an email.
+
+
+
+Is SimulChess really free?
+
+Yes. All training tools, puzzles, and game modes are free to use. We are supported by non-intrusive advertising to keep our servers running and our engine analysis high-quality.
+
+Our contact channels are designed to be as efficient as the chess moves we teach. Whether you’re dealing with a technical glitch or a tactical question, we have a specialized path to get you the right answer.
+
+Reach Out
+Discord (Fastest Response): Our Discord is the "Tournament Hall" of SimulChess. Join for immediate help from moderators, to report bugs in the #bug-reports channel, or to suggest new features in #suggestions.
+
+Email Support: For private matters, account recovery, or formal legal inquiries, reach us at simulchess.com@gmail.com.
+
+Expanded FAQ
+How do I report a bug effectively?
+A good bug report saves hours of investigation. Please provide:
+
+Environment: Are you on mobile or desktop? Which browser?
+
+The "Trigger": "I clicked 'Spin' while the piece was still moving."
+
+Visual Evidence: Use a screen recorder or screenshot.
+
+How do I report a player for cheating?
+We take fair play seriously. Our Anti-Cheat System performs:
+
+Move Correlation: Comparing move choices to Stockfish's top lines.
+
+Timing Analysis: Detecting the robotic cadence of engine-assisted play.
+
+VSS Mismatch Check: If a player has zero "Visualization Lapses" over 50 games, they are flagged for human review.
+
+The Arbiter and "The 30-Second Rule"
+In OTB Tournament Mode, the board doesn't "stop" you from making an illegal move—just like a real wooden board wouldn't.
+
+Detection: If an illegal move is made, the virtual arbiter waits for the opponent to "claim" it.
+
+Checkmate Scenarios: If your opponent delivers an illegal checkmate, you have 30 seconds to click the "Claim Violation" button. If you don't, the result stands!
+
+Can I suggest a new feature?
+Yes! Our current training modules, including Board Spin and the Handshake mechanic, were created because users like you requested them. We prioritize features that help "Bridge the Gap" between online and over-the-board play.
+
+Community & Feedback Loop
+SimulChess isn't just a platform; it’s a living organism. When you report a bug or suggest a feature, you’re helping us calibrate the "Arbiter" for thousands of other players.

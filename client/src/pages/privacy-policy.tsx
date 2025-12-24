@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Shield, ArrowLeft } from "lucide-react";
+import { Shield, ArrowLeft, Eye, Lock, Monitor, Tv } from "lucide-react";
 
 export default function PrivacyPolicy() {
   return (
@@ -28,6 +28,40 @@ export default function PrivacyPolicy() {
           <CardContent>
             <ScrollArea className="h-[calc(100vh-16rem)]">
               <div className="space-y-6 pr-4">
+                {/* Plain English Summary */}
+                <section className="p-4 rounded-lg border bg-muted/50" data-testid="section-plain-english">
+                  <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <Eye className="h-5 w-5 text-primary" />
+                    Privacy at a Glance
+                  </h2>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="flex items-start gap-2">
+                      <Lock className="h-4 w-4 text-primary shrink-0 mt-1" />
+                      <p className="text-sm text-muted-foreground">
+                        <strong>We don't see your password</strong> — Authentication is handled by Replit.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Monitor className="h-4 w-4 text-primary shrink-0 mt-1" />
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Your moves are public</strong> — Standard for chess platforms.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Shield className="h-4 w-4 text-primary shrink-0 mt-1" />
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Your psychology is private</strong> — Focus and VSS metrics are for your eyes only.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Tv className="h-4 w-4 text-primary shrink-0 mt-1" />
+                      <p className="text-sm text-muted-foreground">
+                        <strong>We show ads to keep the site free</strong> — Via Google AdSense.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
                 <section>
                   <h2 className="text-xl font-semibold mb-3" data-testid="text-privacy-intro-heading">Introduction</h2>
                   <p className="text-muted-foreground leading-relaxed" data-testid="text-privacy-intro">
@@ -47,7 +81,13 @@ export default function PrivacyPolicy() {
                     <div>
                       <h3 className="font-medium mb-2">Game Data</h3>
                       <p className="text-muted-foreground leading-relaxed">
-                        We collect and store your chess games, including move history, timestamps, game results, and performance statistics. This data is used to provide game analysis, track your progress, and calculate your ratings.
+                        We collect and store your chess games, including move history, timestamps, game results, and performance statistics. This data is used to provide game analysis, track your progress, and calculate your ratings. We also collect "Thinking Time Analysis" and "Focus Metrics" used solely to provide your personalized "Psychology Analysis" and "VSS Mismatch" training reports.
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="font-medium mb-2">Fair Play Behavioral Data</h3>
+                      <p className="text-muted-foreground leading-relaxed">
+                        We process behavioral data (such as move timing, consistency, and tab-switching patterns) to detect and prevent cheating. This processing is based on our Legitimate Interest in maintaining a fair competitive environment for all users.
                       </p>
                     </div>
                     <div>
@@ -57,6 +97,13 @@ export default function PrivacyPolicy() {
                       </p>
                     </div>
                   </div>
+                </section>
+
+                <section>
+                  <h2 className="text-xl font-semibold mb-3" data-testid="text-privacy-public-heading">Public Performance (Chess Moves)</h2>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Chess game moves are generally considered public facts rather than private data. If you delete your account, personal identifiers (username, email) will be removed, but game scores and move histories may be preserved in an anonymized format to maintain the accuracy of our global rating systems and historical records. This is standard practice across chess platforms.
+                  </p>
                 </section>
 
                 <section>
@@ -79,7 +126,7 @@ export default function PrivacyPolicy() {
                   </p>
                   <ul className="list-disc list-inside text-muted-foreground space-y-2">
                     <li><strong>Contractual Necessity:</strong> Processing necessary to provide you with our chess training services when you create an account</li>
-                    <li><strong>Legitimate Interest:</strong> Processing for platform improvement, security, fraud prevention, and analytics where our interests do not override your rights</li>
+                    <li><strong>Legitimate Interest:</strong> Processing for platform improvement, security, fraud prevention, fair play monitoring, and analytics where our interests do not override your rights</li>
                     <li><strong>Consent:</strong> Processing for personalized advertising, which you can withdraw at any time through your browser settings or opt-out links provided below</li>
                     <li><strong>Legal Obligation:</strong> Processing required to comply with applicable laws and regulations</li>
                   </ul>
@@ -98,6 +145,12 @@ export default function PrivacyPolicy() {
                       <h3 className="font-medium mb-2">Cloudflare</h3>
                       <p className="text-muted-foreground leading-relaxed">
                         We use Cloudflare for content delivery and security. Cloudflare may collect technical data such as IP addresses for security purposes.
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="font-medium mb-2">YouTube Content</h3>
+                      <p className="text-muted-foreground leading-relaxed">
+                        Our platform allows users to link YouTube content (e.g., educational videos in puzzles). Interacting with these links or embedded videos is subject to the YouTube Terms of Service and Google Privacy Policy. We do not control third-party content.
                       </p>
                     </div>
                     <div>

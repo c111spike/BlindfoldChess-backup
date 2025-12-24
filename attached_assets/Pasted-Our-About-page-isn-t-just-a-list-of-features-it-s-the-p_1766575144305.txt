@@ -1,0 +1,38 @@
+Our "About" page isn't just a list of features—it’s the philosophy behind our code. At SimulChess, we recognize that the greatest hurdle for the modern player is the "Online-to-OTB Gap." While digital platforms are great for volume, they often fail to train the stamina, visualization, and etiquette required in a tournament hall.
+
+The Problem: The "Click-to-Piece" Gap
+Most online players struggle when they transition to a physical board. The perspective changes, the pieces feel different, and the safety net of "illegal move prevention" disappears.
+
+SimulChess was built to close this gap by reintroducing the friction and focus of real-world chess into a digital environment.
+
+Our Core Pillars of Training
+1. Visual-Spatial Mastery
+We don't just want you to see the board; we want you to know it. Our Board Spin and Blindfold modes are based on cognitive "Chunking" research—the science of how Grandmasters recognize patterns rather than individual squares.
+
+Chunking Theory: Masters perceive the board in "chunks" of 3-5 coordinated pieces.
+
+Orientation Training: By rotating the board, we break "viewpoint dependency," ensuring you can spot tactics even when looking from your opponent's perspective.
+
+2. The Simultaneous Advantage
+Simultaneous exhibitions (Simuls) are the ultimate test of pattern recognition speed. When you play 5 or 10 boards at once, you don't have time to calculate every line. You must rely on pure intuition.
+
+Our Simul vs. Simul mode trains you to make high-quality "instinct moves," a skill that is invaluable in time-scrambles during OTB tournaments.
+
+3. Professional Etiquette & Rules
+In a real tournament, an illegal move can cost you the game. SimulChess is one of the few platforms that simulates these stakes.
+
+Touch-Move & Manual Clocks: Encourages deliberate movement.
+
+The Handshake Ritual: Builds the habit of sportsmanship that defines the OTB community.
+
+The 30-Second Arbiter Rule: Keeps you alert. In our OTB mode, you must catch your opponent's mistakes yourself, just like in a real game.
+
+Our Technology: Powering Performance
+While our mission is human-centric, our engine is world-class.
+
+Stockfish Integration: Every game is analyzed to show you not just the "Best Move," but your Efficiency Factor and Burnout Levels.
+
+OpenID Authentication: Secure, seamless login via Replit ensures your data is safe while giving you access to a high-performance training environment.
+
+Join the Evolution
+SimulChess is more than a game; it's a high-performance gym for your chess brain. We are constantly evolving, adding features like YouTube-linked puzzles and Psychology Analysis to give you the edge you need to succeed in the tournament hall.

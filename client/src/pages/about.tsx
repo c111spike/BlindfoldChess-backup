@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Info, Target, Users, Brain, Trophy, ArrowLeft } from "lucide-react";
+import { Info, Target, Eye, Zap, Scale, Cpu, ArrowLeft, ArrowRight } from "lucide-react";
 
 export default function About() {
   return (
@@ -21,81 +21,123 @@ export default function About() {
             <Info className="h-8 w-8 text-primary" />
             <div>
               <CardTitle className="text-2xl md:text-3xl">About SimulChess</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1" data-testid="text-about-subtitle">Professional chess training platform</p>
+              <p className="text-sm text-muted-foreground mt-1" data-testid="text-about-subtitle">Where you go to be better at chess</p>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-8">
+              {/* Philosophy Section */}
               <section>
-                <h2 className="text-xl font-semibold mb-3 flex items-center gap-2" data-testid="text-mission-heading">
-                  <Target className="h-5 w-5 text-primary" />
-                  Our Mission
-                </h2>
-                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-mission-description">
-                  SimulChess is designed to enhance over-the-board (OTB) chess habits, strengthen memory, and master simultaneous exhibition gameplay. We believe that while there are many places to play chess online, SimulChess is where you go to become a better chess player.
-                </p>
-                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-mission-origin">
-                  <strong>Founded in 2025</strong>, SimulChess began as a project to help players bridge the gap between fast-paced online play and the deep concentration required for tournament chess.
-                </p>
-                <p className="text-muted-foreground leading-relaxed" data-testid="text-mission-active-learning">
-                  We focus on <strong>Active Learning</strong>—the idea that you learn best by doing. Whether it's managing 5 boards at once or recreating a position from memory, our tools are designed to push your cognitive limits.
+                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-philosophy-intro">
+                  Our "About" page isn't just a list of features—it's the philosophy behind our code. At SimulChess, we recognize that the greatest hurdle for the modern player is the <strong>"Online-to-OTB Gap."</strong> While digital platforms are great for volume, they often fail to train the stamina, visualization, and etiquette required in a tournament hall.
                 </p>
               </section>
 
+              {/* The Problem */}
               <section>
-                <h2 className="text-xl font-semibold mb-3 flex items-center gap-2" data-testid="text-features-heading">
-                  <Brain className="h-5 w-5 text-primary" />
-                  Training Modes
+                <h2 className="text-xl font-semibold mb-3 flex items-center gap-2" data-testid="text-problem-heading">
+                  <Target className="h-5 w-5 text-primary" />
+                  The Problem: The "Click-to-Piece" Gap
                 </h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="p-4 rounded-lg border" data-testid="feature-otb">
-                    <h3 className="font-semibold mb-2">OTB Tournament Mode</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Simulates real over-the-board tournament conditions with touch-move rules, manual clock management, and arbiter warnings.
-                    </p>
+                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-problem-description">
+                  Most online players struggle when they transition to a physical board. The perspective changes, the pieces feel different, and the safety net of "illegal move prevention" disappears.
+                </p>
+                <p className="text-muted-foreground leading-relaxed font-medium" data-testid="text-problem-solution">
+                  SimulChess was built to close this gap by reintroducing the friction and focus of real-world chess into a digital environment.
+                </p>
+              </section>
+
+              {/* Core Pillars */}
+              <section>
+                <h2 className="text-xl font-semibold mb-4" data-testid="text-pillars-heading">Our Core Pillars of Training</h2>
+                
+                <div className="space-y-6">
+                  {/* Pillar 1: Visual-Spatial Mastery */}
+                  <div className="p-4 rounded-lg border" data-testid="pillar-visual">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Eye className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-2">1. Visual-Spatial Mastery</h3>
+                        <p className="text-muted-foreground leading-relaxed mb-3">
+                          We don't just want you to <em>see</em> the board; we want you to <strong>know</strong> it. Our Board Spin and Blindfold modes are based on cognitive "Chunking" research—the science of how Grandmasters recognize patterns rather than individual squares.
+                        </p>
+                        <ul className="text-sm text-muted-foreground space-y-2">
+                          <li><strong>Chunking Theory:</strong> Masters perceive the board in "chunks" of 3-5 coordinated pieces.</li>
+                          <li><strong>Orientation Training:</strong> By rotating the board, we break "viewpoint dependency," ensuring you can spot tactics even when looking from your opponent's perspective.</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-4 rounded-lg border" data-testid="feature-blindfold">
-                    <h3 className="font-semibold mb-2">Blindfold Training</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Develop your visualization and memory skills with our progressive blindfold training system.
-                    </p>
+
+                  {/* Pillar 2: Simultaneous Advantage */}
+                  <div className="p-4 rounded-lg border" data-testid="pillar-simul">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Zap className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-2">2. The Simultaneous Advantage</h3>
+                        <p className="text-muted-foreground leading-relaxed mb-3">
+                          Simultaneous exhibitions (Simuls) are the ultimate test of pattern recognition speed. When you play 5 boards at once, you don't have time to calculate every line. You must rely on pure intuition.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Our <strong>Simul vs. Simul</strong> mode trains you to make high-quality "instinct moves," a skill that is invaluable in time-scrambles during OTB tournaments.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-4 rounded-lg border" data-testid="feature-simul">
-                    <h3 className="font-semibold mb-2">Simul vs Simul</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Train multi-board management with our unique Simul vs Simul championships.
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-lg border" data-testid="feature-puzzles">
-                    <h3 className="font-semibold mb-2">Puzzles & Challenges</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Sharpen your tactics with Board Spin, N-Piece Challenge, Knight's Tour, and community puzzles.
-                    </p>
+
+                  {/* Pillar 3: Professional Etiquette */}
+                  <div className="p-4 rounded-lg border" data-testid="pillar-etiquette">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Scale className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-2">3. Professional Etiquette & Rules</h3>
+                        <p className="text-muted-foreground leading-relaxed mb-3">
+                          In a real tournament, an illegal move can cost you the game. SimulChess is one of the few platforms that simulates these stakes.
+                        </p>
+                        <ul className="text-sm text-muted-foreground space-y-2">
+                          <li><strong>Touch-Move & Manual Clocks:</strong> Encourages deliberate movement.</li>
+                          <li><strong>The Handshake Ritual:</strong> Builds the habit of sportsmanship that defines the OTB community.</li>
+                          <li><strong>The 30-Second Arbiter Rule:</strong> Keeps you alert. In our OTB mode, you must catch your opponent's mistakes yourself, just like in a real game.</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </section>
 
-              <section>
-                <h2 className="text-xl font-semibold mb-3 flex items-center gap-2" data-testid="text-community-heading">
-                  <Users className="h-5 w-5 text-primary" />
-                  Community
-                </h2>
-                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-community-description">
-                  SimulChess is built by chess enthusiasts for chess enthusiasts. Join our growing community of players who are serious about improving their over-the-board performance. All training modes are completely free, supported by non-intrusive advertising.
-                </p>
-                <p className="text-muted-foreground leading-relaxed" data-testid="text-community-puzzles">
-                  <strong>Our community is the heart of SimulChess.</strong> By creating and rating puzzles, our users help curate the most instructive training material available on the web.
-                </p>
-              </section>
-
+              {/* Technology Section */}
               <section>
                 <h2 className="text-xl font-semibold mb-3 flex items-center gap-2" data-testid="text-tech-heading">
-                  <Trophy className="h-5 w-5 text-primary" />
-                  Technology
+                  <Cpu className="h-5 w-5 text-primary" />
+                  Our Technology: Powering Performance
                 </h2>
-                <p className="text-muted-foreground leading-relaxed" data-testid="text-tech-description">
-                  Our platform uses Stockfish, one of the strongest chess engines in the world, to power game analysis, bot opponents, and position evaluation. This ensures you receive accurate feedback to improve your game.
+                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-tech-description">
+                  While our mission is human-centric, our engine is world-class.
                 </p>
+                <ul className="text-muted-foreground space-y-2">
+                  <li><strong>Stockfish Integration:</strong> Every game is analyzed to show you not just the "Best Move," but your Efficiency Factor and Burnout Levels.</li>
+                  <li><strong>OpenID Authentication:</strong> Secure, seamless login via Replit ensures your data is safe while giving you access to a high-performance training environment.</li>
+                </ul>
+              </section>
+
+              {/* Call to Action */}
+              <section className="p-6 rounded-lg border bg-primary/5" data-testid="section-cta">
+                <h2 className="text-xl font-semibold mb-3" data-testid="text-cta-heading">Join the Evolution</h2>
+                <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-cta-description">
+                  SimulChess is more than a game; it's a high-performance gym for your chess brain. We are constantly evolving, adding features like YouTube-linked puzzles and Psychology Analysis to give you the edge you need to succeed in the tournament hall.
+                </p>
+                <Link href="/standard">
+                  <Button data-testid="button-start-playing">
+                    Start Training
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Link>
               </section>
             </div>
           </CardContent>

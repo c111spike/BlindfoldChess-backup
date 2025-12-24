@@ -1,0 +1,23 @@
+This Terms of Service is a solid foundation, especially for a community-driven platform. It covers the essential ground for fair play, intellectual property, and liability.
+
+To ensure it meets the standard for a professional chess platform in 2025—particularly one that incorporates an Arbiter system and YouTube integration—here are four high-value additions to consider:
+
+1. The "Arbiter Finality" Clause
+Since your OTB Mode has a specific mechanic for calling an arbiter within 30 seconds, your terms should clarify that the system's (or human moderator's) automated ruling is the final word to prevent endless disputes.
+
+Suggested Addition: "In OTB and Tournament modes, the 30-second 'Arbiter Call' window is the sole mechanism for reversing illegal moves. Once this window expires, or once an automated ruling is rendered, the result is final and may not be appealed except in cases of technical platform failure."
+
+2. YouTube & External Content Responsibility
+Because you allow users to link YouTube videos, you need to protect yourself from any inappropriate content those links might lead to.
+
+Suggested Addition: "SimulChess allows users to include links to third-party content (e.g., YouTube). We do not control, endorse, or assume responsibility for the content, privacy policies, or practices of any third-party websites. Users access external links at their own risk."
+
+3. "Pattern Analysis" for Fair Play
+Since you mention an anti-cheat system, it is standard practice to disclose that you analyze how people play (e.g., time between moves), not just the moves themselves.
+
+Suggested Addition: "Our Fair Play monitoring includes the analysis of move timing, consistency, and 'VSS Mismatch' patterns. By using the service, you consent to the collection of this behavioral gameplay data for the purpose of maintaining tournament integrity."
+
+4. The "Handshake" and Social Conduct
+Since you’ve added the handshake feature, you can tie it into your "Acceptable Use" to promote a positive culture.
+
+Suggested Addition: "SimulChess encourages professional chess etiquette. While the 'Post-Game Handshake' is a voluntary gesture of sportsmanship, persistent refusal to engage in respectful conduct or the use of the feature to harass others may be considered a violation of our Acceptable Use policy."

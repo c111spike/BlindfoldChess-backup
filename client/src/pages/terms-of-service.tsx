@@ -75,10 +75,26 @@ export default function TermsOfService() {
                 </section>
 
                 <section>
+                  <h2 className="text-xl font-semibold mb-3">Sportsmanship and Social Conduct</h2>
+                  <p className="text-muted-foreground leading-relaxed">
+                    SimulChess encourages professional chess etiquette. While the "Post-Game Handshake" is a voluntary gesture of sportsmanship, persistent refusal to engage in respectful conduct or the use of the feature to harass others may be considered a violation of our Acceptable Use policy. We expect all players to treat opponents with respect, whether in victory or defeat.
+                  </p>
+                </section>
+
+                <section>
                   <h2 className="text-xl font-semibold mb-3">Fair Play Policy</h2>
                   <div className="space-y-3 text-muted-foreground leading-relaxed">
                     <p>
-                      SimulChess is committed to fair competition. Our anti-cheat system monitors gameplay for suspicious activity. Violations may result in:
+                      SimulChess is committed to fair competition. Our anti-cheat system monitors gameplay for suspicious activity, including:
+                    </p>
+                    <ul className="list-disc list-inside space-y-2">
+                      <li>Move timing and consistency analysis</li>
+                      <li>Move correlation with engine top lines</li>
+                      <li>VSS Mismatch pattern detection</li>
+                      <li>Behavioral pattern analysis</li>
+                    </ul>
+                    <p className="mt-3">
+                      By using the service, you consent to the collection of this behavioral gameplay data for the purpose of maintaining tournament integrity. Violations may result in:
                     </p>
                     <ul className="list-disc list-inside space-y-2">
                       <li>Rating penalties or resets</li>
@@ -90,6 +106,13 @@ export default function TermsOfService() {
                       Decisions regarding fair play violations are at our sole discretion and are final.
                     </p>
                   </div>
+                </section>
+
+                <section>
+                  <h2 className="text-xl font-semibold mb-3">Arbiter Rulings and Finality</h2>
+                  <p className="text-muted-foreground leading-relaxed">
+                    In OTB and Tournament modes, the 30-second "Arbiter Call" window is the sole mechanism for reversing illegal moves. Once this window expires, or once an automated ruling is rendered, the result is final and may not be appealed except in cases of technical platform failure. This simulates real over-the-board tournament conditions where players must remain vigilant.
+                  </p>
                 </section>
 
                 <section>
@@ -114,6 +137,13 @@ export default function TermsOfService() {
                       We reserve the right to remove any content that violates these terms.
                     </p>
                   </div>
+                </section>
+
+                <section>
+                  <h2 className="text-xl font-semibold mb-3">Third-Party Content and Links</h2>
+                  <p className="text-muted-foreground leading-relaxed">
+                    SimulChess allows users to include links to third-party content (e.g., YouTube videos for puzzle explanations). We do not control, endorse, or assume responsibility for the content, privacy policies, or practices of any third-party websites. Users access external links at their own risk. Interacting with linked YouTube content is subject to the YouTube Terms of Service and Google Privacy Policy.
+                  </p>
                 </section>
 
                 <section>

@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, MessageCircle, Bug, Shield, Lightbulb, DollarSign, Scale, ArrowLeft } from "lucide-react";
+import { Mail, MessageCircle, Bug, Shield, Lightbulb, DollarSign, Scale, Users, ArrowLeft, Clock } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
 
 export default function Contact() {
@@ -88,12 +88,12 @@ export default function Contact() {
                       <div>
                         <h3 className="font-medium mb-2" data-testid="text-faq-bug-question">How do I report a bug effectively?</h3>
                         <p className="text-muted-foreground leading-relaxed mb-3" data-testid="text-faq-bug-answer">
-                          To help us fix issues quickly, please include:
+                          A good bug report saves hours of investigation. To help us fix issues quickly, please include:
                         </p>
                         <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                          <li><strong>Browser & Device:</strong> (e.g., Chrome on Windows 11)</li>
-                          <li><strong>Steps to Reproduce:</strong> What were you clicking when it happened?</li>
-                          <li><strong>Screenshots:</strong> A picture of the error or the board state is incredibly helpful.</li>
+                          <li><strong>Environment:</strong> Are you on mobile or desktop? Which browser?</li>
+                          <li><strong>The "Trigger":</strong> What were you clicking when it happened? (e.g., "I clicked 'Spin' while the piece was still moving.")</li>
+                          <li><strong>Visual Evidence:</strong> Use a screen recorder or screenshot.</li>
                           <li><strong>Game Link:</strong> If the bug happened during a specific game, please include the URL.</li>
                         </ul>
                       </div>
@@ -106,13 +106,16 @@ export default function Contact() {
                       <div>
                         <h3 className="font-medium mb-2" data-testid="text-faq-cheating-question">How do I report a player for cheating?</h3>
                         <p className="text-muted-foreground leading-relaxed mb-3" data-testid="text-faq-cheating-answer">
-                          Fair play is our priority. If you suspect an opponent used engine assistance:
+                          We take fair play seriously. Our Anti-Cheat System performs:
                         </p>
                         <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                          <li>Click the <strong>Report</strong> button on their profile or in the post-game summary.</li>
-                          <li>Our anti-cheat system will analyze the move accuracy against Stockfish evaluations.</li>
-                          <li>For high-stakes events, you can email evidence to our support team.</li>
+                          <li><strong>Move Correlation:</strong> Comparing move choices to Stockfish's top lines.</li>
+                          <li><strong>Timing Analysis:</strong> Detecting the robotic cadence of engine-assisted play.</li>
+                          <li><strong>VSS Mismatch Check:</strong> If a player has zero "Visualization Lapses" over 50 games, they are flagged for human review.</li>
                         </ul>
+                        <p className="text-sm text-muted-foreground mt-3">
+                          Click the <strong>Report</strong> button on their profile or in the post-game summary. For high-stakes events, you can email evidence to our support team.
+                        </p>
                         <p className="text-xs text-muted-foreground mt-2 italic">
                           Note: To maintain the integrity of our detection methods, we do not disclose specific details of our internal reviews.
                         </p>
@@ -125,9 +128,23 @@ export default function Contact() {
                       <Scale className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
                         <h3 className="font-medium mb-2" data-testid="text-faq-arbiter-question">How does the arbiter system work?</h3>
-                        <p className="text-muted-foreground leading-relaxed" data-testid="text-faq-arbiter-answer">
-                          In OTB Tournament Mode, our virtual arbiter enforces official FIDE rules to simulate real tournament conditions. The arbiter monitors for touch-move violations, illegal moves, and proper clock management. First-time illegal moves result in a 2-minute time penalty; a second offense means immediate forfeit. This system helps you develop the discipline needed for serious over-the-board competition.
+                        <p className="text-muted-foreground leading-relaxed mb-3" data-testid="text-faq-arbiter-answer">
+                          In OTB Tournament Mode, our virtual arbiter enforces official FIDE rules to simulate real tournament conditions. The board doesn't "stop" you from making an illegal move—just like a real wooden board wouldn't.
                         </p>
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                          <div className="flex items-start gap-2">
+                            <Clock className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+                            <p><strong>Detection:</strong> If an illegal move is made, the virtual arbiter waits for the opponent to "claim" it.</p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <Clock className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+                            <p><strong>The 30-Second Rule:</strong> If your opponent delivers an illegal checkmate, you have 30 seconds to click the "Claim Violation" button. If you don't, the result stands!</p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <Clock className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+                            <p><strong>Penalties:</strong> First-time illegal moves result in a 2-minute time penalty; a second offense means immediate forfeit.</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -138,7 +155,7 @@ export default function Contact() {
                       <div>
                         <h3 className="font-medium mb-2" data-testid="text-faq-feature-question">Can I suggest a new feature?</h3>
                         <p className="text-muted-foreground leading-relaxed" data-testid="text-faq-feature-answer">
-                          Absolutely! Most of our training modes—like Board Spin and Simul vs Simul—evolved from community feedback. Post your ideas in the <strong>#suggestions</strong> channel on our Discord or send us an email.
+                          Yes! Our current training modules, including Board Spin and the Handshake mechanic, were created because users like you requested them. We prioritize features that help "Bridge the Gap" between online and over-the-board play. Post your ideas in the <strong>#suggestions</strong> channel on our Discord or send us an email.
                         </p>
                       </div>
                     </div>
@@ -154,6 +171,19 @@ export default function Contact() {
                         </p>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Community Section */}
+              <section className="p-6 rounded-lg border bg-primary/5" data-testid="section-community">
+                <div className="flex items-start gap-3">
+                  <Users className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <h2 className="text-lg font-semibold mb-2" data-testid="text-community-heading">Community & Feedback Loop</h2>
+                    <p className="text-muted-foreground leading-relaxed" data-testid="text-community-description">
+                      SimulChess isn't just a platform; it's a living organism. When you report a bug or suggest a feature, you're helping us calibrate the "Arbiter" for thousands of other players. Our contact channels are designed to be as efficient as the chess moves we teach. Whether you're dealing with a technical glitch or a tactical question, we have a specialized path to get you the right answer.
+                    </p>
                   </div>
                 </div>
               </section>
