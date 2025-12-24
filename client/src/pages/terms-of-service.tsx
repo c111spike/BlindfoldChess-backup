@@ -179,8 +179,11 @@ export default function TermsOfService() {
 
                 <section>
                   <h2 className="text-xl font-semibold mb-3">Limitation of Liability</h2>
+                  <p className="text-muted-foreground leading-relaxed mb-3">
+                    You agree that your use of the service is at your sole risk and that the platform is provided on an "as is" and "as available" basis without warranties of any kind.
+                  </p>
                   <p className="text-muted-foreground leading-relaxed">
-                    To the maximum extent permitted by law, SimulChess shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the service.
+                    To the maximum extent permitted by law, SimulChess shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the service, including but not limited to site downtime, data loss during maintenance or server migration, or service interruptions.
                   </p>
                 </section>
 
