@@ -204,6 +204,7 @@ export const puzzles = pgTable("puzzles", {
   hints: jsonb("hints").$type<string[]>().default([]),
   sourceType: puzzleSourceTypeEnum("source_type"),
   sourceName: varchar("source_name"),
+  youtubeVideoUrl: varchar("youtube_video_url"),
   isAnonymous: boolean("is_anonymous").default(false),
   whoToMove: varchar("who_to_move").default("white"),
   upvotes: integer("upvotes").default(0),
