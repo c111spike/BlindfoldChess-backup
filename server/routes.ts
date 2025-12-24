@@ -1685,12 +1685,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/puzzles', isAuthenticated, async (req: any, res) => {
     try {
-      const { type, difficulty, creatorId, creatorUsername, sortBy, limit, offset, isVerified } = req.query;
+      const { type, difficulty, creatorId, creatorUsername, isAnonymous, sortBy, limit, offset, isVerified } = req.query;
       const puzzles = await storage.getPuzzlesWithCreators({
         type,
         difficulty,
         creatorId,
         creatorUsername,
+        isAnonymous: isAnonymous !== undefined ? isAnonymous === 'true' : undefined,
         sortBy: sortBy || 'newest',
         limit: limit ? parseInt(limit) : 20,
         offset: offset ? parseInt(offset) : 0,

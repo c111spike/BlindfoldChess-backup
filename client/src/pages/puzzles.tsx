@@ -147,7 +147,7 @@ function MiniChessboard({ fen, size = 120 }: { fen: string; size?: number }) {
   );
 }
 
-function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick }: { puzzle: Puzzle & { userVote?: string | null; creatorUsername?: string | null }; onVote: (type: string) => void; onReport: (puzzleId: string) => void; onCreatorClick?: (creatorId: string, creatorUsername: string) => void }) {
+function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick, onAnonymousClick }: { puzzle: Puzzle & { userVote?: string | null; creatorUsername?: string | null }; onVote: (type: string) => void; onReport: (puzzleId: string) => void; onCreatorClick?: (creatorId: string, creatorUsername: string) => void; onAnonymousClick?: () => void }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -214,7 +214,21 @@ function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick }: { puzzle: Puzz
                 <Clock className="h-3 w-3" />
                 {puzzle.solveCount || 0} solves
               </span>
-              {puzzle.creatorUsername && (
+              {puzzle.isAnonymous ? (
+                <span 
+                  className="flex items-center gap-1 cursor-pointer hover:text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onAnonymousClick) {
+                      onAnonymousClick();
+                    }
+                  }}
+                  data-testid={`link-anonymous-${puzzle.id}`}
+                >
+                  <User className="h-3 w-3" />
+                  Anonymous
+                </span>
+              ) : puzzle.creatorUsername && (
                 <span 
                   className="flex items-center gap-1 cursor-pointer hover:text-primary"
                   onClick={(e) => {
@@ -985,14 +999,14 @@ function BrowseTab() {
   const [difficulty, setDifficulty] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [creatorSearch, setCreatorSearch] = useState("");
-  const [activeCreatorFilter, setActiveCreatorFilter] = useState<{id?: string; username?: string} | null>(null);
+  const [activeCreatorFilter, setActiveCreatorFilter] = useState<{id?: string; username?: string; isAnonymous?: boolean} | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportPuzzleId, setReportPuzzleId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   
   const { data: puzzles, isLoading } = useQuery<(Puzzle & { creatorUsername?: string | null })[]>({
-    queryKey: ["/api/puzzles", puzzleType, difficulty, sortBy, activeCreatorFilter?.id, activeCreatorFilter?.username],
+    queryKey: ["/api/puzzles", puzzleType, difficulty, sortBy, activeCreatorFilter?.id, activeCreatorFilter?.username, activeCreatorFilter?.isAnonymous],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (puzzleType !== "all") params.set("type", puzzleType);
@@ -1000,6 +1014,7 @@ function BrowseTab() {
       params.set("sortBy", sortBy);
       if (activeCreatorFilter?.id) params.set("creatorId", activeCreatorFilter.id);
       if (activeCreatorFilter?.username) params.set("creatorUsername", activeCreatorFilter.username);
+      if (activeCreatorFilter?.isAnonymous) params.set("isAnonymous", "true");
       const url = `/api/puzzles${params.toString() ? `?${params.toString()}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch puzzles');
@@ -1012,13 +1027,21 @@ function BrowseTab() {
     setCreatorSearch(creatorUsername);
   };
   
+  const handleAnonymousClick = () => {
+    setActiveCreatorFilter({ isAnonymous: true });
+    setCreatorSearch("Anonymous");
+  };
+  
   const clearCreatorFilter = () => {
     setActiveCreatorFilter(null);
     setCreatorSearch("");
   };
   
   const handleCreatorSearchSubmit = () => {
-    if (creatorSearch.trim()) {
+    const searchTerm = creatorSearch.trim().toLowerCase();
+    if (searchTerm === "anonymous") {
+      setActiveCreatorFilter({ isAnonymous: true });
+    } else if (creatorSearch.trim()) {
       setActiveCreatorFilter({ username: creatorSearch.trim() });
     } else {
       clearCreatorFilter();
@@ -1154,7 +1177,9 @@ function BrowseTab() {
         {activeCreatorFilter && (
           <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg">
             <User className="h-4 w-4" />
-            <span className="text-sm">Showing puzzles by: <strong>{activeCreatorFilter.username || activeCreatorFilter.id}</strong></span>
+            <span className="text-sm">
+              Showing puzzles by: <strong>{activeCreatorFilter.isAnonymous ? 'Anonymous' : (activeCreatorFilter.username || activeCreatorFilter.id)}</strong>
+            </span>
             <Button size="sm" variant="ghost" onClick={clearCreatorFilter} data-testid="button-clear-filter-banner">
               Clear filter
             </Button>
@@ -1187,6 +1212,7 @@ function BrowseTab() {
                 onVote={(type) => handleVote(puzzle.id, type)}
                 onReport={handleReport}
                 onCreatorClick={handleCreatorClick}
+                onAnonymousClick={handleAnonymousClick}
               />
             ))}
           </div>

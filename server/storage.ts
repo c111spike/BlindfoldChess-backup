@@ -875,6 +875,7 @@ export class DatabaseStorage implements IStorage {
     difficulty?: string; 
     creatorId?: string; 
     creatorUsername?: string;
+    isAnonymous?: boolean;
     sortBy?: string; 
     limit?: number; 
     offset?: number; 
@@ -886,6 +887,7 @@ export class DatabaseStorage implements IStorage {
     if (options.difficulty) conditions.push(eq(puzzles.difficulty, options.difficulty as any));
     if (options.creatorId) conditions.push(eq(puzzles.creatorId, options.creatorId));
     if (options.isVerified !== undefined) conditions.push(eq(puzzles.isVerified, options.isVerified));
+    if (options.isAnonymous !== undefined) conditions.push(eq(puzzles.isAnonymous, options.isAnonymous));
 
     // Build the query with left join
     let baseQuery = db
