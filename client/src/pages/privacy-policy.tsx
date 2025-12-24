@@ -142,9 +142,12 @@ export default function PrivacyPolicy() {
                       </p>
                     </div>
                     <div>
-                      <h3 className="font-medium mb-2">Cloudflare</h3>
-                      <p className="text-muted-foreground leading-relaxed">
+                      <h3 className="font-medium mb-2">Cloudflare (CDN & Security)</h3>
+                      <p className="text-muted-foreground leading-relaxed mb-2">
                         We use Cloudflare for content delivery and security. Cloudflare may collect technical data such as IP addresses for security purposes.
+                      </p>
+                      <p className="text-muted-foreground leading-relaxed text-sm">
+                        <strong>IP Addresses & Technical Identifiers:</strong> For security and performance purposes, our infrastructure (via Cloudflare) may process your IP address to prevent DDoS attacks and ensure stable game connections. This data is handled according to Cloudflare's privacy policy.
                       </p>
                     </div>
                     <div>
