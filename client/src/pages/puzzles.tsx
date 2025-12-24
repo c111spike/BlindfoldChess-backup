@@ -1029,7 +1029,7 @@ function BrowseTab() {
   
   const handleAnonymousClick = () => {
     setActiveCreatorFilter({ isAnonymous: true });
-    setCreatorSearch("Anonymous");
+    setCreatorSearch("");
   };
   
   const clearCreatorFilter = () => {
