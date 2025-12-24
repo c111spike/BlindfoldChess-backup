@@ -76,6 +76,30 @@ const tutorialSteps: TutorialStep[] = [
       "2nd false claim results in a forced forfeit"
     ],
     tip: "Only call the arbiter when you're confident about the violation."
+  },
+  {
+    title: "The 30-Second Rule",
+    icon: <Clock className="h-8 w-8 text-destructive" />,
+    description: "In the heat of a time scramble, mistakes happen. If an opponent delivers an illegal checkmate, you have a window to challenge.",
+    details: [
+      "Legal checkmates end the game immediately - no second chances",
+      "If your opponent captures your king with an illegal move, you have 30 seconds to 'Call the Arbiter'",
+      "Spot the illegal move in time? The move is reversed and the offender is penalized",
+      "Miss the 30-second window? The illegal move stands and the game concludes"
+    ],
+    tip: "Stay alert even when low on time - an illegal checkmate is still illegal!"
+  },
+  {
+    title: "Post-Game Handshake",
+    icon: <HandshakeIcon className="h-8 w-8 text-primary" />,
+    description: "Once the dust settles, the post-game handshake marks the end of competition and the beginning of analysis.",
+    details: [
+      "After a game ends, you can offer a handshake as a courtesy gesture",
+      "This signals that the 'competitive war' is over",
+      "Shake hands in 10 consecutive games to earn the 'Sportsman' badge",
+      "It's completely optional with no penalties - but it's the mark of a professional"
+    ],
+    tip: "Win or lose, the handshake shows respect for your opponent's effort."
   }
 ];
 

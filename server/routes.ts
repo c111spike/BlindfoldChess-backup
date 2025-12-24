@@ -3847,6 +3847,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   const matchHandshakeState = new Map<string, HandshakeState>();
 
+  // Track post-game handshake state per match
+  interface PostGameHandshakeState {
+    player1Offered: boolean;
+    player2Offered: boolean;
+    player1Id: string;
+    player2Id: string;
+    createdAt: number; // Timestamp for cleanup
+  }
+  const postGameHandshakeState = new Map<string, PostGameHandshakeState>();
+  
+  // Cleanup stale post-game handshake states after 2 minutes (covers rematch scenarios)
+  const POST_GAME_HANDSHAKE_TIMEOUT = 120000;
+  setInterval(() => {
+    const now = Date.now();
+    postGameHandshakeState.forEach((state, matchId) => {
+      if (now - state.createdAt > POST_GAME_HANDSHAKE_TIMEOUT) {
+        console.log(`[Post-Game Handshake] Cleaning up stale state for match ${matchId}`);
+        postGameHandshakeState.delete(matchId);
+      }
+    });
+  }, 30000); // Check every 30 seconds
+
   // ============ SIMUL VS SIMUL DATA STRUCTURES ============
   
   // Pairing rooms: Map<pairingId, Set<userId>> for broadcasting moves to 2 players
@@ -5083,7 +5105,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`[Post-Game Handshake] Player ${userId} offered post-game handshake in match ${matchId}`);
           
+          // Get or create post-game handshake state
+          let pgState = postGameHandshakeState.get(matchId);
           const roomUsers = matchRooms.get(matchId);
+          
+          if (!pgState) {
+            pgState = {
+              player1Offered: false,
+              player2Offered: false,
+              player1Id: userId, // First player to offer becomes player1
+              player2Id: "",
+              createdAt: Date.now(),
+            };
+            postGameHandshakeState.set(matchId, pgState);
+          }
+          
+          // Track this player's offer by their userId directly
+          if (userId === pgState.player1Id) {
+            pgState.player1Offered = true;
+          } else if (!pgState.player2Id || userId === pgState.player2Id) {
+            // Assign as player2 if not yet assigned, or mark their offer
+            pgState.player2Id = userId;
+            pgState.player2Offered = true;
+          }
+          
+          // If both players offered, record the handshake and award streak
+          if (pgState.player1Offered && pgState.player2Offered) {
+            console.log(`[Post-Game Handshake] Mutual handshake complete in match ${matchId}`);
+            
+            // Record handshakes for both players
+            storage.recordHandshake(pgState.player1Id).then((result1) => {
+              console.log(`[Post-Game Handshake] Player ${pgState!.player1Id} streak: ${result1.streak}`);
+              // Notify player of badge if earned
+              if (result1.badges.includes("sportsman") && result1.streak === 10) {
+                const player1Ws = userConnections.get(pgState!.player1Id);
+                if (player1Ws && player1Ws.readyState === WebSocket.OPEN) {
+                  player1Ws.send(JSON.stringify({
+                    type: 'badge_earned',
+                    badge: 'sportsman',
+                    message: 'Sportsman badge earned! 10 consecutive post-game handshakes.',
+                  }));
+                }
+              }
+            });
+            
+            storage.recordHandshake(pgState.player2Id).then((result2) => {
+              console.log(`[Post-Game Handshake] Player ${pgState!.player2Id} streak: ${result2.streak}`);
+              // Notify player of badge if earned
+              if (result2.badges.includes("sportsman") && result2.streak === 10) {
+                const player2Ws = userConnections.get(pgState!.player2Id);
+                if (player2Ws && player2Ws.readyState === WebSocket.OPEN) {
+                  player2Ws.send(JSON.stringify({
+                    type: 'badge_earned',
+                    badge: 'sportsman',
+                    message: 'Sportsman badge earned! 10 consecutive post-game handshakes.',
+                  }));
+                }
+              }
+            });
+            
+            // Clean up state
+            postGameHandshakeState.delete(matchId);
+          }
+          
+          // Notify opponent of the handshake offer
           if (roomUsers) {
             roomUsers.forEach((roomUserId) => {
               if (roomUserId !== userId) {
@@ -6006,6 +6091,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (!matchId || !userId) return;
           
+          // Clear post-game handshake state when rematch is requested
+          if (postGameHandshakeState.has(matchId)) {
+            console.log(`[Post-Game Handshake] Clearing state on rematch request for match ${matchId}`);
+            postGameHandshakeState.delete(matchId);
+          }
+          
           const roomUsers = matchRooms.get(matchId);
           console.log('[WS request_rematch] Room users:', roomUsers ? Array.from(roomUsers) : 'NO ROOM FOUND');
           
@@ -6098,6 +6189,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
             // If declined, clean up match state and notify both players
             if (!accepted) {
+              // Clear post-game handshake state
+              if (postGameHandshakeState.has(matchId)) {
+                postGameHandshakeState.delete(matchId);
+              }
               // Finalize match in database if not already completed
               if (currentMatch.status !== 'completed') {
                 await storage.updateMatch(matchId, {
@@ -6226,6 +6321,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               blackTime: time * 60,
               opponentName: player1Name,
             });
+            
+            // Clear post-game handshake state from old match before creating new one
+            if (postGameHandshakeState.has(matchId)) {
+              postGameHandshakeState.delete(matchId);
+            }
             
             // Create match with BOTH game IDs (required for completeMatch rating calculation)
             const newMatch = await storage.createMatch({

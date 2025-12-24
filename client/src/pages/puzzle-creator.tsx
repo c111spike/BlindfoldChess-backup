@@ -159,6 +159,7 @@ export default function PuzzleCreator() {
   const [sourceType, setSourceType] = useState("");
   const [sourceName, setSourceName] = useState("");
   const [youtubeVideoUrl, setYoutubeVideoUrl] = useState("");
+  const [youtubeStartTime, setYoutubeStartTime] = useState("");
   const [youtubeUrlError, setYoutubeUrlError] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
@@ -182,6 +183,39 @@ export default function PuzzleCreator() {
     } else {
       setYoutubeUrlError("");
     }
+  };
+  
+  // Parse time input like "1:30" or "90" to seconds
+  const parseTimeToSeconds = (timeStr: string): number | null => {
+    if (!timeStr.trim()) return null;
+    const parts = timeStr.split(":");
+    if (parts.length === 1) {
+      const secs = parseInt(parts[0]);
+      return isNaN(secs) ? null : secs;
+    } else if (parts.length === 2) {
+      const mins = parseInt(parts[0]);
+      const secs = parseInt(parts[1]);
+      if (isNaN(mins) || isNaN(secs)) return null;
+      return mins * 60 + secs;
+    }
+    return null;
+  };
+  
+  // Build final YouTube URL with timestamp
+  const buildYoutubeUrlWithTimestamp = (): string | null => {
+    const url = youtubeVideoUrl.trim();
+    if (!url) return null;
+    
+    const seconds = parseTimeToSeconds(youtubeStartTime);
+    if (!seconds) return url;
+    
+    // Add timestamp parameter
+    if (url.includes("youtu.be/")) {
+      return url.includes("?") ? `${url}&t=${seconds}` : `${url}?t=${seconds}`;
+    } else if (url.includes("youtube.com/watch")) {
+      return url.includes("&") ? `${url}&t=${seconds}s` : `${url}&t=${seconds}s`;
+    }
+    return url;
   };
   
   // Stockfish verification state
@@ -485,7 +519,7 @@ export default function PuzzleCreator() {
         hints,
         sourceType,
         sourceName: sourceName || null,
-        youtubeVideoUrl: youtubeVideoUrl.trim() || null,
+        youtubeVideoUrl: buildYoutubeUrlWithTimestamp(),
         isAnonymous,
         whoToMove,
         themes: [],
@@ -1075,25 +1109,46 @@ export default function PuzzleCreator() {
                 )}
 
                 {sourceType && (
-                  <div className="space-y-2">
-                    <Label htmlFor="youtubeVideoUrl" className="flex items-center gap-2">
-                      <Youtube className="h-4 w-4" />
-                      YouTube Video Link (Optional)
-                    </Label>
-                    <Input
-                      id="youtubeVideoUrl"
-                      value={youtubeVideoUrl}
-                      onChange={(e) => handleYoutubeUrlChange(e.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      className={youtubeUrlError ? "border-destructive" : ""}
-                      data-testid="input-youtube-url"
-                    />
-                    {youtubeUrlError && (
-                      <p className="text-sm text-destructive">{youtubeUrlError}</p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="youtubeVideoUrl" className="flex items-center gap-2">
+                        <Youtube className="h-4 w-4" />
+                        YouTube Video Link (Optional)
+                      </Label>
+                      <Input
+                        id="youtubeVideoUrl"
+                        value={youtubeVideoUrl}
+                        onChange={(e) => handleYoutubeUrlChange(e.target.value)}
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        className={youtubeUrlError ? "border-destructive" : ""}
+                        data-testid="input-youtube-url"
+                      />
+                      {youtubeUrlError && (
+                        <p className="text-sm text-destructive">{youtubeUrlError}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Link to a YouTube video that explains or features this puzzle
+                      </p>
+                    </div>
+                    
+                    {youtubeVideoUrl.trim() && !youtubeUrlError && (
+                      <div className="space-y-2">
+                        <Label htmlFor="youtubeStartTime">
+                          Start Time (Optional)
+                        </Label>
+                        <Input
+                          id="youtubeStartTime"
+                          value={youtubeStartTime}
+                          onChange={(e) => setYoutubeStartTime(e.target.value)}
+                          placeholder="e.g., 1:30 or 90"
+                          className="max-w-[150px]"
+                          data-testid="input-youtube-start-time"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Skip to a specific timestamp (format: minutes:seconds or just seconds)
+                        </p>
+                      </div>
                     )}
-                    <p className="text-xs text-muted-foreground">
-                      Link to a YouTube video that explains or features this puzzle
-                    </p>
                   </div>
                 )}
 

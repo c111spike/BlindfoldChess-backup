@@ -43,6 +43,9 @@ export const users = pgTable("users", {
   suspendedUntil: timestamp("suspended_until"),
   puzzleReputation: integer("puzzle_reputation").default(0),
   puzzleSolveStreak: integer("puzzle_solve_streak").default(0),
+  handshakeStreak: integer("handshake_streak").default(0),
+  handshakeStreakMax: integer("handshake_streak_max").default(0),
+  badges: text("badges").array().default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

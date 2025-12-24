@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
-import { User, Settings as SettingsIcon, LogOut, AlertTriangle, Trash2, Info, ExternalLink, BookOpen } from "lucide-react";
+import { User, Settings as SettingsIcon, LogOut, AlertTriangle, Trash2, Info, ExternalLink, BookOpen, Award, HandshakeIcon } from "lucide-react";
 import type { UserSettings } from "@shared/schema";
 import { OTB_TUTORIAL_COMPLETED_KEY } from "@/components/otb-tutorial";
 import { REPERTOIRE_TUTORIAL_COMPLETED_KEY } from "@/components/repertoire-tutorial";
@@ -297,6 +297,29 @@ export default function Settings() {
                     ? `${user?.firstName || ""} ${user?.lastName || ""}`.trim()
                     : "Not set"}
                 </p>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Award className="h-4 w-4" />
+                  Badges & Achievements
+                </Label>
+                <div className="flex flex-wrap gap-2" data-testid="badges-container">
+                  {user?.badges && user.badges.length > 0 ? (
+                    user.badges.map((badge: string) => (
+                      <Badge key={badge} variant="secondary" className="flex items-center gap-1.5">
+                        {badge === "sportsman" && <HandshakeIcon className="h-3 w-3" />}
+                        {badge === "sportsman" ? "Sportsman" : badge}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No badges earned yet</p>
+                  )}
+                </div>
+                {typeof user?.handshakeStreak === 'number' && user.handshakeStreak > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Handshake streak: {user.handshakeStreak} consecutive games
+                  </p>
+                )}
               </div>
               <div className="pt-4 border-t">
                 <Button variant="outline" asChild data-testid="button-logout">

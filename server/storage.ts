@@ -164,6 +164,8 @@ export interface IStorage {
   getPuzzleOfTheDay(): Promise<Puzzle | undefined>;
   updateUserPuzzleReputation(userId: string, change: number): Promise<void>;
   updateUserPuzzleSolveStreak(userId: string, solved: boolean): Promise<number>;
+  recordHandshake(userId: string): Promise<{ streak: number; badges: string[] }>;
+  breakHandshakeStreak(userId: string): Promise<void>;
   
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
   upsertUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
@@ -1182,6 +1184,39 @@ export class DatabaseStorage implements IStorage {
       .set({ puzzleSolveStreak: newStreak })
       .where(eq(users.id, userId));
     return newStreak;
+  }
+
+  async recordHandshake(userId: string): Promise<{ streak: number; badges: string[] }> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return { streak: 0, badges: [] };
+    
+    const currentStreak = (user.handshakeStreak || 0) + 1;
+    const currentMax = user.handshakeStreakMax || 0;
+    const newMax = Math.max(currentStreak, currentMax);
+    // Ensure badges is always an array, even if null in database
+    const currentBadges: string[] = Array.isArray(user.badges) ? user.badges : [];
+    const newBadges = [...currentBadges];
+    
+    // Award Sportsman badge at 10 consecutive handshakes
+    if (currentStreak >= 10 && !currentBadges.includes("sportsman")) {
+      newBadges.push("sportsman");
+    }
+    
+    await db.update(users)
+      .set({ 
+        handshakeStreak: currentStreak,
+        handshakeStreakMax: newMax,
+        badges: newBadges,
+      })
+      .where(eq(users.id, userId));
+    
+    return { streak: currentStreak, badges: newBadges };
+  }
+
+  async breakHandshakeStreak(userId: string): Promise<void> {
+    await db.update(users)
+      .set({ handshakeStreak: 0 })
+      .where(eq(users.id, userId));
   }
 
   async getUserSettings(userId: string): Promise<UserSettings | undefined> {
