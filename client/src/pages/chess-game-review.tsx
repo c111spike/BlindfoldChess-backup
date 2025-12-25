@@ -146,6 +146,7 @@ export default function ChessGameReview() {
                 <li><span className="text-yellow-500 font-medium">Imprecise</span> — Slightly inaccurate</li>
                 <li><span className="text-orange-500 font-medium">Mistake</span> — Cost significant advantage</li>
                 <li><span className="text-red-500 font-medium">Blunder</span> — Major error</li>
+                <li><span className="text-gray-400 font-medium">Forced</span> — Only one legal move available</li>
               </ul>
               <p className="text-sm text-muted-foreground mt-3">
                 Includes accuracy percentage and evaluation graph to track momentum.
@@ -161,6 +162,7 @@ export default function ChessGameReview() {
                 Psychology-focused coaching that analyzes <em>how</em> you think:
               </p>
               <ul className="text-sm space-y-1 text-muted-foreground">
+                <li><strong>Tactical Insights</strong> — Cross-references missed tactics against your puzzle history</li>
                 <li><strong>Focus Check</strong> — Measures decision consistency (0-100% with letter grade)</li>
                 <li><strong>Efficiency Factor</strong> — Time spent vs. move quality (0-100% with letter grade)</li>
                 <li><strong>Time Trouble</strong> — Detects when clock pressure hurt you</li>
@@ -249,6 +251,40 @@ export default function ChessGameReview() {
           </div>
 
           <h2 className="flex items-center gap-2 text-xl font-semibold mb-4">
+            <Target className="h-5 w-5 text-primary" />
+            Tactical Motif Analytics
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            Stop guessing which tactics you're missing. Our engine detects <strong>35+ tactical motifs</strong>—from 
+            Knight Forks and Pins to complex Smothered Mates and Windmill sacrifices.
+          </p>
+          <div className="space-y-4 mb-8">
+            <div className="p-4 rounded-lg border">
+              <h3 className="font-semibold mb-2">Personalized Coaching</h3>
+              <p className="text-sm text-muted-foreground">
+                We don't just show you the tactic you missed; we compare it to your performance 
+                in our Puzzle Trainer to give you actionable insights.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-lg bg-muted/30 border-l-4 border-yellow-500">
+                <h3 className="font-semibold mb-2">The "Should-Have-Known"</h3>
+                <p className="text-sm text-muted-foreground">
+                  "You missed this Knight Fork, but you've solved 12 similar puzzles with 90% accuracy. 
+                  Why did you miss it here?"
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/30 border-l-4 border-primary">
+                <h3 className="font-semibold mb-2">The "Training Gap"</h3>
+                <p className="text-sm text-muted-foreground">
+                  "You've never practiced 'Discovered Attack' tactics—that's why you missed this win. 
+                  Start a targeted puzzle session now."
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <h2 className="flex items-center gap-2 text-xl font-semibold mb-4">
             <Eye className="h-5 w-5 text-primary" />
             Blindfold Progress Tracking
           </h2>
@@ -315,27 +351,47 @@ export default function ChessGameReview() {
 
           <h2 className="flex items-center gap-2 text-xl font-semibold mb-4">
             <Puzzle className="h-5 w-5 text-primary" />
-            Puzzle Integration
+            Puzzle Integration: The Feedback Loop
           </h2>
           <p className="text-muted-foreground mb-4">
-            VSS Mismatch alerts don't just identify problems—they connect you to solutions:
+            VSS Mismatch alerts and missed tactics don't just identify problems—they bridge the gap to mastery.
           </p>
-          <div className="p-5 rounded-lg border mb-8">
+          <div className="p-5 rounded-lg border mb-6">
             <div className="flex items-center gap-2 mb-3">
-              <Play className="h-5 w-5 text-green-500" />
-              <h3 className="font-semibold m-0">Replay to Train</h3>
+              <Zap className="h-5 w-5 text-yellow-500" />
+              <h3 className="font-semibold m-0">Active Pattern Reinforcement</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-3">
-              When the review identifies a VSS mismatch—a position where you miscalculated 
-              or missed something—you can click to replay that moment. The board resets to 
-              that position, and you try to find the best move.
+              When you miss a tactical opportunity, SimulChess identifies the specific <strong>Tactical Motif</strong>. 
+              With one click, you can:
             </p>
-            <p className="text-sm text-muted-foreground">
-              This transforms passive analysis into active pattern training. You're not just 
-              reading "you should have played Nf6" — you're <em>experiencing</em> the position 
-              until the pattern is burned into your chess intuition.
-            </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Play className="h-4 w-4 text-green-500" />
+                  <span className="font-medium">Replay the Moment</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Find the move yourself to build muscle memory. The board resets to that 
+                  exact position until you get it right.
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  <span className="font-medium">Targeted Practice</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Jump into a puzzle set curated specifically for the motif you just missed. 
+                  Train until it becomes second nature.
+                </p>
+              </div>
+            </div>
           </div>
+          <p className="text-muted-foreground mb-8">
+            By connecting your failures in games to your successes in puzzles, we turn every 
+            blunder into a <strong>permanent skill upgrade</strong>.
+          </p>
 
           <h2 className="flex items-center gap-2 text-xl font-semibold mb-4">
             <TrendingUp className="h-5 w-5 text-primary" />
@@ -371,6 +427,7 @@ export default function ChessGameReview() {
           <ul className="text-muted-foreground space-y-2 mb-8">
             <li>Deviation in a game → Drill button → Repertoire Trainer</li>
             <li>Missed tactic → VSS Mismatch replay → Pattern training</li>
+            <li>Missed Tactic → Motif Detection → Personalized Puzzle Recommendation</li>
             <li>Blindfold peek → Visualization zone tracking → Targeted practice</li>
             <li>Time trouble errors → Focus on time management → Improved discipline</li>
           </ul>

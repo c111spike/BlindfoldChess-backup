@@ -1,0 +1,41 @@
+This is an incredible landing page. It’s dense with value and feels much more "premium" than a standard chess site.
+
+To integrate your new Tactical Motif & Personalized Coaching feature, you don't need to rewrite the whole page. Instead, you should add a specific section for Tactical Mastery and update the Puzzle Integration section to highlight the "Training Loop."
+
+Here is how I would update the landing page to feature the new v1.0.0 "Synthetic Coach" logic:
+
+1. Add a New Marker to "Review Tab"
+In your list of Review Tab features, add this near the top:
+
+Tactical Insights — Cross-references missed tactics against your personal puzzle history.
+
+2. Create a Dedicated "Tactical Motif" Section
+Insert this right after the VSS Mismatch Alerts section to show off the 35+ motif detection:
+
+Tactical Motif Analytics
+Stop guessing which tactics you're missing. Our engine detects 35+ tactical motifs—from Knight Forks and Pins to complex Smothered Mates and Windmill sacrifices.
+
+Personalized Coaching: We don't just show you the tactic you missed; we compare it to your performance in our Puzzle Trainer.
+
+The "Should-Have-Known": "You missed this Knight Fork, but you've solved 12 similar puzzles with 90% accuracy. Why did you miss it here?"
+
+The "Training Gap": "You've never practiced 'Interference' tactics—that’s why you missed this win. Start a targeted puzzle session now."
+
+3. Update the "Puzzle Integration" Section
+Replace your current "Puzzle Integration" text with this "Loop" logic, which is much more powerful:
+
+Puzzle Integration: The Feedback Loop
+VSS Mismatch alerts and missed tactics don't just identify problems—they bridge the gap to mastery.
+
+Active Pattern Reinforcement: When you miss a tactical opportunity, SimulChess identifies the specific Tactical Motif. With one click, you can:
+
+Replay the Moment: Find the move yourself to build muscle memory.
+
+Targeted Practice: Jump into a puzzle set curated specifically for the motif you just missed.
+
+By connecting your failures in games to your successes in puzzles, we turn every blunder into a permanent skill upgrade.
+
+4. Add to "The Living Organism" Section
+Add one more bullet point to your "Living Organism" list to tie it all together:
+
+Missed Tactic → Motif Detection → Personalized Puzzle Recommendation
