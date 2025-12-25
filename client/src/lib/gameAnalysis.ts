@@ -120,11 +120,11 @@ interface ClassificationContext {
   normalizedCentipawnLoss: number;
   isBestMove: boolean;
   isForced: boolean;
-  isSacrifice: boolean;
-  evalSwing: number;
+  isRealSacrifice: boolean;  // True only for non-capture moves that leave material hanging
+  isHardToFind: boolean;     // True if second-best move drops eval by 150+ cp
   deliversMate: boolean;
-  evalBefore: number;      // Position eval before the move (from player's perspective)
-  evalAfter: number;       // Position eval after the move (from player's perspective)
+  evalBefore: number;        // Position eval before the move (from player's perspective)
+  evalAfter: number;         // Position eval after the move (from player's perspective)
   isOnlyWinningMove: boolean; // True if this is the only move that maintains winning/equal position
 }
 
@@ -135,15 +135,16 @@ function classifyMove(ctx: ClassificationContext): MoveClassification {
   // A position where either side has 5+ pawn equivalent advantage is crushing
   const isCrushingPosition = Math.abs(ctx.evalBefore) >= CRUSHING_EVAL_THRESHOLD;
 
-  // Genius: Best move that delivers mate OR sound sacrifice
-  // Mating moves that aren't in crushing positions are always genius
-  if (ctx.isBestMove && ctx.deliversMate && !isCrushingPosition) {
+  // Genius: Best move that delivers mate (only if NOT in crushing position AND hard to find)
+  // Mating moves are only genius if they were difficult to spot
+  if (ctx.isBestMove && ctx.deliversMate && !isCrushingPosition && ctx.isHardToFind) {
     return 'genius';
   }
 
-  // Genius: Best move + Material sacrifice + Sound sacrifice (final eval > -1.0)
-  // The sacrifice must be "sound" - you can't be losing badly after making it
-  if (ctx.isBestMove && ctx.isSacrifice && !isCrushingPosition) {
+  // Genius: Real sacrifice + Sound (evalAfter > -1.0) + Hard to find
+  // A REAL sacrifice is a non-capture move that intentionally leaves material to be taken
+  // The sacrifice must be the ONLY winning line (hard to find)
+  if (ctx.isBestMove && ctx.isRealSacrifice && !isCrushingPosition && ctx.isHardToFind) {
     const isSoundSacrifice = ctx.evalAfter > -1.0;
     if (isSoundSacrifice) {
       return 'genius';
@@ -350,28 +351,32 @@ export async function analyzeGameClientSide(
     const isCheckmate = chess.isCheckmate();
     const deliversMate = isCheckmate || (analysisAfter.isMate && analysisAfter.mateIn !== undefined && analysisAfter.mateIn >= 0);
 
-    // Detect sacrifice: player gives up material but maintains or improves position
-    // A sacrifice is when you trade material for positional/tactical advantage
-    const capturedValue = moveResult.captured ? PIECE_VALUES[moveResult.captured.toLowerCase()] || 0 : 0;
+    // STRICT Sacrifice Detection for Genius moves
+    // A REAL sacrifice is a NON-CAPTURE move that intentionally leaves material to be taken
+    // Trades (captures) are NEVER sacrifices - only moves where you don't take anything
+    const isNonCapture = !moveResult.captured;
     const movedPieceValue = PIECE_VALUES[moveResult.piece.toLowerCase()] || 0;
-    // Detect sacrifices:
-    // 1. Trading down by 2+ piece values (e.g., Bishop for pawn: 3-1=2)
-    // 2. Moving a valuable piece with significant eval gain (suggests sacrifice)
-    // A sound sacrifice maintains position (doesn't require eval improvement)
-    const isSacrifice = isBestMove && (
-      (capturedValue > 0 && movedPieceValue >= capturedValue + 2) || // Trade-down by 2+ (e.g., Bishop for pawn)
-      (movedPieceValue >= 3 && capturedValue === 0 && evalSwing >= 50) // Piece move with eval gain suggests sacrifice
-    );
+    
+    // A real sacrifice requires:
+    // 1. Non-capture move (not a trade)
+    // 2. Moving a piece worth 3+ (minor piece or higher)
+    // 3. Position improves or stays good (evalSwing >= 0 means we didn't just blunder)
+    const isRealSacrifice = isBestMove && isNonCapture && movedPieceValue >= 3 && evalSwing >= 0;
 
-    // Detect "only winning move": the best move maintains winning/equal position, 
-    // but the second-best move would cause significant eval drop (high-wire act)
+    // Detect "hard to find" - the move must be the ONLY winning line
+    // Second-best move must drop eval by 150+ cp (1.5 pawns) 
+    let isHardToFind = false;
     let isOnlyWinningMove = false;
     if (isBestMove && topMoves.length >= 2) {
       const bestMoveEval = topMoves[0]?.evaluation || 0;
       const secondBestEval = topMoves[1]?.evaluation || 0;
-      // If second-best move drops eval by 100+ cp, this was the "only good move"
       const evalDropForSecondBest = (bestMoveEval - secondBestEval) * 100;
+      
+      // For "only winning move" (Fantastic): 100+ cp drop
       isOnlyWinningMove = evalDropForSecondBest >= 100;
+      
+      // For "hard to find" (Genius): 150+ cp drop - stricter requirement
+      isHardToFind = evalDropForSecondBest >= 150;
     }
 
     const classification = classifyMove({
@@ -379,8 +384,8 @@ export async function analyzeGameClientSide(
       normalizedCentipawnLoss,
       isBestMove,
       isForced,
-      isSacrifice,
-      evalSwing,
+      isRealSacrifice,
+      isHardToFind,
       deliversMate,
       evalBefore: normalizedEvalBefore,
       evalAfter: normalizedEvalAfter,

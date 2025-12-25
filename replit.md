@@ -71,6 +71,12 @@ Provides two tabbed modes for game analysis:
 - Sacrifice detection: Trade-down by 2+ piece values or piece move with 50cp+ gain
 - Only-winning-move detection: Second-best move drops eval by 100+ cp
 
+**Strict Genius Detection (Anti-False-Positive Rules):**
+- Real sacrifices only: Non-capture moves that leave material hanging (trades are never genius)
+- Hard to find: Second-best move must drop eval by 150+ cp (stricter than Fantastic's 100cp)
+- Sound sacrifice: Final eval must be > -1.0 (sacrifice isn't losing)
+- Mating moves only genius if hard to find AND not in crushing position
+
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.
 - **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles.
