@@ -2126,7 +2126,50 @@ export default function GameAnalysisPage() {
     return computedFens[currentMoveIndex - 1] || startingFen;
   }, [data?.moves, currentMoveIndex, computedFens]);
 
-  const currentMove = currentMoveIndex >= 0 && data?.moves ? data.moves[currentMoveIndex] : null;
+  // Get currentMove from either client analysis (preferred when available) or server data
+  const currentMove = useMemo(() => {
+    if (currentMoveIndex < 0) return null;
+    
+    // Prefer client-side analysis results when available (they're instant/cached)
+    if (clientAnalysis.result?.moves && clientAnalysis.result.moves[currentMoveIndex]) {
+      const m = clientAnalysis.result.moves[currentMoveIndex];
+      return {
+        id: String(currentMoveIndex),
+        gameAnalysisId: '',
+        moveNumber: m.moveNumber,
+        color: m.color,
+        move: m.move,
+        fen: m.fen,
+        evalBefore: m.evalBefore,
+        evalAfter: m.evalAfter,
+        normalizedEvalBefore: m.normalizedEvalBefore,
+        normalizedEvalAfter: m.normalizedEvalAfter,
+        bestMove: m.bestMove,
+        bestMoveEval: m.bestMoveEval,
+        centipawnLoss: Math.round(m.normalizedCentipawnLoss),
+        normalizedCentipawnLoss: m.normalizedCentipawnLoss,
+        classification: m.classification as MoveClassification,
+        phase: m.phase as GamePhase,
+        thinkingTime: null,
+        clockTime: null,
+        isCheck: false,
+        isCapture: !!m.capturedPiece,
+        isCastle: m.move === 'O-O' || m.move === 'O-O-O',
+        missedTactics: [],
+        isCriticalMoment: false,
+        followedByBlunder: false,
+        principalVariation: m.principalVariation,
+        isBestMove: m.isBestMove,
+        isMateBefore: m.isMateBefore,
+        isMateAfter: m.isMateAfter,
+        mateInBefore: m.mateInBefore,
+        mateInAfter: m.mateInAfter,
+      } as MoveAnalysis;
+    }
+    
+    // Fall back to server data
+    return data?.moves?.[currentMoveIndex] ?? null;
+  }, [currentMoveIndex, clientAnalysis.result?.moves, data?.moves]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

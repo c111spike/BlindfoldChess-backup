@@ -139,6 +139,59 @@ function classifyMove(ctx: ClassificationContext): MoveClassification {
   return 'blunder';
 }
 
+// Accuracy weights based on move classification
+// Genius/Fantastic/Best/Forced = 100%, Good = 90-95%, Imprecise = 60-75%, Mistake = 30-45%, Blunder = 0-10%
+// Using weighted mean - importance factor reduces impact of outliers (bad moves don't tank score unfairly)
+function getClassificationWeight(classification: MoveClassification, cpLoss: number): { weight: number; importance: number } {
+  switch (classification) {
+    case 'genius':
+    case 'fantastic':
+    case 'best':
+    case 'forced':
+    case 'book':
+      // Perfect moves get 100%
+      return { weight: 100, importance: 1.0 };
+    case 'good':
+      // Good moves: 90-95% based on CP loss (higher loss = lower weight)
+      // This ensures "Good" is noticeably below "Best" but still solid
+      const goodWeight = Math.max(90, 95 - (cpLoss / 10));
+      return { weight: goodWeight, importance: 1.0 };
+    case 'imprecise':
+      // Imprecise: 60-75% based on CP loss (50-120 cp loss)
+      const impreciseWeight = Math.max(60, 75 - ((cpLoss - 50) / 70) * 15);
+      return { weight: impreciseWeight, importance: 1.0 };
+    case 'mistake':
+      // Mistake: 30-45% based on CP loss (120-250 cp loss)
+      const mistakeWeight = Math.max(30, 45 - ((cpLoss - 120) / 130) * 15);
+      return { weight: mistakeWeight, importance: 1.0 };
+    case 'blunder':
+      // Blunder: 0-10% based on severity (250+ cp loss)
+      const blunderWeight = Math.max(0, 10 - ((cpLoss - 250) / 100) * 10);
+      return { weight: blunderWeight, importance: 1.0 };
+    default:
+      return { weight: 100, importance: 1.0 };
+  }
+}
+
+function calculateAccuracyFromClassifications(moves: MoveAnalysisResult[]): number {
+  if (moves.length === 0) return 100;
+
+  let weightedSum = 0;
+  let importanceSum = 0;
+
+  for (const move of moves) {
+    const { weight, importance } = getClassificationWeight(move.classification, move.normalizedCentipawnLoss);
+    weightedSum += weight * importance;
+    importanceSum += importance;
+  }
+
+  if (importanceSum === 0) return 100;
+  
+  const accuracy = weightedSum / importanceSum;
+  return Math.round(accuracy * 10) / 10;
+}
+
+// Legacy function kept for backwards compatibility
 function calculateAccuracy(normalizedCentipawnLosses: number[]): number {
   if (normalizedCentipawnLosses.length === 0) return 100;
 
@@ -318,9 +371,12 @@ export async function analyzeGameClientSide(
     const classifications = moveResults.map(m => m.classification);
     const phases = moveResults.map(m => m.phase);
 
-    console.log('[GameAnalysis] Calculating accuracies...');
-    const whiteAccuracy = calculateAccuracy(whiteNormalizedCPL);
-    const blackAccuracy = calculateAccuracy(blackNormalizedCPL);
+    console.log('[GameAnalysis] Calculating accuracies using classification-based weighted mean...');
+    // Split moves by color for accuracy calculation
+    const whiteMoves = moveResults.filter(m => m.color === 'white');
+    const blackMoves = moveResults.filter(m => m.color === 'black');
+    const whiteAccuracy = calculateAccuracyFromClassifications(whiteMoves);
+    const blackAccuracy = calculateAccuracyFromClassifications(blackMoves);
     
     console.log('[GameAnalysis] Detecting critical moments...');
     const criticalMoments = detectCriticalMoments(moveResults);
