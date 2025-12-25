@@ -56,12 +56,19 @@ export interface GameAnalysisResult {
 const MAX_EVAL = 10;
 const MAX_CENTIPAWN_LOSS = 500;
 
+// Refined thresholds based on modern engine standards
+// Tighter ranges make analysis feel more "Master-level"
 const CLASSIFICATION_THRESHOLDS = {
-  good: 50,
-  imprecise: 120,
-  mistake: 250,
-  blunder: 250,
+  good: 40,       // 1-40 cp: solid move, near-optimal
+  imprecise: 90,  // 41-90 cp: slight inaccuracy
+  mistake: 200,   // 91-200 cp: clear error, ~1 pawn loss
+  blunder: 200,   // 201+ cp: serious blunder, 2+ pawns or piece
 };
+
+// Position is "crushing" when one side is completely winning
+// Don't award Genius/Fantastic for finding obvious moves in won positions
+// Use 5.0 since normalized eval is clamped to ±10 (equivalent to ~5 pawns advantage)
+const CRUSHING_EVAL_THRESHOLD = 5.0;
 
 const PIECE_VALUES: Record<string, number> = {
   'p': 1,
@@ -116,17 +123,41 @@ interface ClassificationContext {
   isSacrifice: boolean;
   evalSwing: number;
   deliversMate: boolean;
+  evalBefore: number;      // Position eval before the move (from player's perspective)
+  evalAfter: number;       // Position eval after the move (from player's perspective)
+  isOnlyWinningMove: boolean; // True if this is the only move that maintains winning/equal position
 }
 
 function classifyMove(ctx: ClassificationContext): MoveClassification {
   if (ctx.isForced) return 'forced';
 
-  if (ctx.isBestMove && ctx.isSacrifice && (ctx.evalSwing >= 300 || ctx.deliversMate)) {
+  // Check if position is already "crushing" - don't award special moves in won positions
+  // A position where either side has 5+ pawn equivalent advantage is crushing
+  const isCrushingPosition = Math.abs(ctx.evalBefore) >= CRUSHING_EVAL_THRESHOLD;
+
+  // Genius: Best move that delivers mate OR sound sacrifice
+  // Mating moves that aren't in crushing positions are always genius
+  if (ctx.isBestMove && ctx.deliversMate && !isCrushingPosition) {
     return 'genius';
   }
 
-  if (ctx.isBestMove && (ctx.evalSwing >= 200 || ctx.deliversMate)) {
-    return 'fantastic';
+  // Genius: Best move + Material sacrifice + Sound sacrifice (final eval > -1.0)
+  // The sacrifice must be "sound" - you can't be losing badly after making it
+  if (ctx.isBestMove && ctx.isSacrifice && !isCrushingPosition) {
+    const isSoundSacrifice = ctx.evalAfter > -1.0;
+    if (isSoundSacrifice) {
+      return 'genius';
+    }
+  }
+
+  // Fantastic: Best move + Only move to stay winning/equal (the "high-wire act")
+  // This rewards finding the critical move that prevents collapse
+  // Must also leave position in non-losing state (evalAfter >= -1.0)
+  if (ctx.isBestMove && ctx.isOnlyWinningMove && !isCrushingPosition) {
+    const maintainsPosition = ctx.evalAfter >= -1.0;
+    if (maintainsPosition) {
+      return 'fantastic';
+    }
   }
 
   if (ctx.isBestMove) {
@@ -139,7 +170,7 @@ function classifyMove(ctx: ClassificationContext): MoveClassification {
   return 'blunder';
 }
 
-// Accuracy weights based on move classification
+// Accuracy weights based on move classification (refined thresholds)
 // Genius/Fantastic/Best/Forced = 100%, Good = 90-95%, Imprecise = 60-75%, Mistake = 30-45%, Blunder = 0-10%
 // Using weighted mean - importance factor reduces impact of outliers (bad moves don't tank score unfairly)
 function getClassificationWeight(classification: MoveClassification, cpLoss: number): { weight: number; importance: number } {
@@ -152,21 +183,21 @@ function getClassificationWeight(classification: MoveClassification, cpLoss: num
       // Perfect moves get 100%
       return { weight: 100, importance: 1.0 };
     case 'good':
-      // Good moves: 90-95% based on CP loss (higher loss = lower weight)
+      // Good moves: 90-95% based on CP loss (1-40 cp loss)
       // This ensures "Good" is noticeably below "Best" but still solid
-      const goodWeight = Math.max(90, 95 - (cpLoss / 10));
+      const goodWeight = Math.max(90, 95 - (cpLoss / 8));
       return { weight: goodWeight, importance: 1.0 };
     case 'imprecise':
-      // Imprecise: 60-75% based on CP loss (50-120 cp loss)
-      const impreciseWeight = Math.max(60, 75 - ((cpLoss - 50) / 70) * 15);
+      // Imprecise: 60-75% based on CP loss (41-90 cp loss)
+      const impreciseWeight = Math.max(60, 75 - ((cpLoss - 40) / 50) * 15);
       return { weight: impreciseWeight, importance: 1.0 };
     case 'mistake':
-      // Mistake: 30-45% based on CP loss (120-250 cp loss)
-      const mistakeWeight = Math.max(30, 45 - ((cpLoss - 120) / 130) * 15);
+      // Mistake: 30-45% based on CP loss (91-200 cp loss)
+      const mistakeWeight = Math.max(30, 45 - ((cpLoss - 90) / 110) * 15);
       return { weight: mistakeWeight, importance: 1.0 };
     case 'blunder':
-      // Blunder: 0-10% based on severity (250+ cp loss)
-      const blunderWeight = Math.max(0, 10 - ((cpLoss - 250) / 100) * 10);
+      // Blunder: 0-10% based on severity (201+ cp loss)
+      const blunderWeight = Math.max(0, 10 - ((cpLoss - 200) / 100) * 10);
       return { weight: blunderWeight, importance: 1.0 };
     default:
       return { weight: 100, importance: 1.0 };
@@ -319,14 +350,41 @@ export async function analyzeGameClientSide(
     const isCheckmate = chess.isCheckmate();
     const deliversMate = isCheckmate || (analysisAfter.isMate && analysisAfter.mateIn !== undefined && analysisAfter.mateIn >= 0);
 
+    // Detect sacrifice: player gives up material but maintains or improves position
+    // A sacrifice is when you trade material for positional/tactical advantage
+    const capturedValue = moveResult.captured ? PIECE_VALUES[moveResult.captured.toLowerCase()] || 0 : 0;
+    const movedPieceValue = PIECE_VALUES[moveResult.piece.toLowerCase()] || 0;
+    // Detect sacrifices:
+    // 1. Trading down by 2+ piece values (e.g., Bishop for pawn: 3-1=2)
+    // 2. Moving a valuable piece with significant eval gain (suggests sacrifice)
+    // A sound sacrifice maintains position (doesn't require eval improvement)
+    const isSacrifice = isBestMove && (
+      (capturedValue > 0 && movedPieceValue >= capturedValue + 2) || // Trade-down by 2+ (e.g., Bishop for pawn)
+      (movedPieceValue >= 3 && capturedValue === 0 && evalSwing >= 50) // Piece move with eval gain suggests sacrifice
+    );
+
+    // Detect "only winning move": the best move maintains winning/equal position, 
+    // but the second-best move would cause significant eval drop (high-wire act)
+    let isOnlyWinningMove = false;
+    if (isBestMove && topMoves.length >= 2) {
+      const bestMoveEval = topMoves[0]?.evaluation || 0;
+      const secondBestEval = topMoves[1]?.evaluation || 0;
+      // If second-best move drops eval by 100+ cp, this was the "only good move"
+      const evalDropForSecondBest = (bestMoveEval - secondBestEval) * 100;
+      isOnlyWinningMove = evalDropForSecondBest >= 100;
+    }
+
     const classification = classifyMove({
       centipawnLoss,
       normalizedCentipawnLoss,
       isBestMove,
       isForced,
-      isSacrifice: false,
+      isSacrifice,
       evalSwing,
       deliversMate,
+      evalBefore: normalizedEvalBefore,
+      evalAfter: normalizedEvalAfter,
+      isOnlyWinningMove,
     });
 
     if (color === 'white') {

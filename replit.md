@@ -56,6 +56,21 @@ Provides two tabbed modes for game analysis:
 - **Analyze Tab**: Stockfish-powered engine analysis with interactive board, evaluation bar, move classification, and accuracy scores.
 - **Review Tab**: Psychology-focused coaching analysis with diagnostic markers like Focus Check, Efficiency Factor, Time Trouble detection, Burnout Line, and VSS Mismatch alerts.
 
+**Move Classification System (Master-Level Thresholds):**
+- **Forced**: Only one legal move available
+- **Genius**: Best move that delivers mate OR sound sacrifice (evalAfter > -1.0)
+- **Fantastic**: Best move that is the only winning move (second-best drops 100+ cp) and maintains position
+- **Best**: Matches engine's top recommendation
+- **Good**: 1-40 centipawn loss
+- **Imprecise**: 41-90 centipawn loss
+- **Mistake**: 91-200 centipawn loss
+- **Blunder**: 201+ centipawn loss
+
+**Special Move Safeguards:**
+- No Genius/Fantastic in crushing positions (|eval| >= 5.0)
+- Sacrifice detection: Trade-down by 2+ piece values or piece move with 50cp+ gain
+- Only-winning-move detection: Second-best move drops eval by 100+ cp
+
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.
 - **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles.
