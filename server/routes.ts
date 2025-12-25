@@ -1916,13 +1916,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return null;
         };
         
+        // Extract timestamp parameter if present (supports ?t=, &t=, formats with or without 's')
+        const extractTimestamp = (url: string): string | null => {
+          const match = url.match(/[?&]t=(\d+)s?/);
+          return match ? match[1] : null;
+        };
+        
         const videoId = extractYoutubeVideoId(youtubeVideoUrl);
         if (!videoId) {
           return res.status(400).json({ message: "Invalid YouTube URL. Please use a valid youtube.com or youtu.be link." });
         }
         
-        // Normalize to canonical format for consistent storage and comparison
-        youtubeVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        const timestamp = extractTimestamp(youtubeVideoUrl);
+        
+        // Normalize to canonical format for consistent storage and comparison (preserve timestamp)
+        youtubeVideoUrl = timestamp 
+          ? `https://www.youtube.com/watch?v=${videoId}&t=${timestamp}s`
+          : `https://www.youtube.com/watch?v=${videoId}`;
         
         const existingYoutubeUrlPuzzle = await storage.checkDuplicateYoutubeUrl(youtubeVideoUrl);
         if (existingYoutubeUrlPuzzle) {

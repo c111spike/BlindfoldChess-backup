@@ -208,7 +208,7 @@ export default function PuzzleCreator() {
     if (!url) return null;
     
     const seconds = parseTimeToSeconds(youtubeStartTime);
-    if (!seconds) return url;
+    if (seconds === null) return url;
     
     // Add timestamp parameter
     if (url.includes("youtu.be/")) {
