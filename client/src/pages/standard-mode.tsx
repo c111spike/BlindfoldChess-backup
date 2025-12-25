@@ -987,13 +987,13 @@ export default function StandardMode() {
     const currentPlayerRating = playerRatings?.[botRatingCategory] || 1200;
     setPlayerRating(currentPlayerRating);
     
-    // Practice mode uses a special mode that won't affect ratings
+    // Practice mode uses special non-rated mode, blitz/rapid use their proper rated modes
     const mode = botTimeControl === "practice" ? "standard_practice" : (botTimeControl === "blitz" ? "standard_blitz" : "standard_rapid");
     
     createGameMutation.mutate({
       mode,
       playerColor: assignedColor,
-      timeControl: seconds / 60,
+      timeControl: Math.floor(seconds / 60),
       increment: inc,
       fen: newGame.fen(),
       moves: [],

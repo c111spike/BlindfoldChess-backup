@@ -59,6 +59,7 @@ export const gameModeEnum = pgEnum("game_mode", [
   "standard_blitz",
   "standard_rapid",
   "standard_classical",
+  "standard_practice",
   "simul",
   "simul_2",
   "simul_3",
