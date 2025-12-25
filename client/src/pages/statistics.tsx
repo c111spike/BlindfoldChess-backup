@@ -3,9 +3,10 @@ import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Target, Clock, TrendingUp, Book, Brain, Puzzle, Gamepad2, Eye, Users } from "lucide-react";
+import { Trophy, Target, Clock, TrendingUp, Book, Brain, Puzzle, Gamepad2, Eye, Users, Handshake } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import type { Statistics } from "@shared/schema";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SpecialModeStats {
   blindfold: {
@@ -55,6 +56,8 @@ interface TrainingStats {
 }
 
 export default function StatisticsPage() {
+  const { user } = useAuth();
+  
   const { data: stats, isLoading } = useQuery<Statistics[]>({
     queryKey: ["/api/statistics"],
   });
@@ -177,6 +180,40 @@ export default function StatisticsPage() {
               </CardHeader>
             </Card>
           </div>
+
+          <Card data-testid="handshake-streak-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Handshake className="h-4 w-4" />
+                Post-Game Handshake Streak
+              </CardTitle>
+              <CardDescription>
+                Sportsmanship counts! Offer a handshake after each OTB game to build your streak.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="text-center">
+                  <p className="text-4xl font-bold" data-testid="handshake-current-streak">
+                    {user?.handshakeStreak || 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">Current Streak</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-4xl font-bold text-amber-500" data-testid="handshake-best-streak">
+                    {user?.handshakeStreakMax || 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">Best Streak</p>
+                </div>
+              </div>
+              {(user?.handshakeStreak || 0) >= 10 && (
+                <div className="mt-4 text-center text-sm text-green-600 dark:text-green-400">
+                  <Trophy className="h-4 w-4 inline mr-1" />
+                  Sportsman Badge earned!
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
