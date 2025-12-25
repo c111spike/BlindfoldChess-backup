@@ -208,8 +208,8 @@ export default function StandardMode() {
     const currentGameId = gameIdRef.current;
     const currentMatchId = matchIdRef.current;
     
-    if (!currentGameId || !currentGame) {
-      console.log('[completeGame] No gameId or game, skipping');
+    if (!currentGame) {
+      console.log('[completeGame] No game, skipping');
       return;
     }
 
@@ -230,64 +230,69 @@ export default function StandardMode() {
       // Update UI state first - keep board visible until user clicks Main Menu
       setGameResult(result);
 
-      // Save final game state - MUST succeed before completion
-      // If no matchId, also mark game as completed here since there's no match to complete
-      try {
-        const gameUpdatePayload: Record<string, any> = {
-          pgn: currentGame.pgn(),
-          moves: movesRef.current,
-          whiteTime: whiteTimeRef.current,
-          blackTime: blackTimeRef.current,
-          thinkingTimes: thinkingTimesRef.current,
-          peekDurations: peekDurationsRef.current,
-          totalPeekTime: totalPeekTimeRef.current,
-          peeksUsed: peekDurationsRef.current.length,
-        };
-        
-        // For games without a match, mark as completed directly
-        if (!currentMatchId) {
-          gameUpdatePayload.status = 'completed';
-          gameUpdatePayload.result = result;
-          console.log('[completeGame] No matchId, marking game as completed directly');
+      // Only save to database if we have a gameId (not bot games)
+      if (currentGameId) {
+        // Save final game state - MUST succeed before completion
+        // If no matchId, also mark game as completed here since there's no match to complete
+        try {
+          const gameUpdatePayload: Record<string, any> = {
+            pgn: currentGame.pgn(),
+            moves: movesRef.current,
+            whiteTime: whiteTimeRef.current,
+            blackTime: blackTimeRef.current,
+            thinkingTimes: thinkingTimesRef.current,
+            peekDurations: peekDurationsRef.current,
+            totalPeekTime: totalPeekTimeRef.current,
+            peeksUsed: peekDurationsRef.current.length,
+          };
+          
+          // For games without a match, mark as completed directly
+          if (!currentMatchId) {
+            gameUpdatePayload.status = 'completed';
+            gameUpdatePayload.result = result;
+            console.log('[completeGame] No matchId, marking game as completed directly');
+          }
+          
+          await apiRequest("PATCH", `/api/games/${currentGameId}`, gameUpdatePayload);
+        } catch (error) {
+          console.error("Error saving final game state:", error);
+          // Don't proceed to completion if game state save failed
+          toast({
+            title: "Error",
+            description: "Failed to save game state. Please try again.",
+            variant: "destructive",
+          });
+          return;
         }
-        
-        await apiRequest("PATCH", `/api/games/${currentGameId}`, gameUpdatePayload);
-      } catch (error) {
-        console.error("Error saving final game state:", error);
-        // Don't proceed to completion if game state save failed
-        toast({
-          title: "Error",
-          description: "Failed to save game state. Please try again.",
-          variant: "destructive",
-        });
-        return;
+
+        // Complete match (centralized - handles stats, ratings, WebSocket broadcast)
+        // Only proceed if PATCH succeeded above and there's a match to complete
+        try {
+          if (currentMatchId) {
+            console.log('[completeGame] Calling POST /api/matches/:id/complete');
+            await apiRequest("POST", `/api/matches/${currentMatchId}/complete`, { result });
+          }
+          
+          // Invalidate queries
+          queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/games/history"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
+        } catch (error) {
+          console.error("Error completing match:", error);
+          // Show error to user but don't block - WebSocket might still handle it
+          toast({
+            title: "Error",
+            description: "Match completion error. Please check your connection.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.log('[completeGame] Bot game - skipping database save, showing dialog directly');
       }
 
-      // Complete match (centralized - handles stats, ratings, WebSocket broadcast)
-      // Only proceed if PATCH succeeded above and there's a match to complete
-      try {
-        if (currentMatchId) {
-          console.log('[completeGame] Calling POST /api/matches/:id/complete');
-          await apiRequest("POST", `/api/matches/${currentMatchId}/complete`, { result });
-        }
-        
-        // Invalidate queries
-        queryClient.invalidateQueries({ queryKey: ["/api/ratings"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/games/recent"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/games/history"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/games/ongoing"] });
-      } catch (error) {
-        console.error("Error completing match:", error);
-        // Show error to user but don't block - WebSocket might still handle it
-        toast({
-          title: "Error",
-          description: "Match completion error. Please check your connection.",
-          variant: "destructive",
-        });
-      }
-
-      // Show game end dialog after server updates
+      // Show game end dialog after server updates (or immediately for bot games)
       setShowGameEndDialog(true);
     } finally {
       // Always reset guard flag so future games can complete
