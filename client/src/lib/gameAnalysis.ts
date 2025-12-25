@@ -282,7 +282,14 @@ export async function analyzeGameClientSide(
     
     // Get top 3 moves for this position (cached for instant display during review)
     // Use fewer nodes for faster analysis since we already have the best move from analysisBefore
-    const topMoves = await clientStockfish.getTopMoves(fenBefore, 3, 100000);
+    const rawTopMoves = await clientStockfish.getTopMoves(fenBefore, 3, 100000);
+    
+    // Normalize top move evaluations to White's perspective
+    // Stockfish returns evals from side-to-move POV, so flip for Black's turn
+    const topMoves = rawTopMoves.map(tm => ({
+      ...tm,
+      evaluation: color === 'white' ? tm.evaluation : -tm.evaluation,
+    }));
 
     const moveResult = chess.move(move);
     if (!moveResult) {
