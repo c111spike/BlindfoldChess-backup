@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Chess } from "chess.js";
 import { clientStockfish } from "@/lib/stockfish";
+import { detectPuzzleMotifs } from "@/lib/motifDetection";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -509,6 +510,8 @@ export default function PuzzleCreator() {
       const fen = boardToFen(board, whoToMove);
       const validMoves = solutionMoves.filter(m => m.trim());
       
+      const detectedMotifs = detectPuzzleMotifs(fen, validMoves);
+      
       return apiRequest("POST", "/api/puzzles", {
         fen,
         moves: validMoves,
@@ -523,6 +526,7 @@ export default function PuzzleCreator() {
         isAnonymous,
         whoToMove,
         themes: [],
+        tacticalMotifs: detectedMotifs,
       });
     },
     onSuccess: () => {

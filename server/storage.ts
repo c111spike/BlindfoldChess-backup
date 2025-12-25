@@ -6,6 +6,7 @@ import {
   puzzleAttempts,
   puzzleVotes,
   puzzleReports,
+  userMotifStats,
   userSettings,
   statistics,
   simulGames,
@@ -41,6 +42,8 @@ import {
   type InsertPuzzleVote,
   type PuzzleReport,
   type InsertPuzzleReport,
+  type UserMotifStats,
+  type InsertUserMotifStats,
   type UserSettings,
   type InsertUserSettings,
   type Statistics,
@@ -310,6 +313,11 @@ export interface IStorage {
   // Admin Game History
   getUserGameHistory(userId: string, limit?: number, offset?: number): Promise<Game[]>;
   getUserGameCount(userId: string): Promise<number>;
+  
+  // User Motif Stats (Puzzle Pattern Tracking)
+  updateUserMotifStats(userId: string, motifName: string, solved: boolean): Promise<UserMotifStats>;
+  getUserMotifStats(userId: string): Promise<UserMotifStats[]>;
+  getUserMotifStatsByName(userId: string, motifName: string): Promise<UserMotifStats | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3118,6 +3126,49 @@ export class DatabaseStorage implements IStorage {
         eq(games.blackPlayerId, userId)
       ));
     return result?.count || 0;
+  }
+
+  // ========== USER MOTIF STATS (Puzzle Pattern Tracking) ==========
+  
+  async updateUserMotifStats(userId: string, motifName: string, solved: boolean): Promise<UserMotifStats> {
+    const existing = await this.getUserMotifStatsByName(userId, motifName);
+    
+    if (existing) {
+      const [updated] = await db.update(userMotifStats)
+        .set({
+          solvedCount: solved ? (existing.solvedCount || 0) + 1 : existing.solvedCount,
+          failedCount: solved ? existing.failedCount : (existing.failedCount || 0) + 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(userMotifStats.id, existing.id))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db.insert(userMotifStats)
+      .values({
+        userId,
+        motifName,
+        solvedCount: solved ? 1 : 0,
+        failedCount: solved ? 0 : 1,
+      })
+      .returning();
+    return created;
+  }
+
+  async getUserMotifStats(userId: string): Promise<UserMotifStats[]> {
+    return db.select().from(userMotifStats)
+      .where(eq(userMotifStats.userId, userId))
+      .orderBy(desc(userMotifStats.solvedCount));
+  }
+
+  async getUserMotifStatsByName(userId: string, motifName: string): Promise<UserMotifStats | undefined> {
+    const [stat] = await db.select().from(userMotifStats)
+      .where(and(
+        eq(userMotifStats.userId, userId),
+        eq(userMotifStats.motifName, motifName)
+      ));
+    return stat;
   }
 }
 

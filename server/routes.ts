@@ -1784,6 +1784,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUserPuzzleSolveStreak(userId, false);
       }
       
+      // Track motif stats for this puzzle attempt
+      const puzzle = await storage.getPuzzle(attemptData.puzzleId);
+      if (puzzle && puzzle.tacticalMotifs && Array.isArray(puzzle.tacticalMotifs)) {
+        for (const motif of puzzle.tacticalMotifs) {
+          await storage.updateUserMotifStats(userId, motif, attempt.solved);
+        }
+      }
+      
       // Invalidate training/puzzle caches when puzzle is attempted
       invalidateCaches.puzzles();
       
@@ -2720,6 +2728,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating settings:", error);
       res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  // User Motif Stats (Puzzle Pattern Tracking)
+  app.get('/api/user/motif-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getUserMotifStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching motif stats:", error);
+      res.status(500).json({ message: "Failed to fetch motif stats" });
+    }
+  });
+
+  app.get('/api/user/motif-stats/:motifName', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { motifName } = req.params;
+      const stat = await storage.getUserMotifStatsByName(userId, motifName);
+      res.json(stat || { motifName, solvedCount: 0, failedCount: 0 });
+    } catch (error) {
+      console.error("Error fetching motif stat:", error);
+      res.status(500).json({ message: "Failed to fetch motif stat" });
     }
   });
 

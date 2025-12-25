@@ -50,7 +50,8 @@ import {
   RotateCw,
   Crown,
 } from 'lucide-react';
-import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase } from '@shared/schema';
+import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase, UserMotifStats } from '@shared/schema';
+import { detectMotifs, getMotifDisplayName, type TacticalMotif, type AnalysisContext } from '@/lib/motifDetection';
 
 interface AnalysisData {
   analysis: GameAnalysis;
@@ -487,6 +488,232 @@ function PeekStatistics({ game }: { game: Game }) {
   );
 }
 
+interface MissedTactic {
+  moveNumber: number;
+  ply: number;
+  fen: string;
+  bestMove?: string;
+  classification: MoveClassification;
+  motifs: TacticalMotif[];
+  evalBefore?: number | null;
+  evalAfter?: number | null;
+}
+
+function PuzzlePatternInsights({ 
+  game, 
+  moves,
+  onNavigateToMove 
+}: { 
+  game: Game;
+  moves: MoveAnalysis[];
+  onNavigateToMove?: (moveIndex: number) => void;
+}) {
+  const [missedTactics, setMissedTactics] = useState<MissedTactic[]>([]);
+  const [analyzing, setAnalyzing] = useState(true);
+  
+  const { data: motifStats } = useQuery<UserMotifStats[]>({
+    queryKey: ['/api/user/motif-stats'],
+  });
+  
+  const playerColor = game.playerColor;
+  
+  useEffect(() => {
+    const analyzeMissedTactics = async () => {
+      setAnalyzing(true);
+      const chess = new Chess();
+      const gameMoves = Array.isArray(game.moves) 
+        ? game.moves as string[]
+        : (typeof game.moves === 'string' ? (game.moves as string).split(' ') : []);
+      
+      const missed: MissedTactic[] = [];
+      
+      for (let plyIndex = 0; plyIndex < gameMoves.length; plyIndex++) {
+        const isPlayerMove = (playerColor === 'white' && plyIndex % 2 === 0) || 
+                            (playerColor === 'black' && plyIndex % 2 === 1);
+        
+        if (!isPlayerMove) {
+          try { chess.move(gameMoves[plyIndex]); } catch { break; }
+          continue;
+        }
+        
+        const moveNumber = Math.floor(plyIndex / 2) + 1;
+        const color = plyIndex % 2 === 0 ? 'white' : 'black';
+        const moveAnalysis = moves.find(m => m.moveNumber === moveNumber && m.color === color);
+        
+        if (moveAnalysis && (moveAnalysis.classification === 'mistake' || moveAnalysis.classification === 'blunder')) {
+          const fenBefore = chess.fen();
+          
+          if (moveAnalysis.bestMove) {
+            try {
+              const testChess = new Chess(fenBefore);
+              const bestMoveResult = testChess.move(moveAnalysis.bestMove);
+              
+              if (bestMoveResult) {
+                const fenAfter = testChess.fen();
+                
+                const evalBefore = moveAnalysis.evalBefore ?? 0;
+                const bestMoveEvalAfter = evalBefore + (color === 'white' ? 0.5 : -0.5);
+                
+                const context: AnalysisContext = {
+                  fenBefore,
+                  fenAfter,
+                  move: {
+                    from: bestMoveResult.from,
+                    to: bestMoveResult.to,
+                    piece: bestMoveResult.piece,
+                    captured: bestMoveResult.captured,
+                    promotion: bestMoveResult.promotion,
+                    san: bestMoveResult.san,
+                  },
+                  evalBefore,
+                  evalAfter: bestMoveEvalAfter,
+                  isCheck: testChess.isCheck(),
+                  isCheckmate: testChess.isCheckmate(),
+                };
+                
+                const result = detectMotifs(context);
+                
+                if (result.motifs.length > 0) {
+                  missed.push({
+                    moveNumber,
+                    ply: plyIndex,
+                    fen: fenBefore,
+                    bestMove: moveAnalysis.bestMove,
+                    classification: moveAnalysis.classification,
+                    motifs: result.motifs,
+                    evalBefore: moveAnalysis.evalBefore,
+                    evalAfter: moveAnalysis.evalAfter,
+                  });
+                }
+              }
+            } catch {
+            }
+          }
+        }
+        
+        try { chess.move(gameMoves[plyIndex]); } catch { break; }
+      }
+      
+      setMissedTactics(missed);
+      setAnalyzing(false);
+    };
+    
+    analyzeMissedTactics();
+  }, [game.moves, moves, playerColor]);
+  
+  const getMotifStat = (motifName: string) => {
+    return motifStats?.find(s => s.motifName === motifName);
+  };
+  
+  const getAccuracyText = (stat: UserMotifStats | undefined) => {
+    if (!stat || (stat.solvedCount + stat.failedCount) === 0) {
+      return null;
+    }
+    const total = stat.solvedCount + stat.failedCount;
+    const accuracy = (stat.solvedCount / total) * 100;
+    return {
+      accuracy: accuracy.toFixed(0),
+      solved: stat.solvedCount,
+      total,
+    };
+  };
+  
+  if (analyzing) {
+    return (
+      <Card data-testid="puzzle-pattern-insights">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            Tactical Pattern Insights
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Analyzing tactical patterns...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  if (missedTactics.length === 0) {
+    return null;
+  }
+  
+  return (
+    <Card data-testid="puzzle-pattern-insights">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Target className="w-4 h-4" />
+          Tactical Pattern Insights
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground mb-3">
+          Missed tactics cross-referenced with your puzzle training history
+        </p>
+        <div className="space-y-3">
+          {missedTactics.map((tactic, i) => (
+            <div 
+              key={i}
+              className="p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
+              onClick={() => onNavigateToMove?.(tactic.ply)}
+              data-testid={`missed-tactic-${tactic.ply}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">
+                  Move {tactic.moveNumber}
+                </span>
+                <Badge 
+                  className={tactic.classification === 'blunder' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}
+                >
+                  {tactic.classification === 'blunder' ? 'Blunder' : 'Mistake'}
+                </Badge>
+              </div>
+              
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {tactic.motifs.map((motif, j) => (
+                  <Badge key={j} variant="outline" className="text-xs">
+                    {getMotifDisplayName(motif)}
+                  </Badge>
+                ))}
+              </div>
+              
+              <div className="space-y-1 text-sm">
+                {tactic.motifs.slice(0, 3).map((motif, j) => {
+                  const stat = getMotifStat(motif);
+                  const accuracyData = getAccuracyText(stat);
+                  
+                  return (
+                    <div key={j} className="text-muted-foreground">
+                      {accuracyData ? (
+                        parseInt(accuracyData.accuracy) >= 70 ? (
+                          <span className="text-yellow-600 dark:text-yellow-400">
+                            You've solved {accuracyData.solved} similar {getMotifDisplayName(motif)} puzzles with {accuracyData.accuracy}% accuracy — this pattern should be in your toolkit
+                          </span>
+                        ) : (
+                          <span className="text-primary">
+                            {getMotifDisplayName(motif)} puzzles: {accuracyData.accuracy}% accuracy ({accuracyData.solved}/{accuracyData.total}) — focus area
+                          </span>
+                        )
+                      ) : (
+                        <span>
+                          No puzzle practice data for {getMotifDisplayName(motif)} patterns — add to training
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ReviewTab({ 
   analysis, 
   game, 
@@ -849,6 +1076,12 @@ function ReviewTab({
       />
       
       <PeekStatistics game={game} />
+      
+      <PuzzlePatternInsights 
+        game={game} 
+        moves={moves}
+        onNavigateToMove={onNavigateToMove}
+      />
       
       {/* VSS Interactive Training Dialog */}
       {selectedMismatch && (
