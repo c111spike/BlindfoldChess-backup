@@ -3,6 +3,14 @@ import { clientStockfish, TopMoveResult } from './stockfish';
 import { getLichessOpeningMoves, selectOpeningMoveByPersonality, isOpeningPhase } from './lichessOpenings';
 import type { BotPersonality, BotDifficulty } from '@shared/botTypes';
 
+// Interface for tracking opponent's last move (for recapture detection)
+export interface LastMoveInfo {
+  from: string;
+  to: string;
+  captured?: string;  // Piece type that was captured (p, n, b, r, q)
+  capturedValue?: number;  // Material value of captured piece
+}
+
 // Piece values for MVV-LVA ordering (opening/middlegame values)
 const PIECE_VALUES: Record<string, number> = {
   p: 100,
@@ -1412,7 +1420,8 @@ function selectMoveByPersonality(
   game: Chess,
   topMoves: TopMoveResult[],
   personality: BotPersonality,
-  difficulty: BotDifficulty
+  difficulty: BotDifficulty,
+  lastMoveInfo?: LastMoveInfo
 ): TopMoveResult {
   if (topMoves.length === 0) {
     throw new Error('No moves available');
@@ -1423,15 +1432,66 @@ function selectMoveByPersonality(
   }
   
   const config = DIFFICULTY_CONFIG[difficulty];
+  const isHighLevel = difficulty === 'grandmaster' || difficulty === 'master' || difficulty === 'expert';
   
   // CRITICAL: For Master/Grandmaster level, immediately return any winning mate
   // This ensures forced mates are never missed due to personality scoring
   // Note: isMate=true, evaluation>0 means WE deliver mate; evaluation<0 means we GET mated
-  if (difficulty === 'grandmaster' || difficulty === 'master' || difficulty === 'expert') {
+  if (isHighLevel) {
     const winningMate = topMoves.find(m => m.isMate && m.evaluation > 0);
     if (winningMate) {
       console.log(`[ClientBot] Found forced mate in ${winningMate.mateIn}! Playing ${winningMate.move} immediately.`);
       return winningMate;
+    }
+  }
+  
+  // CRITICAL RECAPTURE LOGIC: For Master/Grandmaster, prioritize recaptures of valuable pieces
+  // If opponent just captured a piece worth 3+ points (bishop/knight or higher), we MUST recapture
+  // unless doing so leads to a significantly worse position (checked via Stockfish eval)
+  if (isHighLevel && lastMoveInfo?.captured && lastMoveInfo.capturedValue && lastMoveInfo.capturedValue >= 300) {
+    const recaptureSquare = lastMoveInfo.to;
+    const legalMoves = game.moves({ verbose: true });
+    
+    // Find moves that recapture on the same square
+    const recaptureMoves = topMoves.filter(candidate => {
+      const move = legalMoves.find(m => 
+        m.from + m.to + (m.promotion || '') === candidate.move ||
+        m.san === candidate.move
+      );
+      return move && move.to === recaptureSquare && move.captured;
+    });
+    
+    if (recaptureMoves.length > 0) {
+      // Find the best recapture (highest Stockfish eval, or if tied, by MVV-LVA)
+      const bestRecapture = recaptureMoves.reduce((best, current) => {
+        // If one leads to mate for us, pick it
+        if (current.isMate && current.evaluation > 0) return current;
+        if (best.isMate && best.evaluation > 0) return best;
+        // Avoid moves that lead to us getting mated
+        if (current.isMate && current.evaluation < 0) return best;
+        if (best.isMate && best.evaluation < 0) return current;
+        // Otherwise pick higher eval
+        return current.evaluation > best.evaluation ? current : best;
+      });
+      
+      // Only play the recapture if it doesn't lead to a significantly worse position
+      // A recapture is "safe" if the evaluation is reasonable (not losing badly after recapture)
+      // -2.0 threshold allows for some compensation but not outright blunders
+      if (bestRecapture.evaluation >= -2.0 || bestRecapture.isMate && bestRecapture.evaluation > 0) {
+        console.log(`[ClientBot] RECAPTURE PRIORITY: Playing ${bestRecapture.move} to recapture on ${recaptureSquare} (lost ${lastMoveInfo.captured}, eval: ${bestRecapture.evaluation.toFixed(2)})`);
+        return bestRecapture;
+      } else {
+        console.log(`[ClientBot] Recapture on ${recaptureSquare} available but eval is ${bestRecapture.evaluation.toFixed(2)} - checking if it's a trap`);
+      }
+    } else {
+      // No recapture in topMoves - this should be handled by generateBotMoveClient's 
+      // pre-evaluation pipeline, but log a warning if we reach here
+      const anyRecapture = legalMoves.find(m => m.to === recaptureSquare && m.captured);
+      if (anyRecapture) {
+        // The pre-evaluation in generateBotMoveClient should have added this to topMoves
+        // If we're here, it means evaluation failed or wasn't triggered
+        console.warn(`[ClientBot] WARNING: Recapture ${anyRecapture.san} exists but not in topMoves. Pre-evaluation may have failed.`);
+      }
     }
   }
   
@@ -1742,10 +1802,16 @@ export async function generateBotMoveClient(
   personality: BotPersonality,
   difficulty: BotDifficulty,
   remainingTimeMs?: number,
-  moveCount?: number
+  moveCount?: number,
+  lastMoveInfo?: LastMoveInfo
 ): Promise<{ move: string; from: string; to: string; promotion?: string } | null> {
   const game = new Chess(fen);
   const moves = game.moves({ verbose: true });
+  
+  // Log recapture awareness for debugging
+  if (lastMoveInfo?.captured) {
+    console.log(`[ClientBot] Opponent captured ${lastMoveInfo.captured} (${lastMoveInfo.capturedValue} cp) on ${lastMoveInfo.to}`);
+  }
   
   if (moves.length === 0) {
     return null;
@@ -1840,8 +1906,64 @@ export async function generateBotMoveClient(
       
       const topMoves = await clientStockfish.getTopMoves(fen, config.multiPvCount, effectiveStockfishNodes);
       
-      if (topMoves.length > 0) {
-        const selected = selectMoveByPersonality(game, topMoves, personality, difficulty);
+      // Pre-evaluate recaptures: If opponent captured a high-value piece and recapture
+      // isn't in topMoves, explicitly evaluate it to prevent queen sacrifice blunders
+      let enrichedTopMoves = [...topMoves];
+      
+      if (lastMoveInfo?.captured && lastMoveInfo.capturedValue >= 300) {
+        const recaptureSquare = lastMoveInfo.to;
+        const legalRecaptures = moves.filter(m => m.to === recaptureSquare && m.captured);
+        
+        if (legalRecaptures.length > 0) {
+          // Check if any recapture is already in topMoves
+          const recaptureInTopMoves = topMoves.some(tm => {
+            const from = tm.move.slice(0, 2);
+            const to = tm.move.slice(2, 4);
+            return to === recaptureSquare;
+          });
+          
+          if (!recaptureInTopMoves) {
+            // Recapture NOT in topMoves - explicitly evaluate each recapture candidate
+            console.log(`[ClientBot] Pre-evaluating ${legalRecaptures.length} recapture(s) to ${recaptureSquare} (not in topMoves)`);
+            
+            for (const recapture of legalRecaptures) {
+              try {
+                // Make the recapture move on a copy to get the resulting FEN
+                const tempGame = new Chess(fen);
+                tempGame.move({ from: recapture.from, to: recapture.to, promotion: recapture.promotion });
+                const recaptureFen = tempGame.fen();
+                
+                // Evaluate the position after recapture using analyzePosition
+                // After recapture, it's opponent's turn, so Stockfish eval is from opponent's perspective
+                const recaptureEval = await clientStockfish.analyzePosition(recaptureFen, effectiveStockfishNodes);
+                
+                // Negate the evaluation because we evaluated from opponent's perspective
+                // If Stockfish says +2.0 (opponent up 2 pawns), that's -2.0 for us
+                const ourEval = -recaptureEval.evaluation;
+                const uciMove = recapture.from + recapture.to + (recapture.promotion || '');
+                
+                // Create a TopMoveResult for this recapture
+                const recaptureResult: TopMoveResult = {
+                  move: uciMove,
+                  evaluation: ourEval,
+                  isMate: recaptureEval.isMate,
+                  mateIn: recaptureEval.mateIn,
+                  principalVariation: [recapture.san]
+                };
+                
+                // Add to enriched topMoves if evaluation is reasonable
+                console.log(`[ClientBot] Recapture ${recapture.san} evaluated: ${ourEval.toFixed(2)} (mate: ${recaptureEval.isMate})`);
+                enrichedTopMoves.push(recaptureResult);
+              } catch (error) {
+                console.warn(`[ClientBot] Failed to evaluate recapture ${recapture.san}:`, error);
+              }
+            }
+          }
+        }
+      }
+      
+      if (enrichedTopMoves.length > 0) {
+        const selected = selectMoveByPersonality(game, enrichedTopMoves, personality, difficulty, lastMoveInfo);
         
         // Convert UCI move to our format
         const uciMove = selected.move;

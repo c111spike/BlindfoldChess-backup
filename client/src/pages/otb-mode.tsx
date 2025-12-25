@@ -38,9 +38,25 @@ import {
   BOT_PERSONALITY_ICONS,
   getBotByConfig 
 } from "@shared/botTypes";
-import { generateBotMoveClient, getThinkTime } from "@/lib/botEngine";
+import { generateBotMoveClient, getThinkTime, LastMoveInfo } from "@/lib/botEngine";
 import { OTBTutorial, useOTBTutorial } from "@/components/otb-tutorial";
 import { SuspensionBanner } from "@/components/suspension-banner";
+
+// Piece values for recapture detection (must match botEngine.ts)
+const PIECE_VALUES_OTB: Record<string, number> = {
+  p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000
+};
+
+// Helper to extract LastMoveInfo from a chess.js Move object
+function extractLastMoveInfoOTB(move: { from: string; to: string; captured?: string } | null): LastMoveInfo | undefined {
+  if (!move) return undefined;
+  return {
+    from: move.from,
+    to: move.to,
+    captured: move.captured,
+    capturedValue: move.captured ? PIECE_VALUES_OTB[move.captured] : undefined
+  };
+}
 
 const INITIAL_BOARD = [
   ["r", "n", "b", "q", "k", "b", "n", "r"],
@@ -1720,7 +1736,7 @@ export default function OTBMode() {
     });
   };
 
-  const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[]) => {
+  const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[], lastMoveInfo?: LastMoveInfo) => {
     try {
       // Parse bot ID to get difficulty and personality
       // Format: bot_<difficulty>_<personality> where personality may contain underscores
@@ -1743,7 +1759,8 @@ export default function OTBMode() {
         personality,
         difficulty,
         botRemainingTime,
-        moveCount
+        moveCount,
+        lastMoveInfo
       );
       
       if (!result) {
@@ -1925,6 +1942,9 @@ export default function OTBMode() {
       let isLegal = true;
       let validationError: string | null = null;
       
+      // Store player's move result for recapture detection
+      let playerMoveResult: { from: string; to: string; captured?: string } | null = null;
+      
       try {
         // Try to apply the player's last move to the current legal game state
         const result = validationChess.move({
@@ -1935,6 +1955,7 @@ export default function OTBMode() {
         isLegal = !!result;
         if (result) {
           console.log('[OTB Bot] Move VALID:', result.san);
+          playerMoveResult = { from: result.from, to: result.to, captured: result.captured };
         }
       } catch (e: any) {
         isLegal = false;
@@ -2047,10 +2068,21 @@ export default function OTBMode() {
     
     const currentFen = gameStateForBot.fen();
     const moveHistorySAN = gameStateForBot.history();
+    
+    // Extract last move info for recapture detection
+    // Need to look at the move BEFORE the current position (player's last move)
+    const historyVerbose = gameStateForBot.history({ verbose: true });
+    const playerLastMoveInfo = historyVerbose.length > 0 
+      ? extractLastMoveInfoOTB(historyVerbose[historyVerbose.length - 1])
+      : undefined;
+    
     console.log('[OTB Bot] === BOT MOVE REQUEST ===');
     console.log('[OTB Bot] FEN sent to bot:', currentFen);
     console.log('[OTB Bot] Move history:', moveHistorySAN);
-    const botMove = await requestBotMove(currentFen, selectedBot.id, moveHistorySAN);
+    if (playerLastMoveInfo?.captured) {
+      console.log('[OTB Bot] Recapture opportunity: Player captured', playerLastMoveInfo.captured, 'on', playerLastMoveInfo.to);
+    }
+    const botMove = await requestBotMove(currentFen, selectedBot.id, moveHistorySAN, playerLastMoveInfo);
     console.log('[OTB Bot] Bot response:', botMove);
     
     if (botMove && botMove.move) {

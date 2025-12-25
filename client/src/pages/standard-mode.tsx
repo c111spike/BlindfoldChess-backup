@@ -53,7 +53,23 @@ import {
   BOT_PERSONALITY_ICONS,
   getBotByConfig 
 } from "@shared/botTypes";
-import { generateBotMoveClient, getThinkTime } from "@/lib/botEngine";
+import { generateBotMoveClient, getThinkTime, LastMoveInfo } from "@/lib/botEngine";
+
+// Piece values for recapture detection (must match botEngine.ts)
+const PIECE_VALUES: Record<string, number> = {
+  p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000
+};
+
+// Helper to extract LastMoveInfo from a chess.js Move object
+function extractLastMoveInfo(move: { from: string; to: string; captured?: string } | null): LastMoveInfo | undefined {
+  if (!move) return undefined;
+  return {
+    from: move.from,
+    to: move.to,
+    captured: move.captured,
+    capturedValue: move.captured ? PIECE_VALUES[move.captured] : undefined
+  };
+}
 
 const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classical' => {
   if (tc <= 180) return 'bullet';
@@ -877,7 +893,7 @@ export default function StandardMode() {
     });
   };
 
-  const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[]) => {
+  const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[], lastMoveInfo?: LastMoveInfo) => {
     if (!botId) return;
     
     setBotThinking(true);
@@ -904,7 +920,8 @@ export default function StandardMode() {
         personality,
         difficulty,
         botRemainingTime,
-        moveCount
+        moveCount,
+        lastMoveInfo
       );
       
       if (!result) {
@@ -1214,7 +1231,8 @@ export default function StandardMode() {
                 completeGame("draw");
               } else if (isBotGame && selectedBot) {
                 const moveHistorySAN = game.history();
-                requestBotMove(newFen, selectedBot.id, moveHistorySAN).then((botMove) => {
+                const lastMoveInfo = extractLastMoveInfo(moveObj);
+                requestBotMove(newFen, selectedBot.id, moveHistorySAN, lastMoveInfo).then((botMove) => {
                   if (botMove && gameRef.current) {
                     const botMoveResult = gameRef.current.move(botMove.move);
                     if (botMoveResult) {
@@ -1321,7 +1339,8 @@ export default function StandardMode() {
           if (isBotGame && selectedBot) {
             const botThinkStartTime = Date.now();
             const moveHistorySAN = game.history();
-            const botMove = await requestBotMove(newFen, selectedBot.id, moveHistorySAN);
+            const lastMoveInfo = extractLastMoveInfo(move);
+            const botMove = await requestBotMove(newFen, selectedBot.id, moveHistorySAN, lastMoveInfo);
             if (botMove && game) {
               // Record bot's thinking time
               const botThinkingTime = (Date.now() - botThinkStartTime) / 1000;
