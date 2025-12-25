@@ -2012,10 +2012,12 @@ export async function generateBotMoveClient(
     console.log(`[ClientBot] Using minimax with depth ${effectiveMaxDepth}, time ${timeBudget}ms`);
     console.log(`[ClientBot] Heuristics: killers=${config.useKillers}, history=${config.useHistory}, mobility=${config.mobilityWeight}%, kingSafety=${config.kingSafetyWeight}%, mopUp=${config.mopUpWeight}%, tapered=${config.useTaperedEval}`);
     
-    // Use TT-enhanced search for Grandmaster difficulty
-    const result = difficulty === 'grandmaster' 
-      ? iterativeDeepeningWithTT(game, timeBudget, effectiveMaxDepth, config)
-      : iterativeDeepening(game, timeBudget, effectiveMaxDepth, config);
+    // Use standard iterative deepening for all difficulties
+    // Note: TT-enhanced search was removed for Grandmaster because the overhead
+    // of transposition table operations + heavy pawn structure evaluation
+    // actually made it slower than the simpler, more efficient minimax.
+    // Grandmaster still benefits from higher depth/nodes/time limits.
+    const result = iterativeDeepening(game, timeBudget, effectiveMaxDepth, config);
     
     if (result.bestMove) {
       const matchingMove = moves.find(m => m.san === result.bestMove);
