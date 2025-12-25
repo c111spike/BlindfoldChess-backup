@@ -3426,86 +3426,91 @@ export default function OTBMode() {
                       )}
                     </div>
 
-                    <div className="pt-4 border-t">
-                      <h3 className="text-sm font-semibold mb-3">Training Wheels</h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="highlight-last-move-pregame" className="text-sm cursor-pointer">
-                            Highlight Last Move
-                          </Label>
-                          <Switch
-                            id="highlight-last-move-pregame"
-                            checked={highlightLastMove}
-                            onCheckedChange={setHighlightLastMove}
-                            data-testid="switch-highlight-last-move"
-                          />
+                    {/* Only show these settings when not in bot selection mode (to avoid duplicates) */}
+                    {!showBotSelection && (
+                      <>
+                        <div className="pt-4 border-t">
+                          <h3 className="text-sm font-semibold mb-3">Training Wheels</h3>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="highlight-last-move-pregame" className="text-sm cursor-pointer">
+                                Highlight Last Move
+                              </Label>
+                              <Switch
+                                id="highlight-last-move-pregame"
+                                checked={highlightLastMove}
+                                onCheckedChange={setHighlightLastMove}
+                                data-testid="switch-highlight-last-move"
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="show-legal-moves-pregame" className="text-sm cursor-pointer">
+                                Show Legal Moves
+                              </Label>
+                              <Switch
+                                id="show-legal-moves-pregame"
+                                checked={showLegalMoves}
+                                onCheckedChange={setShowLegalMoves}
+                                data-testid="switch-show-legal-moves"
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="show-piece-highlight-pregame" className="text-sm cursor-pointer">
+                                Highlight Selected Piece
+                              </Label>
+                              <Switch
+                                id="show-piece-highlight-pregame"
+                                checked={showPieceHighlight}
+                                onCheckedChange={setShowPieceHighlight}
+                                data-testid="switch-show-piece-highlight"
+                              />
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">Settings cannot be changed during gameplay</p>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="show-legal-moves-pregame" className="text-sm cursor-pointer">
-                            Show Legal Moves
-                          </Label>
-                          <Switch
-                            id="show-legal-moves-pregame"
-                            checked={showLegalMoves}
-                            onCheckedChange={setShowLegalMoves}
-                            data-testid="switch-show-legal-moves"
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="show-piece-highlight-pregame" className="text-sm cursor-pointer">
-                            Highlight Selected Piece
-                          </Label>
-                          <Switch
-                            id="show-piece-highlight-pregame"
-                            checked={showPieceHighlight}
-                            onCheckedChange={setShowPieceHighlight}
-                            data-testid="switch-show-piece-highlight"
-                          />
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">Settings cannot be changed during gameplay</p>
-                    </div>
 
-                    <div className="pt-4 border-t">
-                      <h3 className="text-sm font-semibold mb-3">OTB Training Tools</h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="perspective-3d-pregame" className="text-sm cursor-pointer">
-                            3D Perspective View
-                          </Label>
-                          <Switch
-                            id="perspective-3d-pregame"
-                            checked={perspective3d}
-                            onCheckedChange={setPerspective3d}
-                            data-testid="switch-perspective-3d"
-                          />
+                        <div className="pt-4 border-t">
+                          <h3 className="text-sm font-semibold mb-3">OTB Training Tools</h3>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="perspective-3d-pregame" className="text-sm cursor-pointer">
+                                3D Perspective View
+                              </Label>
+                              <Switch
+                                id="perspective-3d-pregame"
+                                checked={perspective3d}
+                                onCheckedChange={setPerspective3d}
+                                data-testid="switch-perspective-3d"
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground -mt-1 ml-0">
+                              View board as if sitting at a table
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <Label 
+                                htmlFor="notation-practice-pregame" 
+                                className={`text-sm ${isNotationAllowed ? 'cursor-pointer' : 'text-muted-foreground cursor-not-allowed'}`}
+                              >
+                                Notation Practice
+                              </Label>
+                              <Switch
+                                id="notation-practice-pregame"
+                                checked={notationPractice}
+                                onCheckedChange={setNotationPractice}
+                                disabled={!isNotationAllowed}
+                                data-testid="switch-notation-practice"
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground -mt-1 ml-0">
+                              {isNotationAllowed 
+                                ? "Move → Clock → Write: Record moves after pressing clock"
+                                : "Notation not required under 5 minutes (OTB rules)"
+                              }
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-xs text-muted-foreground -mt-1 ml-0">
-                          View board as if sitting at a table
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <Label 
-                            htmlFor="notation-practice-pregame" 
-                            className={`text-sm ${isNotationAllowed ? 'cursor-pointer' : 'text-muted-foreground cursor-not-allowed'}`}
-                          >
-                            Notation Practice
-                          </Label>
-                          <Switch
-                            id="notation-practice-pregame"
-                            checked={notationPractice}
-                            onCheckedChange={setNotationPractice}
-                            disabled={!isNotationAllowed}
-                            data-testid="switch-notation-practice"
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground -mt-1 ml-0">
-                          {isNotationAllowed 
-                            ? "Move → Clock → Write: Record moves after pressing clock"
-                            : "Notation not required under 5 minutes (OTB rules)"
-                          }
-                        </p>
-                      </div>
-                    </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
