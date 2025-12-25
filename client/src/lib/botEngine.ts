@@ -1912,6 +1912,10 @@ export async function generateBotMoveClient(
       let enrichedTopMoves = [...topMoves];
       const shouldPreEvaluateRecaptures = difficulty === 'expert' || difficulty === 'master' || difficulty === 'grandmaster';
       
+      // Use a fixed small node count for quick recapture evaluation (~50-100ms)
+      // This is enough to get a reliable +/- eval without causing noticeable delay
+      const RECAPTURE_EVAL_NODES = 50000;
+      
       if (shouldPreEvaluateRecaptures && lastMoveInfo?.captured && lastMoveInfo.capturedValue >= 300) {
         const recaptureSquare = lastMoveInfo.to;
         const legalRecaptures = moves.filter(m => m.to === recaptureSquare && m.captured);
@@ -1937,7 +1941,7 @@ export async function generateBotMoveClient(
                 
                 // Evaluate the position after recapture using analyzePosition
                 // After recapture, it's opponent's turn, so Stockfish eval is from opponent's perspective
-                const recaptureEval = await clientStockfish.analyzePosition(recaptureFen, effectiveStockfishNodes);
+                const recaptureEval = await clientStockfish.analyzePosition(recaptureFen, RECAPTURE_EVAL_NODES);
                 
                 // Negate the evaluation because we evaluated from opponent's perspective
                 // If Stockfish says +2.0 (opponent up 2 pawns), that's -2.0 for us
