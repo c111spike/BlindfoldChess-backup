@@ -3196,8 +3196,79 @@ export default function OTBMode() {
                               Practice
                             </Button>
                           </div>
+
+                          {/* Training Wheels - Bot Mode */}
+                          <div className="mb-4 pb-3 border-b">
+                            <h4 className="text-sm font-medium mb-2 text-muted-foreground">Training Wheels</h4>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="highlight-bot" className="text-sm cursor-pointer">Highlight Last Move</Label>
+                                <Switch
+                                  id="highlight-bot"
+                                  checked={highlightLastMove}
+                                  onCheckedChange={setHighlightLastMove}
+                                  data-testid="switch-highlight-last-move-bot"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="legal-bot" className="text-sm cursor-pointer">Show Legal Moves</Label>
+                                <Switch
+                                  id="legal-bot"
+                                  checked={showLegalMoves}
+                                  onCheckedChange={setShowLegalMoves}
+                                  data-testid="switch-show-legal-moves-bot"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="piece-bot" className="text-sm cursor-pointer">Highlight Selected Piece</Label>
+                                <Switch
+                                  id="piece-bot"
+                                  checked={showPieceHighlight}
+                                  onCheckedChange={setShowPieceHighlight}
+                                  data-testid="switch-show-piece-highlight-bot"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* OTB Training Tools - Bot Mode */}
+                          <div className="mb-4 pb-3 border-b">
+                            <h4 className="text-sm font-medium mb-2 text-muted-foreground">OTB Training Tools</h4>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="perspective-bot" className="text-sm cursor-pointer">3D Perspective View</Label>
+                                <Switch
+                                  id="perspective-bot"
+                                  checked={perspective3d}
+                                  onCheckedChange={setPerspective3d}
+                                  data-testid="switch-perspective-3d-bot"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <Label 
+                                  htmlFor="notation-bot" 
+                                  className={`text-sm ${botTimeControl !== "blitz" ? 'cursor-pointer' : 'text-muted-foreground cursor-not-allowed'}`}
+                                >
+                                  Notation Practice
+                                </Label>
+                                <Switch
+                                  id="notation-bot"
+                                  checked={notationPractice}
+                                  onCheckedChange={setNotationPractice}
+                                  disabled={botTimeControl === "blitz"}
+                                  data-testid="switch-notation-practice-bot"
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {botTimeControl !== "blitz" 
+                                  ? "Move → Clock → Write: Record moves after pressing clock"
+                                  : "Notation not required under 5 minutes (OTB rules)"
+                                }
+                              </p>
+                            </div>
+                          </div>
                           
-                          <ScrollArea className="h-[240px] pr-2">
+                          <ScrollArea className="h-[160px] pr-2">
                             <div className="grid grid-cols-1 gap-2">
                               {ALL_DIFFICULTIES.map((difficulty) => (
                                 <Card 

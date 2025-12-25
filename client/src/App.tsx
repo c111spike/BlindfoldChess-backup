@@ -68,7 +68,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/analysis/:gameId" component={GameAnalysis} />
       <Route path="/analysis/shared/:shareCode" component={GameAnalysis} />
-      <Route path="/simul-match/:matchId" component={SimulMatchReview} />
+      <Route path="/simul-match/:matchId/review" component={SimulMatchReview} />
       <Route path="/puzzles" component={Puzzles} />
       <Route path="/puzzles/create" component={PuzzleCreator} />
       <Route path="/puzzle/:id" component={PuzzleSolve} />
