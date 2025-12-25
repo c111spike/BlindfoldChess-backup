@@ -51,6 +51,7 @@ export interface GameAnalysisResult {
   burnoutDetected: boolean;
   focusCheckScore: number;
   efficiencyFactor: number;
+  analyzedMoveCount: number; // Number of valid moves that were analyzed (may be less than original if invalid moves were filtered)
 }
 
 const MAX_EVAL = 10;
@@ -490,6 +491,7 @@ export async function analyzeGameClientSide(
       burnoutDetected: false,
       focusCheckScore: 1,
       efficiencyFactor: 1,
+      analyzedMoveCount: validMoves.length,
     };
     
     console.log('[GameAnalysis] Analysis complete! Returning result.');

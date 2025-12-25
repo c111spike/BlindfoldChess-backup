@@ -162,11 +162,13 @@ function MoveList({
   analyzedMoves,
   currentIndex,
   onMoveClick,
+  maxMoveIndex,
 }: {
   gameMoves: string[];
   analyzedMoves?: MoveAnalysis[];
   currentIndex: number;
   onMoveClick: (index: number) => void;
+  maxMoveIndex?: number; // Limit navigation to only analyzed moves (may exclude invalid trailing moves)
 }) {
   // Group moves into pairs (white + black per row)
   interface MovePair {
@@ -176,7 +178,10 @@ function MoveList({
   }
   const groupedMoves: MovePair[] = [];
   
-  for (let i = 0; i < gameMoves.length; i++) {
+  // Only show moves up to maxMoveIndex (if specified)
+  const effectiveMaxIndex = maxMoveIndex !== undefined ? maxMoveIndex : gameMoves.length - 1;
+  
+  for (let i = 0; i <= effectiveMaxIndex && i < gameMoves.length; i++) {
     const san = gameMoves[i];
     const analysis = analyzedMoves?.[i];
     const pairIndex = Math.floor(i / 2);
@@ -2374,6 +2379,20 @@ export default function GameAnalysisPage() {
     }
     return fens;
   }, [gameMoves]);
+  
+  // Maximum navigable move index - uses analyzed move count if available, or computedFens length which already filters invalid moves
+  const maxMoveIndex = useMemo(() => {
+    // Priority 1: Client analysis completed - use its analyzed move count
+    if (clientAnalysis.result?.analyzedMoveCount !== undefined) {
+      return clientAnalysis.result.analyzedMoveCount - 1;
+    }
+    // Priority 2: Use computedFens length - it already stops at invalid moves during FEN computation
+    if (computedFens.length > 0) {
+      return computedFens.length - 1;
+    }
+    // Fallback: Use raw gameMoves length (before any validation)
+    return gameMoves.length - 1;
+  }, [clientAnalysis.result?.analyzedMoveCount, computedFens.length, gameMoves.length]);
 
   // Auto-start client-side analysis when there's an error fetching from server
   useEffect(() => {
@@ -2487,13 +2506,13 @@ export default function GameAnalysisPage() {
           setCurrentMoveIndex(prev => Math.max(-1, prev - 1));
           break;
         case 'ArrowRight':
-          setCurrentMoveIndex(prev => Math.min(gameMoves.length - 1, prev + 1));
+          setCurrentMoveIndex(prev => Math.min(maxMoveIndex, prev + 1));
           break;
         case 'Home':
           setCurrentMoveIndex(-1);
           break;
         case 'End':
-          setCurrentMoveIndex(gameMoves.length - 1);
+          setCurrentMoveIndex(maxMoveIndex);
           break;
       }
     };
@@ -3194,8 +3213,8 @@ export default function GameAnalysisPage() {
                     <Button
                       size="icon"
                       variant="outline"
-                      onClick={() => setCurrentMoveIndex(prev => Math.min(gameMoves.length - 1, prev + 1))}
-                      disabled={currentMoveIndex >= gameMoves.length - 1}
+                      onClick={() => setCurrentMoveIndex(prev => Math.min(maxMoveIndex, prev + 1))}
+                      disabled={currentMoveIndex >= maxMoveIndex}
                       data-testid="button-next-move"
                     >
                       <ChevronRight className="w-4 h-4" />
@@ -3203,8 +3222,8 @@ export default function GameAnalysisPage() {
                     <Button
                       size="icon"
                       variant="outline"
-                      onClick={() => setCurrentMoveIndex(gameMoves.length - 1)}
-                      disabled={currentMoveIndex >= gameMoves.length - 1}
+                      onClick={() => setCurrentMoveIndex(maxMoveIndex)}
+                      disabled={currentMoveIndex >= maxMoveIndex}
                       data-testid="button-last-move"
                     >
                       <ChevronsRight className="w-4 h-4" />
@@ -3328,7 +3347,7 @@ export default function GameAnalysisPage() {
                       className="h-2" 
                     />
                     <p className="text-sm text-muted-foreground mt-2">
-                      {useClientSide ? clientAnalysis.progress : moves.length} of {gameMoves.length} moves analyzed
+                      {useClientSide ? clientAnalysis.progress : moves.length} of {useClientSide ? clientAnalysis.totalMoves : gameMoves.length} moves analyzed
                     </p>
                   </>
                 )}
@@ -3346,6 +3365,7 @@ export default function GameAnalysisPage() {
                 analyzedMoves={moves}
                 currentIndex={currentMoveIndex}
                 onMoveClick={setCurrentMoveIndex}
+                maxMoveIndex={maxMoveIndex}
               />
             </CardContent>
           </Card>
