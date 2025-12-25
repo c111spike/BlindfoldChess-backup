@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Helmet } from "react-helmet-async";
-import { useParams, useLocation } from 'wouter';
+import { useParams, useLocation, Link } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Chess, Square } from 'chess.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -694,12 +694,28 @@ function PuzzlePatternInsights({
                           </span>
                         ) : (
                           <span className="text-primary">
-                            {getMotifDisplayName(motif)} puzzles: {accuracyData.accuracy}% accuracy ({accuracyData.solved}/{accuracyData.total}) — focus area
+                            {getMotifDisplayName(motif)} puzzles: {accuracyData.accuracy}% accuracy ({accuracyData.solved}/{accuracyData.total}) —{' '}
+                            <Link 
+                              href={`/puzzles?motif=${motif}`}
+                              className="underline hover:text-primary/80"
+                              onClick={(e) => e.stopPropagation()}
+                              data-testid={`link-practice-${motif}`}
+                            >
+                              practice more
+                            </Link>
                           </span>
                         )
                       ) : (
                         <span>
-                          No puzzle practice data for {getMotifDisplayName(motif)} patterns — add to training
+                          No puzzle practice data for {getMotifDisplayName(motif)} patterns —{' '}
+                          <Link 
+                            href={`/puzzles?motif=${motif}`}
+                            className="text-primary underline hover:text-primary/80"
+                            onClick={(e) => e.stopPropagation()}
+                            data-testid={`link-add-training-${motif}`}
+                          >
+                            add to training
+                          </Link>
                         </span>
                       )}
                     </div>
@@ -3347,15 +3363,6 @@ export default function GameAnalysisPage() {
                   <Button
                     variant="outline"
                     className="w-full justify-start"
-                    onClick={() => { setInitialMiniGame('n-piece'); setMiniGameOpen(true); }}
-                    data-testid="button-minigame-npiece"
-                  >
-                    <Target className="w-4 h-4 mr-2 text-blue-500" />
-                    N-Piece Challenge
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
                     onClick={() => { setInitialMiniGame('board-spin'); setMiniGameOpen(true); }}
                     data-testid="button-minigame-boardspin"
                   >
@@ -3368,8 +3375,17 @@ export default function GameAnalysisPage() {
                     onClick={() => { setInitialMiniGame('knights-tour'); setMiniGameOpen(true); }}
                     data-testid="button-minigame-knights"
                   >
-                    <Crown className="w-4 h-4 mr-2 text-yellow-500" />
+                    <Swords className="w-4 h-4 mr-2 text-yellow-500" />
                     Knight's Tour
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => { setInitialMiniGame('n-piece'); setMiniGameOpen(true); }}
+                    data-testid="button-minigame-npiece"
+                  >
+                    <Target className="w-4 h-4 mr-2 text-blue-500" />
+                    N-Piece Challenge
                   </Button>
                 </div>
               </CardContent>

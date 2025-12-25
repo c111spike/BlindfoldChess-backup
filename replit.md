@@ -87,7 +87,15 @@ Provides two tabbed modes for game analysis:
   - "You've solved 12 similar Knight Fork puzzles with 87% accuracy — this pattern should be in your toolkit"
   - "Bishop Fork puzzles: 45% accuracy (5/11) — focus area"
   - "No puzzle practice data for Discovered Check patterns — add to training"
+- **Clickable Training Links**: "practice more" and "add to training" links in Tactical Pattern Insights navigate directly to `/puzzles?motif={motif}` for filtered puzzle practice
 - **API Endpoints**: `/api/user/motif-stats` (all stats), `/api/user/motif-stats/:motifName` (specific motif)
+
+**Puzzle Motif Filtering:**
+- Backend uses PostgreSQL array containment (`@>`) with `sql.param()` for safe parameter binding
+- 35-motif allowlist validation prevents invalid filter values
+- Frontend uses wouter's `useSearch()` hook for reactive URL parameter detection
+- URL params: `?motif=xxx` sets active filter and switches to Browse tab
+- Filter state syncs between parent `Puzzles` component and child `BrowseTab`
 
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.

@@ -144,7 +144,7 @@ export interface IStorage {
   getPuzzle(id: string): Promise<Puzzle | undefined>;
   getPuzzleByShareCode(shareCode: string): Promise<Puzzle | undefined>;
   getPuzzles(options: { type?: string; difficulty?: string; creatorId?: string; sortBy?: string; limit?: number; offset?: number; isVerified?: boolean }): Promise<Puzzle[]>;
-  getPuzzlesWithCreators(options: { type?: string; difficulty?: string; creatorId?: string; creatorUsername?: string; sortBy?: string; limit?: number; offset?: number; isVerified?: boolean }): Promise<(Puzzle & { creatorUsername?: string | null })[]>;
+  getPuzzlesWithCreators(options: { type?: string; difficulty?: string; creatorId?: string; creatorUsername?: string; sortBy?: string; limit?: number; offset?: number; isVerified?: boolean; motif?: string }): Promise<(Puzzle & { creatorUsername?: string | null })[]>;
   getUserCreatedPuzzles(userId: string): Promise<Puzzle[]>;
   getUserPuzzleUploadCount(userId: string): Promise<number>;
   updatePuzzle(id: string, data: Partial<Puzzle>): Promise<Puzzle>;
@@ -891,7 +891,8 @@ export class DatabaseStorage implements IStorage {
     sortBy?: string; 
     limit?: number; 
     offset?: number; 
-    isVerified?: boolean 
+    isVerified?: boolean;
+    motif?: string;
   }): Promise<(Puzzle & { creatorUsername?: string | null })[]> {
     let conditions: any[] = [eq(puzzles.isRemoved, false)];
     
@@ -900,6 +901,20 @@ export class DatabaseStorage implements IStorage {
     if (options.creatorId) conditions.push(eq(puzzles.creatorId, options.creatorId));
     if (options.isVerified !== undefined) conditions.push(eq(puzzles.isVerified, options.isVerified));
     if (options.isAnonymous !== undefined) conditions.push(eq(puzzles.isAnonymous, options.isAnonymous));
+    if (options.motif) {
+      const allowedMotifs = [
+        'knight_fork', 'bishop_fork', 'queen_fork', 'rook_fork', 'pawn_fork', 'king_fork',
+        'absolute_pin', 'relative_pin', 'skewer', 'discovered_attack', 'discovered_check',
+        'double_check', 'back_rank_mate', 'smothered_mate', 'arabian_mate', 'anastasia_mate',
+        'mate_in_1', 'mate_in_2', 'mate_in_3', 'mate_in_4_plus', 'queen_sacrifice',
+        'rook_sacrifice', 'minor_piece_sacrifice', 'deflection', 'decoy', 'overloaded_defender',
+        'trapped_piece', 'removing_defender', 'zwischenzug', 'promotion', 'underpromotion',
+        'en_passant', 'material_win', 'checkmate', 'stalemate_trick'
+      ];
+      if (allowedMotifs.includes(options.motif)) {
+        conditions.push(sql`${puzzles.tacticalMotifs} @> ARRAY[${sql.param(options.motif)}]::text[]`);
+      }
+    }
 
     // Build the query with left join
     let baseQuery = db

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
 import { useHighlightColors } from "@/hooks/useHighlightColors";
@@ -81,6 +81,45 @@ const SORT_OPTIONS = [
   { value: "newest", label: "Newest First" },
   { value: "popular", label: "Most Popular" },
   { value: "rating", label: "Highest Rated" },
+];
+
+const TACTICAL_MOTIFS = [
+  { value: "all", label: "All Motifs" },
+  { value: "knight_fork", label: "Knight Fork" },
+  { value: "bishop_fork", label: "Bishop Fork" },
+  { value: "queen_fork", label: "Queen Fork" },
+  { value: "rook_fork", label: "Rook Fork" },
+  { value: "pawn_fork", label: "Pawn Fork" },
+  { value: "king_fork", label: "King Fork" },
+  { value: "absolute_pin", label: "Absolute Pin" },
+  { value: "relative_pin", label: "Relative Pin" },
+  { value: "skewer", label: "Skewer" },
+  { value: "discovered_attack", label: "Discovered Attack" },
+  { value: "discovered_check", label: "Discovered Check" },
+  { value: "double_check", label: "Double Check" },
+  { value: "back_rank_mate", label: "Back Rank Mate" },
+  { value: "smothered_mate", label: "Smothered Mate" },
+  { value: "arabian_mate", label: "Arabian Mate" },
+  { value: "anastasia_mate", label: "Anastasia Mate" },
+  { value: "mate_in_1", label: "Mate in 1" },
+  { value: "mate_in_2", label: "Mate in 2" },
+  { value: "mate_in_3", label: "Mate in 3" },
+  { value: "mate_in_4_plus", label: "Mate in 4+" },
+  { value: "queen_sacrifice", label: "Queen Sacrifice" },
+  { value: "rook_sacrifice", label: "Rook Sacrifice" },
+  { value: "minor_piece_sacrifice", label: "Minor Piece Sacrifice" },
+  { value: "deflection", label: "Deflection" },
+  { value: "decoy", label: "Decoy" },
+  { value: "overloaded_defender", label: "Overloaded Defender" },
+  { value: "trapped_piece", label: "Trapped Piece" },
+  { value: "removing_defender", label: "Removing the Defender" },
+  { value: "zwischenzug", label: "Zwischenzug" },
+  { value: "promotion", label: "Pawn Promotion" },
+  { value: "underpromotion", label: "Underpromotion" },
+  { value: "en_passant", label: "En Passant" },
+  { value: "material_win", label: "Material Win" },
+  { value: "checkmate", label: "Checkmate" },
+  { value: "stalemate_trick", label: "Stalemate Trick" },
 ];
 
 const PIECE_SYMBOLS: Record<string, string> = {
@@ -992,12 +1031,13 @@ function TrainTab() {
   );
 }
 
-function BrowseTab() {
+function BrowseTab({ initialMotif }: { initialMotif?: string }) {
   const { toast } = useToast();
   
   const [puzzleType, setPuzzleType] = useState("all");
   const [difficulty, setDifficulty] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+  const [motifFilter, setMotifFilter] = useState(initialMotif || "all");
   const [creatorSearch, setCreatorSearch] = useState("");
   const [activeCreatorFilter, setActiveCreatorFilter] = useState<{id?: string; username?: string; isAnonymous?: boolean} | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
@@ -1005,13 +1045,22 @@ function BrowseTab() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   
+  useEffect(() => {
+    if (initialMotif && initialMotif !== "all") {
+      setMotifFilter(initialMotif);
+    } else {
+      setMotifFilter("all");
+    }
+  }, [initialMotif]);
+  
   const { data: puzzles, isLoading } = useQuery<(Puzzle & { creatorUsername?: string | null })[]>({
-    queryKey: ["/api/puzzles", puzzleType, difficulty, sortBy, activeCreatorFilter?.id, activeCreatorFilter?.username, activeCreatorFilter?.isAnonymous],
+    queryKey: ["/api/puzzles", puzzleType, difficulty, sortBy, motifFilter, activeCreatorFilter?.id, activeCreatorFilter?.username, activeCreatorFilter?.isAnonymous],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (puzzleType !== "all") params.set("type", puzzleType);
       if (difficulty !== "all") params.set("difficulty", difficulty);
       params.set("sortBy", sortBy);
+      if (motifFilter !== "all") params.set("motif", motifFilter);
       if (activeCreatorFilter?.id) params.set("creatorId", activeCreatorFilter.id);
       if (activeCreatorFilter?.username) params.set("creatorUsername", activeCreatorFilter.username);
       if (activeCreatorFilter?.isAnonymous) params.set("isAnonymous", "true");
@@ -1141,6 +1190,19 @@ function BrowseTab() {
             </SelectContent>
           </Select>
           
+          <Select value={motifFilter} onValueChange={setMotifFilter}>
+            <SelectTrigger className="w-[180px]" data-testid="select-motif">
+              <SelectValue placeholder="Tactical Motif" />
+            </SelectTrigger>
+            <SelectContent>
+              {TACTICAL_MOTIFS.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
           <div className="flex items-center gap-2">
             <div className="relative">
               <Input
@@ -1173,6 +1235,18 @@ function BrowseTab() {
             </Button>
           </div>
         </div>
+        
+        {motifFilter !== "all" && (
+          <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg">
+            <PuzzleIcon className="h-4 w-4" />
+            <span className="text-sm">
+              Showing puzzles with: <strong>{TACTICAL_MOTIFS.find(m => m.value === motifFilter)?.label || motifFilter}</strong>
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => setMotifFilter("all")} data-testid="button-clear-motif-filter">
+              Clear filter
+            </Button>
+          </div>
+        )}
         
         {activeCreatorFilter && (
           <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg">
@@ -1458,7 +1532,25 @@ function MyPuzzlesTab() {
 }
 
 export default function Puzzles() {
+  const searchString = useSearch();
   const [activeTab, setActiveTab] = useState("train");
+  const [motifFromUrl, setMotifFromUrl] = useState<string | undefined>(undefined);
+  
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const motif = params.get("motif");
+    const tab = params.get("tab");
+    
+    if (motif) {
+      setMotifFromUrl(motif);
+      setActiveTab("browse");
+    } else {
+      setMotifFromUrl(undefined);
+      if (tab) {
+        setActiveTab(tab);
+      }
+    }
+  }, [searchString]);
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-muted/30">
@@ -1500,7 +1592,7 @@ export default function Puzzles() {
           </TabsContent>
           
           <TabsContent value="browse">
-            <BrowseTab />
+            <BrowseTab initialMotif={motifFromUrl} />
           </TabsContent>
           
           <TabsContent value="my-puzzles">

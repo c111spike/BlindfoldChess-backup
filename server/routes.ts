@@ -1804,7 +1804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/puzzles', isAuthenticated, async (req: any, res) => {
     try {
-      const { type, difficulty, creatorId, creatorUsername, isAnonymous, sortBy, limit, offset, isVerified } = req.query;
+      const { type, difficulty, creatorId, creatorUsername, isAnonymous, sortBy, limit, offset, isVerified, motif } = req.query;
       const puzzles = await storage.getPuzzlesWithCreators({
         type,
         difficulty,
@@ -1815,6 +1815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limit: limit ? parseInt(limit) : 20,
         offset: offset ? parseInt(offset) : 0,
         isVerified: isVerified !== undefined ? isVerified === 'true' : undefined,
+        motif,
       });
       res.json(puzzles);
     } catch (error) {
