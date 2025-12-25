@@ -22,6 +22,13 @@ interface MiniGameOverlayProps {
 
 const GAMES = [
   {
+    id: 'board-spin' as const,
+    name: "Board Spin",
+    description: "Memorize and recreate positions",
+    icon: RotateCw,
+    color: "text-green-500",
+  },
+  {
     id: 'knights-tour' as const,
     name: "Knight's Tour",
     description: "Visit every square with a knight",
@@ -34,13 +41,6 @@ const GAMES = [
     description: "Place pieces without conflicts",
     icon: Target,
     color: "text-blue-500",
-  },
-  {
-    id: 'board-spin' as const,
-    name: "Board Spin",
-    description: "Memorize and recreate positions",
-    icon: RotateCw,
-    color: "text-green-500",
   },
 ];
 
