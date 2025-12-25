@@ -2127,6 +2127,26 @@ export default function OTBMode() {
             (moveResult.color === 'w' ? moveResult.promotion.toUpperCase() : moveResult.promotion.toLowerCase()) : 
             piece;
           
+          // Handle castling - also move the rook
+          const isCastling = moveResult.flags.includes('k') || moveResult.flags.includes('q');
+          if (isCastling) {
+            const isKingside = moveResult.flags.includes('k');
+            const rookRank = moveResult.color === 'w' ? 7 : 0; // rank 7 for white (row 0 visually), rank 0 for black (row 7 visually)
+            const rookPiece = moveResult.color === 'w' ? 'R' : 'r';
+            
+            if (isKingside) {
+              // Kingside: rook moves from h-file (file 7) to f-file (file 5)
+              newBoard[rookRank][7] = null;
+              newBoard[rookRank][5] = rookPiece;
+              console.log('[OTB Bot] Castling kingside - moved rook from h to f file');
+            } else {
+              // Queenside: rook moves from a-file (file 0) to d-file (file 3)
+              newBoard[rookRank][0] = null;
+              newBoard[rookRank][3] = rookPiece;
+              console.log('[OTB Bot] Castling queenside - moved rook from a to d file');
+            }
+          }
+          
           const pieceChar = moveResult.piece.toUpperCase();
           const botMoveRecord = {
             from: moveResult.from,
