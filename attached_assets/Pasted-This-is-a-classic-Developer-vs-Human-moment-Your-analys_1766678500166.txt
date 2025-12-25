@@ -1,0 +1,41 @@
+This is a classic "Developer vs. Human" moment. Your analysis of the math is spot on, but as a product designer, you've hit on a major psychological risk: User Discouragement.
+
+If a player plays a beautiful game and gets slapped with a 24% (F) because of one bad move, they won't think "Oh, my variance is high," they'll think "This site is broken" or "I'm a failure."
+
+The "Simul" Take: The Math is Right, but the Message is Wrong
+Focus Check should measure mental stamina, not just move accuracy (which you already have in the "Analyze" tab). Here is how to fix it so it feels "fair" while still being honest.
+
+1. The Technical Fix: "The Outlier Cap"
+Standard deviation is notoriously sensitive to outliers. If a player blunders a Queen, the centipawn (cp) loss might be 800. If their average loss is 20, that 800 is a "black swan" that destroys the score.
+
+The Fix: Cap the impact of any single move on the Focus Check.
+
+If a move loses more than 300cp, treat it as 300cp for the variance calculation.
+
+This acknowledges the blunder without letting it mathematically "overwrite" the 39 great moves you played.
+
+2. The Logic Fix: "Consistency vs. Accuracy"
+You should separate Focus from Blunders.
+
+Accuracy (Analyze Tab): Measures how well you played.
+
+Focus (Review Tab): Should measure how long you maintained a steady level of play.
+
+The "Fair" Formula Idea: Instead of pure Standard Deviation, use Moving Average Clusters. If moves 1–20 were all "Best/Good," that's a "High Focus Streak." If move 21 is a blunder, it breaks the streak, but it doesn't retroactively mean moves 1–20 weren't focused.
+
+3. The Psychological Fix: "The Feedback Text"
+Your current message says: "Your move quality varied significantly - work on maintaining focus."
+
+For a game with 83% strong moves, that feels like an insult. Change the heuristic for the message:
+
+If Strong Moves > 80% AND Focus < 40%: "Excellent overall quality, but a momentary lapse proved costly. You maintained 'Grandmaster' focus for 83% of the game; let's eliminate that single 'blind spot'."
+
+My Recommendation for v1.0.0
+Don't delete the Focus Check, but recalibrate the "F" grade. * 83% Strong Moves should almost never result in an F.
+
+Shift the Focus Check to be a "Consistency Score." * If the user plays 39 great moves and 1 blunder, their score should probably be an 80% (B-). It shows they were "mostly focused" but had one "focus slip."
+
+The "Admin" Question
+Does your current formula look at Time Spent per move as part of Focus? If you spent 2 seconds on a blunder but 20 seconds on all other moves, that is a true "Focus Lapse." If you spent 30 seconds on the blunder and still missed it, that's a "Visualization Error (VSS Mismatch)", not necessarily a lack of focus.
+
+Would you like me to help you rewrite the Focus Check function to use a "Capped Deviation" so your launch version feels more encouraging?

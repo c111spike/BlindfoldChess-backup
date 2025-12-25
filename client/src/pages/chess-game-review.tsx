@@ -200,7 +200,7 @@ export default function ChessGameReview() {
               </h3>
               <p className="text-sm text-muted-foreground">
                 Compares time spent to move quality. A high score (A/B grade) means you're using your 
-                time wisely—thinking longer leads to better moves. A score around 50% (C grade) means 
+                time wisely—thinking longer leads to better moves. A score around 60% (C grade) means 
                 neutral correlation. Low efficiency (D/F grade) might mean you're overthinking simple 
                 moves or rushing complex ones.
               </p>

@@ -862,18 +862,16 @@ function ReviewTab({
                   <span className="text-lg text-muted-foreground">
                     ({(() => {
                       const score = analysis.focusCheckScore;
-                      if (score >= 97) return 'A+';
-                      if (score >= 93) return 'A';
-                      if (score >= 90) return 'A-';
-                      if (score >= 87) return 'B+';
-                      if (score >= 83) return 'B';
-                      if (score >= 80) return 'B-';
-                      if (score >= 77) return 'C+';
-                      if (score >= 73) return 'C';
-                      if (score >= 70) return 'C-';
-                      if (score >= 67) return 'D+';
-                      if (score >= 63) return 'D';
-                      if (score >= 60) return 'D-';
+                      if (score >= 95) return 'A+';
+                      if (score >= 90) return 'A';
+                      if (score >= 85) return 'A-';
+                      if (score >= 80) return 'B+';
+                      if (score >= 75) return 'B';
+                      if (score >= 70) return 'B-';
+                      if (score >= 65) return 'C+';
+                      if (score >= 60) return 'C';
+                      if (score >= 55) return 'C-';
+                      if (score >= 45) return 'D';
                       return 'F';
                     })()})
                   </span>
@@ -882,12 +880,14 @@ function ReviewTab({
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               {analysis.focusCheckScore != null && analysis.focusCheckScore >= 80
-                ? "Excellent consistency - you maintained focus throughout the game."
+                ? "Excellent mental stamina - you maintained focus throughout."
                 : analysis.focusCheckScore != null && analysis.focusCheckScore >= 60
-                  ? "Decent consistency with some variation in move quality."
-                  : analysis.focusCheckScore != null
-                    ? "Your move quality varied significantly - work on maintaining focus."
-                    : "Measures consistency in move quality throughout the game"}
+                  ? "Good focus with occasional lapses. Keep building consistency."
+                  : analysis.focusCheckScore != null && analysis.focusCheckScore >= 45
+                    ? "Focus was sporadic - some strong stretches, but attention wandered."
+                    : analysis.focusCheckScore != null
+                      ? "Major gaps in engagement today - work on sustained concentration."
+                      : "Measures mental stamina and sustained focus throughout the game"}
             </p>
           </CardContent>
         </Card>
@@ -907,18 +907,16 @@ function ReviewTab({
                   <span className="text-lg text-muted-foreground">
                     ({(() => {
                       const score = analysis.efficiencyFactor;
-                      if (score >= 97) return 'A+';
-                      if (score >= 93) return 'A';
-                      if (score >= 90) return 'A-';
-                      if (score >= 87) return 'B+';
-                      if (score >= 83) return 'B';
-                      if (score >= 80) return 'B-';
-                      if (score >= 77) return 'C+';
-                      if (score >= 73) return 'C';
-                      if (score >= 70) return 'C-';
-                      if (score >= 67) return 'D+';
-                      if (score >= 63) return 'D';
-                      if (score >= 60) return 'D-';
+                      if (score >= 95) return 'A+';
+                      if (score >= 90) return 'A';
+                      if (score >= 85) return 'A-';
+                      if (score >= 80) return 'B+';
+                      if (score >= 75) return 'B';
+                      if (score >= 70) return 'B-';
+                      if (score >= 65) return 'C+';
+                      if (score >= 60) return 'C';
+                      if (score >= 55) return 'C-';
+                      if (score >= 45) return 'D';
                       return 'F';
                     })()})
                   </span>
@@ -928,11 +926,13 @@ function ReviewTab({
             <p className="text-sm text-muted-foreground mt-1">
               {analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 70
                 ? "Your thinking time is being used productively - longer thinks lead to better moves."
-                : analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 50
-                  ? "Neutral correlation between thinking time and move quality."
-                  : analysis.efficiencyFactor != null
-                    ? "Move quality doesn't improve with longer thinks. You may be rushing critical positions or overthinking easy ones."
-                    : "Time spent vs. move quality correlation"}
+                : analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 55
+                  ? "You're finding your rhythm - some good ideas, some lapses."
+                  : analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 45
+                    ? "Focus was sporadic - work on allocating time to critical moments."
+                    : analysis.efficiencyFactor != null
+                      ? "Major gaps in time efficiency - rushing critical positions or overthinking easy ones."
+                      : "Time spent vs. move quality correlation"}
             </p>
           </CardContent>
         </Card>
@@ -2674,35 +2674,129 @@ export default function GameAnalysisPage() {
   const phaseAccuracies = hasClientResult ? calculatePhaseAccuracies() : null;
   
   // Calculate Focus Check (consistency score) from client-side analysis
-  // Measures how consistent move quality is - lower variance = higher focus
+  // Redesigned to measure mental stamina with:
+  // 1. Time-awareness: Only penalize rushed errors (true focus lapses)
+  // 2. 300cp outlier cap: Prevent single blunder from destroying score
+  // 3. Streak-based scoring: Reward sustained periods of focus
   // Returns 0-100 scale
-  const calculateFocusCheck = (): number | null => {
+  const calculateFocusCheck = (): { score: number; streakInfo: { longest: number; avgLength: number; totalStreaks: number; focusedMoves: number } } | null => {
     if (!clientAnalysis.result) return null;
     
     const clientMoves = clientAnalysis.result.moves;
     const playerColor = game.playerColor;
+    const thinkingTimes = game.thinkingTimes as number[] | null;
     
-    // Filter player's moves
-    const playerMoves = clientMoves.filter((m, idx) => 
-      (playerColor === 'white' && idx % 2 === 0) || 
-      (playerColor === 'black' && idx % 2 === 1)
-    );
+    // Filter player's moves with their indices
+    const playerMoveData: { move: typeof clientMoves[0]; idx: number; time: number | null }[] = [];
+    clientMoves.forEach((m, idx) => {
+      const isPlayerMove = (playerColor === 'white' && idx % 2 === 0) || 
+                           (playerColor === 'black' && idx % 2 === 1);
+      if (isPlayerMove) {
+        playerMoveData.push({
+          move: m,
+          idx,
+          time: thinkingTimes?.[idx] ?? null
+        });
+      }
+    });
     
-    if (playerMoves.length < 3) return null; // Need at least 3 moves for meaningful variance
+    if (playerMoveData.length < 3) return null;
     
-    // Calculate coefficient of variation (CV) - stdDev relative to mean
-    // This is more fair as it accounts for overall skill level
-    const losses = playerMoves.map(m => m.normalizedCentipawnLoss);
-    const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
-    const variance = losses.reduce((sum, loss) => sum + Math.pow(loss - avgLoss, 2), 0) / losses.length;
-    const stdDev = Math.sqrt(variance);
+    // Calculate average thinking time for comparison
+    const timesWithData = playerMoveData.filter(d => d.time !== null).map(d => d.time as number);
+    const avgThinkTime = timesWithData.length > 0 
+      ? timesWithData.reduce((a, b) => a + b, 0) / timesWithData.length 
+      : null;
     
-    // Use logarithmic scale for more forgiving results
-    // CV of 0 = perfect consistency (100%), CV of 2+ = very inconsistent (0%)
-    const cv = avgLoss > 0 ? stdDev / Math.max(avgLoss, 10) : 0;
-    // Map CV to 0-100: cv=0 -> 100%, cv=1 -> ~60%, cv=2 -> ~30%, cv=3+ -> ~0%
-    const focusScore = Math.max(0, Math.min(100, 100 * Math.exp(-cv * 0.8)));
-    return focusScore;
+    // Count "focus lapses" - errors made when rushing (time < 70% of average)
+    // If no time data, fall back to capped variance method
+    let focusLapseCount = 0;
+    let focusLapseSeverity = 0;
+    
+    // Track streaks of "focused" play (best/good/imprecise moves)
+    const streaks: number[] = [];
+    let currentStreak = 0;
+    let focusedMoveCount = 0;
+    
+    for (const data of playerMoveData) {
+      const { move, time } = data;
+      // All positive classifications count as focused moves
+      const isFocusedMove = move.classification === 'best' || 
+                            move.classification === 'good' || 
+                            move.classification === 'imprecise' ||
+                            move.classification === 'forced' ||
+                            move.classification === 'genius' ||
+                            move.classification === 'fantastic' ||
+                            move.classification === 'book';
+      
+      if (isFocusedMove) {
+        currentStreak++;
+        focusedMoveCount++;
+      } else {
+        // Error move (mistake or blunder) - check if it's a focus lapse or visualization error
+        if (currentStreak > 0) {
+          streaks.push(currentStreak);
+          currentStreak = 0;
+        }
+        
+        // Determine if this was a rushed error (focus lapse) or calculated error (VSS)
+        const isRushedError = avgThinkTime !== null && time !== null && time < avgThinkTime * 0.7;
+        const cappedLoss = Math.min(move.normalizedCentipawnLoss, 300); // 300cp cap
+        
+        if (isRushedError || avgThinkTime === null) {
+          // Count as focus lapse (rushed or no time data available)
+          focusLapseCount++;
+          focusLapseSeverity += cappedLoss;
+        }
+        // If not rushed (spent time but still made error), it's a VSS issue, not focus
+      }
+    }
+    
+    // Don't forget the last streak if game ended on a focused move
+    if (currentStreak > 0) {
+      streaks.push(currentStreak);
+    }
+    
+    const totalMoves = playerMoveData.length;
+    const focusedPercentage = (focusedMoveCount / totalMoves) * 100;
+    
+    // Calculate streak metrics
+    const longestStreak = streaks.length > 0 ? Math.max(...streaks) : 0;
+    const avgStreakLength = streaks.length > 0 
+      ? streaks.reduce((a, b) => a + b, 0) / streaks.length 
+      : 0;
+    
+    // New scoring formula:
+    // Base: % of focused moves (0-100)
+    // Bonus: Long streaks indicate sustained focus
+    // Penalty: Focus lapses (rushed errors) reduce score based on capped severity
+    
+    // Base score from focused move percentage (weight: 60%)
+    const baseScore = focusedPercentage * 0.6;
+    
+    // Streak bonus: Reward long sustained focus (weight: 25%)
+    // Max bonus when longest streak is 80%+ of game
+    const streakRatio = longestStreak / totalMoves;
+    const streakBonus = Math.min(25, streakRatio * 30);
+    
+    // Focus lapse penalty: Use capped severity (300cp max per lapse)
+    // Normalize: 1 lapse at 300cp = ~5% penalty, max 15% total
+    // This ensures one big blunder (capped at 300cp) has limited impact
+    const maxPenaltyPerLapse = 300; // Already capped in the loop
+    const normalizedSeverity = focusLapseSeverity / (totalMoves * maxPenaltyPerLapse);
+    const lapsePenalty = Math.min(15, normalizedSeverity * 100);
+    
+    const focusScore = Math.max(0, Math.min(100, baseScore + streakBonus - lapsePenalty));
+    
+    return {
+      score: focusScore,
+      streakInfo: {
+        longest: longestStreak,
+        avgLength: avgStreakLength,
+        totalStreaks: streaks.length,
+        focusedMoves: focusedMoveCount
+      }
+    };
   };
   
   // Calculate Efficiency Factor (time vs quality correlation)
@@ -2759,23 +2853,24 @@ export default function GameAnalysisPage() {
   };
   
   // Helper to get letter grade from percentage
+  // Updated grading scale per user specs
   const getLetterGrade = (score: number): string => {
-    if (score >= 97) return 'A+';
-    if (score >= 93) return 'A';
-    if (score >= 90) return 'A-';
-    if (score >= 87) return 'B+';
-    if (score >= 83) return 'B';
-    if (score >= 80) return 'B-';
-    if (score >= 77) return 'C+';
-    if (score >= 73) return 'C';
-    if (score >= 70) return 'C-';
-    if (score >= 67) return 'D+';
-    if (score >= 63) return 'D';
-    if (score >= 60) return 'D-';
+    if (score >= 95) return 'A+';
+    if (score >= 90) return 'A';
+    if (score >= 85) return 'A-';
+    if (score >= 80) return 'B+';
+    if (score >= 75) return 'B';
+    if (score >= 70) return 'B-';
+    if (score >= 65) return 'C+';
+    if (score >= 60) return 'C';
+    if (score >= 55) return 'C-';
+    if (score >= 45) return 'D';
     return 'F';
   };
   
-  const focusCheck = hasClientResult ? calculateFocusCheck() : null;
+  const focusCheckResult = hasClientResult ? calculateFocusCheck() : null;
+  const focusCheckScore = focusCheckResult?.score ?? null;
+  const focusStreakInfo = focusCheckResult?.streakInfo ?? null;
   const efficiencyFactor = hasClientResult ? calculateEfficiencyFactor() : null;
   
   // Calculate VSS Mismatch alerts - moves where player misjudged position when they had time
@@ -2840,7 +2935,7 @@ export default function GameAnalysisPage() {
     openingAccuracy: phaseAccuracies?.opening ?? serverAnalysis.openingAccuracy,
     middlegameAccuracy: phaseAccuracies?.middlegame ?? serverAnalysis.middlegameAccuracy,
     endgameAccuracy: phaseAccuracies?.endgame ?? serverAnalysis.endgameAccuracy,
-    focusCheckScore: focusCheck ?? serverAnalysis.focusCheckScore,
+    focusCheckScore: focusCheckScore ?? serverAnalysis.focusCheckScore,
     efficiencyFactor: efficiencyFactor ?? serverAnalysis.efficiencyFactor,
     vssMismatchAlerts: vssMismatchAlerts ?? serverAnalysis.vssMismatchAlerts,
   } : serverAnalysis;
