@@ -31,7 +31,7 @@ const landingPages = [
   },
   {
     title: "N-Piece Challenge",
-    description: "Test your tactical awareness by finding all pieces that can capture the king in various positions.",
+    description: "Maneuver different piece types into non-attacking positions in this complex evolution of the classic N-Queens challenge.",
     url: "/chess-piece-challenge",
     icon: Crown,
   },
@@ -158,8 +158,8 @@ export default function PublicHomePage() {
               </p>
               <p className="text-muted-foreground leading-relaxed">
                 Combined with Board Spin exercises that challenge your spatial orientation and Knight's Tour puzzles that 
-                sharpen your pattern recognition, SimulChess offers a complete cognitive training regimen trusted by 
-                tournament players and chess coaches worldwide.
+                sharpen your pattern recognition. Designed to become the new standard for competitive visualization training, 
+                SimulChess bridges the gap between casual play and tournament-ready mental focus.
               </p>
             </div>
           </div>
@@ -168,10 +168,10 @@ export default function PublicHomePage() {
             <h3 className="text-xl font-semibold mb-3">Simultaneous Exhibition Mastery</h3>
             <p className="text-muted-foreground leading-relaxed">
               Giving a simul requires a completely different skill set than standard chess. You need to manage multiple 
-              positions simultaneously, maintain focus across 10, 20, or even 100 boards, and make quick but accurate 
-              decisions under time pressure. Our revolutionary FIFO timer system only counts down when you're actively 
-              viewing a board, allowing you to practice true simul conditions without artificial time stress. Join the 
-              Simul vs Simul championship and compete against other multi-board masters.
+              positions simultaneously, maintain focus across 5 boards, and make quick but accurate decisions under time 
+              pressure. Our revolutionary timer system only counts down when you're actively viewing a board, allowing you 
+              to practice true simul conditions without artificial time stress. Join the Simul vs Simul games and compete 
+              against other multi-board masters.
             </p>
           </div>
         </div>
