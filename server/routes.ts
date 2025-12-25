@@ -525,29 +525,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
             { difficulty: 'grandmaster', elo: 2500 },
           ];
           
-          // Find bot difficulty using 50-point threshold rounding
-          // If average is >50 above a level, round up to the next level
+          // Find bot difficulty using weighted random selection based on distance
+          // Closer bot level has higher probability of being selected
           const selectBotDifficulty = (avg: number): { difficulty: string; elo: number } => {
-            // Find the highest bot level that is <= average
-            let selectedLevel = botLevels[0]; // Default to beginner
+            // Find the two adjacent bot levels (lower and upper)
+            let lowerLevel = botLevels[0];
+            let upperLevel = botLevels[botLevels.length - 1];
             
+            // Find the highest bot level that is <= average
+            let lowerIndex = 0;
             for (let i = 0; i < botLevels.length; i++) {
               if (botLevels[i].elo <= avg) {
-                selectedLevel = botLevels[i];
+                lowerLevel = botLevels[i];
+                lowerIndex = i;
               } else {
                 break;
               }
             }
             
-            // Check if we should round up to next level
-            const difference = avg - selectedLevel.elo;
-            if (difference > 50) {
-              // Find the next level up
-              const currentIndex = botLevels.findIndex(l => l.difficulty === selectedLevel.difficulty);
-              if (currentIndex < botLevels.length - 1) {
-                selectedLevel = botLevels[currentIndex + 1];
-              }
+            // If average is below lowest bot level, just return lowest
+            if (avg <= botLevels[0].elo) {
+              return botLevels[0];
             }
+            
+            // If average is at or above highest bot level, return highest
+            if (avg >= botLevels[botLevels.length - 1].elo) {
+              return botLevels[botLevels.length - 1];
+            }
+            
+            // Get the next level up
+            upperLevel = botLevels[lowerIndex + 1];
+            
+            // Calculate distances
+            const distanceToLower = avg - lowerLevel.elo;
+            const distanceToUpper = upperLevel.elo - avg;
+            const totalDistance = distanceToLower + distanceToUpper;
+            
+            // Weighted probability: closer bot gets higher chance
+            // Weight for lower = distance to upper (inverse relationship)
+            // Weight for upper = distance to lower (inverse relationship)
+            const chanceForLower = distanceToUpper / totalDistance;
+            const chanceForUpper = distanceToLower / totalDistance;
+            
+            // Random selection based on weighted probability
+            const roll = Math.random();
+            const selectedLevel = roll < chanceForLower ? lowerLevel : upperLevel;
+            
+            console.log(`[SimulVsSimul] Weighted selection: avg=${avg}, lower=${lowerLevel.difficulty}(${lowerLevel.elo}), upper=${upperLevel.difficulty}(${upperLevel.elo}), chanceForLower=${(chanceForLower * 100).toFixed(1)}%, roll=${roll.toFixed(3)}, selected=${selectedLevel.difficulty}`);
             
             return selectedLevel;
           };
