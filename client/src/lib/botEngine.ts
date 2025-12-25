@@ -1475,13 +1475,27 @@ function selectMoveByPersonality(
       });
       
       // Only play the recapture if it doesn't lead to a significantly worse position
-      // A recapture is "safe" if the evaluation is reasonable (not losing badly after recapture)
-      // -2.0 threshold allows for some compensation but not outright blunders
-      if (bestRecapture.evaluation >= -2.0 || bestRecapture.isMate && bestRecapture.evaluation > 0) {
-        console.log(`[ClientBot] RECAPTURE PRIORITY: Playing ${bestRecapture.move} to recapture on ${recaptureSquare} (lost ${lastMoveInfo.captured}, eval: ${bestRecapture.evaluation.toFixed(2)})`);
+      // DYNAMIC THRESHOLD: Scale based on what was captured
+      // - Queen (900): threshold = -9.0 (almost always recapture)
+      // - Rook (500): threshold = -5.0
+      // - Minor piece (300-330): threshold = -3.0
+      // This ensures we always recapture queens unless it leads to immediate mate
+      const capturedValue = lastMoveInfo.capturedValue || 300;
+      const dynamicThreshold = -(capturedValue / 100);
+      
+      // Always recapture if it's a winning mate, or if eval is above our dynamic threshold
+      // Skip only if the recapture leads to US getting mated
+      const isWinningMate = bestRecapture.isMate && bestRecapture.evaluation > 0;
+      const isLosingMate = bestRecapture.isMate && bestRecapture.evaluation < 0;
+      const evalAcceptable = bestRecapture.evaluation >= dynamicThreshold;
+      
+      if (isWinningMate || (evalAcceptable && !isLosingMate)) {
+        console.log(`[ClientBot] RECAPTURE PRIORITY: Playing ${bestRecapture.move} to recapture on ${recaptureSquare} (lost ${lastMoveInfo.captured}=${capturedValue}cp, eval: ${bestRecapture.evaluation.toFixed(2)}, threshold: ${dynamicThreshold.toFixed(1)})`);
         return bestRecapture;
+      } else if (isLosingMate) {
+        console.log(`[ClientBot] Recapture ${bestRecapture.move} leads to mate against us - skipping`);
       } else {
-        console.log(`[ClientBot] Recapture on ${recaptureSquare} available but eval is ${bestRecapture.evaluation.toFixed(2)} - checking if it's a trap`);
+        console.log(`[ClientBot] Recapture on ${recaptureSquare} eval ${bestRecapture.evaluation.toFixed(2)} below threshold ${dynamicThreshold.toFixed(1)} - may be a trap`);
       }
     } else {
       // No recapture in topMoves - this should be handled by generateBotMoveClient's 
