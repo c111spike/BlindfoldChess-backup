@@ -77,6 +77,18 @@ Provides two tabbed modes for game analysis:
 - Sound sacrifice: Final eval must be > -1.0 (sacrifice isn't losing)
 - Mating moves only genius if hard to find AND not in crushing position
 
+**Tactical Motif Detection & Personalized Coaching (`client/src/lib/motifDetection.ts`):**
+- Client-side detection engine analyzes positions to detect 35+ tactical patterns
+- **Detected Motifs**: Knight/Bishop/Rook/Queen forks, pins, skewers, discovered attacks/checks, back-rank mates, smothered mates, queen/rook/minor sacrifices, material wins, promotions, en passant
+- **Puzzle Auto-Tagging**: When puzzles are created, solution moves are analyzed and `tacticalMotifs` field is auto-populated
+- **User Motif Stats**: `userMotifStats` table tracks solved/failed counts per motif per user, updated on puzzle attempts
+- **Review Tab Integration**: PuzzlePatternInsights component shows missed tactics cross-referenced with puzzle training history
+- **Coaching Insights Examples**:
+  - "You've solved 12 similar Knight Fork puzzles with 87% accuracy — this pattern should be in your toolkit"
+  - "Bishop Fork puzzles: 45% accuracy (5/11) — focus area"
+  - "No puzzle practice data for Discovered Check patterns — add to training"
+- **API Endpoints**: `/api/user/motif-stats` (all stats), `/api/user/motif-stats/:motifName` (specific motif)
+
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.
 - **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles.
