@@ -2391,7 +2391,7 @@ export default function StandardMode() {
 
       {/* Game End Dialog */}
       <Dialog open={showGameEndDialog} onOpenChange={setShowGameEndDialog}>
-        <DialogContent data-testid="dialog-game-end">
+        <DialogContent data-testid="dialog-game-end" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Game Over</DialogTitle>
             <DialogDescription>

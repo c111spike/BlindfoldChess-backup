@@ -1713,7 +1713,7 @@ export default function SimulVsSimulMode() {
       
       {/* Match Complete Dialog */}
       <Dialog open={showMatchEndDialog} onOpenChange={setShowMatchEndDialog}>
-        <DialogContent data-testid="dialog-match-end">
+        <DialogContent data-testid="dialog-match-end" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Match Complete!</DialogTitle>
             <DialogDescription>
