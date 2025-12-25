@@ -4394,9 +4394,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Determine bot personality from botId (format: "bot_personality_difficulty")
+      // Personality names can contain underscores (e.g., knight_lover), so extract from ends
       const botParts = botId.split('_');
-      const personality = (botParts[1] || 'balanced') as any;
-      const difficulty = (botParts[2] || 'intermediate') as any;
+      const difficulty = (botParts[botParts.length - 1] || 'intermediate') as any;
+      // Personality is everything between 'bot' prefix and difficulty suffix
+      const personality = (botParts.length > 2 ? botParts.slice(1, -1).join('_') : 'balanced') as any;
       
       console.log(`[SimulBot] Making move for bot ${botId} in pairing ${pairingId}`);
       
@@ -5581,7 +5583,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (timer && timer.whiteTimeRemaining === SIMUL_TURN_TIMER_SECONDS && !timer.deadline) {
                   const botId = pairing.whiteBotId;
                   const botParts = (botId || '').split('_');
-                  const difficulty = (botParts[2] || 'intermediate') as any;
+                  // Difficulty is always the last segment (handles personalities with underscores like knight_lover)
+                  const difficulty = (botParts[botParts.length - 1] || 'intermediate') as any;
                   const thinkTime = calculateBotThinkTime(difficulty);
                   console.log(`[SimulBot] Scheduling initial white bot move in ${thinkTime}ms for pairing ${pairing.id}`);
                   setTimeout(() => makeSimulBotMove(pairing.id), thinkTime);
@@ -5731,7 +5734,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (nextPlayerIsBot) {
               const botId = newActiveColor === 'white' ? pairing.whiteBotId : pairing.blackBotId;
               const botParts = (botId || '').split('_');
-              const difficulty = (botParts[2] || 'intermediate') as any;
+              // Difficulty is always the last segment (handles personalities with underscores like knight_lover)
+              const difficulty = (botParts[botParts.length - 1] || 'intermediate') as any;
               const thinkTime = calculateBotThinkTime(difficulty);
               console.log(`[SimulBot] Scheduling bot move in ${thinkTime}ms for pairing ${pairingId}`);
               setTimeout(() => makeSimulBotMove(pairingId), thinkTime);
