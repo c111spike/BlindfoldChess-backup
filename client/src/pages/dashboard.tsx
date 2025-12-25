@@ -194,7 +194,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-2">
               <Brain className="h-8 w-8 text-primary-foreground" />
             </div>
-            <CardTitle className="text-primary-foreground text-2xl">Standard</CardTitle>
+            <CardTitle className="text-primary-foreground text-2xl">Standard (Blindfold training)</CardTitle>
             <CardDescription className="text-primary-foreground/80">
               Online chess. Automatic clocks. Optional blindfold.
             </CardDescription>
