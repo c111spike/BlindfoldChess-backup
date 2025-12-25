@@ -779,6 +779,7 @@ export default function PuzzleCreator() {
 
         {step === 2 && (
           <div className="grid lg:grid-cols-[300px_1fr] gap-6">
+            <div className="space-y-4">
             <Card className="h-fit">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Puzzle Details</CardTitle>
@@ -914,6 +915,49 @@ export default function PuzzleCreator() {
               </CardContent>
             </Card>
 
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4" /> Hints (Optional)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      value={hintInput}
+                      onChange={(e) => setHintInput(e.target.value)}
+                      placeholder="Enter a hint..."
+                      onKeyDown={(e) => e.key === "Enter" && addHint()}
+                      data-testid="input-hint"
+                    />
+                    <Button onClick={addHint} data-testid="button-add-hint">Add</Button>
+                  </div>
+                  
+                  {hints.length > 0 && (
+                    <div className="space-y-2">
+                      {hints.map((hint, index) => (
+                        <div key={index} className="flex items-start gap-2 p-2 bg-muted rounded">
+                          <Badge variant="secondary" className="shrink-0">
+                            Hint {index + 1}
+                          </Badge>
+                          <p className="text-sm flex-1">{hint}</p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => removeHint(index)}
+                            data-testid={`button-remove-hint-${index}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="space-y-4">
               <Card>
                 <CardHeader className="pb-3">
@@ -1015,60 +1059,18 @@ export default function PuzzleCreator() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Lightbulb className="h-4 w-4" /> Hints (Optional)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex gap-2">
-                    <Input
-                      value={hintInput}
-                      onChange={(e) => setHintInput(e.target.value)}
-                      placeholder="Enter a hint..."
-                      onKeyDown={(e) => e.key === "Enter" && addHint()}
-                      data-testid="input-hint"
-                    />
-                    <Button onClick={addHint} data-testid="button-add-hint">Add</Button>
-                  </div>
-                  
-                  {hints.length > 0 && (
-                    <div className="space-y-2">
-                      {hints.map((hint, index) => (
-                        <div key={index} className="flex items-start gap-2 p-2 bg-muted rounded">
-                          <Badge variant="secondary" className="shrink-0">
-                            Hint {index + 1}
-                          </Badge>
-                          <p className="text-sm flex-1">{hint}</p>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => removeHint(index)}
-                            data-testid={`button-remove-hint-${index}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="lg:col-span-2 flex gap-4 justify-between">
-              <Button variant="outline" onClick={() => setStep(1)} data-testid="button-back-step-2">
-                <ChevronLeft className="h-4 w-4 mr-2" /> Back
-              </Button>
-              <Button
-                disabled={!canProceedToStep3}
-                onClick={() => setStep(3)}
-                data-testid="button-next-step-2"
-              >
-                Continue <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
+              <div className="flex gap-4 justify-between">
+                <Button variant="outline" onClick={() => setStep(1)} data-testid="button-back-step-2">
+                  <ChevronLeft className="h-4 w-4 mr-2" /> Back
+                </Button>
+                <Button
+                  disabled={!canProceedToStep3}
+                  onClick={() => setStep(3)}
+                  data-testid="button-next-step-2"
+                >
+                  Continue <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
             </div>
           </div>
         )}
