@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic, Flag, Handshake, Check, X, Menu, Volume2 } from "lucide-react";
+import { Loader2, Play, Clock, Users, ArrowLeft, ArrowRight, Crown, BarChart3, Mic, Flag, Handshake, Check, X, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
@@ -96,11 +96,9 @@ export default function SimulVsSimulMode() {
   const [pendingDrawOffers, setPendingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with sent draw offers
   const [incomingDrawOffers, setIncomingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with received draw offers
   const [showMobileSidebar, setShowMobileSidebar] = useState(false); // Mobile sidebar toggle
-  const [syncAudioToBoard, setSyncAudioToBoard] = useState(true); // Only announce moves for current board
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
   const activeBoardRef = useRef(0);
-  const syncAudioToBoardRef = useRef(true);
   const userSettingsRef = useRef<UserSettings | null>(null);
   const promotionPendingRef = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -135,10 +133,6 @@ export default function SimulVsSimulMode() {
   useEffect(() => {
     activeBoardRef.current = activeBoard;
   }, [activeBoard]);
-  
-  useEffect(() => {
-    syncAudioToBoardRef.current = syncAudioToBoard;
-  }, [syncAudioToBoard]);
   
   useEffect(() => {
     userSettingsRef.current = userSettings || null;
@@ -547,18 +541,6 @@ export default function SimulVsSimulMode() {
             
             return newBoards;
           });
-          
-          if (userSettingsRef.current?.voiceOutputEnabled && data.move) {
-            // Check if sync is enabled - only announce if viewing this board
-            const shouldSpeak = !syncAudioToBoardRef.current || boardIndex === activeBoardRef.current;
-            if (shouldSpeak) {
-              const chess = new Chess(data.fen);
-              const isCheck = chess.isCheck();
-              const isCapture = data.move.includes('x');
-              const spokenMove = moveToSpeech(data.move, isCapture, isCheck, chess.isCheckmate());
-              speak(`Board ${boardNumber}: ${spokenMove}`);
-            }
-          }
           
           toast({
             title: `Opponent moved on Board ${boardNumber}`,
@@ -1274,23 +1256,7 @@ export default function SimulVsSimulMode() {
                   </div>
                   
                   <div className="space-y-3 pt-2 border-t">
-                    <h4 className="font-semibold text-sm">Voice Settings</h4>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="voice-announcements" className="text-sm cursor-pointer">
-                          Voice Announcements
-                        </Label>
-                        <p className="text-xs text-muted-foreground">Hear moves spoken aloud</p>
-                      </div>
-                      <Switch
-                        id="voice-announcements"
-                        checked={userSettings?.voiceOutputEnabled || false}
-                        onCheckedChange={(checked) => updateSettingsMutation.mutate({ voiceOutputEnabled: checked })}
-                        disabled={updateSettingsMutation.isPending}
-                        data-testid="switch-voice-output"
-                      />
-                    </div>
-                    
+                    <h4 className="font-semibold text-sm">Voice Input</h4>
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <Label htmlFor="voice-commands" className="text-sm cursor-pointer">
@@ -1306,24 +1272,6 @@ export default function SimulVsSimulMode() {
                         data-testid="switch-voice-input"
                       />
                     </div>
-                    
-                    {userSettings?.voiceOutputEnabled && (
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label htmlFor="sync-audio-setup" className="text-sm cursor-pointer flex items-center gap-2">
-                            <Volume2 className="h-4 w-4" />
-                            Sync Audio to Current Board
-                          </Label>
-                          <p className="text-xs text-muted-foreground">Only announce moves for the board you're viewing</p>
-                        </div>
-                        <Switch
-                          id="sync-audio-setup"
-                          checked={syncAudioToBoard}
-                          onCheckedChange={setSyncAudioToBoard}
-                          data-testid="switch-sync-audio"
-                        />
-                      </div>
-                    )}
                   </div>
                   
                   <div className="p-4 bg-muted rounded-lg space-y-2">
