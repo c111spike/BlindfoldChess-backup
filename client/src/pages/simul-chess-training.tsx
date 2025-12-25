@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SEOCrossLinks } from "@/components/seo-cross-links";
-import { Users, Grid3X3, Clock, Brain, BookOpen, Trophy, Zap, ArrowLeft } from "lucide-react";
+import { Users, Grid3X3, Clock, Brain, BookOpen, Trophy, Zap, ArrowLeft, Bot } from "lucide-react";
 
 export default function SimulChessTraining() {
   const [, setLocation] = useLocation();
@@ -64,6 +64,18 @@ export default function SimulChessTraining() {
                   <h3 className="font-semibold">Time Management</h3>
                   <p className="text-sm text-muted-foreground">30 seconds per move, per board</p>
                 </div>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/10 border border-primary/20 mb-6">
+              <Bot className="h-6 w-6 text-primary shrink-0 mt-1" />
+              <div>
+                <h3 className="font-semibold">Adaptive Bot Intelligence (ABI)</h3>
+                <p className="text-sm text-muted-foreground">
+                  Never wait for a Simul vs Simul match. Our Adaptive Bot Intelligence monitors the queue. 
+                  If a human opponent isn't found within 60 seconds, our system injects Elo-weighted bot 
+                  personalities to ensure your training never stops.
+                </p>
               </div>
             </div>
 
