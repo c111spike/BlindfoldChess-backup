@@ -41,7 +41,8 @@ import {
   Youtube,
   HelpCircle,
   Search,
-  X
+  X,
+  ExternalLink
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { Puzzle } from "@shared/schema";
@@ -996,6 +997,20 @@ function TrainTab() {
                            'Source:'}
                         </span>
                         <span className="font-medium">{puzzle.sourceName || 'Not specified'}</span>
+                      </div>
+                    )}
+                    {puzzle.youtubeVideoUrl && (
+                      <div className="flex items-center gap-2 text-sm mt-2">
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                        <a 
+                          href={puzzle.youtubeVideoUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                          data-testid="link-puzzle-video"
+                        >
+                          Watch video describing puzzle
+                        </a>
                       </div>
                     )}
                   </div>
