@@ -513,8 +513,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get average rating for bot selection
           const avgRating = await storage.getSimulVsSimulQueueAverageRating(boardCount);
           
-          // Create synthetic bot entries
-          const botPersonalities = ['balanced', 'tactical', 'positional', 'aggressive', 'defensive'];
+          // Bot difficulty levels with their Elo ratings (sorted ascending)
+          const botLevels = [
+            { difficulty: 'beginner', elo: 400 },
+            { difficulty: 'novice', elo: 600 },
+            { difficulty: 'intermediate', elo: 900 },
+            { difficulty: 'club', elo: 1200 },
+            { difficulty: 'advanced', elo: 1500 },
+            { difficulty: 'expert', elo: 1800 },
+            { difficulty: 'master', elo: 2000 },
+            { difficulty: 'grandmaster', elo: 2500 },
+          ];
+          
+          // Find bot difficulty using 50-point threshold rounding
+          // If average is >50 above a level, round up to the next level
+          const selectBotDifficulty = (avg: number): { difficulty: string; elo: number } => {
+            // Find the highest bot level that is <= average
+            let selectedLevel = botLevels[0]; // Default to beginner
+            
+            for (let i = 0; i < botLevels.length; i++) {
+              if (botLevels[i].elo <= avg) {
+                selectedLevel = botLevels[i];
+              } else {
+                break;
+              }
+            }
+            
+            // Check if we should round up to next level
+            const difference = avg - selectedLevel.elo;
+            if (difference > 50) {
+              // Find the next level up
+              const currentIndex = botLevels.findIndex(l => l.difficulty === selectedLevel.difficulty);
+              if (currentIndex < botLevels.length - 1) {
+                selectedLevel = botLevels[currentIndex + 1];
+              }
+            }
+            
+            return selectedLevel;
+          };
+          
+          const selectedBot = selectBotDifficulty(avgRating);
+          const difficulty = selectedBot.difficulty;
+          const botElo = selectedBot.elo;
+          
+          console.log(`[SimulVsSimul] Average rating: ${avgRating}, Selected bot: ${difficulty} (${botElo} Elo)`);
+          
+          // All 7 bot personalities for shuffle-without-replacement
+          const allPersonalities = ['balanced', 'tactical', 'positional', 'aggressive', 'defensive', 'bishop_lover', 'knight_lover'];
+          
+          // Fisher-Yates shuffle function
+          const shuffleArray = <T>(array: T[]): T[] => {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+          };
+          
+          // Generate shuffled personalities for the number of bots needed
+          // Uses shuffle-without-replacement, reshuffling after all 7 are used
+          const getShuffledPersonalities = (count: number): string[] => {
+            const result: string[] = [];
+            let shuffledPool: string[] = [];
+            
+            for (let i = 0; i < count; i++) {
+              if (shuffledPool.length === 0) {
+                shuffledPool = shuffleArray(allPersonalities);
+              }
+              result.push(shuffledPool.pop()!);
+            }
+            
+            return result;
+          };
+          
+          const botPersonalities = getShuffledPersonalities(botsNeeded);
+          
           const playersForMatch: Array<{ odId: string; isBot: boolean; rating: number; botId?: string; botPersonality?: string }> = [];
           
           // Add human players
@@ -526,31 +600,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // Add bots to fill remaining slots
-          // Map rating to difficulty level
-          const getDifficultyFromRating = (rating: number): string => {
-            if (rating < 600) return 'beginner';
-            if (rating < 900) return 'novice';
-            if (rating < 1200) return 'intermediate';
-            if (rating < 1500) return 'club';
-            if (rating < 1800) return 'advanced';
-            if (rating < 2100) return 'expert';
-            return 'master';
-          };
-          
-          const difficulty = getDifficultyFromRating(avgRating);
-          
+          // Add bots with shuffled personalities
           for (let i = 0; i < botsNeeded; i++) {
-            const personality = botPersonalities[i % botPersonalities.length];
+            const personality = botPersonalities[i];
             const botId = `bot_${personality}_${difficulty}`;
             playersForMatch.push({
               odId: `${botId}_${i}`, // Unique odId for each bot
               isBot: true,
-              rating: avgRating,
+              rating: botElo,
               botId,
               botPersonality: personality,
             });
           }
+          
+          console.log(`[SimulVsSimul] Bot personalities selected: ${botPersonalities.join(', ')}`);
           
           // Create the match
           await createSimulVsSimulMatch(playersForMatch, boardCount);
