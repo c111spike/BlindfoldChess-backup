@@ -204,17 +204,27 @@ export default function PuzzleCreator() {
   
   // Build final YouTube URL with timestamp
   const buildYoutubeUrlWithTimestamp = (): string | null => {
-    const url = youtubeVideoUrl.trim();
+    let url = youtubeVideoUrl.trim();
     if (!url) return null;
     
     const seconds = parseTimeToSeconds(youtubeStartTime);
     if (seconds === null) return url;
     
+    // Strip any existing timestamp parameters from the URL first
+    // This handles URLs copied with "Share at current time" that already have ?t= or &t=
+    url = url.replace(/[?&]t=\d+s?/g, '');
+    // Clean up any trailing ? or & left behind
+    url = url.replace(/[?&]$/, '');
+    // Fix double && if timestamp was in the middle
+    url = url.replace(/&&/g, '&');
+    // Fix ?& if timestamp was right after ?
+    url = url.replace(/\?&/g, '?');
+    
     // Add timestamp parameter
     if (url.includes("youtu.be/")) {
       return url.includes("?") ? `${url}&t=${seconds}` : `${url}?t=${seconds}`;
     } else if (url.includes("youtube.com/watch")) {
-      return url.includes("&") ? `${url}&t=${seconds}s` : `${url}&t=${seconds}s`;
+      return `${url}&t=${seconds}s`;
     }
     return url;
   };
