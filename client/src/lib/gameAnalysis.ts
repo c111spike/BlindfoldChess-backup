@@ -292,7 +292,31 @@ export async function analyzeGameClientSide(
 ): Promise<GameAnalysisResult> {
   console.log('[GameAnalysis] Initializing Stockfish WASM...');
   await clientStockfish.init();
-  console.log('[GameAnalysis] Stockfish ready, starting analysis of', moves.length, 'moves');
+  
+  // Pre-filter moves to exclude any invalid ones (e.g., illegal moves that ended the game)
+  // This prevents analysis from getting stuck on unparseable moves
+  const validMoves: string[] = [];
+  const validationChess = new Chess();
+  for (const move of moves) {
+    try {
+      const result = validationChess.move(move);
+      if (result) {
+        validMoves.push(move);
+      } else {
+        console.warn('[GameAnalysis] Filtering out invalid move:', move);
+        break; // Stop at first invalid move since subsequent moves depend on board state
+      }
+    } catch {
+      console.warn('[GameAnalysis] Filtering out unparseable move:', move);
+      break; // Stop at first unparseable move
+    }
+  }
+  
+  if (validMoves.length < moves.length) {
+    console.log('[GameAnalysis] Filtered moves:', moves.length, '->', validMoves.length, '(removed invalid trailing moves)');
+  }
+  
+  console.log('[GameAnalysis] Stockfish ready, starting analysis of', validMoves.length, 'moves');
 
   const chess = new Chess();
   const moveResults: MoveAnalysisResult[] = [];
@@ -302,8 +326,8 @@ export async function analyzeGameClientSide(
   let prevAnalysis: PositionAnalysis | null = null;
   const NODES_PER_POSITION = 200000;
 
-  for (let i = 0; i < moves.length; i++) {
-    const move = moves[i];
+  for (let i = 0; i < validMoves.length; i++) {
+    const move = validMoves[i];
     const color: 'white' | 'black' = i % 2 === 0 ? 'white' : 'black';
     const moveNumber = Math.floor(i / 2) + 1;
 
@@ -431,7 +455,7 @@ export async function analyzeGameClientSide(
     };
 
     if (onProgress) {
-      onProgress(i + 1, moves.length);
+      onProgress(i + 1, validMoves.length);
     }
   }
 
