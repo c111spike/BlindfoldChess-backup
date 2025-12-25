@@ -55,6 +55,7 @@ export const gameModeEnum = pgEnum("game_mode", [
   "otb_blitz",
   "otb_rapid",
   "otb_classical",
+  "otb_practice",
   "standard_bullet",
   "standard_blitz",
   "standard_rapid",
