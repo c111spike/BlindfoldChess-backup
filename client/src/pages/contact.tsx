@@ -129,7 +129,7 @@ export default function Contact() {
                       <div>
                         <h3 className="font-medium mb-2" data-testid="text-faq-arbiter-question">How does the arbiter system work?</h3>
                         <p className="text-muted-foreground leading-relaxed mb-3" data-testid="text-faq-arbiter-answer">
-                          In OTB Tournament Mode, our virtual arbiter enforces official FIDE rules to simulate real tournament conditions. The board doesn't "stop" you from making an illegal move—just like a real wooden board wouldn't.
+                          In OTB Mode, our virtual arbiter enforces official tournament rules to simulate tournament conditions if the arbiter is called by a player. The board doesn't "stop" you from making an illegal move—just like a real wooden board wouldn't.
                         </p>
                         <div className="space-y-2 text-sm text-muted-foreground">
                           <div className="flex items-start gap-2">
