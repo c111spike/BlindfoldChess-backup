@@ -93,7 +93,7 @@ export default function Contact() {
                         <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                           <li><strong>Environment:</strong> Are you on mobile or desktop? Which browser?</li>
                           <li><strong>The "Trigger":</strong> What were you clicking when it happened? (e.g., "I clicked 'Spin' while the piece was still moving.")</li>
-                          <li><strong>Visual Evidence:</strong> Use a screen recorder or screenshot.</li>
+                          <li><strong>Visual Evidence:</strong> Use a screenshot.</li>
                           <li><strong>Game Link:</strong> If the bug happened during a specific game, please include the URL.</li>
                         </ul>
                       </div>
