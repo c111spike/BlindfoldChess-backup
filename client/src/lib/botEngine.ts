@@ -1908,9 +1908,11 @@ export async function generateBotMoveClient(
       
       // Pre-evaluate recaptures: If opponent captured a high-value piece and recapture
       // isn't in topMoves, explicitly evaluate it to prevent queen sacrifice blunders
+      // ONLY do this for Expert/Master/Grandmaster - lower difficulties don't need this and it's expensive
       let enrichedTopMoves = [...topMoves];
+      const shouldPreEvaluateRecaptures = difficulty === 'expert' || difficulty === 'master' || difficulty === 'grandmaster';
       
-      if (lastMoveInfo?.captured && lastMoveInfo.capturedValue >= 300) {
+      if (shouldPreEvaluateRecaptures && lastMoveInfo?.captured && lastMoveInfo.capturedValue >= 300) {
         const recaptureSquare = lastMoveInfo.to;
         const legalRecaptures = moves.filter(m => m.to === recaptureSquare && m.captured);
         
