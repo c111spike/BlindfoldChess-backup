@@ -260,6 +260,10 @@ function QuickSummary({ analysis, moves, playerColor }: {
       }
       return acc;
     }, {} as Record<string, number>);
+  
+  // Debug: Log all classifications to verify 'forced' is being captured
+  console.log('[QuickSummary] Player classifications:', classifications, 
+    'Forced moves:', moves.filter(m => m.color === playerColor && m.classification === 'forced').map(m => m.move));
 
   return (
     <Card data-testid="quick-summary">
