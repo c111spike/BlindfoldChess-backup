@@ -263,19 +263,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('[PATCH /api/games/:id] Game updated successfully');
       
-      // Auto-start analysis when a game completes (has a final result)
+      // Check if game is complete (analysis will be triggered client-side)
       const finalResults = ['white_win', 'black_win', 'draw', 'stalemate', 'timeout', 'resignation'];
       const isGameComplete = req.body.status === 'completed' || 
                              (req.body.result && finalResults.includes(req.body.result));
-      
-      if (isGameComplete && updatedGame.moves && Array.isArray(updatedGame.moves) && updatedGame.moves.length > 0) {
-        // Start analysis in background (don't await - fire and forget)
-        const { analyzeGame } = await import('./analysisService');
-        console.log('[PATCH /api/games/:id] Auto-starting analysis for completed game');
-        analyzeGame(id, userId).catch(err => {
-          console.error('[PATCH /api/games/:id] Auto-analysis failed:', err);
-        });
-      }
       
       // If the game is being marked as completed and has a matchId, also update the match
       if (req.body.status === 'completed' && game.matchId) {

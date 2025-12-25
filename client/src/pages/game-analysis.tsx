@@ -49,6 +49,7 @@ import {
   Gamepad2,
   RotateCw,
   Crown,
+  Swords,
 } from 'lucide-react';
 import type { GameAnalysis, MoveAnalysis, Game, MoveClassification, GamePhase, UserMotifStats } from '@shared/schema';
 import { detectMotifs, getMotifDisplayName, type TacticalMotif, type AnalysisContext } from '@/lib/motifDetection';
@@ -606,14 +607,16 @@ function PuzzlePatternInsights({
   };
   
   const getAccuracyText = (stat: UserMotifStats | undefined) => {
-    if (!stat || (stat.solvedCount + stat.failedCount) === 0) {
+    const solved = stat?.solvedCount ?? 0;
+    const failed = stat?.failedCount ?? 0;
+    if (!stat || (solved + failed) === 0) {
       return null;
     }
-    const total = stat.solvedCount + stat.failedCount;
-    const accuracy = (stat.solvedCount / total) * 100;
+    const total = solved + failed;
+    const accuracy = (solved / total) * 100;
     return {
       accuracy: accuracy.toFixed(0),
-      solved: stat.solvedCount,
+      solved,
       total,
     };
   };
