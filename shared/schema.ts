@@ -222,6 +222,7 @@ export const puzzles = pgTable("puzzles", {
   attemptCount: integer("attempt_count").default(0),
   solveCount: integer("solve_count").default(0),
   shareCode: varchar("share_code").unique(),
+  tacticalMotifs: text("tactical_motifs").array().default([]),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   creatorIdx: index("puzzles_creator_idx").on(table.creatorId),
@@ -277,6 +278,20 @@ export const puzzleAttempts = pgTable("puzzle_attempts", {
   timeSpent: integer("time_spent"),
   attemptedAt: timestamp("attempted_at").defaultNow(),
 });
+
+export const userMotifStats = pgTable("user_motif_stats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  motifName: varchar("motif_name").notNull(),
+  solvedCount: integer("solved_count").default(0),
+  failedCount: integer("failed_count").default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userMotifUnique: unique().on(table.userId, table.motifName),
+  userIdx: index("user_motif_stats_user_idx").on(table.userId),
+}));
 
 export const userSettings = pgTable("user_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -757,6 +772,8 @@ export type InsertPuzzleVote = typeof puzzleVotes.$inferInsert;
 export type PuzzleVote = typeof puzzleVotes.$inferSelect;
 export type InsertPuzzleReport = typeof puzzleReports.$inferInsert;
 export type PuzzleReport = typeof puzzleReports.$inferSelect;
+export type InsertUserMotifStats = typeof userMotifStats.$inferInsert;
+export type UserMotifStats = typeof userMotifStats.$inferSelect;
 export type PuzzleType = typeof puzzleTypeEnum.enumValues[number];
 export type PuzzleDifficulty = typeof puzzleDifficultyEnum.enumValues[number];
 export type PuzzleSourceType = typeof puzzleSourceTypeEnum.enumValues[number];
