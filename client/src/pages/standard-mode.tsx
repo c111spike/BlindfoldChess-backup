@@ -53,7 +53,7 @@ import {
   BOT_PERSONALITY_ICONS,
   getBotByConfig 
 } from "@shared/botTypes";
-import { generateBotMoveClient, getThinkTime, LastMoveInfo } from "@/lib/botEngine";
+import { generateBotMoveClient, getThinkTime, LastMoveInfo, recordPosition, clearPositionHistory } from "@/lib/botEngine";
 
 // Piece values for recapture detection (must match botEngine.ts)
 const PIECE_VALUES: Record<string, number> = {
@@ -310,6 +310,8 @@ export default function StandardMode() {
       clockIntervalRef.current = null;
     }
     gameCompletionInProgressRef.current = false;
+    // Clear position history for draw-seeking behavior
+    clearPositionHistory();
     setGame(null);
     setGameId(null);
     setMatchId(null);
@@ -736,6 +738,13 @@ export default function StandardMode() {
       setRatingChange(change);
     }
   }, [gameResult, isBotGame, playerRatings, initialPlayerRating, timeControl]);
+
+  // Record positions for bot draw-seeking behavior (threefold repetition detection)
+  useEffect(() => {
+    if (isBotGame && fen && gameStarted && !gameResult) {
+      recordPosition(fen);
+    }
+  }, [fen, isBotGame, gameStarted, gameResult]);
 
   // Warn player when trying to leave during an active game
   useEffect(() => {

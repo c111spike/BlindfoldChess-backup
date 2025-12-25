@@ -1354,64 +1354,150 @@ interface DifficultyConfig {
   kingSafetyWeight: number;  // King safety evaluation weight (0-100)
   mopUpWeight: number;       // Mop-up endgame weight (0-100)
   useTaperedEval: boolean;   // Use tapered evaluation
+  // Draw-seeking behavior (survival mode)
+  drawSeekThreshold: number; // Evaluation threshold to trigger draw-seeking (negative = losing)
+}
+
+// ============================================
+// DRAW-SEEKING / SURVIVAL MODE
+// ============================================
+// Position history for repetition detection
+// Maps position hash (board + castling + en passant, NOT move count) to occurrence count
+let positionHistory: Map<string, number> = new Map();
+
+// Extract position key from FEN (excludes halfmove clock and fullmove number)
+function getPositionKey(fen: string): string {
+  // FEN format: pieces activeColor castling enPassant halfmoveClock fullmoveNumber
+  // We want: pieces activeColor castling enPassant (to detect repetitions)
+  const parts = fen.split(' ');
+  return parts.slice(0, 4).join(' ');
+}
+
+// Record a position in history (call after each move)
+export function recordPosition(fen: string): void {
+  const key = getPositionKey(fen);
+  const count = positionHistory.get(key) || 0;
+  positionHistory.set(key, count + 1);
+}
+
+// Clear position history (call when starting a new game)
+export function clearPositionHistory(): void {
+  positionHistory = new Map();
+}
+
+// Check how many times a position has occurred
+export function getPositionCount(fen: string): number {
+  const key = getPositionKey(fen);
+  return positionHistory.get(key) || 0;
+}
+
+// Check if a move would create a repeated position
+function wouldRepeatPosition(game: Chess, move: Move): { repeats: boolean; count: number } {
+  // Make the move on a copy
+  const testGame = new Chess(game.fen());
+  testGame.move(move.san);
+  const newFen = testGame.fen();
+  const count = getPositionCount(newFen);
+  // If count >= 1, playing this move creates a position we've seen before
+  // If count >= 2, this would be the 3rd occurrence (threefold repetition = draw)
+  return { repeats: count >= 1, count: count + 1 };
+}
+
+// Check if bot should enter "survival mode" (seek draws when losing)
+function shouldSeekDraw(
+  evaluation: number, 
+  difficulty: BotDifficulty, 
+  moveCount: number,
+  botColor: 'w' | 'b'
+): boolean {
+  const config = DIFFICULTY_CONFIG[difficulty];
+  
+  // Safeguard 1: Only after move 20 to avoid early "draw cowardice"
+  if (moveCount < 20) {
+    return false;
+  }
+  
+  // Safeguard 2: Only seek draws if below the difficulty's threshold
+  // Evaluation is always from White's perspective, so adjust for bot's color
+  const botEval = botColor === 'w' ? evaluation : -evaluation;
+  
+  // Only enter survival mode if we're losing (botEval < threshold)
+  return botEval < config.drawSeekThreshold;
 }
 
 const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // Beginner (400 Elo): No advanced heuristics, basic evaluation
+  // No draw-seeking - fights to the death
   beginner: { 
     elo: 400, timePerMoveMs: 500, maxDepth: 2, multiPvCount: 5, stockfishNodes: 10000, 
     mistakeProbability: 0.4, useStockfish: false,
     useKillers: false, useHistory: false,
-    mobilityWeight: 0, kingSafetyWeight: 0, mopUpWeight: 0, useTaperedEval: false
+    mobilityWeight: 0, kingSafetyWeight: 0, mopUpWeight: 0, useTaperedEval: false,
+    drawSeekThreshold: -99 // Never seeks draws
   },
   // Novice (600 Elo): Minimal heuristics, slight mobility awareness
+  // No draw-seeking - fights to the death
   novice: { 
     elo: 600, timePerMoveMs: 1000, maxDepth: 3, multiPvCount: 5, stockfishNodes: 50000, 
     mistakeProbability: 0.2, useStockfish: false,
     useKillers: false, useHistory: false,
-    mobilityWeight: 20, kingSafetyWeight: 10, mopUpWeight: 0, useTaperedEval: false
+    mobilityWeight: 20, kingSafetyWeight: 10, mopUpWeight: 0, useTaperedEval: false,
+    drawSeekThreshold: -99 // Never seeks draws
   },
   // Intermediate (900 Elo): Basic search heuristics, growing positional awareness
+  // -5.0 threshold: Only panics when a major piece down
   intermediate: { 
     elo: 900, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
     mistakeProbability: 0.1, useStockfish: true,
     useKillers: true, useHistory: false,
-    mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false
+    mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false,
+    drawSeekThreshold: -5.0 // Major piece down = seek draw
   },
   // Club (1200 Elo): Full search heuristics, decent evaluation
+  // -4.0 threshold: Minor piece + pawn down triggers survival mode
   club: { 
     elo: 1200, timePerMoveMs: 2000, maxDepth: 5, multiPvCount: 4, stockfishNodes: 200000, 
     mistakeProbability: 0.01, useStockfish: true,
     useKillers: true, useHistory: true,
-    mobilityWeight: 60, kingSafetyWeight: 50, mopUpWeight: 50, useTaperedEval: true
+    mobilityWeight: 60, kingSafetyWeight: 50, mopUpWeight: 50, useTaperedEval: true,
+    drawSeekThreshold: -4.0
   },
   // Advanced (1500 Elo): Strong heuristics, good evaluation
+  // -3.5 threshold: Single piece down (without compensation) triggers draw-seeking
   advanced: { 
     elo: 1500, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
     mistakeProbability: 0.005, useStockfish: true,
     useKillers: true, useHistory: true,
-    mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true
+    mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true,
+    drawSeekThreshold: -3.5
   },
   // Expert (1800 Elo): Full strength heuristics
+  // -3.5 threshold: Recognizes a piece down is likely a loss
   expert: { 
     elo: 1800, timePerMoveMs: 3000, maxDepth: 8, multiPvCount: 3, stockfishNodes: 1000000, 
     mistakeProbability: 0.001, useStockfish: true,
     useKillers: true, useHistory: true,
-    mobilityWeight: 90, kingSafetyWeight: 90, mopUpWeight: 90, useTaperedEval: true
+    mobilityWeight: 90, kingSafetyWeight: 90, mopUpWeight: 90, useTaperedEval: true,
+    drawSeekThreshold: -3.5
   },
   // Master (2000 Elo): Maximum strength
+  // -2.5 threshold: Starts digging for draws at 2-pawn deficit
   master: { 
     elo: 2000, timePerMoveMs: 4000, maxDepth: 10, multiPvCount: 3, stockfishNodes: 2000000, 
     mistakeProbability: 0.00025, useStockfish: true,
     useKillers: true, useHistory: true,
-    mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true
+    mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
+    drawSeekThreshold: -2.5
   },
   // Grandmaster (2500 Elo): Uses transposition tables and advanced pawn evaluation
+  // -2.0 threshold: High alert - seeks draws immediately when losing
+  // "Cynical Chess" - prefers 0.0 draw over grinding -2.1 loss
   grandmaster: { 
     elo: 2500, timePerMoveMs: 5000, maxDepth: 12, multiPvCount: 3, stockfishNodes: 3000000, 
     mistakeProbability: 0.00001, useStockfish: true,
     useKillers: true, useHistory: true,
-    mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true
+    mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
+    drawSeekThreshold: -2.0
   },
 };
 
@@ -1421,7 +1507,8 @@ function selectMoveByPersonality(
   topMoves: TopMoveResult[],
   personality: BotPersonality,
   difficulty: BotDifficulty,
-  lastMoveInfo?: LastMoveInfo
+  lastMoveInfo?: LastMoveInfo,
+  moveCount?: number
 ): TopMoveResult {
   if (topMoves.length === 0) {
     throw new Error('No moves available');
@@ -1433,6 +1520,17 @@ function selectMoveByPersonality(
   
   const config = DIFFICULTY_CONFIG[difficulty];
   const isHighLevel = difficulty === 'grandmaster' || difficulty === 'master' || difficulty === 'expert';
+  const botColor = game.turn();
+  
+  // Check if we should enter survival mode (draw-seeking)
+  // Use the best move's evaluation to determine if we're losing
+  const bestEval = topMoves[0].evaluation;
+  const inSurvivalMode = moveCount !== undefined && 
+    shouldSeekDraw(bestEval, difficulty, moveCount, botColor);
+  
+  if (inSurvivalMode) {
+    console.log(`[ClientBot] SURVIVAL MODE ACTIVE: eval=${bestEval.toFixed(2)}, threshold=${config.drawSeekThreshold}, seeking repetition...`);
+  }
   
   // CRITICAL: For Master/Grandmaster level, immediately return any winning mate
   // This ensures forced mates are never missed due to personality scoring
@@ -1448,6 +1546,12 @@ function selectMoveByPersonality(
   // CRITICAL RECAPTURE LOGIC: For Master/Grandmaster, prioritize recaptures of valuable pieces
   // If opponent just captured a piece worth 3+ points (bishop/knight or higher), we MUST recapture
   // unless doing so leads to a significantly worse position (checked via Stockfish eval)
+  // 
+  // IMPORTANT SURVIVAL MODE INTEGRATION:
+  // - If eval AFTER recapture is ABOVE draw-seeking threshold → recapture and continue playing
+  // - If eval AFTER recapture is BELOW draw-seeking threshold → skip recapture, look for draws
+  // This ensures: Take their Queen back, see you're only at -0.5, keep crushing them.
+  // But if you're still at -3.0 after recapturing, look for perpetual checks instead.
   if (isHighLevel && lastMoveInfo?.captured && lastMoveInfo.capturedValue && lastMoveInfo.capturedValue >= 300) {
     const recaptureSquare = lastMoveInfo.to;
     const legalMoves = game.moves({ verbose: true });
@@ -1483,17 +1587,28 @@ function selectMoveByPersonality(
       const capturedValue = lastMoveInfo.capturedValue || 300;
       const dynamicThreshold = -(capturedValue / 100);
       
+      // Check if eval AFTER recapture would trigger survival mode
+      // Adjust evaluation for bot's perspective
+      const recaptureEvalForBot = botColor === 'w' ? bestRecapture.evaluation : -bestRecapture.evaluation;
+      const wouldStillBeLosing = moveCount !== undefined && 
+        moveCount >= 20 && 
+        recaptureEvalForBot < config.drawSeekThreshold;
+      
       // Always recapture if it's a winning mate, or if eval is above our dynamic threshold
       // Skip only if the recapture leads to US getting mated
       const isWinningMate = bestRecapture.isMate && bestRecapture.evaluation > 0;
       const isLosingMate = bestRecapture.isMate && bestRecapture.evaluation < 0;
       const evalAcceptable = bestRecapture.evaluation >= dynamicThreshold;
       
-      if (isWinningMate || (evalAcceptable && !isLosingMate)) {
+      if (isWinningMate || (evalAcceptable && !isLosingMate && !wouldStillBeLosing)) {
+        // Recapture puts us in a good/okay position - play it!
         console.log(`[ClientBot] RECAPTURE PRIORITY: Playing ${bestRecapture.move} to recapture on ${recaptureSquare} (lost ${lastMoveInfo.captured}=${capturedValue}cp, eval: ${bestRecapture.evaluation.toFixed(2)}, threshold: ${dynamicThreshold.toFixed(1)})`);
         return bestRecapture;
       } else if (isLosingMate) {
         console.log(`[ClientBot] Recapture ${bestRecapture.move} leads to mate against us - skipping`);
+      } else if (wouldStillBeLosing) {
+        // Even after recapturing, we're still losing badly - look for draws instead!
+        console.log(`[ClientBot] Recapture ${bestRecapture.move} eval ${bestRecapture.evaluation.toFixed(2)} still below survival threshold ${config.drawSeekThreshold} - seeking draws instead`);
       } else {
         console.log(`[ClientBot] Recapture on ${recaptureSquare} eval ${bestRecapture.evaluation.toFixed(2)} below threshold ${dynamicThreshold.toFixed(1)} - may be a trap`);
       }
@@ -1544,6 +1659,38 @@ function selectMoveByPersonality(
     }
     
     if (!move) return { candidate, score };
+    
+    // ============================================
+    // SURVIVAL MODE: DRAW-SEEKING BONUS
+    // ============================================
+    // When losing and in survival mode, massive bonus for moves that repeat positions
+    // This creates "trolling" behavior where the bot forces perpetual checks
+    if (inSurvivalMode && move) {
+      const repetitionInfo = wouldRepeatPosition(game, move);
+      
+      if (repetitionInfo.repeats) {
+        // Huge bonus for repetition moves - these lead to draws!
+        // 3rd occurrence = threefold repetition = forced draw
+        if (repetitionInfo.count >= 3) {
+          // This move forces a draw! Massively boost it
+          score += 50000; // Almost as good as winning (we're losing, so draw is great)
+          console.log(`[ClientBot] DRAW ESCAPE: ${move.san} creates threefold repetition! (+50000)`);
+        } else if (repetitionInfo.count === 2) {
+          // 2nd occurrence - one more repetition needed for draw
+          score += 10000;
+          console.log(`[ClientBot] Repetition opportunity: ${move.san} (2nd occurrence, +10000)`);
+        } else {
+          // 1st repetition - potential draw path
+          score += 2000;
+          console.log(`[ClientBot] Repetition detected: ${move.san} (+2000)`);
+        }
+      }
+      
+      // Extra bonus for checks in survival mode (perpetual check hunting)
+      if (move.san.includes('+')) {
+        score += 500; // Checking moves are good for perpetuals
+      }
+    }
     
     // Detect opposite-side castling for GM awareness
     const isOppositeSideCastling = detectOppositeSideCastling(game);
@@ -1983,7 +2130,7 @@ export async function generateBotMoveClient(
       }
       
       if (enrichedTopMoves.length > 0) {
-        const selected = selectMoveByPersonality(game, enrichedTopMoves, personality, difficulty, lastMoveInfo);
+        const selected = selectMoveByPersonality(game, enrichedTopMoves, personality, difficulty, lastMoveInfo, moveCount);
         
         // Convert UCI move to our format
         const uciMove = selected.move;

@@ -43,6 +43,14 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 ### Bot Engine
 A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM (client-side), and custom minimax with personality-aware move selection. It supports 8 Elo levels (400-2300) and 7 distinct personalities.
 
+**Draw-Seeking Behavior (Survival Mode):**
+- Bots seek draws via threefold repetition when losing significantly after move 20
+- Tiered thresholds by difficulty: Intermediate (-5.0), Expert/Advanced (-3.5), Master (-2.5), Grandmaster (-2.0)
+- Position history tracking: Uses FEN key (pieces + color + castling + en passant) to detect repetitions
+- Repetition bonuses: 3rd occurrence +50000 (forced draw), 2nd +10000, 1st +2000, +500 for checks
+- Recapture integration: Recaptures first if position improves above survival threshold
+- Implemented in `client/src/lib/botEngine.ts` via `recordPosition()`, `clearPositionHistory()`, `getPositionHistory()`
+
 ### Post-Game Analysis System
 Provides two tabbed modes for game analysis:
 - **Analyze Tab**: Stockfish-powered engine analysis with interactive board, evaluation bar, move classification, and accuracy scores.

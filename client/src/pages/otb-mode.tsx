@@ -38,7 +38,7 @@ import {
   BOT_PERSONALITY_ICONS,
   getBotByConfig 
 } from "@shared/botTypes";
-import { generateBotMoveClient, getThinkTime, LastMoveInfo } from "@/lib/botEngine";
+import { generateBotMoveClient, getThinkTime, LastMoveInfo, recordPosition, clearPositionHistory } from "@/lib/botEngine";
 import { OTBTutorial, useOTBTutorial } from "@/components/otb-tutorial";
 import { SuspensionBanner } from "@/components/suspension-banner";
 
@@ -286,6 +286,13 @@ export default function OTBMode() {
       triggerTutorial();
     }
   }, [hasSeenTutorial, triggerTutorial]);
+
+  // Record positions for bot draw-seeking behavior (threefold repetition detection)
+  useEffect(() => {
+    if (isBotGame && legalChessGame && gameStarted && !gameResult) {
+      recordPosition(legalChessGame.fen());
+    }
+  }, [legalChessGame, isBotGame, gameStarted, gameResult]);
 
   const squareToIndices = (square: string): { rank: number; file: number } => {
     const file = FILES.indexOf(square[0]);
@@ -940,6 +947,9 @@ export default function OTBMode() {
         setGameId(data.game.id);
       }
       
+      // Clear position history for draw-seeking behavior
+      clearPositionHistory();
+      
       const newGame = new Chess();
       setGame(newGame);
       setLegalChessGame(new Chess());
@@ -1259,6 +1269,9 @@ export default function OTBMode() {
           setGameId(response.game.id);
           setMatchId(response.matchId);
           matchIdRef.current = response.matchId; // Sync ref immediately to avoid stale closure issues
+          
+          // Clear position history for draw-seeking behavior
+          clearPositionHistory();
           
           const chess = new Chess();
           setGame(chess);
@@ -1672,6 +1685,9 @@ export default function OTBMode() {
     const minutes = parseInt(timeControl);
     const seconds = minutes * 60;
     
+    // Clear position history for draw-seeking behavior
+    clearPositionHistory();
+    
     setWhiteTime(seconds);
     setBlackTime(seconds);
     setIncrement(getIncrementForTimeControl(timeControl));
@@ -1781,6 +1797,9 @@ export default function OTBMode() {
 
   const handleStartBotGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     if (!user) return;
+    
+    // Clear position history for draw-seeking behavior
+    clearPositionHistory();
     
     // Use botTimeControl for bot games instead of general timeControl
     const isPracticeMode = botTimeControl === "practice";
