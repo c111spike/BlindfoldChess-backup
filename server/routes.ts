@@ -12,6 +12,7 @@ import { BOTS, getBotById } from "../shared/botTypes";
 import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
 import { analysisQueueManager } from "./analysisQueueManager";
 import { memoryCache, CACHE_KEYS, CACHE_TTL, invalidateCaches } from "./memoryCache";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 const { queueManager } = createQueueManager();
 
@@ -19,6 +20,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
   
   await analysisQueueManager.init();
+  
+  // Register object storage routes for file uploads
+  registerObjectStorageRoutes(app);
   
   // Prevent Cloudflare from caching API responses
   app.use('/api', (req, res, next) => {
@@ -2216,7 +2220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/cheat-reports', isAuthenticated, async (req: any, res) => {
     try {
       const reporterId = req.user.claims.sub;
-      const { reportedUserId, gameId, reason, details } = req.body;
+      const { reportedUserId, gameId, reason, details, screenshotUrl } = req.body;
       
       if (!reportedUserId || !reason) {
         return res.status(400).json({ message: "Reported user ID and reason are required" });
@@ -2233,6 +2237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameId: gameId || null,
         reason,
         details: details || null,
+        screenshotUrl: screenshotUrl || null,
       });
       
       // Check if reported user has any suspension history - if so, alert admins

@@ -215,6 +215,32 @@ function CheatReportCard({
               {report.details && (
                 <p className="text-sm text-muted-foreground mt-1">{report.details}</p>
               )}
+              {report.screenshotUrl && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button 
+                      className="mt-2 block cursor-pointer border rounded overflow-hidden hover:opacity-80 transition-opacity"
+                      data-testid={`button-view-screenshot-${report.id}`}
+                    >
+                      <img 
+                        src={report.screenshotUrl} 
+                        alt="Report screenshot" 
+                        className="max-h-20 object-contain"
+                      />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                      <DialogTitle>Screenshot Evidence</DialogTitle>
+                    </DialogHeader>
+                    <img 
+                      src={report.screenshotUrl} 
+                      alt="Report screenshot full size" 
+                      className="w-full max-h-[70vh] object-contain"
+                    />
+                  </DialogContent>
+                </Dialog>
+              )}
               <p className="text-xs text-muted-foreground">
                 Reported: {new Date(report.createdAt!).toLocaleString()}
               </p>
@@ -2128,7 +2154,7 @@ export default function AdminPage() {
                         {notification.relatedUserId && (
                           <div className="mt-2 flex items-center gap-2">
                             <Link href={`/profile/${notification.relatedUserId}`}>
-                              <Button variant="link" size="sm" className="p-0 h-auto" data-testid="link-view-user">
+                              <Button variant="ghost" size="sm" className="p-0 h-auto text-primary underline-offset-4 hover:underline" data-testid="link-view-user">
                                 <Eye className="h-3 w-3 mr-1" />
                                 View User
                               </Button>

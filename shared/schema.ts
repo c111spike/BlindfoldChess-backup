@@ -1001,6 +1001,7 @@ export const cheatReports = pgTable("cheat_reports", {
     .references(() => games.id, { onDelete: "set null" }),
   reason: cheatReportReasonEnum("reason").notNull(),
   details: text("details"),
+  screenshotUrl: text("screenshot_url"),
   isResolved: boolean("is_resolved").default(false),
   resolvedById: varchar("resolved_by_id")
     .references(() => users.id, { onDelete: "set null" }),

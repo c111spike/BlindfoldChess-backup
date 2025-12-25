@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Flag, AlertTriangle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { ScreenshotUpload } from "@/components/ScreenshotUpload";
 
 interface ReportPlayerDialogProps {
   reportedUserId: string;
@@ -48,6 +49,7 @@ export function ReportPlayerDialog({
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [details, setDetails] = useState("");
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
   const reportMutation = useMutation({
@@ -57,6 +59,7 @@ export function ReportPlayerDialog({
         gameId,
         reason,
         details: details.trim() || null,
+        screenshotUrl,
       });
     },
     onSuccess: () => {
@@ -67,6 +70,7 @@ export function ReportPlayerDialog({
       setOpen(false);
       setReason("");
       setDetails("");
+      setScreenshotUrl(null);
     },
     onError: (error: any) => {
       toast({
@@ -142,6 +146,22 @@ export function ReportPlayerDialog({
               onChange={(e) => setDetails(e.target.value)}
               className="min-h-[80px]"
               data-testid="input-report-details"
+            />
+          </div>
+          
+          <div className="grid gap-2">
+            <Label>Screenshot Evidence</Label>
+            <ScreenshotUpload
+              onUploadComplete={(path) => setScreenshotUrl(path)}
+              onRemove={() => setScreenshotUrl(null)}
+              onUploadError={(error) => {
+                toast({
+                  title: "Upload Failed",
+                  description: error,
+                  variant: "destructive",
+                });
+              }}
+              disabled={reportMutation.isPending}
             />
           </div>
           

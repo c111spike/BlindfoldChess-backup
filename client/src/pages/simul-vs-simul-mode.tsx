@@ -1371,6 +1371,9 @@ export default function SimulVsSimulMode() {
                   <p className="text-sm text-muted-foreground">
                     Need {(queueInfo?.playersNeeded || parseInt(boardCount) + 1) - (queueInfo?.playersInQueue || 0)} more player(s) to start
                   </p>
+                  <p className="text-xs text-muted-foreground italic">
+                    After 60 seconds, remaining spots will be filled with bots
+                  </p>
                   <Button
                     variant="outline"
                     onClick={handleLeaveQueue}

@@ -491,12 +491,14 @@ function ReviewTab({
   analysis, 
   game, 
   moves,
-  onNavigateToMove 
+  onNavigateToMove,
+  useClientValidation = false,
 }: { 
   analysis: GameAnalysis; 
   game: Game;
   moves: MoveAnalysis[];
   onNavigateToMove?: (moveIndex: number) => void;
+  useClientValidation?: boolean;
 }) {
   const [trainerOpen, setTrainerOpen] = useState(false);
   const [selectedMismatch, setSelectedMismatch] = useState<{
@@ -859,6 +861,7 @@ function ReviewTab({
           remainingTime={Math.floor(remainingTime || 60)}
           playerColor={playerColor || 'white'}
           bestMove={selectedMismatch.bestMove}
+          useClientValidation={useClientValidation}
         />
       )}
     </div>
@@ -1787,6 +1790,7 @@ function VSSTrainerDialog({
   remainingTime,
   playerColor,
   bestMove,
+  useClientValidation = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1796,6 +1800,7 @@ function VSSTrainerDialog({
   remainingTime: number;
   playerColor: string;
   bestMove?: string;
+  useClientValidation?: boolean;
 }) {
   const { toast } = useToast();
   const [timeLeft, setTimeLeft] = useState(remainingTime);
@@ -1864,6 +1869,52 @@ function VSSTrainerDialog({
     setIsValidating(true);
     const userMove = `${from}${to}`;
     
+    // Helper to normalize moves for comparison
+    const normalizeMove = (move: string) => move.toLowerCase().replace(/[+#=].*$/, '').trim();
+    
+    // Client-side validation for bot games / client-side analysis
+    if (useClientValidation && bestMove) {
+      const normalizedUserMove = normalizeMove(userMove);
+      const normalizedBestMove = normalizeMove(bestMove);
+      
+      // Check if user move matches best move (UCI format: e2e4)
+      // Best move could be in SAN (e4, Nf3) or UCI (e2e4) format
+      const isCorrect = normalizedUserMove === normalizedBestMove ||
+        normalizedBestMove.includes(normalizedUserMove) ||
+        (normalizedBestMove.length <= 4 && normalizedUserMove.endsWith(normalizedBestMove));
+      
+      if (isCorrect) {
+        setResult('correct');
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+        toast({ title: 'Correct!', description: 'You found the best move!' });
+      } else {
+        setAttempts(prev => prev + 1);
+        
+        if (attempts >= 1) {
+          setResult('incorrect');
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+          }
+          setRevealedMove(bestMove);
+          toast({ title: 'Not quite', description: 'The best move has been revealed.', variant: 'destructive' });
+        } else if (attempts === 0) {
+          // Extract hint squares from best move (first 2 and last 2 chars for UCI format)
+          const hintSquares: string[] = [];
+          if (bestMove.length >= 4) {
+            hintSquares.push(bestMove.slice(0, 2));
+            hintSquares.push(bestMove.slice(2, 4));
+          }
+          setHighlightSquares(hintSquares);
+          toast({ title: 'Try again', description: 'Look at the highlighted squares for a hint.' });
+        }
+      }
+      setIsValidating(false);
+      return;
+    }
+    
+    // Server-side validation for regular games
     try {
       const response = await apiRequest('POST', `/api/game-analyses/${gameId}/vss-train`, {
         plyIndex,
@@ -2884,7 +2935,7 @@ export default function GameAnalysisPage() {
             
             <TabsContent value="review">
               {analysis.status === 'completed' ? (
-                <ReviewTab analysis={analysis} game={game} moves={moves} onNavigateToMove={handleNavigateToMove} />
+                <ReviewTab analysis={analysis} game={game} moves={moves} onNavigateToMove={handleNavigateToMove} useClientValidation={hasClientResult} />
               ) : (
                 <Card>
                   <CardContent className="p-8 text-center">

@@ -83,6 +83,14 @@ Provides two tabbed modes for game analysis:
   - Optional YouTube video URL support for all puzzle source types (educational supplementary content)
   - YouTube URLs normalized to canonical format to prevent duplicate video submissions across different URL formats
 
+### Anti-Cheat & Report System
+- **Cheat Reports**: User-submitted reports with reason selection, optional details, and screenshot evidence.
+- **Screenshot Upload**: Uses Replit Object Storage with browser-image-compression.
+  - Max 1920px width, 1MB size limit, WebP format conversion
+  - Authentication required for presigned URL generation
+  - Admin interface shows thumbnail previews with click-to-expand
+- **Admin Moderation**: Pending/resolved report filtering, suspend/ban actions, rating refunds.
+
 ### Infrastructure
 - **Cloudflare CDN**: Configured for performance and caching.
 - **PostgreSQL Scaling Optimizations**: Database indexes, connection pooling, and in-memory caching for high-concurrency.
