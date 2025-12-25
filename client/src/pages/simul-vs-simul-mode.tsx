@@ -1756,6 +1756,9 @@ export default function SimulVsSimulMode() {
                 className="flex-1"
                 onClick={() => {
                   setShowMatchEndDialog(false);
+                  if (matchId) {
+                    setLocation(`/simul-match/${matchId}/review`);
+                  }
                 }}
                 data-testid="button-review-boards"
               >
