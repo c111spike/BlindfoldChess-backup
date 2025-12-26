@@ -109,6 +109,9 @@ export default function PublicHomePage() {
                 <a href="#features">Explore Features</a>
               </Button>
             </div>
+            <p className="text-sm text-white/70" data-testid="text-login-info">
+              Secure login powered by Replit. No new password needed—just use your Google or GitHub account to save your puzzle progress and ELO.
+            </p>
           </div>
         </div>
       </section>
