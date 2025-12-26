@@ -117,11 +117,22 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    // Resolve the actual users table ID (may differ from Better Auth session ID for migrated users)
+    let userId = session.user.id;
+    const email = session.user.email;
+    
+    if (email) {
+      const dbUser = await storage.getUserByEmail(email);
+      if (dbUser) {
+        userId = dbUser.id;
+      }
+    }
+
     // Attach user info to request for compatibility with existing routes
     req.user = {
       claims: {
-        sub: session.user.id,
-        email: session.user.email,
+        sub: userId,
+        email: email,
         first_name: session.user.name?.split(' ')[0] || '',
         last_name: session.user.name?.split(' ').slice(1).join(' ') || '',
       }
