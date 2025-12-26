@@ -6,6 +6,7 @@ import { db } from "./db";
 import { storage } from "./storage";
 import * as schema from "@shared/schema";
 import { Resend } from "resend";
+import { sql } from "drizzle-orm";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = "noreply@simulchess.com";
@@ -116,13 +117,23 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // Resolve the actual users table data (may differ from Better Auth session for migrated users)
-    let userId = session.user.id;
+    // Get user data from auth_user table (source of truth for is_admin)
+    const authUserId = session.user.id;
+    const email = session.user.email;
     let firstName = session.user.name?.split(' ')[0] || '';
     let lastName = session.user.name?.split(' ').slice(1).join(' ') || '';
-    const email = session.user.email;
+    let isAdmin = false;
     
-    // Look up user in database by email to get the correct ID and profile data
+    // Query auth_user for is_admin flag (Better Auth is source of truth)
+    const authUserResult = await db.execute(sql`
+      SELECT is_admin FROM auth_user WHERE id = ${authUserId}
+    `);
+    if (authUserResult.rows && authUserResult.rows.length > 0) {
+      isAdmin = (authUserResult.rows[0] as any).is_admin === true;
+    }
+    
+    // Resolve the users table ID (may differ from auth_user ID for migrated users)
+    let userId = authUserId;
     if (email) {
       const dbUser = await storage.getUserByEmail(email);
       if (dbUser) {
@@ -139,6 +150,7 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
         email: email,
         first_name: firstName,
         last_name: lastName,
+        is_admin: isAdmin,
       }
     };
     req.session = session;

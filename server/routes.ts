@@ -73,38 +73,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const firstName = req.user.claims.first_name || '';
       const lastName = req.user.claims.last_name || '';
+      const isAdmin = req.user.claims.is_admin === true; // From auth_user table
       
-      console.log('[/api/auth/user] Lookup:', { email, userId });
+      console.log('[/api/auth/user] Claims:', { email, userId, isAdmin });
       
       // Try to find user by email first (handles auth system migration), fall back to ID
       let user = email ? await storage.getUserByEmail(email) : null;
-      console.log('[/api/auth/user] Email lookup result:', user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : 'NOT_FOUND');
       
       if (!user && userId) {
         user = await storage.getUser(userId);
-        console.log('[/api/auth/user] ID lookup result:', user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : 'NOT_FOUND');
       }
       
       // AUTO-SYNC: If user still not found, create new record from Better Auth session
       if (!user && email) {
-        console.log('[/api/auth/user] User not found, creating new record for email:', email);
-        const newUser = await storage.upsertUser({
+        console.log('[/api/auth/user] Creating new user for email:', email);
+        user = await storage.upsertUser({
           id: userId,
           email: email,
           firstName: firstName || null,
           lastName: lastName || null,
         });
-        console.log('[/api/auth/user] Created new user:', { id: newUser.id, email: newUser.email, isAdmin: newUser.isAdmin });
-        user = newUser;
       }
       
       if (!user) {
-        console.log('[/api/auth/user] User not found and could not be created');
         return res.status(404).json({ message: "User not found" });
       }
       
-      console.log('[/api/auth/user] Returning user:', { id: user.id, email: user.email, isAdmin: user.isAdmin });
-      
+      // Reset daily counters if needed
       const now = new Date();
       if (!user.lastDailyReset || 
           new Date(user.lastDailyReset).toDateString() !== now.toDateString()) {
@@ -118,7 +113,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user.dailyBlindfoldGamesPlayed = 0;
       }
       
-      res.json(user);
+      // Override isAdmin from auth_user table (source of truth)
+      const responseUser = { ...user, isAdmin };
+      console.log('[/api/auth/user] Returning:', { id: responseUser.id, email: responseUser.email, isAdmin: responseUser.isAdmin });
+      
+      res.json(responseUser);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
