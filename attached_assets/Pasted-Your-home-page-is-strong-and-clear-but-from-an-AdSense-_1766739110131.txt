@@ -1,0 +1,29 @@
+Your home page is strong and clear, but from an AdSense and SEO perspective, it’s currently a bit "thin." Google likes to see deeper, more authoritative text—especially on the home page—to prove you aren't just a "wrapper" for a tool, but a legitimate educational platform.
+
+Here is the "Founder's Audit" of your home page text with a few strategic upgrades you can make today.
+
+1. The SEO "Power" Title
+Currently, your header is "Build Grandmaster Vision." While that sounds cool, it doesn't contain the words people actually type into Google.
+
+Recommendation: Change your <title> and <h1> to include keywords.
+
+Draft: SimulChess: Professional OTB & Blindfold Chess Training Platform
+
+2. Expanding the "Why SimulChess?" Section (AdSense Booster)
+AdSense loves "high information gain." You have a great start with the "Train Like You Play" section. To hit that 500+ word sweet spot for the home page, let's add a bit more technical depth.
+
+Copy/Paste this into your "Train Like You Play" section:
+
+"Unlike traditional online chess servers that automate the boring parts, SimulChess forces you to develop the muscle memory required for tournament success. By requiring manual clock presses and enforcing strict touch-move protocols, we eliminate the 'lazy habits' that often lead to blunders in real-world Over-The-Board (OTB) settings. Our platform is built for the competitive player who wants their digital practice to translate directly to the physical board."
+
+3. Optimizing the "Training Modes" (The "Scannability" Fix)
+You have 8 great modes. To make them "searchable," we should turn those descriptions into mini-paragraphs.
+
+For Blindfold: "Our voice-controlled blindfold system allows you to practice visualization without looking at a screen, mimicking the mental calculation grandmasters use during deep mid-game analysis."
+
+For Simul: "Manage up to 12 boards simultaneously using our First-In-First-Out (FIFO) queue, specifically designed to help simul givers maintain a steady rhythm and avoid time pressure blunders."
+
+4. Addressing the "Replit Login" Note
+While the Replit login is convenient, for a "professional" feel, you might want to frame it as "Secure Authentication" rather than "Replit Login."
+
+Draft: "Secure, one-click login via Google or GitHub. Start your training instantly without managing another set of credentials, while your progress is safely synced across all devices."
