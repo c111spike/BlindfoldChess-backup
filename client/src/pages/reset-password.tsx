@@ -93,17 +93,16 @@ export default function ResetPassword() {
 
   if (tokenError) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <header className="flex items-center p-4">
-          <Link href="/" data-testid="link-logo-home">
-            <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-          </Link>
-        </header>
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Invalid Link</CardTitle>
-            </CardHeader>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-3">
+              <Link href="/" data-testid="link-logo-home">
+                <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+              </Link>
+              Invalid Link
+            </CardTitle>
+          </CardHeader>
             <CardContent className="space-y-4 text-center">
               <XCircle className="h-16 w-16 text-destructive mx-auto" />
               <p className="text-muted-foreground">
@@ -112,26 +111,24 @@ export default function ResetPassword() {
               <Button asChild className="w-full" data-testid="button-request-new">
                 <Link href="/forgot-password">Request a new reset link</Link>
               </Button>
-            </CardContent>
-          </Card>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (resetSuccess) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <header className="flex items-center p-4">
-          <Link href="/" data-testid="link-logo-home">
-            <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-          </Link>
-        </header>
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Password Reset</CardTitle>
-            </CardHeader>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-3">
+              <Link href="/" data-testid="link-logo-home">
+                <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+              </Link>
+              Password Reset
+            </CardTitle>
+          </CardHeader>
             <CardContent className="space-y-4 text-center">
               <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
               <p className="text-muted-foreground">
@@ -140,24 +137,22 @@ export default function ResetPassword() {
               <Button asChild className="w-full" data-testid="button-go-login">
                 <Link href="/login">Go to Login</Link>
               </Button>
-            </CardContent>
-          </Card>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="flex items-center p-4">
-        <Link href="/" data-testid="link-logo-home">
-          <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-        </Link>
-      </header>
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Reset Password</CardTitle>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl flex items-center gap-3">
+            <Link href="/" data-testid="link-logo-home">
+              <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+            </Link>
+            Reset Password
+          </CardTitle>
             <CardDescription>
               Enter your new password below
             </CardDescription>
@@ -214,6 +209,5 @@ export default function ResetPassword() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    );
 }
