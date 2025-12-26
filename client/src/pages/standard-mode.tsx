@@ -535,7 +535,7 @@ export default function StandardMode() {
       setWhiteTime(gameData.whiteTime || 180);
       setBlackTime(gameData.blackTime || 180);
       setIncrement(gameData.increment || 0);
-      setOpponentName(matchData.opponent.name);
+      setOpponentName(matchData.opponent.name?.split(' ')[0] || 'Opponent');
       setOpponentRating(matchData.opponent.rating);
       if (matchData.playerRating) {
         setPlayerRating(matchData.playerRating);
@@ -543,7 +543,7 @@ export default function StandardMode() {
       }
       const computedOpponentId = matchData.color === 'white' ? gameData.blackPlayerId : gameData.whitePlayerId;
       setOpponentId(computedOpponentId || null);
-      setPlayerName(`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'You');
+      setPlayerName(user?.firstName || 'You');
       
       // Handle named time controls ('blitz', 'rapid') or numeric strings ('5', '15')
       const timeControlMap: Record<string, number> = { bullet: 1, blitz: 5, rapid: 15, classical: 30 };
