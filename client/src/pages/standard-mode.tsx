@@ -1593,32 +1593,18 @@ export default function StandardMode() {
   }, [isBlindfold, activeBlindfoldDifficulty, userSettings?.blindfoldDifficulty]);
 
   return (
-    <div className="h-full md:h-screen flex flex-col md:flex-row overflow-auto md:overflow-hidden">
+    <div className="h-screen flex flex-col md:flex-row overflow-hidden">
       <Helmet>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
-      <div className="flex-1 flex items-center justify-center p-4 md:p-8 bg-muted/30 md:overflow-auto">
-        <div className="w-full max-w-3xl space-y-4 md:space-y-6">
-          <div className="flex items-start justify-between gap-4">
+      <div className="flex-1 flex items-center justify-center p-4 bg-muted/30 overflow-auto">
+        <div className="w-full max-w-2xl space-y-3">
+          {!gameStarted && !gameResult && (
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Standard Mode</h1>
-              <p className="text-sm md:text-base text-muted-foreground">Online chess with automatic clocks</p>
+              <h1 className="text-2xl font-bold">Standard Mode</h1>
+              <p className="text-sm text-muted-foreground">Online chess with automatic clocks</p>
             </div>
-            {(gameStarted || isBotGame) && !gameResult && (
-              <div className="flex items-center gap-2 shrink-0">
-                <Pencil className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="arrow-draw-mode-header" className="text-xs whitespace-nowrap">
-                  Draw Arrows
-                </Label>
-                <Switch
-                  id="arrow-draw-mode-header"
-                  checked={arrowDrawMode}
-                  onCheckedChange={setArrowDrawMode}
-                  data-testid="switch-arrow-draw-mode"
-                />
-              </div>
-            )}
-          </div>
+          )}
 
           <SuspensionBanner />
 
@@ -2165,44 +2151,50 @@ export default function StandardMode() {
                 </Card>
               </div>
 
-              <Card>
-                <CardContent className="py-4 md:py-6 space-y-3">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1" 
-                      onClick={handleOfferDraw} 
-                      disabled={waitingForDrawResponse}
-                      data-testid="button-offer-draw"
-                    >
-                      <HandshakeIcon className="mr-2 h-4 w-4" />
-                      {waitingForDrawResponse ? "Waiting..." : "Offer Draw"}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                  <Label htmlFor="arrow-draw-mode-game" className="text-xs">Arrows</Label>
+                  <Switch
+                    id="arrow-draw-mode-game"
+                    checked={arrowDrawMode}
+                    onCheckedChange={setArrowDrawMode}
+                    data-testid="switch-arrow-draw-mode"
+                  />
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="flex-1" 
+                  onClick={handleOfferDraw} 
+                  disabled={waitingForDrawResponse}
+                  data-testid="button-offer-draw"
+                >
+                  <HandshakeIcon className="mr-2 h-4 w-4" />
+                  {waitingForDrawResponse ? "Waiting..." : "Offer Draw"}
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="flex-1" data-testid="button-resign">
+                      <Flag className="mr-2 h-4 w-4" />
+                      Resign
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" className="flex-1" data-testid="button-resign">
-                          <Flag className="mr-2 h-4 w-4" />
-                          Resign
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Resign Game?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to resign? This will count as a loss.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel data-testid="button-resign-cancel">Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleResign} data-testid="button-resign-confirm">
-                            Yes, Resign
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </CardContent>
-              </Card>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Resign Game?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to resign? This will count as a loss.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel data-testid="button-resign-cancel">Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleResign} data-testid="button-resign-confirm">
+                        Yes, Resign
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </>
           )}
         </div>
