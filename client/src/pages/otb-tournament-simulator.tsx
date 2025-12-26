@@ -34,7 +34,7 @@ export default function OTBTournamentSimulator() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Trophy className="h-10 w-10 text-primary" />
-            <h1 className="text-3xl md:text-4xl font-bold">OTB Tournament Simulator</h1>
+            <span className="text-3xl md:text-4xl font-bold">OTB Tournament Simulator</span>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Train with realistic over-the-board conditions to dominate your next tournament
@@ -83,10 +83,10 @@ export default function OTBTournamentSimulator() {
         </Card>
 
         <article className="prose prose-neutral dark:prose-invert max-w-none">
-          <h2 className="flex items-center gap-2">
+          <h1 className="flex items-center gap-2 text-2xl md:text-3xl font-bold">
             <BookOpen className="h-6 w-6" />
             Master Over-the-Board Chess: The Complete Tournament Preparation Guide
-          </h2>
+          </h1>
 
           <p>
             Prepare for real tournaments with SimulChess's OTB Simulator. Master touch-move rules and manual 
@@ -99,7 +99,7 @@ export default function OTBTournamentSimulator() {
           <h3>The Critical Difference: Touch-Move Rule</h3>
           <p>
             In online chess, you can hover over pieces, consider moves, and change your mind freely. In OTB 
-            tournament play, the touch-move rule changes everything: if you touch a piece, you must move it. 
+            tournament play, the touch-move rule changes everything: <strong>if you touch a piece, you must move it</strong>. 
             If you touch an opponent's piece, you must capture it if legal. This rule eliminates the casual 
             exploring that online play allows and demands complete certainty before making physical contact 
             with any piece.
@@ -121,7 +121,7 @@ export default function OTBTournamentSimulator() {
           </p>
 
           <p>
-            The manual clock requirement teaches you to develop a consistent move-press rhythm. Tournament 
+            <strong>The manual clock requirement teaches you to develop a consistent move-press rhythm.</strong> Tournament 
             players who practice with automatic clocks often struggle with clock discipline, either forgetting 
             to press entirely or pressing before completing their move (a technical violation). Our system 
             builds the muscle memory needed for smooth, confident clock handling under pressure. We recommend 
@@ -158,8 +158,8 @@ export default function OTBTournamentSimulator() {
           </p>
 
           <p>
-            Understanding proper castling technique matters because touching the rook first technically 
-            means you've committed to a rook move, not castling. Tournament arbiters enforce this strictly, 
+            <strong>Understanding proper castling technique matters because touching the rook first technically 
+            means you've committed to a rook move, not castling.</strong> Tournament arbiters enforce this strictly, 
             and games have been decided by castling violations. Practice with our authentic OTB mechanics 
             ensures you'll never make this costly mistake.
           </p>
@@ -230,8 +230,8 @@ export default function OTBTournamentSimulator() {
 
           <h3>Why OTB Skills Matter for Online Players</h3>
           <p>
-            Even if you primarily play online, OTB skills translate to stronger overall play. The discipline 
-            required for touch-move forces deeper calculation before committing to moves. The clock awareness 
+            Even if you primarily play online, OTB skills translate to stronger overall play. <strong>The discipline 
+            required for touch-move forces deeper calculation before committing to moves.</strong> The clock awareness 
             developed in OTB play improves time management in all formats. Many players find that OTB 
             training creates a more focused, deliberate thinking process that elevates their entire game.
           </p>
@@ -239,9 +239,9 @@ export default function OTBTournamentSimulator() {
           <h3>Preparing for Your First Tournament</h3>
           <p>
             If you're preparing for your first OTB tournament, our simulator is essential preparation. 
-            Practice several games with the touch-move and manual clock settings. Focus on developing a 
+            Practice several games with the touch-move and manual clock settings. <strong>Focus on developing a 
             pre-move routine: complete your calculation, visualize the move, touch the piece, execute, 
-            press the clock. This sequence should become automatic before tournament day.
+            press the clock.</strong> This sequence should become automatic before tournament day.
           </p>
 
           <p>
@@ -284,8 +284,8 @@ export default function OTBTournamentSimulator() {
           <h3>Common OTB Mistakes to Avoid</h3>
           <p>
             New tournament players frequently make avoidable errors that cost games or create awkward 
-            situations. Hovering your hand over pieces while thinking signals indecision and can lead to 
-            accidental touches. Pressing the clock before completing your move is a violation. Announcing 
+            situations. <strong>Hovering your hand over pieces while thinking signals indecision and can lead to 
+            accidental touches.</strong> Pressing the clock before completing your move is a violation. Announcing 
             "check" is optional in most tournaments (and considered unnecessary). Taking back moves, normal 
             in casual play, is absolutely forbidden.
           </p>
