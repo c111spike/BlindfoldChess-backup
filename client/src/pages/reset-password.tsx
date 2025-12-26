@@ -93,121 +93,127 @@ export default function ResetPassword() {
 
   if (tokenError) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl flex items-center justify-center gap-2">
-              <Link href="/" data-testid="link-logo-home">
-                <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-              </Link>
-              Invalid Link
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-center">
-            <XCircle className="h-16 w-16 text-destructive mx-auto" />
-            <p className="text-muted-foreground">
-              This password reset link is invalid or has expired.
-            </p>
-            <Button asChild className="w-full" data-testid="button-request-new">
-              <Link href="/forgot-password">Request a new reset link</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex flex-col bg-background">
+        <header className="flex items-center p-4">
+          <Link href="/" data-testid="link-logo-home">
+            <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+          </Link>
+        </header>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Invalid Link</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-center">
+              <XCircle className="h-16 w-16 text-destructive mx-auto" />
+              <p className="text-muted-foreground">
+                This password reset link is invalid or has expired.
+              </p>
+              <Button asChild className="w-full" data-testid="button-request-new">
+                <Link href="/forgot-password">Request a new reset link</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   if (resetSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl flex items-center justify-center gap-2">
-              <Link href="/" data-testid="link-logo-home">
-                <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-              </Link>
-              Password Reset
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-center">
-            <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
-            <p className="text-muted-foreground">
-              Your password has been reset successfully!
-            </p>
-            <Button asChild className="w-full" data-testid="button-go-login">
-              <Link href="/login">Go to Login</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex flex-col bg-background">
+        <header className="flex items-center p-4">
+          <Link href="/" data-testid="link-logo-home">
+            <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+          </Link>
+        </header>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Password Reset</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-center">
+              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
+              <p className="text-muted-foreground">
+                Your password has been reset successfully!
+              </p>
+              <Button asChild className="w-full" data-testid="button-go-login">
+                <Link href="/login">Go to Login</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl flex items-center justify-center gap-2">
-            <Link href="/" data-testid="link-logo-home">
-              <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-            </Link>
-            Reset Password
-          </CardTitle>
-          <CardDescription>
-            Enter your new password below
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">New Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="At least 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
+    <div className="min-h-screen flex flex-col bg-background">
+      <header className="flex items-center p-4">
+        <Link href="/" data-testid="link-logo-home">
+          <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+        </Link>
+      </header>
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Reset Password</CardTitle>
+            <CardDescription>
+              Enter your new password below
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">New Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="At least 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  disabled={isLoading}
+                  data-testid="input-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  disabled={isLoading}
+                  data-testid="input-confirm-password"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={isLoading}
-                data-testid="input-password"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={8}
-                disabled={isLoading}
-                data-testid="input-confirm-password"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-              data-testid="button-reset-password"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Resetting...
-                </>
-              ) : (
-                <>
-                  <KeyRound className="mr-2 h-4 w-4" />
-                  Reset Password
-                </>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+                data-testid="button-reset-password"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Resetting...
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    Reset Password
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

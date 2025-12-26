@@ -51,15 +51,16 @@ export default function ForgotPassword() {
 
   if (emailSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl flex items-center justify-center gap-2">
-              <Link href="/" data-testid="link-logo-home">
-                <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-              </Link>
-              Check Your Email
-            </CardTitle>
+      <div className="min-h-screen flex flex-col bg-background">
+        <header className="flex items-center p-4">
+          <Link href="/" data-testid="link-logo-home">
+            <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+          </Link>
+        </header>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Check Your Email</CardTitle>
             <CardDescription>
               We've sent a password reset link to <strong>{email}</strong>
             </CardDescription>
@@ -86,21 +87,23 @@ export default function ForgotPassword() {
               </Link>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl flex items-center justify-center gap-2">
-            <Link href="/" data-testid="link-logo-home">
-              <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-            </Link>
-            Forgot Password
-          </CardTitle>
+    <div className="min-h-screen flex flex-col bg-background">
+      <header className="flex items-center p-4">
+        <Link href="/" data-testid="link-logo-home">
+          <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+        </Link>
+      </header>
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Forgot Password</CardTitle>
           <CardDescription>
             Enter your email address and we'll send you a link to reset your password
           </CardDescription>
@@ -146,7 +149,8 @@ export default function ForgotPassword() {
             </Link>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

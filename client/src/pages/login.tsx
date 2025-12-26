@@ -54,15 +54,16 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl flex items-center justify-center gap-2">
-            <Link href="/" data-testid="link-logo-home">
-              <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-            </Link>
-            Log In
-          </CardTitle>
+    <div className="min-h-screen flex flex-col bg-background">
+      <header className="flex items-center p-4">
+        <Link href="/" data-testid="link-logo-home">
+          <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+        </Link>
+      </header>
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Log In</CardTitle>
           <CardDescription>
             Enter your email and password to access your account
           </CardDescription>
@@ -129,7 +130,8 @@ export default function Login() {
             </Link>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -76,15 +76,16 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl flex items-center justify-center gap-2">
-            <Link href="/" data-testid="link-logo-home">
-              <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
-            </Link>
-            Create Account
-          </CardTitle>
+    <div className="min-h-screen flex flex-col bg-background">
+      <header className="flex items-center p-4">
+        <Link href="/" data-testid="link-logo-home">
+          <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+        </Link>
+      </header>
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Create Account</CardTitle>
           <CardDescription>
             Sign up to start your chess training journey
           </CardDescription>
@@ -173,7 +174,8 @@ export default function Signup() {
             </Link>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
