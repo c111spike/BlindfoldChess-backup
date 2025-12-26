@@ -160,7 +160,7 @@ export default function PublicHomePage() {
               <p className="text-muted-foreground leading-relaxed mb-4">
                 Unlike traditional online chess servers that automate the boring parts, SimulChess forces you to develop the 
                 muscle memory required for tournament success. By requiring manual clock presses and enforcing strict touch-move 
-                protocols, we eliminate the "lazy habits" that often lead to blunders in real-world Over-The-Board (OTB) settings. 
+                protocols, we eliminate the "lazy habits" that often lead to blunders in real-world <Link href="/otb-tournament-simulator" className="text-primary hover:underline">Over-The-Board (OTB)</Link> settings. 
                 Our platform is built for the competitive player who wants their digital practice to translate directly to the physical board.
               </p>
               <p className="text-muted-foreground leading-relaxed">
@@ -172,12 +172,12 @@ export default function PublicHomePage() {
             <div>
               <h3 className="text-xl font-semibold mb-3">Visualization & Memory Training</h3>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                Blindfold chess is the ultimate test of visualization ability. Our progressive training system helps you 
+                <Link href="/blindfold-chess-training" className="text-primary hover:underline">Blindfold chess</Link> is the ultimate test of visualization ability. Our progressive training system helps you 
                 develop this crucial skill through voice-controlled gameplay and a unique peek system that gradually 
                 weans you off visual dependency.
               </p>
               <p className="text-muted-foreground leading-relaxed">
-                Combined with Board Spin exercises that challenge your spatial orientation and Knight's Tour puzzles that 
+                Combined with <Link href="/chess-board-spin" className="text-primary hover:underline">Board Spin</Link> exercises that challenge your spatial orientation and Knight's Tour puzzles that 
                 sharpen your pattern recognition. Designed to become the new standard for competitive visualization training, 
                 SimulChess bridges the gap between casual play and tournament-ready mental focus.
               </p>
@@ -190,7 +190,7 @@ export default function PublicHomePage() {
               Giving a simul requires a completely different skill set than standard chess. You need to manage multiple 
               positions simultaneously, maintain focus across 5 boards, and make quick but accurate decisions under time 
               pressure. Our revolutionary timer system only counts down when you're actively viewing a board, allowing you 
-              to practice true simul conditions without artificial time stress. Join the Simul vs Simul games and compete 
+              to practice true simul conditions without artificial time stress. Join the <Link href="/simul-chess-training" className="text-primary hover:underline">Simul vs Simul</Link> games and compete 
               against other multi-board masters.
             </p>
           </div>

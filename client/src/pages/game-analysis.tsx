@@ -1023,7 +1023,7 @@ function ReviewTab({
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Brain className="w-4 h-4" />
-              VSS Mismatch Alerts
+              <strong>VSS Mismatch</strong> Alerts
             </CardTitle>
           </CardHeader>
           <CardContent>

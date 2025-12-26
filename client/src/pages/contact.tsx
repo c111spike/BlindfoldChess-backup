@@ -111,7 +111,7 @@ export default function Contact() {
                         <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                           <li><strong>Move Correlation:</strong> Comparing move choices to Stockfish's top lines.</li>
                           <li><strong>Timing Analysis:</strong> Detecting the robotic cadence of engine-assisted play.</li>
-                          <li><strong>VSS Mismatch Check:</strong> If a player has zero "Visualization Lapses" over 50 games, they are flagged for human review.</li>
+                          <li><strong>VSS Mismatch</strong> Check: If a player has zero "Visualization Lapses" over 50 games, they are flagged for human review.</li>
                         </ul>
                         <p className="text-sm text-muted-foreground mt-3">
                           Click the <strong>Report</strong> button on their profile or in the post-game summary. For high-stakes events, you can email evidence to our support team.
@@ -129,7 +129,7 @@ export default function Contact() {
                       <div>
                         <h3 className="font-medium mb-2" data-testid="text-faq-arbiter-question">How does the arbiter system work?</h3>
                         <p className="text-muted-foreground leading-relaxed mb-3" data-testid="text-faq-arbiter-answer">
-                          In OTB Mode, our virtual arbiter enforces official tournament rules to simulate tournament conditions if the arbiter is called by a player. The board doesn't "stop" you from making an illegal move—just like a real wooden board wouldn't.
+                          In <Link href="/otb-tournament-simulator" className="text-primary hover:underline">OTB Mode</Link>, our virtual arbiter enforces official tournament rules to simulate tournament conditions if the arbiter is called by a player. The board doesn't "stop" you from making an illegal move—just like a real wooden board wouldn't.
                         </p>
                         <div className="space-y-2 text-sm text-muted-foreground">
                           <div className="flex items-start gap-2">

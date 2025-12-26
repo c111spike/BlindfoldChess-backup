@@ -110,7 +110,7 @@ export default function SimulChessTraining() {
 
           <h3>What Makes Simul Chess Special</h3>
           <p>
-            Simultaneous chess has a legendary history, from Paul Morphy's blindfold simuls to the 2011 
+            Simultaneous chess has a legendary history, from Paul Morphy's <Link href="/blindfold-chess-training" className="text-primary hover:underline">blindfold</Link> simuls to the 2011 
             world record set by GM Ehsan Ghaem Maghami, who played <strong>604 boards simultaneously 
             over 25 hours</strong>. While our training starts at 5 boards, it builds the same foundational 
             endurance used by record-breakers.

@@ -187,7 +187,7 @@ export default function BlindfoldChessTraining() {
           </p>
 
           <p>
-            After each game, our game review system tracks your average peek time and compares it to your 
+            After each game, our <Link href="/chess-game-review" className="text-primary hover:underline">Game Review</Link> system tracks your average peek time and compares it to your 
             last peek time, helping you measure progress objectively. Watch as your reliance on peeks 
             decreases over time — concrete proof that your visualization is improving.
           </p>

@@ -38,7 +38,7 @@ export default function TermsOfService() {
                 <section>
                   <h2 className="text-xl font-semibold mb-3">Description of Service</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    SimulChess is a chess training platform that provides various game modes including Standard, OTB Tournament, Blindfold, and Simul modes, along with training tools, puzzles, and game analysis. The platform is designed to simulate over-the-board chess and help build memory.
+                    SimulChess is a chess training platform that provides various game modes including Standard, <Link href="/otb-tournament-simulator" className="text-primary hover:underline">OTB Tournament</Link>, <Link href="/blindfold-chess-training" className="text-primary hover:underline">Blindfold</Link>, and <Link href="/simul-chess-training" className="text-primary hover:underline">Simul</Link> modes, along with training tools, <Link href="/chess-puzzles-trainer" className="text-primary hover:underline">puzzles</Link>, and <Link href="/chess-game-review" className="text-primary hover:underline">game analysis</Link>. The platform is designed to simulate over-the-board chess and help build memory.
                   </p>
                 </section>
 
@@ -90,7 +90,7 @@ export default function TermsOfService() {
                     <ul className="list-disc list-inside space-y-2">
                       <li>Move timing and consistency analysis</li>
                       <li>Move correlation with engine top lines</li>
-                      <li>VSS Mismatch pattern detection</li>
+                      <li><strong>VSS Mismatch</strong> pattern detection</li>
                       <li>Behavioral pattern analysis</li>
                     </ul>
                     <p className="mt-3">

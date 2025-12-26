@@ -81,7 +81,7 @@ export default function PrivacyPolicy() {
                     <div>
                       <h3 className="font-medium mb-2">Game Data</h3>
                       <p className="text-muted-foreground leading-relaxed">
-                        We collect and store your chess games, including move history, timestamps, game results, and performance statistics. This data is used to provide game analysis, track your progress, and calculate your ratings. We also collect "Thinking Time Analysis" and "Focus Metrics" used solely to provide your personalized "Psychology Analysis" and "VSS Mismatch" training reports.
+                        We collect and store your chess games, including move history, timestamps, game results, and performance statistics. This data is used to provide game analysis, track your progress, and calculate your ratings. We also collect "Thinking Time Analysis" and "Focus Metrics" used solely to provide your personalized "Psychology Analysis" and <strong>VSS Mismatch</strong> training reports.
                       </p>
                     </div>
                     <div>

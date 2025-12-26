@@ -81,7 +81,7 @@ export default function ChessGameReview() {
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <Eye className="h-6 w-6 text-primary shrink-0 mt-1" />
                 <div>
-                  <h3 className="font-semibold">Blindfold Tracking</h3>
+                  <h3 className="font-semibold"><Link href="/blindfold-chess-training" className="text-primary hover:underline">Blindfold</Link> Tracking</h3>
                   <p className="text-sm text-muted-foreground">Monitor your visualization progress</p>
                 </div>
               </div>
@@ -263,7 +263,7 @@ export default function ChessGameReview() {
               <h3 className="font-semibold mb-2">Personalized Coaching</h3>
               <p className="text-sm text-muted-foreground">
                 We don't just show you the tactic you missed; we compare it to your performance 
-                in our Puzzle Trainer to give you actionable insights.
+                in our <Link href="/chess-puzzles-trainer" className="text-primary hover:underline">Puzzle Trainer</Link> to give you actionable insights.
               </p>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
@@ -278,7 +278,7 @@ export default function ChessGameReview() {
                 <h3 className="font-semibold mb-2">The "Training Gap"</h3>
                 <p className="text-sm text-muted-foreground">
                   "You've never practiced 'Discovered Attack' tactics—that's why you missed this win. 
-                  Start a targeted puzzle session now."
+                  <Link href="/puzzles" className="text-primary hover:underline">Start a targeted puzzle session now.</Link>
                 </p>
               </div>
             </div>
@@ -289,7 +289,7 @@ export default function ChessGameReview() {
             Blindfold Progress Tracking
           </h2>
           <p className="text-muted-foreground mb-4">
-            When you play in Blindfold mode, Game Review tracks your visualization journey:
+            When you play in <Link href="/blindfold-chess-training" className="text-primary hover:underline">Blindfold mode</Link>, Game Review tracks your visualization journey:
           </p>
           <div className="grid md:grid-cols-2 gap-4 mb-8">
             <div className="p-4 rounded-lg border">

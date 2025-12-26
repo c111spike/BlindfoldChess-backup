@@ -195,7 +195,7 @@ export default function ChessPuzzlesTrainer() {
           </p>
 
           <p>
-            After games, use our post-game Review tab to identify where you misjudged positions. 
+            After games, use our post-game <Link href="/chess-game-review" className="text-primary hover:underline">Review tab</Link> to identify where you misjudged positions. 
             Our proprietary <strong>VSS Mismatch</strong> (Visualization-Situation Synchronization) feature 
             highlights moments where your mental picture of the position differed significantly 
             from reality — often tactical opportunities you missed or threats you overlooked. 
