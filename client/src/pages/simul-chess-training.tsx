@@ -73,8 +73,8 @@ export default function SimulChessTraining() {
                 <h3 className="font-semibold">Adaptive Bot Intelligence (ABI)</h3>
                 <p className="text-sm text-muted-foreground">
                   Never wait for a Simul vs Simul match. Our Adaptive Bot Intelligence monitors the queue. 
-                  If a human opponent isn't found within 60 seconds, our system injects Elo-weighted bot 
-                  personalities to ensure your training never stops.
+                  If a human opponent isn't found within 60 seconds, our system injects <strong>Elo-weighted bot 
+                  personalities</strong> to ensure your training never stops.
                 </p>
               </div>
             </div>
@@ -187,7 +187,9 @@ export default function SimulChessTraining() {
             Board prioritization becomes crucial as games reach critical phases. Missing a tactical 
             opportunity on one board while focused on another is frustrating but inevitable — the 
             key is developing the judgment to identify which positions demand immediate attention 
-            and which can wait.
+            and which can wait. To reduce the cognitive load during a simul, use our{" "}
+            <Link href="/repertoire" className="text-primary hover:underline">Opening Repertoire Trainer</Link>{" "}
+            to master lines you can play on autopilot.
           </p>
 
           <h3>Building Pattern Recognition Through Chunking</h3>
