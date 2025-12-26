@@ -1,0 +1,59 @@
+since i switched to better auth
+
+I am having trouble connecting my database for isadmin to my email.
+
+
+
+it is set for true but i can't access the admin panel from my account even though I am an adminstrator
+
+This usually happens because Better-Auth manages its own user sessions, and your custom isAdmin field in the database might not be getting mapped or synced into the Session object that your frontend/API is checking.
+
+Here are the three most likely culprits and how to fix them so you can get back to your puzzle sprint.
+
+1. The "Session Mapping" Issue
+By default, Better-Auth only includes basic fields (id, email, name) in the session. If you added isAdmin to your database table manually, the Better-Auth client doesn't know it should be looking for it.
+
+The Fix: You need to define the isAdmin field in your auth configuration so it is included in the session data.
+
+JavaScript
+// auth.ts or better-auth config
+export const auth = betterAuth({
+    database: drizzleAdapter(db, {
+        provider: "pg",
+        schema: {
+            user: {
+                fields: {
+                    isAdmin: "is_admin", // Maps the DB column to the auth object
+                },
+            },
+        },
+    }),
+    emailAndPassword: { enabled: true },
+    // ADD THIS: Explicitly tell Better-Auth to include this in the session
+    additionalFields: {
+        user: {
+            isAdmin: {
+                type: "boolean",
+                defaultValue: false,
+            },
+        },
+    },
+});
+2. The "Stale Session" Trap
+If you manually changed is_admin to true in your PostgreSQL database (via Neon or a SQL console) while you were logged in, your browser is still holding an old session token that says you are a regular user.
+
+The Fix: Log out of SimulChess completely and log back in. This forces Better-Auth to generate a new session token that pulls the latest isAdmin: true value from the database.
+
+3. Case Sensitivity or Column Naming
+Check your database schema (PostgreSQL). If your column is named isAdmin (camelCase) but your SQL query or adapter is looking for is_admin (snake_case), it will return undefined, which evaluates to false.
+
+The Fix: Ensure your database column name matches exactly what your code is calling. In PostgreSQL, it is standard to use is_admin.
+
+How to Debug it Right Now
+Add a temporary "Debug" line in your Admin layout or component to see what the site actually thinks you are:
+
+JavaScript
+const session = await auth.api.getSession({ headers });
+console.log("Current User Data:", session?.user); 
+// If isAdmin is missing here, it's a mapping issue (Fix #1)
+// If isAdmin is 'false' here, it's a database or stale session issue (Fix #2)

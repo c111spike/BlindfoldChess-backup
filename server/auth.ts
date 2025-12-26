@@ -20,9 +20,9 @@ export const auth = betterAuth({
       verification: schema.authVerification,
     },
   }),
-  baseURL: process.env.REPL_SLUG 
-    ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-    : "http://localhost:5000",
+  // Use BETTER_AUTH_URL for production (simulchess.com), fall back to Replit dev URL or localhost
+  baseURL: process.env.BETTER_AUTH_URL 
+    || (process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : "http://localhost:5000"),
   secret: process.env.BETTER_AUTH_SECRET,
   emailAndPassword: {
     enabled: true,
