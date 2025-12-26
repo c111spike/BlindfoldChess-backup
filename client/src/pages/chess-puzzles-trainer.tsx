@@ -196,10 +196,11 @@ export default function ChessPuzzlesTrainer() {
 
           <p>
             After games, use our post-game Review tab to identify where you misjudged positions. 
-            The VSS Mismatch feature highlights moments where your evaluation differed significantly 
+            Our proprietary <strong>VSS Mismatch</strong> (Visualization-Situation Synchronization) feature 
+            highlights moments where your mental picture of the position differed significantly 
             from reality — often tactical opportunities you missed or threats you overlooked. 
-            Connecting these insights to puzzle patterns strengthens the transfer between training 
-            and competitive performance.
+            This unique diagnostic helps you identify blind spots in your board vision that puzzle 
+            training can specifically address.
           </p>
 
           <h3>Creating Your Own Puzzles</h3>
