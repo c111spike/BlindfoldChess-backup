@@ -165,6 +165,60 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
+/* Custom Scrollbar Styling - Light Mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(210 6% 94%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(210 8% 70%);
+  border-radius: 4px;
+  border: 2px solid hsl(210 6% 94%);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(210 8% 55%);
+}
+
+::-webkit-scrollbar-corner {
+  background: hsl(210 6% 94%);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(210 8% 70%) hsl(210 6% 94%);
+}
+
+/* Custom Scrollbar Styling - Dark Mode */
+.dark ::-webkit-scrollbar-track {
+  background: hsl(207 20% 12%);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(207 18% 32%);
+  border-color: hsl(207 20% 12%);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(207 18% 42%);
+}
+
+.dark ::-webkit-scrollbar-corner {
+  background: hsl(207 20% 12%);
+}
+
+.dark * {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(207 18% 32%) hsl(207 20% 12%);
+}
+
 @layer base {
   * {
     @apply border-border;
