@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Trophy, History, Users, Gamepad2, EyeOff, RotateCcw, Puzzle, Crown } from "lucide-react";
+import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Users, Gamepad2, EyeOff, RotateCcw, Puzzle, Crown } from "lucide-react";
 import type { Rating, Game } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import { ThisDayInChessHistory } from "@/components/this-day-in-chess-history";
@@ -18,11 +18,6 @@ export default function Dashboard() {
   const { data: ratings, isLoading: ratingsLoading } = useQuery<Rating>({
     queryKey: ["/api/ratings"],
   });
-
-  const { data: recentGames, isLoading: gamesLoading } = useQuery<Game[]>({
-    queryKey: ["/api/games/recent"],
-  });
-
   
   const { data: ongoingGame } = useQuery<Game>({
     queryKey: ["/api/games/ongoing"],
@@ -210,6 +205,9 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Total Stats Header */}
+      <h2 className="text-2xl font-semibold" data-testid="text-total-stats-header">Total Stats</h2>
+
       {/* Platform Statistics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-muted/50">
@@ -339,79 +337,6 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Recent Games</h2>
-          <Button variant="ghost" asChild data-testid="button-view-all-games">
-            <Link href="/history">
-              View All <History className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-        
-        {gamesLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-20" />
-            ))}
-          </div>
-        ) : !recentGames || recentGames.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No games played yet</p>
-              <p className="text-sm text-muted-foreground">Start training in any mode to see your game history here</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {recentGames.slice(0, 5).map((game) => (
-              <Card key={game.id} className="hover-elevate">
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`px-3 py-1 rounded-md text-xs font-medium ${
-                        game.result === 'white_win' && game.playerColor === 'white' ||
-                        game.result === 'black_win' && game.playerColor === 'black'
-                          ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                          : game.result === 'draw'
-                          ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-                          : 'bg-red-500/10 text-red-600 dark:text-red-400'
-                      }`}>
-                        {game.result === 'white_win' && game.playerColor === 'white' ||
-                         game.result === 'black_win' && game.playerColor === 'black'
-                          ? 'Win'
-                          : game.result === 'draw'
-                          ? 'Draw'
-                          : 'Loss'}
-                      </div>
-                      <div>
-                        <p className="font-medium">{game.opponentName || 'Computer'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {game.mode.replace('_', ' ').toUpperCase()} · {game.timeControl}+{game.increment}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      {game.ratingChange && (
-                        <p className={`text-sm font-mono font-semibold ${
-                          game.ratingChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                        }`}>
-                          {game.ratingChange > 0 ? '+' : ''}{game.ratingChange}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(game.completedAt || game.createdAt!).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
