@@ -117,6 +117,7 @@ export default function ForgotPassword() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                autoComplete="email"
                 data-testid="input-email"
               />
             </div>

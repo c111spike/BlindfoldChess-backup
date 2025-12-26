@@ -79,6 +79,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                autoComplete="email"
                 data-testid="input-email"
               />
             </div>
@@ -93,6 +94,7 @@ export default function Login() {
                 required
                 minLength={8}
                 disabled={isLoading}
+                autoComplete="current-password"
                 data-testid="input-password"
               />
             </div>

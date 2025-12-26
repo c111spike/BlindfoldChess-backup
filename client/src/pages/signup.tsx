@@ -101,6 +101,7 @@ export default function Signup() {
                 onChange={(e) => setName(e.target.value)}
                 required
                 disabled={isLoading}
+                autoComplete="name"
                 data-testid="input-name"
               />
             </div>
@@ -114,6 +115,7 @@ export default function Signup() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                autoComplete="email"
                 data-testid="input-email"
               />
             </div>
@@ -128,6 +130,7 @@ export default function Signup() {
                 required
                 minLength={8}
                 disabled={isLoading}
+                autoComplete="new-password"
                 data-testid="input-password"
               />
             </div>
@@ -142,6 +145,7 @@ export default function Signup() {
                 required
                 minLength={8}
                 disabled={isLoading}
+                autoComplete="new-password"
                 data-testid="input-confirm-password"
               />
             </div>

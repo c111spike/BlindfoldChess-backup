@@ -170,6 +170,7 @@ export default function ResetPassword() {
                   required
                   minLength={8}
                   disabled={isLoading}
+                  autoComplete="new-password"
                   data-testid="input-password"
                 />
               </div>
@@ -184,6 +185,7 @@ export default function ResetPassword() {
                   required
                   minLength={8}
                   disabled={isLoading}
+                  autoComplete="new-password"
                   data-testid="input-confirm-password"
                 />
               </div>
