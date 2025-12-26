@@ -185,7 +185,7 @@ export default function OpeningRepertoireTrainer() {
           <p>
             Understanding why moves are played is more important than memorizing long lines. Our 
             opening database includes the key strategic ideas behind each variation, with lines 
-            verified against master games and engine analysis for theoretical accuracy.
+            verified against master games and <strong>Stockfish engine analysis</strong> for theoretical accuracy.
           </p>
 
           <h3>Cover Main Lines First</h3>
@@ -202,9 +202,10 @@ export default function OpeningRepertoireTrainer() {
 
           <h3>Review Your Games</h3>
           <p>
-            Our integrated game review system tracks when you follow your repertoire lines and 
-            identifies where you deviate. After each game, see how well you applied your opening 
-            preparation and discover which lines need more drilling.
+            Our integrated{" "}
+            <Link href="/chess-game-review" className="text-primary hover:underline">Game Review system</Link>{" "}
+            tracks when you follow your repertoire lines and identifies where you deviate. After each 
+            game, see how well you applied your opening preparation and discover which lines need more drilling.
           </p>
 
           <h2>The ECO Classification System</h2>
@@ -218,6 +219,21 @@ export default function OpeningRepertoireTrainer() {
             <li><strong>C:</strong> Open games and French Defense (Italian, Spanish, etc.)</li>
             <li><strong>D:</strong> Closed games and Semi-Closed (Queen's Gambit, etc.)</li>
             <li><strong>E:</strong> Indian defenses (Nimzo-Indian, King's Indian, etc.)</li>
+          </ul>
+
+          <h3>Popular Openings Covered</h3>
+          <p>
+            Our database includes all major openings that players search for and study, including:
+          </p>
+          <ul>
+            <li><strong>Sicilian Defense</strong> — The most popular response to 1.e4, with aggressive counterplay</li>
+            <li><strong>Queen's Gambit</strong> — A classical opening that controls the center with d4 and c4</li>
+            <li><strong>King's Indian Defense</strong> — A hypermodern setup with dynamic attacking chances</li>
+            <li><strong>Italian Game</strong> — A solid opening emphasizing piece development and center control</li>
+            <li><strong>Caro-Kann Defense</strong> — A reliable, solid choice against 1.e4</li>
+            <li><strong>French Defense</strong> — A strategic opening with characteristic pawn structures</li>
+            <li><strong>Ruy Lopez (Spanish Opening)</strong> — One of the oldest and most respected openings</li>
+            <li><strong>London System</strong> — A universal system for White with easy-to-learn plans</li>
           </ul>
 
           <div className="flex justify-center my-8">
