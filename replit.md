@@ -32,7 +32,7 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 ### Game Mechanics
 - **Time Controls**: Various options (e.g., 3+0, 5+0, 10+0).
 - **Rating System**: Separate rating pools for various modes, with new users starting at 1200 (Simul/OTB at 1000). Matchmaking is FIFO within ±300 Elo.
-- **Disconnect Handling**: 30-second grace period; auto-abort or auto-resign.
+- **Disconnect Handling**: 30-second grace period for all game modes (including Simul vs Simul); auto-abort or auto-resign after grace period expires. Reconnecting within the grace period cancels auto-resignation.
 
 ### Training Modes
 - **Standard Mode**: Traditional multiplayer chess.

@@ -4423,9 +4423,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return; // Game is over
       }
       
-      // Determine which side is the bot
+      // Determine which side is the bot (handle null as false)
       const isWhiteTurn = pairing.activeColor === 'white';
-      const isBotTurn = isWhiteTurn ? pairing.whiteIsBot : pairing.blackIsBot;
+      const isBotTurn = isWhiteTurn ? (pairing.whiteIsBot === true) : (pairing.blackIsBot === true);
       
       if (!isBotTurn) {
         return; // Not a bot's turn
@@ -4446,8 +4446,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[SimulBot] Making move for bot ${botId} in pairing ${pairingId}`);
       
+      // Use current FEN or default starting position if null
+      const currentFen = pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      
       // Generate bot move
-      const botMove = await generateBotMove(pairing.fen, personality, difficulty, pairing.moves || []);
+      const botMove = await generateBotMove(currentFen, personality, difficulty, pairing.moves || []);
       if (!botMove) {
         console.log(`[SimulBot] No valid move for bot in pairing ${pairingId}`);
         return;
@@ -4455,7 +4458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Apply the move to get new FEN
       const { Chess } = await import('chess.js');
-      const game = new Chess(pairing.fen);
+      const game = new Chess(currentFen);
       const result = game.move({ from: botMove.from, to: botMove.to, promotion: botMove.promotion });
       if (!result) {
         console.error(`[SimulBot] Invalid move ${botMove.move} in pairing ${pairingId}`);
@@ -4656,7 +4659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If it's still a bot's turn (opponent is also a bot), schedule next bot move
       if (gameResult === 'ongoing') {
-        const nextIsBotTurn = newActiveColor === 'white' ? pairing.whiteIsBot : pairing.blackIsBot;
+        const nextIsBotTurn = newActiveColor === 'white' ? (pairing.whiteIsBot === true) : (pairing.blackIsBot === true);
         if (nextIsBotTurn) {
           const thinkTime = calculateBotThinkTime(difficulty);
           setTimeout(() => makeSimulBotMove(pairingId), thinkTime);
@@ -5513,6 +5516,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             simulMatchRooms.get(matchId)!.add(userId);
             
+            // Cancel any pending disconnect timer for this user in this simul match
+            const simulDisconnectKey = `simul_${matchId}_${userId}`;
+            const pendingTimer = disconnectTimers.get(simulDisconnectKey);
+            if (pendingTimer) {
+              clearTimeout(pendingTimer);
+              disconnectTimers.delete(simulDisconnectKey);
+              console.log(`[SimulWS] Cancelled pending disconnect timer for ${simulDisconnectKey}`);
+            }
+            
             // Get player's games and add to pairing rooms
             const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, userId);
             
@@ -5597,7 +5609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   opponentName: opponentPlayer?.isBot 
                     ? `Bot (${opponentPlayer.botPersonality})` 
                     : 'Opponent',
-                  isOpponentBot: isWhite ? p.blackIsBot : p.whiteIsBot,
+                  isOpponentBot: isWhite ? (p.blackIsBot === true) : (p.whiteIsBot === true),
                   fen: p.fen,
                   moves: p.moves,
                   moveCount: p.moveCount,
@@ -5620,7 +5632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Trigger initial bot moves for games where white is a bot
             // Only do this once per pairing - use a Set to track which we've started
             for (const pairing of playerGames) {
-              if (pairing.whiteIsBot && pairing.moveCount === 0 && pairing.result === 'ongoing') {
+              if (pairing.whiteIsBot === true && (pairing.moveCount || 0) === 0 && pairing.result === 'ongoing') {
                 // Check if we haven't already scheduled this bot move
                 // Use the timer's deadline as a proxy - if it's already set, bot move was scheduled
                 const timer = simulTimers.get(pairing.id);
@@ -5773,8 +5785,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               moveCount: newMoves.length,
             }));
             
-            // Check if it's now a bot's turn - schedule bot move
-            const nextPlayerIsBot = newActiveColor === 'white' ? pairing.whiteIsBot : pairing.blackIsBot;
+            // Check if it's now a bot's turn - schedule bot move (handle null as false)
+            const nextPlayerIsBot = newActiveColor === 'white' ? (pairing.whiteIsBot === true) : (pairing.blackIsBot === true);
             if (nextPlayerIsBot) {
               const botId = newActiveColor === 'white' ? pairing.whiteBotId : pairing.blackBotId;
               const botParts = (botId || '').split('_');
@@ -5801,10 +5813,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`[SimulWS] User ${userId} switching to board ${pairingId}`);
           
-          const matchFocus = simulPlayerFocus.get(matchId);
+          let matchFocus = simulPlayerFocus.get(matchId);
+          
+          // If match focus doesn't exist in memory, try to recover from database
           if (!matchFocus) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Match not found' }));
-            return;
+            console.log(`[SimulWS] Match ${matchId} not in memory, attempting recovery...`);
+            
+            try {
+              // Check if match exists in database and is still ongoing
+              const match = await storage.getSimulVsSimulMatch(matchId);
+              if (!match || match.status !== 'in_progress') {
+                ws.send(JSON.stringify({ type: 'error', message: 'Match not found or already completed' }));
+                return;
+              }
+              
+              // Get all pairings for this match
+              const allPairings = await storage.getAllSimulVsSimulPairings(matchId);
+              
+              // Rebuild match state
+              matchFocus = new Map();
+              simulPlayerFocus.set(matchId, matchFocus);
+              
+              // Initialize/rebuild match room
+              if (!simulMatchRooms.has(matchId)) {
+                simulMatchRooms.set(matchId, new Set());
+              }
+              simulMatchRooms.get(matchId)!.add(userId);
+              
+              // Rebuild timers for all ongoing pairings
+              for (const pairing of allPairings) {
+                if (pairing.result === 'ongoing') {
+                  // Initialize pairing rooms
+                  if (!simulPairingRooms.has(pairing.id)) {
+                    simulPairingRooms.set(pairing.id, new Set());
+                  }
+                  
+                  // Add user to pairing room if they're a participant
+                  if (pairing.whitePlayerId === userId || pairing.blackPlayerId === userId) {
+                    simulPairingRooms.get(pairing.id)!.add(userId);
+                  }
+                  
+                  // Initialize timer if not exists
+                  if (!simulTimers.has(pairing.id)) {
+                    simulTimers.set(pairing.id, {
+                      whiteTimeRemaining: SIMUL_TURN_TIMER_SECONDS,
+                      blackTimeRemaining: SIMUL_TURN_TIMER_SECONDS,
+                      turn: pairing.activeColor as 'white' | 'black',
+                      isPaused: true,
+                      deadline: null,
+                    });
+                  }
+                  
+                  // Schedule bot moves if it's a bot's turn
+                  const isWhiteTurn = pairing.activeColor === 'white';
+                  const isBotTurn = isWhiteTurn ? (pairing.whiteIsBot === true) : (pairing.blackIsBot === true);
+                  if (isBotTurn) {
+                    const botId = isWhiteTurn ? pairing.whiteBotId : pairing.blackBotId;
+                    const botParts = (botId || '').split('_');
+                    const difficulty = (botParts[botParts.length - 1] || 'intermediate') as any;
+                    const thinkTime = calculateBotThinkTime(difficulty);
+                    console.log(`[SimulBot] Scheduling recovered bot move in ${thinkTime}ms for pairing ${pairing.id}`);
+                    setTimeout(() => makeSimulBotMove(pairing.id), thinkTime);
+                  }
+                }
+              }
+              
+              console.log(`[SimulWS] Match ${matchId} recovered successfully`);
+            } catch (error) {
+              console.error(`[SimulWS] Failed to recover match ${matchId}:`, error);
+              ws.send(JSON.stringify({ type: 'error', message: 'Match recovery failed' }));
+              return;
+            }
           }
           
           const playerFocus = matchFocus.get(userId);
@@ -7080,15 +7159,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Clean up Simul vs Simul resources for this player
+        // Clean up Simul vs Simul resources for this player (with grace period)
         for (const [simulMatchId, matchRoom] of simulMatchRooms.entries()) {
           if (matchRoom.has(userId)) {
-            console.log(`[SimulDisconnect] Cleaning up player ${userId} from simul match ${simulMatchId}`);
+            console.log(`[SimulDisconnect] Player ${userId} disconnected from simul match ${simulMatchId}, starting grace period...`);
             
-            // Auto-resign all ongoing games for the disconnected player
-            try {
-              const playerGames = await storage.getSimulVsSimulPlayerGames(simulMatchId, userId);
-              const matchPlayers = await storage.getSimulVsSimulMatchPlayers(simulMatchId);
+            // Check if we already have a disconnect timer for this user in this simul
+            const simulDisconnectKey = `simul_${simulMatchId}_${userId}`;
+            if (disconnectTimers.has(simulDisconnectKey)) {
+              console.log(`[SimulDisconnect] Grace period timer already exists for ${simulDisconnectKey}`);
+              break; // Already have a timer
+            }
+            
+            // Store reference to matchId for later
+            const capturedMatchId = simulMatchId;
+            
+            // Set a grace period timer (same as regular games)
+            const simulTimer = setTimeout(async () => {
+              // Check if user reconnected during grace period (only check connection, not room membership)
+              if (userConnections.has(userId)) {
+                console.log(`[SimulDisconnect] User ${userId} reconnected to simul match ${capturedMatchId} - cancelling auto-resign`);
+                disconnectTimers.delete(simulDisconnectKey);
+                return;
+              }
+              
+              console.log(`[SimulDisconnect] Grace period expired, auto-resigning games for ${userId} in match ${capturedMatchId}`);
+              
+              // Auto-resign all ongoing games for the disconnected player
+              try {
+                const playerGames = await storage.getSimulVsSimulPlayerGames(capturedMatchId, userId);
+                const matchPlayers = await storage.getSimulVsSimulMatchPlayers(capturedMatchId);
               
               for (const pairing of playerGames) {
                 if (pairing.result !== 'ongoing') continue;
@@ -7177,27 +7277,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               
               // Now clean up player from rooms
-              cleanupSimulPlayer(userId, simulMatchId);
+              cleanupSimulPlayer(userId, capturedMatchId);
               
               // Check if match is complete
-              const allPairings = await storage.getAllSimulVsSimulPairings(simulMatchId);
+              const allPairings = await storage.getAllSimulVsSimulPairings(capturedMatchId);
               const allComplete = allPairings.every(p => p.result !== 'ongoing');
               
               if (allComplete) {
-                console.log(`[SimulDisconnect] All games complete, finalizing match ${simulMatchId}`);
+                console.log(`[SimulDisconnect] All games complete, finalizing match ${capturedMatchId}`);
                 
                 // Mark match as completed
-                await storage.updateSimulVsSimulMatch(simulMatchId, {
+                await storage.updateSimulVsSimulMatch(capturedMatchId, {
                   status: 'completed',
                   completedAt: new Date(),
                 });
                 
                 // Calculate and apply Simul ELO changes
-                const ratingChanges = await calculateSimulEloChanges(simulMatchId, allPairings, matchPlayers);
+                const ratingChanges = await calculateSimulEloChanges(capturedMatchId, allPairings, matchPlayers);
                 await applySimulEloChanges(ratingChanges);
                 
                 // Notify remaining connected players
-                const remainingRoom = simulMatchRooms.get(simulMatchId);
+                const remainingRoom = simulMatchRooms.get(capturedMatchId);
                 if (remainingRoom) {
                   remainingRoom.forEach((roomUserId) => {
                     const playerWs = userConnections.get(roomUserId);
@@ -7205,7 +7305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       const playerStats = ratingChanges.get(roomUserId);
                       playerWs.send(JSON.stringify({
                         type: 'simul_match_complete',
-                        matchId: simulMatchId,
+                        matchId: capturedMatchId,
                         ratingChange: playerStats?.ratingChange || 0,
                         humanGamesPlayed: playerStats?.humanGamesPlayed || 0,
                         wins: playerStats?.wins || 0,
@@ -7217,13 +7317,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
                 
                 // Clean up match resources
-                cleanupSimulMatch(simulMatchId, allPairings.map(p => p.id));
+                cleanupSimulMatch(capturedMatchId, allPairings.map(p => p.id));
               }
-            } catch (error) {
-              console.error('[SimulDisconnect] Error auto-resigning games:', error);
-              // Still clean up player from rooms even if auto-resign fails
-              cleanupSimulPlayer(userId, simulMatchId);
-            }
+              } catch (error) {
+                console.error('[SimulDisconnect] Error auto-resigning games:', error);
+                // Still clean up player from rooms even if auto-resign fails
+                cleanupSimulPlayer(userId, capturedMatchId);
+              }
+              
+              disconnectTimers.delete(simulDisconnectKey);
+            }, DISCONNECT_GRACE_PERIOD);
+            
+            disconnectTimers.set(simulDisconnectKey, simulTimer);
+            console.log(`[SimulDisconnect] Grace period timer set for ${simulDisconnectKey}, will fire in ${DISCONNECT_GRACE_PERIOD}ms`);
+            
             break; // A player should only be in one simul match at a time
           }
         }
