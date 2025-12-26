@@ -1,19 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 import { getQueryFn } from "@/lib/queryClient";
-import { getSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 
 export function useAuth() {
-  // Fetch session from Better Auth
-  const { data: sessionData, isLoading: isSessionLoading } = useQuery({
-    queryKey: ["/api/auth/get-session"],
-    queryFn: async () => {
-      const result = await getSession();
-      return result.data;
-    },
-    retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  // Use better-auth's built-in useSession hook
+  const { data: sessionData, isPending: isSessionLoading } = useSession();
   
   const { data: user, isLoading: isUserLoading, isError } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],

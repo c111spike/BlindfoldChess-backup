@@ -327,6 +327,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // First check if user exists by email (to handle auth system migration)
+    // Keep the existing user ID to preserve foreign key relationships
+    if (userData.email) {
+      const [existingByEmail] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, userData.email));
+      
+      if (existingByEmail) {
+        // User exists, update their profile data but preserve their ID
+        const [updatedUser] = await db
+          .update(users)
+          .set({
+            // Don't update the ID - keep original to preserve FK relationships
+            firstName: userData.firstName ?? existingByEmail.firstName,
+            lastName: userData.lastName ?? existingByEmail.lastName,
+            profileImageUrl: userData.profileImageUrl ?? existingByEmail.profileImageUrl,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.email, userData.email))
+          .returning();
+        return updatedUser;
+      }
+    }
+    
+    // User doesn't exist by email, try upsert by ID
     const [user] = await db
       .insert(users)
       .values(userData)

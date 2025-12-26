@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { signIn } from "@/lib/auth-client";
+import { queryClient } from "@/lib/queryClient";
 import { Loader2, LogIn } from "lucide-react";
 
 export default function Login() {
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -36,7 +36,10 @@ export default function Login() {
           title: "Welcome back!",
           description: "You have successfully logged in.",
         });
-        setLocation("/dashboard");
+        // Invalidate auth cache and do a full page navigation to ensure session is loaded
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/get-session"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        window.location.href = "/";
       }
     } catch (error: any) {
       toast({

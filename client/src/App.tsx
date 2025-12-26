@@ -130,6 +130,16 @@ function AppContent() {
     return <OidcError />;
   }
 
+  // Handle auth pages (login/signup) - render without sidebar wrapper
+  if ((location === "/login" || location === "/signup") && !isAuthenticated) {
+    const AuthPageComponent = location === "/login" ? Login : Signup;
+    return (
+      <div className="min-h-screen bg-background">
+        <AuthPageComponent />
+      </div>
+    );
+  }
+
   // Handle public pages (privacy, terms, about, contact, SEO landing pages) - accessible without auth
   if (isPublicLandingPage && !isAuthenticated && !isUsingTestUser) {
     const PublicPageComponent = {
@@ -152,7 +162,7 @@ function AppContent() {
       return (
         <div className="min-h-screen bg-background flex flex-col">
           <div className="flex justify-between items-center px-4 py-2">
-            <a href="/api/login" className="text-primary hover:underline text-sm" data-testid="link-login">
+            <a href="/login" className="text-primary hover:underline text-sm" data-testid="link-login">
               Sign in
             </a>
             <ThemeToggle />
@@ -176,7 +186,7 @@ function AppContent() {
       <div className="h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-foreground mb-4">Redirecting to login...</p>
-          <a href="/api/login" className="text-primary underline">Click here if not redirected</a>
+          <a href="/login" className="text-primary underline">Click here if not redirected</a>
         </div>
       </div>
     );

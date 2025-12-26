@@ -21,7 +21,7 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 ### Backend
 - **Runtime**: Node.js with Express.js (TypeScript).
 - **API**: RESTful endpoints with WebSocket support for real-time features.
-- **Authentication**: Replit OpenID Connect (OIDC) via Passport.js, server-side sessions in PostgreSQL, HTTP-only secure cookies.
+- **Authentication**: Better Auth with email/password (no email verification, autoSignIn enabled). Uses `better-auth/react` for React integration to avoid duplicate React instance issues. Database adapter syncs auth_user to the main users table via database hooks. Sessions stored in auth_session table with 7-day expiry.
 - **Real-time**: WebSocket server (`/ws`) for multiplayer synchronization using match-based rooms.
 
 ### Data Storage

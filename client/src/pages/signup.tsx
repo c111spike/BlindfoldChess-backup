@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { signUp } from "@/lib/auth-client";
+import { queryClient } from "@/lib/queryClient";
 import { Loader2, UserPlus } from "lucide-react";
 
 export default function Signup() {
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState("");
@@ -58,7 +58,10 @@ export default function Signup() {
           title: "Account created!",
           description: "Welcome to SimulChess. You are now logged in.",
         });
-        setLocation("/dashboard");
+        // Invalidate auth cache and do a full page navigation to ensure session is loaded
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/get-session"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        window.location.href = "/";
       }
     } catch (error: any) {
       toast({

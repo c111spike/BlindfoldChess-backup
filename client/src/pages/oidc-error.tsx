@@ -5,7 +5,7 @@ import { Helmet } from "react-helmet-async";
 
 export default function OidcError() {
   const handleRetry = () => {
-    window.location.href = "/api/login";
+    window.location.href = "/login";
   };
 
   return (

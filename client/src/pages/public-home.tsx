@@ -94,7 +94,7 @@ export default function PublicHomePage() {
                 className="bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20"
                 data-testid="button-hero-join"
               >
-                <a href="/api/login">
+                <a href="/signup">
                   Join Now
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </a>
@@ -203,7 +203,7 @@ export default function PublicHomePage() {
             Ready to elevate your chess training?
           </p>
           <Button asChild size="lg" data-testid="button-footer-join">
-            <a href="/api/login">
+            <a href="/signup">
               Start Training Free
               <ArrowRight className="ml-2 h-5 w-5" />
             </a>

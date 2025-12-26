@@ -21,7 +21,7 @@ export default function Landing() {
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <Button asChild variant="default" data-testid="button-login">
-              <a href="/api/login">Log In</a>
+              <a href="/login">Log In</a>
             </Button>
           </div>
         </div>
@@ -52,7 +52,7 @@ export default function Landing() {
                 className="bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20"
                 data-testid="button-hero-start"
               >
-                <a href="/api/login">
+                <a href="/signup">
                   Start Training
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </a>

@@ -82,7 +82,7 @@ export default function Settings() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
+        window.location.href = "/login";
       }, 500);
       return;
     }
@@ -322,11 +322,19 @@ export default function Settings() {
                 )}
               </div>
               <div className="pt-4 border-t">
-                <Button variant="outline" asChild data-testid="button-logout">
-                  <a href="/api/logout">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Log Out
-                  </a>
+                <Button 
+                  variant="outline" 
+                  data-testid="button-logout"
+                  onClick={() => {
+                    import("@/lib/auth-client").then(({ signOut }) => {
+                      signOut().then(() => {
+                        window.location.href = "/";
+                      });
+                    });
+                  }}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log Out
                 </Button>
               </div>
             </CardContent>

@@ -64,8 +64,11 @@ export const auth = betterAuth({
   trustedOrigins: [
     "https://simulchess.com",
     "https://www.simulchess.com",
-    process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : "",
-  ].filter(Boolean),
+    "http://localhost:5000",
+    // Replit dev URLs with wildcards
+    "https://*.replit.dev",
+    "https://*.repl.co",
+  ],
 });
 
 export type Session = typeof auth.$Infer.Session;
