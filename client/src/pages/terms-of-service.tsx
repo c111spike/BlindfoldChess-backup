@@ -46,14 +46,38 @@ export default function TermsOfService() {
                   <h2 className="text-xl font-semibold mb-3">Account Registration</h2>
                   <div className="space-y-3 text-muted-foreground leading-relaxed">
                     <p>
-                      To use SimulChess, you must authenticate through Replit. By creating an account, you agree to:
+                      To use SimulChess, you must create an account using your email address and a password. By creating an account, you agree to:
                     </p>
                     <ul className="list-disc list-inside space-y-2">
-                      <li>Provide accurate and complete information</li>
-                      <li>Maintain the security of your account credentials</li>
+                      <li>Provide accurate and complete information, including a valid email address</li>
+                      <li>Maintain the confidentiality and security of your password</li>
                       <li>Accept responsibility for all activities under your account</li>
                       <li>Notify us immediately of any unauthorized access</li>
                     </ul>
+                  </div>
+                </section>
+
+                <section>
+                  <h2 className="text-xl font-semibold mb-3">Password Security</h2>
+                  <div className="space-y-3 text-muted-foreground leading-relaxed">
+                    <p>
+                      You are solely responsible for maintaining the confidentiality of your password. We recommend using a strong, unique password that you do not use for other services. You agree not to share your password with anyone else.
+                    </p>
+                    <p>
+                      SimulChess stores passwords using secure, industry-standard hashing algorithms. We never store or have access to your plain-text password.
+                    </p>
+                  </div>
+                </section>
+
+                <section>
+                  <h2 className="text-xl font-semibold mb-3">Email Accuracy and Account Recovery</h2>
+                  <div className="space-y-3 text-muted-foreground leading-relaxed">
+                    <p>
+                      You are responsible for providing a valid and accessible email address. Since SimulChess does not require email verification at signup, please ensure your email is entered correctly.
+                    </p>
+                    <p>
+                      <strong>Important:</strong> If you lose access to your password and the email address associated with your account is inaccessible or invalid, SimulChess may not be able to recover your account. We strongly recommend using an email address you have reliable, long-term access to.
+                    </p>
                   </div>
                 </section>
 

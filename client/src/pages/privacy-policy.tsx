@@ -38,7 +38,7 @@ export default function PrivacyPolicy() {
                     <div className="flex items-start gap-2">
                       <Lock className="h-4 w-4 text-primary shrink-0 mt-1" />
                       <p className="text-sm text-muted-foreground">
-                        <strong>We don't see your password</strong> — Authentication is handled by Replit.
+                        <strong>Your password is securely hashed</strong> — We never store or see your plain-text password.
                       </p>
                     </div>
                     <div className="flex items-start gap-2">
@@ -75,7 +75,7 @@ export default function PrivacyPolicy() {
                     <div>
                       <h3 className="font-medium mb-2">Account Information</h3>
                       <p className="text-muted-foreground leading-relaxed">
-                        When you create an account through Replit authentication, we receive your username, profile picture, and unique user identifier. We do not store your password as authentication is handled by Replit.
+                        When you create an account, we collect your email address, display name, and a securely hashed version of your password. We use industry-standard password hashing (via Better Auth) and never store your password in plain text. This data is used to manage your account, enable login functionality, track your puzzle progress and solving statistics, store your Blindfold training metrics (including "Peek" usage), and communicate important account-related information.
                       </p>
                     </div>
                     <div>
@@ -136,9 +136,9 @@ export default function PrivacyPolicy() {
                   <h2 className="text-xl font-semibold mb-3" data-testid="text-privacy-thirdparty-heading">Third-Party Services</h2>
                   <div className="space-y-4">
                     <div>
-                      <h3 className="font-medium mb-2">Replit Authentication</h3>
+                      <h3 className="font-medium mb-2">Database Hosting</h3>
                       <p className="text-muted-foreground leading-relaxed">
-                        We use Replit's OpenID Connect service for user authentication. Please review Replit's privacy policy for information about how they handle your data.
+                        Your account data is stored securely in a PostgreSQL database hosted on Neon's serverless infrastructure. All data is encrypted in transit using TLS and passwords are hashed using industry-standard algorithms before storage.
                       </p>
                     </div>
                     <div>
