@@ -92,11 +92,11 @@ export default function Signup() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">Account Name</Label>
               <Input
                 id="name"
                 type="text"
-                placeholder="Your name"
+                placeholder="Your account name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
