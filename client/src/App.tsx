@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TestUserSwitcher } from "@/components/TestUserSwitcher";
 import { MobileFooter } from "@/components/mobile-footer";
@@ -214,7 +214,12 @@ function AppContent() {
     <SidebarProvider style={sidebarStyle as React.CSSProperties}>
       <div className="flex h-screen w-full">
         <AppSidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-hidden relative">
+          {/* Mobile-only floating hamburger button */}
+          <SidebarTrigger 
+            className="md:hidden fixed top-3 left-3 z-50 bg-sidebar text-sidebar-foreground border border-sidebar-border rounded-md" 
+            data-testid="button-mobile-sidebar-toggle" 
+          />
           {isAuthenticated && isDevelopment && (
             <div className="flex items-center justify-end px-4 py-1">
               <TestUserSwitcher />
