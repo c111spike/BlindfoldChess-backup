@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Info, Target, Eye, Zap, Scale, Cpu, ArrowLeft, ArrowRight, Code2 } from "lucide-react";
 import { SiReplit, SiCloudflare, SiPostgresql } from "react-icons/si";
@@ -21,7 +21,7 @@ export default function About() {
           <CardHeader className="flex flex-row items-center gap-3">
             <Info className="h-8 w-8 text-primary" />
             <div>
-              <CardTitle className="text-2xl md:text-3xl">About SimulChess</CardTitle>
+              <h1 className="text-2xl md:text-3xl font-semibold leading-none tracking-tight">About SimulChess</h1>
               <p className="text-sm text-muted-foreground mt-1" data-testid="text-about-subtitle">Where you go to be better at chess</p>
             </div>
           </CardHeader>

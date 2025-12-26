@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Shield, ArrowLeft, Eye, Lock, Monitor, Tv } from "lucide-react";
@@ -21,7 +21,7 @@ export default function PrivacyPolicy() {
           <CardHeader className="flex flex-row items-center gap-3">
             <Shield className="h-8 w-8 text-primary" />
             <div>
-              <CardTitle className="text-2xl md:text-3xl">Privacy Policy</CardTitle>
+              <h1 className="text-2xl md:text-3xl font-semibold leading-none tracking-tight">Privacy Policy</h1>
               <p className="text-sm text-muted-foreground mt-1" data-testid="text-privacy-updated">Last updated: December 2025</p>
             </div>
           </CardHeader>

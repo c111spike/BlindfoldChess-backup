@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, ArrowLeft } from "lucide-react";
@@ -21,7 +21,7 @@ export default function TermsOfService() {
           <CardHeader className="flex flex-row items-center gap-3">
             <FileText className="h-8 w-8 text-primary" />
             <div>
-              <CardTitle className="text-2xl md:text-3xl">Terms of Service</CardTitle>
+              <h1 className="text-2xl md:text-3xl font-semibold leading-none tracking-tight">Terms of Service</h1>
               <p className="text-sm text-muted-foreground mt-1">Last updated: December 2025</p>
             </div>
           </CardHeader>

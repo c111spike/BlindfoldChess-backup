@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mail, MessageCircle, Bug, Shield, Lightbulb, DollarSign, Scale, Users, ArrowLeft, Clock } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
@@ -21,7 +21,7 @@ export default function Contact() {
           <CardHeader className="flex flex-row items-center gap-3">
             <Mail className="h-8 w-8 text-primary" />
             <div>
-              <CardTitle className="text-2xl md:text-3xl">Contact Us</CardTitle>
+              <h1 className="text-2xl md:text-3xl font-semibold leading-none tracking-tight">Contact Us</h1>
               <p className="text-sm text-muted-foreground mt-1" data-testid="text-contact-subtitle">Get in touch with SimulChess</p>
             </div>
           </CardHeader>
