@@ -175,43 +175,23 @@
   }
   
   /* Mobile Usability Fixes - Google Search Console Compliance */
+  /* Using targeted approach to avoid breaking existing layouts */
   @media (max-width: 768px) {
-    /* Minimum font size of 16px for mobile readability */
-    body {
+    /* Base font size for mobile readability */
+    html {
       font-size: 16px;
     }
     
-    /* Ensure paragraph text is readable */
-    p, li, span, td, th, label {
-      font-size: max(1rem, 16px);
-      line-height: 1.5;
-    }
-    
-    /* Ensure minimum touch target size of 48px for clickable elements */
-    a, button, [role="button"], input[type="submit"], input[type="button"],
-    input[type="checkbox"], input[type="radio"], select {
-      min-height: 44px;
-      min-width: 44px;
-    }
-    
-    /* Add spacing between clickable elements to prevent accidental taps */
-    a, button, [role="button"] {
-      margin-bottom: 8px;
-    }
-    
-    /* Ensure inputs are large enough to tap */
-    input, textarea, select {
-      font-size: 16px; /* Prevents iOS zoom on focus */
-      padding: 12px;
-    }
-    
-    /* Ensure card content text is readable */
-    .text-sm {
-      font-size: 15px !important;
-    }
-    
-    .text-xs {
-      font-size: 14px !important;
+    /* Prevent iOS zoom on input focus */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    textarea {
+      font-size: 16px;
     }
   }
 }
