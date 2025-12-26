@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Eye, Clock, Brain, Navigation, Crown, Puzzle, RotateCw, Book, Users } from "lucide-react";
@@ -58,6 +59,16 @@ const landingPages = [
 export default function PublicHomePage() {
   return (
     <div className="min-h-screen -m-4">
+      <Helmet>
+        <title>SimulChess - Professional Chess Training Platform | Master OTB, Blindfold & Simul Chess</title>
+        <meta name="description" content="SimulChess is your professional chess training platform. Master over-the-board habits, strengthen memory with blindfold training, and dominate simultaneous exhibitions. Free online chess trainer." />
+        <meta property="og:title" content="SimulChess - Professional Chess Training Platform" />
+        <meta property="og:description" content="Master over-the-board habits, strengthen memory with blindfold training, and dominate simultaneous exhibitions. Your path to grandmaster vision." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://simulchess.com/" />
+        <meta property="og:image" content="https://simulchess.com/og-home.png" />
+        <link rel="canonical" href="https://simulchess.com/" />
+      </Helmet>
       <section className="relative w-full min-h-[80vh] overflow-hidden">
         <div className="absolute inset-0">
           <img
