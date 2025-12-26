@@ -62,8 +62,7 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
     cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60, // 5 minutes
+      enabled: false, // Disabled to ensure fresh user data is fetched on each request
     },
   },
   user: {
@@ -117,14 +116,19 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // Resolve the actual users table ID (may differ from Better Auth session ID for migrated users)
+    // Resolve the actual users table data (may differ from Better Auth session for migrated users)
     let userId = session.user.id;
+    let firstName = session.user.name?.split(' ')[0] || '';
+    let lastName = session.user.name?.split(' ').slice(1).join(' ') || '';
     const email = session.user.email;
     
+    // Look up user in database by email to get the correct ID and profile data
     if (email) {
       const dbUser = await storage.getUserByEmail(email);
       if (dbUser) {
         userId = dbUser.id;
+        firstName = dbUser.firstName || firstName;
+        lastName = dbUser.lastName || lastName;
       }
     }
 
@@ -133,8 +137,8 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
       claims: {
         sub: userId,
         email: email,
-        first_name: session.user.name?.split(' ')[0] || '',
-        last_name: session.user.name?.split(' ').slice(1).join(' ') || '',
+        first_name: firstName,
+        last_name: lastName,
       }
     };
     req.session = session;
