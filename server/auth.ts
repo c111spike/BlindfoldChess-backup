@@ -8,7 +8,7 @@ import * as schema from "@shared/schema";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = "simulchess.com@gmail.com";
+const FROM_EMAIL = "noreply@simulchess.com";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
