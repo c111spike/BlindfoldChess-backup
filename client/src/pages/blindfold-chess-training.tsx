@@ -11,7 +11,7 @@ export default function BlindfoldChessTraining() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Blindfold Chess Training - Practice Visualization | SimulChess</title>
+        <title>Blindfold Chess Training: Master Board Visualization | SimulChess</title>
         <meta name="description" content="Master board vision with SimulChess. Practice blindfold training with adjustable difficulty and immersive voice control. Start building your memory today!" />
         <meta property="og:title" content="Blindfold Chess Training - SimulChess" />
         <meta property="og:description" content="Master board vision with SimulChess. Practice blindfold training with adjustable difficulty and immersive voice control." />
@@ -132,7 +132,8 @@ export default function BlindfoldChessTraining() {
           <h4>Improved Pattern Recognition</h4>
           <p>
             Without visual cues, your brain learns to recognize positions through their essential characteristics 
-            rather than their appearance. You begin to "feel" when a piece is misplaced or when a tactical pattern 
+            rather than their appearance. You begin to "feel" when a piece is misplaced or when a{" "}
+            <Link href="/puzzles" className="text-primary hover:underline">tactical pattern</Link>{" "}
             exists, even before consciously identifying it. This intuitive pattern recognition is what separates 
             masters from amateurs and develops most efficiently through blindfold practice.
           </p>
@@ -146,6 +147,17 @@ export default function BlindfoldChessTraining() {
           </p>
 
           <h3>How to Practice Blindfold Chess on SimulChess</h3>
+          
+          <div className="not-prose my-6 p-4 bg-muted/50 rounded-lg border">
+            <h4 className="font-semibold text-lg mb-3">Quick Start Guide</h4>
+            <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+              <li>Enable <strong>Blindfold Mode</strong> toggle in Standard play settings.</li>
+              <li>Select your <strong>Peek Difficulty</strong> (Beginner to Grandmaster).</li>
+              <li>Use <strong>Voice Commands</strong> to announce moves hands-free.</li>
+              <li>Review your <strong>Peek Time stats</strong> to track visualization growth.</li>
+            </ol>
+          </div>
+
           <p>
             Our blindfold training system is designed for players of all levels, from complete beginners to 
             aspiring masters. When you enable Blindfold Mode in Standard play, a dark cover obscures the 
@@ -200,7 +212,15 @@ export default function BlindfoldChessTraining() {
             Blindfold chess has fascinated players for over a thousand years. The first documented blindfold 
             games occurred in the Arab world during the 8th century. In the 19th century, Paul Morphy amazed 
             audiences by playing multiple blindfold games simultaneously. The modern record for simultaneous 
-            blindfold games is held by Timur Gareyev, who played 48 games at once while blindfolded.
+            blindfold games is held by{" "}
+            <a 
+              href="https://en.wikipedia.org/wiki/Timur_Gareyev" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              Timur Gareyev
+            </a>, who played 48 games at once while blindfolded.
           </p>
 
           <p>
