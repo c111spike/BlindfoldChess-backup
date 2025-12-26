@@ -39,6 +39,8 @@ import Contact from "@/pages/contact";
 import OidcError from "@/pages/oidc-error";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import BlindfoldChessTraining from "@/pages/blindfold-chess-training";
 import OTBTournamentSimulator from "@/pages/otb-tournament-simulator";
 import SimulChessTraining from "@/pages/simul-chess-training";
@@ -93,6 +95,8 @@ function Router() {
       <Route path="/chess-game-review" component={ChessGameReview} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -115,7 +119,7 @@ function AppContent() {
     "/blindfold-chess-training", "/otb-tournament-simulator", "/simul-chess-training",
     "/knights-tour-puzzle", "/chess-piece-challenge", "/chess-puzzles-trainer", "/chess-board-spin",
     "/opening-repertoire-trainer", "/chess-game-review",
-    "/login", "/signup"
+    "/login", "/signup", "/forgot-password", "/reset-password"
   ].includes(location);
 
   useEffect(() => {
@@ -130,14 +134,22 @@ function AppContent() {
     return <OidcError />;
   }
 
-  // Handle auth pages (login/signup) - render without sidebar wrapper
-  if ((location === "/login" || location === "/signup") && !isAuthenticated) {
-    const AuthPageComponent = location === "/login" ? Login : Signup;
-    return (
-      <div className="min-h-screen bg-background">
-        <AuthPageComponent />
-      </div>
-    );
+  // Handle auth pages (login/signup/forgot-password/reset-password) - render without sidebar wrapper
+  const authPages = ["/login", "/signup", "/forgot-password", "/reset-password"];
+  if (authPages.includes(location) && !isAuthenticated) {
+    const AuthPageComponent = {
+      "/login": Login,
+      "/signup": Signup,
+      "/forgot-password": ForgotPassword,
+      "/reset-password": ResetPassword,
+    }[location];
+    if (AuthPageComponent) {
+      return (
+        <div className="min-h-screen bg-background">
+          <AuthPageComponent />
+        </div>
+      );
+    }
   }
 
   // Handle public pages (privacy, terms, about, contact, SEO landing pages) - accessible without auth

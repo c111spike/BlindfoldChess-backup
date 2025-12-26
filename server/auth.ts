@@ -5,6 +5,10 @@ import type { RequestHandler } from "express";
 import { db } from "./db";
 import { storage } from "./storage";
 import * as schema from "@shared/schema";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = "simulchess.com@gmail.com";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -25,6 +29,34 @@ export const auth = betterAuth({
     autoSignIn: true,
     minPasswordLength: 8,
     maxPasswordLength: 128,
+    sendResetPassword: async ({ user, url }) => {
+      try {
+        await resend.emails.send({
+          from: FROM_EMAIL,
+          to: user.email,
+          subject: "Reset your SimulChess password",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #1a1a1a;">Reset Your Password</h2>
+              <p>Hi ${user.name || "there"},</p>
+              <p>You requested to reset your password for your SimulChess account.</p>
+              <p>Click the button below to set a new password:</p>
+              <a href="${url}" style="display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Reset Password</a>
+              <p>Or copy and paste this link into your browser:</p>
+              <p style="color: #666; word-break: break-all;">${url}</p>
+              <p>This link will expire in 1 hour.</p>
+              <p>If you didn't request this, you can safely ignore this email.</p>
+              <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+              <p style="color: #999; font-size: 12px;">SimulChess - Professional Chess Training</p>
+            </div>
+          `,
+        });
+        console.log(`Password reset email sent to ${user.email}`);
+      } catch (error) {
+        console.error("Failed to send password reset email:", error);
+        throw new Error("Failed to send password reset email");
+      }
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days

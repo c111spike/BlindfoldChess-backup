@@ -75,7 +75,13 @@ export default function PrivacyPolicy() {
                     <div>
                       <h3 className="font-medium mb-2">Account Information</h3>
                       <p className="text-muted-foreground leading-relaxed">
-                        When you create an account, we collect your email address, display name, and a securely hashed version of your password. We use industry-standard password hashing (via Better Auth) and never store your password in plain text. This data is used to manage your account, enable login functionality, track your puzzle progress and solving statistics, store your Blindfold training metrics (including "Peek" usage), and communicate important account-related information.
+                        When you create an account, we collect your email address, display name, and a securely hashed version of your password. We use industry-standard password hashing (via Better Auth) and never store your password in plain text. This data is used to manage your account, enable login functionality, track your puzzle progress and solving statistics, store your Blindfold training metrics (including "Peek" usage), and communicate important account-related information including password reset emails.
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="font-medium mb-2">Password Reset Emails</h3>
+                      <p className="text-muted-foreground leading-relaxed">
+                        When you request a password reset, we send a secure reset link to your registered email address via Resend, a third-party email service provider. This email contains a time-limited token (valid for 1 hour) that allows you to set a new password. We do not share your email with Resend for any purpose other than delivering this transactional email.
                       </p>
                     </div>
                     <div>

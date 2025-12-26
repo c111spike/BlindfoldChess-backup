@@ -82,6 +82,24 @@ export default function TermsOfService() {
                 </section>
 
                 <section>
+                  <h2 className="text-xl font-semibold mb-3">Password Reset</h2>
+                  <div className="space-y-3 text-muted-foreground leading-relaxed">
+                    <p>
+                      SimulChess provides a password reset feature for users who forget their password. When you request a password reset:
+                    </p>
+                    <ul className="list-disc list-inside space-y-2">
+                      <li>A reset link will be sent to your registered email address</li>
+                      <li>Reset links expire after 1 hour for security purposes</li>
+                      <li>You must have access to the email address associated with your account</li>
+                      <li>For security, we do not confirm whether an email address exists in our system</li>
+                    </ul>
+                    <p>
+                      Password reset emails are sent via Resend, a third-party email service provider. By using the password reset feature, you acknowledge that your email address will be processed by Resend to deliver the reset email.
+                    </p>
+                  </div>
+                </section>
+
+                <section>
                   <h2 className="text-xl font-semibold mb-3">Acceptable Use</h2>
                   <p className="text-muted-foreground leading-relaxed mb-3">
                     You agree to use SimulChess only for lawful purposes. You must not:
