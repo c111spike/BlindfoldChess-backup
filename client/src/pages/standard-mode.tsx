@@ -535,7 +535,7 @@ export default function StandardMode() {
       setWhiteTime(gameData.whiteTime || 180);
       setBlackTime(gameData.blackTime || 180);
       setIncrement(gameData.increment || 0);
-      setOpponentName(matchData.opponent.name?.split(' ')[0] || 'Opponent');
+      setOpponentName((matchData.opponent.name || '').trim().split(/\s+/)[0] || 'Opponent');
       setOpponentRating(matchData.opponent.rating);
       if (matchData.playerRating) {
         setPlayerRating(matchData.playerRating);

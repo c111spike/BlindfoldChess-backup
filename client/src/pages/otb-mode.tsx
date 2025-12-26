@@ -970,7 +970,7 @@ export default function OTBMode() {
       
       // Update opponent info from server
       if (data.opponent) {
-        setOpponentName(data.opponent.name?.split(' ')[0] || 'Opponent');
+        setOpponentName((data.opponent.name || '').trim().split(/\s+/)[0] || 'Opponent');
         setOpponentRating(data.opponent.rating);
       }
       if (data.playerRating) {
@@ -1319,7 +1319,7 @@ export default function OTBMode() {
           setArbiterResult(null);
           
           if (response.opponent) {
-            setOpponentName(response.opponent.name?.split(' ')[0] || "Opponent");
+            setOpponentName((response.opponent.name || '').trim().split(/\s+/)[0] || "Opponent");
             setOpponentId(response.opponent.id || null);
             setOpponentRating(response.opponent.rating || 1200);
           }
