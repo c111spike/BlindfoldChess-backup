@@ -26,12 +26,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register object storage routes for file uploads
   registerObjectStorageRoutes(app);
   
-  // Serve SEO files from client/public for both dev and prod
-  const publicPath = path.resolve(import.meta.dirname, "../client/public");
+  // Serve SEO files - check production path first (server/public), then dev path (client/public)
+  const prodPublicPath = path.resolve(import.meta.dirname, "public");
+  const devPublicPath = path.resolve(import.meta.dirname, "../client/public");
+  
+  const getSeoFilePath = (filename: string): string | null => {
+    const prodPath = path.join(prodPublicPath, filename);
+    if (fs.existsSync(prodPath)) return prodPath;
+    const devPath = path.join(devPublicPath, filename);
+    if (fs.existsSync(devPath)) return devPath;
+    return null;
+  };
   
   app.get("/sitemap.xml", (_req, res) => {
-    const sitemapPath = path.join(publicPath, "sitemap.xml");
-    if (fs.existsSync(sitemapPath)) {
+    const sitemapPath = getSeoFilePath("sitemap.xml");
+    if (sitemapPath) {
       res.setHeader("Content-Type", "application/xml");
       res.sendFile(sitemapPath);
     } else {
@@ -40,8 +49,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.get("/robots.txt", (_req, res) => {
-    const robotsPath = path.join(publicPath, "robots.txt");
-    if (fs.existsSync(robotsPath)) {
+    const robotsPath = getSeoFilePath("robots.txt");
+    if (robotsPath) {
       res.setHeader("Content-Type", "text/plain");
       res.sendFile(robotsPath);
     } else {
