@@ -1750,29 +1750,42 @@ export default function SimulVsSimulMode() {
               })}
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowMatchEndDialog(false);
+                    if (matchId) {
+                      setLocation(`/simul-match/${matchId}/review`);
+                    }
+                  }}
+                  data-testid="button-review-boards"
+                >
+                  Review Boards
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowMatchEndDialog(false);
+                    setLocation('/history');
+                  }}
+                  data-testid="button-view-history"
+                >
+                  Game History
+                </Button>
+              </div>
               <Button
-                variant="outline"
-                className="flex-1"
+                className="w-full"
                 onClick={() => {
                   setShowMatchEndDialog(false);
-                  if (matchId) {
-                    setLocation(`/simul-match/${matchId}/review`);
-                  }
+                  setLocation('/');
                 }}
-                data-testid="button-review-boards"
+                data-testid="button-main-menu"
               >
-                Review Boards
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={() => {
-                  setShowMatchEndDialog(false);
-                  setLocation('/history');
-                }}
-                data-testid="button-view-history"
-              >
-                Game History
+                Main Menu
               </Button>
             </div>
           </div>
