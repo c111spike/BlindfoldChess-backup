@@ -329,11 +329,13 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     // Use case-insensitive email lookup (Better Auth normalizes to lowercase)
-    // Using lower() on both sides for exact equality comparison
     const normalizedEmail = email.toLowerCase().trim();
-    const [user] = await db.select().from(users).where(
-      sql`lower(${users.email}) = ${normalizedEmail}`
-    );
+    // First try exact match (most common case)
+    let [user] = await db.select().from(users).where(eq(users.email, normalizedEmail));
+    // If not found, try case-insensitive search
+    if (!user) {
+      [user] = await db.select().from(users).where(ilike(users.email, normalizedEmail));
+    }
     return user;
   }
 
