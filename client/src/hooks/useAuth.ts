@@ -7,11 +7,15 @@ export function useAuth() {
   // Use better-auth's built-in useSession hook
   const { data: sessionData, isPending: isSessionLoading, error: sessionError } = useSession();
   
+  // Include session user's email in query key to force refetch when session changes
+  const sessionEmail = sessionData?.user?.email;
+  
   const { data: user, isLoading: isUserLoading, isError } = useQuery<User | null>({
-    queryKey: ["/api/auth/user"],
+    queryKey: ["/api/auth/user", sessionEmail],
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
     enabled: !!sessionData?.user,
+    staleTime: 0, // Always refetch to get fresh user data
   });
 
   const isSuspended = user?.suspendedUntil ? new Date(user.suspendedUntil) > new Date() : false;

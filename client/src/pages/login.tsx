@@ -37,9 +37,12 @@ export default function Login() {
           title: "Welcome back!",
           description: "You have successfully logged in.",
         });
-        // Invalidate auth cache and do a full page navigation to ensure session is loaded
+        // Invalidate all auth-related caches and do a full page navigation to ensure session is loaded
         queryClient.invalidateQueries({ queryKey: ["/api/auth/get-session"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        // Use predicate to match any /api/auth/user query (may include email in key)
+        queryClient.invalidateQueries({ 
+          predicate: (query) => (query.queryKey[0] as string)?.startsWith('/api/auth/user')
+        });
         window.location.href = "/";
       }
     } catch (error: any) {
