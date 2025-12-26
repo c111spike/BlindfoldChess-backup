@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TestUserSwitcher } from "@/components/TestUserSwitcher";
+import { MobileFooter } from "@/components/mobile-footer";
 import { useAuth } from "@/hooks/useAuth";
 import { isDevelopment, getTestUserId } from "@/lib/devMode";
 import NotFound from "@/pages/not-found";
@@ -144,14 +145,17 @@ function AppContent() {
     
     if (PublicPageComponent) {
       return (
-        <div className="min-h-screen bg-background">
-          <div className="p-4 border-b flex justify-between items-center">
-            <a href="/api/login" className="text-primary hover:underline" data-testid="link-login">
-              Sign in to SimulChess
+        <div className="min-h-screen bg-background flex flex-col">
+          <div className="flex justify-between items-center px-4 py-2">
+            <a href="/api/login" className="text-primary hover:underline text-sm" data-testid="link-login">
+              Sign in
             </a>
             <ThemeToggle />
           </div>
-          <PublicPageComponent />
+          <div className="flex-1">
+            <PublicPageComponent />
+          </div>
+          <MobileFooter />
         </div>
       );
     }
@@ -184,15 +188,18 @@ function AppContent() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between p-2 border-b gap-2">
+          <div className="flex items-center justify-between px-4 py-2">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
               {isAuthenticated && <TestUserSwitcher />}
               <ThemeToggle />
             </div>
-          </header>
-          <main className="flex-1 overflow-auto p-4">
-            <Router />
+          </div>
+          <main className="flex-1 overflow-auto">
+            <div className="p-4">
+              <Router />
+            </div>
+            <MobileFooter />
           </main>
         </div>
       </div>
