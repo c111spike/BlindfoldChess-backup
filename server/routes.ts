@@ -71,28 +71,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const email = req.user.claims.email;
       const userId = req.user.claims.sub;
+      const firstName = req.user.claims.first_name || '';
+      const lastName = req.user.claims.last_name || '';
       
-      // DIAGNOSTIC: Log the lookup attempt
       console.log('[/api/auth/user] Lookup:', { email, userId });
       
       // Try to find user by email first (handles auth system migration), fall back to ID
       let user = email ? await storage.getUserByEmail(email) : null;
-      
-      // DIAGNOSTIC: Log email lookup result
       console.log('[/api/auth/user] Email lookup result:', user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : 'NOT_FOUND');
       
       if (!user && userId) {
         user = await storage.getUser(userId);
-        // DIAGNOSTIC: Log ID lookup result
         console.log('[/api/auth/user] ID lookup result:', user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : 'NOT_FOUND');
       }
       
+      // AUTO-SYNC: If user still not found, create new record from Better Auth session
+      if (!user && email) {
+        console.log('[/api/auth/user] User not found, creating new record for email:', email);
+        const newUser = await storage.upsertUser({
+          id: userId,
+          email: email,
+          firstName: firstName || null,
+          lastName: lastName || null,
+        });
+        console.log('[/api/auth/user] Created new user:', { id: newUser.id, email: newUser.email, isAdmin: newUser.isAdmin });
+        user = newUser;
+      }
+      
       if (!user) {
-        console.log('[/api/auth/user] User not found by email or ID');
+        console.log('[/api/auth/user] User not found and could not be created');
         return res.status(404).json({ message: "User not found" });
       }
       
-      // DIAGNOSTIC: Log final user being returned
       console.log('[/api/auth/user] Returning user:', { id: user.id, email: user.email, isAdmin: user.isAdmin });
       
       const now = new Date();
