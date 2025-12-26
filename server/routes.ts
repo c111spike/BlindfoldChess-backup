@@ -56,9 +56,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Prevent Cloudflare from caching API responses
+  // Prevent all caching of API responses (browser + CDN/Cloudflare)
   app.use('/api', (req, res, next) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, private, max-age=0');
+    res.set('CDN-Cache-Control', 'no-store');
+    res.set('Cloudflare-CDN-Cache-Control', 'no-store');
+    res.set('Surrogate-Control', 'no-store');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
     next();

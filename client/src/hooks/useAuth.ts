@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
-import { getQueryFn } from "@/lib/queryClient";
 import { useSession } from "@/lib/auth-client";
 
 export function useAuth() {
@@ -12,10 +11,24 @@ export function useAuth() {
   
   const { data: user, isLoading: isUserLoading, isError } = useQuery<User | null>({
     queryKey: ["/api/auth/user", sessionEmail],
-    queryFn: getQueryFn({ on401: "returnNull" }),
+    // Custom queryFn with cache-busting to bypass any CDN/browser caching
+    queryFn: async () => {
+      const cacheBuster = Date.now();
+      const res = await fetch(`/api/auth/user?_cb=${cacheBuster}`, {
+        credentials: "include",
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
+      if (res.status === 401) return null;
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return await res.json();
+    },
     retry: false,
     enabled: !!sessionData?.user,
     staleTime: 0, // Always refetch to get fresh user data
+    gcTime: 0, // Don't keep stale data in cache
   });
 
   const isSuspended = user?.suspendedUntil ? new Date(user.suspendedUntil) > new Date() : false;
