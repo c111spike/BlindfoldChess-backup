@@ -7,8 +7,10 @@ import express, {
   Response,
   NextFunction,
 } from "express";
+import { toNodeHandler } from "better-auth/node";
 
 import { registerRoutes } from "./routes";
+import { auth } from "./auth";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -22,6 +24,10 @@ export function log(message: string, source = "express") {
 }
 
 export const app = express();
+
+// IMPORTANT: Better Auth handler must be mounted BEFORE express.json()
+// Otherwise client API requests will get stuck on "pending"
+app.all("/api/auth/*", toNodeHandler(auth));
 
 declare module 'http' {
   interface IncomingMessage {

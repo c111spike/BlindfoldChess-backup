@@ -26,6 +26,53 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Better Auth tables
+export const authUser = pgTable("auth_user", {
+  id: varchar("id").primaryKey(),
+  name: varchar("name").notNull(),
+  email: varchar("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: varchar("image"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const authSession = pgTable("auth_session", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  ipAddress: varchar("ip_address"),
+  userAgent: varchar("user_agent"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const authAccount = pgTable("auth_account", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+  accountId: varchar("account_id").notNull(),
+  providerId: varchar("provider_id").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: varchar("scope"),
+  idToken: text("id_token"),
+  password: varchar("password"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const authVerification = pgTable("auth_verification", {
+  id: varchar("id").primaryKey(),
+  identifier: varchar("identifier").notNull(),
+  value: varchar("value").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),

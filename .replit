@@ -45,3 +45,8 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_database:1.0.0", "javascript_log_in_with_replit:1.0.0", "javascript_websocket:1.0.0", "javascript_object_storage:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+BETTER_AUTH_SECRET = "C1wUI6OwtJ+ThmyyX28IIH96a9aRTk4OfR8q0Eg2TxQ="
