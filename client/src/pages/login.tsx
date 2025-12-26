@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { signIn } from "@/lib/auth-client";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2, LogIn } from "lucide-react";
+import logoImage from "@assets/SimulChess_Logo_1766758716992.png";
 
 export default function Login() {
   const { toast } = useToast();
@@ -57,7 +58,9 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl flex items-center justify-center gap-2">
-            <LogIn className="h-6 w-6" />
+            <Link href="/" data-testid="link-logo-home">
+              <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+            </Link>
             Log In
           </CardTitle>
           <CardDescription>

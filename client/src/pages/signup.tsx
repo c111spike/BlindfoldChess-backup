@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { signUp } from "@/lib/auth-client";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2, UserPlus } from "lucide-react";
+import logoImage from "@assets/SimulChess_Logo_1766758716992.png";
 
 export default function Signup() {
   const { toast } = useToast();
@@ -79,7 +80,9 @@ export default function Signup() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl flex items-center justify-center gap-2">
-            <UserPlus className="h-6 w-6" />
+            <Link href="/" data-testid="link-logo-home">
+              <img src={logoImage} alt="SimulChess Logo" className="h-8 w-auto" />
+            </Link>
             Create Account
           </CardTitle>
           <CardDescription>
