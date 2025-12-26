@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { Chess } from "chess.js";
+import path from "path";
+import fs from "fs";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema, insertPuzzleSchema, insertPuzzleVoteSchema, insertPuzzleReportSchema } from "@shared/schema";
@@ -23,6 +25,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register object storage routes for file uploads
   registerObjectStorageRoutes(app);
+  
+  // Serve SEO files from client/public for both dev and prod
+  const publicPath = path.resolve(import.meta.dirname, "../client/public");
+  
+  app.get("/sitemap.xml", (_req, res) => {
+    const sitemapPath = path.join(publicPath, "sitemap.xml");
+    if (fs.existsSync(sitemapPath)) {
+      res.setHeader("Content-Type", "application/xml");
+      res.sendFile(sitemapPath);
+    } else {
+      res.status(404).send("Sitemap not found");
+    }
+  });
+  
+  app.get("/robots.txt", (_req, res) => {
+    const robotsPath = path.join(publicPath, "robots.txt");
+    if (fs.existsSync(robotsPath)) {
+      res.setHeader("Content-Type", "text/plain");
+      res.sendFile(robotsPath);
+    } else {
+      res.status(404).send("Robots.txt not found");
+    }
+  });
   
   // Prevent Cloudflare from caching API responses
   app.use('/api', (req, res, next) => {
