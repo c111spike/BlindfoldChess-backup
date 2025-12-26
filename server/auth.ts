@@ -1,5 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { fromNodeHeaders } from "better-auth/node";
+import type { RequestHandler } from "express";
 import { db } from "./db";
 import { storage } from "./storage";
 import * as schema from "@shared/schema";
@@ -68,3 +70,32 @@ export const auth = betterAuth({
 
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
+
+// Middleware to check if user is authenticated
+export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
+  try {
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
+
+    if (!session?.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Attach user info to request for compatibility with existing routes
+    req.user = {
+      claims: {
+        sub: session.user.id,
+        email: session.user.email,
+        first_name: session.user.name?.split(' ')[0] || '',
+        last_name: session.user.name?.split(' ').slice(1).join(' ') || '',
+      }
+    };
+    req.session = session;
+
+    return next();
+  } catch (error) {
+    console.error("Auth error:", error);
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+};

@@ -37,6 +37,8 @@ import Help from "@/pages/help";
 import About from "@/pages/about";
 import Contact from "@/pages/contact";
 import OidcError from "@/pages/oidc-error";
+import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 import BlindfoldChessTraining from "@/pages/blindfold-chess-training";
 import OTBTournamentSimulator from "@/pages/otb-tournament-simulator";
 import SimulChessTraining from "@/pages/simul-chess-training";
@@ -89,6 +91,8 @@ function Router() {
       <Route path="/chess-board-spin" component={ChessBoardSpin} />
       <Route path="/opening-repertoire-trainer" component={OpeningRepertoireTrainer} />
       <Route path="/chess-game-review" component={ChessGameReview} />
+      <Route path="/login" component={Login} />
+      <Route path="/signup" component={Signup} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -110,13 +114,14 @@ function AppContent() {
     "/privacy", "/terms", "/about", "/contact",
     "/blindfold-chess-training", "/otb-tournament-simulator", "/simul-chess-training",
     "/knights-tour-puzzle", "/chess-piece-challenge", "/chess-puzzles-trainer", "/chess-board-spin",
-    "/opening-repertoire-trainer", "/chess-game-review"
+    "/opening-repertoire-trainer", "/chess-game-review",
+    "/login", "/signup"
   ].includes(location);
 
   useEffect(() => {
     // Don't redirect if we're on public pages, homepage, or OIDC error page
     if (!isLoading && !isAuthenticated && !isUsingTestUser && !isOidcErrorPage && !isPublicLandingPage && !isHomePage) {
-      window.location.href = "/api/login";
+      window.location.href = "/login";
     }
   }, [isLoading, isAuthenticated, isUsingTestUser, isOidcErrorPage, isPublicLandingPage, isHomePage]);
 

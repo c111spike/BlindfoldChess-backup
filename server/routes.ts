@@ -5,7 +5,7 @@ import { Chess } from "chess.js";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { isAuthenticated } from "./auth";
 import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema, insertPuzzleSchema, insertPuzzleVoteSchema, insertPuzzleReportSchema } from "@shared/schema";
 import { createQueueManager } from "./queueManager";
 import { generatePosition, calculateScore, getAllDifficulties } from "./positionGenerator";
@@ -19,8 +19,6 @@ import { registerObjectStorageRoutes } from "./replit_integrations/object_storag
 const { queueManager } = createQueueManager();
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  await setupAuth(app);
-  
   await analysisQueueManager.init();
   
   // Register object storage routes for file uploads
