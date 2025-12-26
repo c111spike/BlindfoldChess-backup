@@ -57,7 +57,7 @@ export default function ChessGameReview() {
             <h1 className="text-3xl md:text-4xl font-bold">Game Review</h1>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Go beyond engine scores. SimulChess Game Review analyzes your thinking patterns, focus, and VSS Mismatch to show you WHY you blundered, not just what you missed.
+            Go beyond engine scores. SimulChess Game Review analyzes your thinking patterns, focus, and <strong>VSS Mismatch</strong> to show you WHY you blundered, not just what you missed.
           </p>
         </div>
 
@@ -167,7 +167,7 @@ export default function ChessGameReview() {
                 <li><strong>Efficiency Factor</strong> — Time spent vs. move quality (0-100% with letter grade)</li>
                 <li><strong>Time Trouble</strong> — Detects when clock pressure hurt you</li>
                 <li><strong>Burnout Detection</strong> — Identifies late-game fatigue patterns</li>
-                <li><strong>VSS Mismatch</strong> — Spots visualization failures with replay</li>
+                <li><strong>VSS Mismatch</strong> (proprietary) — Spots visualization failures with replay</li>
                 <li><strong>Repertoire Check</strong> — Shows opening deviations</li>
                 <li><strong>Peek Statistics</strong> — Tracks blindfold training progress</li>
               </ul>
@@ -234,7 +234,7 @@ export default function ChessGameReview() {
             <div className="p-4 rounded-lg bg-muted/30 border-l-4 border-purple-500">
               <h3 className="font-semibold flex items-center gap-2 mb-2">
                 <AlertTriangle className="h-4 w-4" />
-                VSS Mismatch Alerts
+                <strong>VSS Mismatch</strong> Alerts
               </h3>
               <p className="text-sm text-muted-foreground mb-3">
                 <strong>Visual-Spatial-Strategic Mismatch</strong> — Detects when you likely 
@@ -354,7 +354,7 @@ export default function ChessGameReview() {
             Puzzle Integration: The Feedback Loop
           </h2>
           <p className="text-muted-foreground mb-4">
-            VSS Mismatch alerts and missed tactics don't just identify problems—they bridge the gap to mastery.
+            <strong>VSS Mismatch</strong> alerts and missed tactics don't just identify problems—they bridge the gap to mastery.
           </p>
           <div className="p-5 rounded-lg border mb-6">
             <div className="flex items-center gap-2 mb-3">
@@ -426,7 +426,7 @@ export default function ChessGameReview() {
           </p>
           <ul className="text-muted-foreground space-y-2 mb-8">
             <li>Deviation in a game → Drill button → Repertoire Trainer</li>
-            <li>Missed tactic → VSS Mismatch replay → Pattern training</li>
+            <li>Missed tactic → <strong>VSS Mismatch</strong> replay → Pattern training</li>
             <li>Missed Tactic → Motif Detection → Personalized Puzzle Recommendation</li>
             <li>Blindfold peek → Visualization zone tracking → Targeted practice</li>
             <li>Time trouble errors → Focus on time management → Improved discipline</li>
