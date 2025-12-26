@@ -110,7 +110,7 @@ export default function PublicHomePage() {
               </Button>
             </div>
             <p className="text-sm text-white/70" data-testid="text-login-info">
-              Secure login powered by Replit. No new password needed—just use your Google or GitHub account to save your puzzle progress and ELO.
+              Secure login powered by Replit. No new password needed—just use your Google or GitHub account to start practicing your OTB skills and blindfold training.
             </p>
           </div>
         </div>
