@@ -61,7 +61,7 @@ export default function Signup() {
         });
         // Invalidate auth cache and do a full page navigation to ensure session is loaded
         queryClient.invalidateQueries({ queryKey: ["/api/auth/get-session"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
         window.location.href = "/";
       }
     } catch (error: any) {

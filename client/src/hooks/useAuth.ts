@@ -10,11 +10,11 @@ export function useAuth() {
   const sessionEmail = sessionData?.user?.email;
   
   const { data: user, isLoading: isUserLoading, isError } = useQuery<User | null>({
-    queryKey: ["/api/auth/user", sessionEmail],
+    queryKey: ["/api/user", sessionEmail],
     // Custom queryFn with cache-busting to bypass any CDN/browser caching
     queryFn: async () => {
       const cacheBuster = Date.now();
-      const res = await fetch(`/api/auth/user?_cb=${cacheBuster}`, {
+      const res = await fetch(`/api/user?_cb=${cacheBuster}`, {
         credentials: "include",
         headers: {
           'Cache-Control': 'no-cache',

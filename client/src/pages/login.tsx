@@ -39,9 +39,9 @@ export default function Login() {
         });
         // Invalidate all auth-related caches and do a full page navigation to ensure session is loaded
         queryClient.invalidateQueries({ queryKey: ["/api/auth/get-session"] });
-        // Use predicate to match any /api/auth/user query (may include email in key)
+        // Use predicate to match any /api/user query (may include email in key)
         queryClient.invalidateQueries({ 
-          predicate: (query) => (query.queryKey[0] as string)?.startsWith('/api/auth/user')
+          predicate: (query) => (query.queryKey[0] as string)?.startsWith('/api/user')
         });
         window.location.href = "/";
       }

@@ -67,7 +67,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
 
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user', isAuthenticated, async (req: any, res) => {
     try {
       const email = req.user.claims.email;
       const userId = req.user.claims.sub;
@@ -75,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lastName = req.user.claims.last_name || '';
       const isAdmin = req.user.claims.is_admin === true; // From auth_user table
       
-      console.log('[/api/auth/user] Claims:', { email, userId, isAdmin });
+      console.log('[/api/user] Claims:', { email, userId, isAdmin });
       
       // Try to find user by email first (handles auth system migration), fall back to ID
       let user = email ? await storage.getUserByEmail(email) : null;
@@ -86,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // AUTO-SYNC: If user still not found, create new record from Better Auth session
       if (!user && email) {
-        console.log('[/api/auth/user] Creating new user for email:', email);
+        console.log('[/api/user] Creating new user for email:', email);
         user = await storage.upsertUser({
           id: userId,
           email: email,
@@ -115,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Override isAdmin from auth_user table (source of truth)
       const responseUser = { ...user, isAdmin };
-      console.log('[/api/auth/user] Returning:', { id: responseUser.id, email: responseUser.email, isAdmin: responseUser.isAdmin });
+      console.log('[/api/user] Returning:', { id: responseUser.id, email: responseUser.email, isAdmin: responseUser.isAdmin });
       
       res.json(responseUser);
     } catch (error) {
