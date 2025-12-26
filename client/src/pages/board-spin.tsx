@@ -1058,7 +1058,7 @@ export default function BoardSpin() {
               <Button 
                 variant="outline" 
                 size="lg" 
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/')}
                 data-testid="button-main-menu"
               >
                 <Home className="w-4 h-4 mr-2" />
