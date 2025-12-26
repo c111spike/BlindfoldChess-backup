@@ -72,15 +72,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const email = req.user.claims.email;
       const userId = req.user.claims.sub;
       
+      // DIAGNOSTIC: Log the lookup attempt
+      console.log('[/api/auth/user] Lookup:', { email, userId });
+      
       // Try to find user by email first (handles auth system migration), fall back to ID
       let user = email ? await storage.getUserByEmail(email) : null;
+      
+      // DIAGNOSTIC: Log email lookup result
+      console.log('[/api/auth/user] Email lookup result:', user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : 'NOT_FOUND');
+      
       if (!user && userId) {
         user = await storage.getUser(userId);
+        // DIAGNOSTIC: Log ID lookup result
+        console.log('[/api/auth/user] ID lookup result:', user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : 'NOT_FOUND');
       }
       
       if (!user) {
+        console.log('[/api/auth/user] User not found by email or ID');
         return res.status(404).json({ message: "User not found" });
       }
+      
+      // DIAGNOSTIC: Log final user being returned
+      console.log('[/api/auth/user] Returning user:', { id: user.id, email: user.email, isAdmin: user.isAdmin });
       
       const now = new Date();
       if (!user.lastDailyReset || 
