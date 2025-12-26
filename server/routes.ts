@@ -526,8 +526,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
   
-  // Queue timeout manager - auto-fills with bots after 60 seconds
-  const QUEUE_TIMEOUT_MS = 60000; // 60 seconds
+  // Queue timeout manager - auto-fills with bots after 30 seconds
+  const QUEUE_TIMEOUT_MS = 30000; // 30 seconds
   const queueTimeoutTimers = new Map<number, NodeJS.Timeout>();
   
   async function checkQueueTimeout(boardCount: number) {
