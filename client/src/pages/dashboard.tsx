@@ -10,7 +10,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { ThisDayInChessHistory } from "@/components/this-day-in-chess-history";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  
+  // Use session name (from Better Auth) as primary source, fallback to user firstName from DB
+  const displayName = session?.user?.name?.split(' ')[0] || user?.firstName || 'Player';
   
   const { data: ratings, isLoading: ratingsLoading } = useQuery<Rating>({
     queryKey: ["/api/ratings"],
@@ -68,7 +71,7 @@ export default function Dashboard() {
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div className="flex-shrink-0">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Dashboard Mode</div>
-            <h1 className="text-2xl lg:text-3xl font-bold mb-1">Welcome back, {user?.firstName || 'Player'}</h1>
+            <h1 className="text-2xl lg:text-3xl font-bold mb-1">Welcome back, {displayName}</h1>
             <p className="text-sm text-muted-foreground">Ready for your daily training?</p>
           </div>
           <div className="lg:max-w-md w-full">
