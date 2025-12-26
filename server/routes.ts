@@ -899,10 +899,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get player's board assignments
       const boards = playerGames.map(pairing => {
         const isWhite = pairing.whitePlayerId === userId || (pairing.whiteIsBot && !pairing.blackIsBot);
-        const opponentPlayer = players.find(p => 
-          isWhite ? (p.odId === pairing.blackPlayerId || (pairing.blackIsBot && p.isBot && p.botId === pairing.blackBotId)) 
-                  : (p.odId === pairing.whitePlayerId || (pairing.whiteIsBot && p.isBot && p.botId === pairing.whiteBotId))
-        );
+        // Find opponent: for bots check botId, for humans check odId
+        // Bug fix: avoid null === null matching first bot when opponent is a bot
+        const opponentPlayer = players.find(p => {
+          if (isWhite) {
+            // Looking for black player (opponent)
+            return pairing.blackIsBot 
+              ? (p.isBot && p.botId === pairing.blackBotId)
+              : (p.odId === pairing.blackPlayerId);
+          } else {
+            // Looking for white player (opponent)
+            return pairing.whiteIsBot 
+              ? (p.isBot && p.botId === pairing.whiteBotId)
+              : (p.odId === pairing.whitePlayerId);
+          }
+        });
 
         return {
           pairingId: pairing.id,
@@ -1040,10 +1051,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const boards = playerGames.map(pairing => {
         // User is white if they are the whitePlayerId, or if black is a bot and white is not
         const isWhite = pairing.whitePlayerId === userId || (!pairing.whiteIsBot && pairing.blackIsBot);
-        const opponentPlayer = players.find(p => 
-          isWhite ? (p.odId === pairing.blackPlayerId || (pairing.blackIsBot && p.isBot && p.botId === pairing.blackBotId)) 
-                  : (p.odId === pairing.whitePlayerId || (pairing.whiteIsBot && p.isBot && p.botId === pairing.whiteBotId))
-        );
+        // Find opponent: for bots check botId, for humans check odId
+        // Bug fix: avoid null === null matching first bot when opponent is a bot
+        const opponentPlayer = players.find(p => {
+          if (isWhite) {
+            // Looking for black player (opponent)
+            return pairing.blackIsBot 
+              ? (p.isBot && p.botId === pairing.blackBotId)
+              : (p.odId === pairing.blackPlayerId);
+          } else {
+            // Looking for white player (opponent)
+            return pairing.whiteIsBot 
+              ? (p.isBot && p.botId === pairing.whiteBotId)
+              : (p.odId === pairing.whitePlayerId);
+          }
+        });
 
         return {
           pairingId: pairing.id,
