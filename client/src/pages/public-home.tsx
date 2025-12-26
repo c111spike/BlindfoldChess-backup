@@ -8,7 +8,7 @@ import heroImage from "@assets/stock_images/chess_tournament_pro_50e5cb14.jpg";
 const landingPages = [
   {
     title: "Blindfold Chess Training",
-    description: "Develop exceptional visualization skills with voice-controlled blindfold chess. Train your memory with progressive difficulty levels.",
+    description: "Our voice-controlled blindfold system allows you to practice visualization without looking at a screen, mimicking the mental calculation grandmasters use during deep mid-game analysis.",
     url: "/blindfold-chess-training",
     icon: Eye,
   },
@@ -20,7 +20,7 @@ const landingPages = [
   },
   {
     title: "Simul Chess Training",
-    description: "Master simultaneous exhibitions with our revolutionary FIFO system. Manage 10+ boards efficiently.",
+    description: "Manage up to 12 boards simultaneously using our First-In-First-Out (FIFO) queue, specifically designed to help simul givers maintain a steady rhythm and avoid time pressure blunders.",
     url: "/simul-chess-training",
     icon: Users,
   },
@@ -81,7 +81,7 @@ export default function PublicHomePage() {
         <div className="relative h-full flex items-center px-8 py-16 md:py-24">
           <div className="max-w-2xl space-y-6">
             <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight" data-testid="text-hero-title">
-              Build Grandmaster Vision
+              SimulChess: Professional OTB & Blindfold Chess Training Platform
             </h1>
             <p className="text-lg md:text-xl text-white/90 leading-relaxed" data-testid="text-hero-subtitle">
               SimulChess is your professional chess training platform. Master OTB habits, 
@@ -110,7 +110,7 @@ export default function PublicHomePage() {
               </Button>
             </div>
             <p className="text-sm text-white/70" data-testid="text-login-info">
-              Secure login powered by Replit. No new password needed—just use your Google or GitHub account to start practicing your OTB skills and blindfold training.
+              Secure, one-click login via Google or GitHub. Start your training instantly without managing another set of credentials, while your progress is safely synced across all devices.
             </p>
           </div>
         </div>
@@ -156,6 +156,12 @@ export default function PublicHomePage() {
                 Most online chess platforms focus on rapid play with automatic move validation and instant clock switching. 
                 SimulChess is different. We simulate the authentic over-the-board tournament experience where you must 
                 physically press your clock, follow touch-move rules, and handle the psychological pressure of real competition.
+              </p>
+              <p className="text-muted-foreground leading-relaxed mb-4">
+                Unlike traditional online chess servers that automate the boring parts, SimulChess forces you to develop the 
+                muscle memory required for tournament success. By requiring manual clock presses and enforcing strict touch-move 
+                protocols, we eliminate the "lazy habits" that often lead to blunders in real-world Over-The-Board (OTB) settings. 
+                Our platform is built for the competitive player who wants their digital practice to translate directly to the physical board.
               </p>
               <p className="text-muted-foreground leading-relaxed">
                 Our Stockfish-powered analysis engine provides deep insights into your games, identifying patterns in your 
