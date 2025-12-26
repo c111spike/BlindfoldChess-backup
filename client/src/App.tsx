@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TestUserSwitcher } from "@/components/TestUserSwitcher";
 import { MobileFooter } from "@/components/mobile-footer";
@@ -215,13 +215,11 @@ function AppContent() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <div className="flex items-center gap-2">
-              {isAuthenticated && <TestUserSwitcher />}
-              <ThemeToggle />
+          {isAuthenticated && isDevelopment && (
+            <div className="flex items-center justify-end px-4 py-1">
+              <TestUserSwitcher />
             </div>
-          </div>
+          )}
           <main className="flex-1 overflow-auto">
             <div className="p-4">
               <Router />

@@ -10,9 +10,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  SidebarHeader,
+  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutDashboard, 
   Clock, 
@@ -37,6 +41,9 @@ import {
   Bell,
   BellOff,
   Eye,
+  Menu,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getNotificationsEnabled, setNotificationsEnabled } from "@/hooks/useNotifications";
@@ -178,20 +185,25 @@ export function AppSidebar() {
   };
 
   const currentMenuItems = isAuthenticated ? menuItems : guestMenuItems;
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   return (
-    <Sidebar>
-      <SidebarContent>
-        <SidebarGroup>
-          <div className="px-4 py-3 flex items-center gap-3">
-            <Link href="/">
-              <img src={logoImage} alt="SimulChess Logo" className="w-10 h-10 object-contain" />
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div className="flex items-center gap-2 px-2 py-2">
+          <SidebarTrigger data-testid="button-sidebar-toggle">
+            <Menu className="h-5 w-5" />
+          </SidebarTrigger>
+          {!isCollapsed && (
+            <Link href="/" className="flex items-center gap-2">
+              <img src={logoImage} alt="SimulChess Logo" className="w-8 h-8 object-contain" />
+              <h2 className="text-lg font-bold">SimulChess</h2>
             </Link>
-            <div>
-              <h2 className="text-xl font-bold">SimulChess</h2>
-            </div>
-          </div>
-        </SidebarGroup>
+          )}
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
 
         {!isAuthenticated && (
           <SidebarGroup>
@@ -212,7 +224,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {currentMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url}>
+                  <SidebarMenuButton asChild isActive={location === item.url} tooltip={item.title}>
                     <Link href={item.url} data-testid={`nav-${item.url.slice(1) || "home"}`}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -230,7 +242,7 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/admin"}>
+                  <SidebarMenuButton asChild isActive={location === "/admin"} tooltip="Admin Dashboard">
                     <Link href="/admin" data-testid="nav-admin">
                       <ShieldCheck className="h-4 w-4" />
                       <span>Admin Dashboard</span>
@@ -245,26 +257,28 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <div className="px-2 py-2 border-t border-sidebar-border">
-          {isAuthenticated && (
-            <div className="px-2 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {notificationsOn ? (
-                  <Bell className="h-4 w-4" />
-                ) : (
-                  <BellOff className="h-4 w-4" />
-                )}
-                <span>Notifications</span>
-              </div>
-              <Switch
-                checked={notificationsOn}
-                onCheckedChange={handleToggleNotifications}
-                data-testid="toggle-notifications"
-              />
-            </div>
-          )}
           <SidebarMenu>
+            {isAuthenticated && (
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={handleToggleNotifications} 
+                  tooltip={notificationsOn ? "Disable Notifications" : "Enable Notifications"}
+                  data-testid="toggle-notifications"
+                >
+                  {notificationsOn ? (
+                    <Bell className="h-4 w-4" />
+                  ) : (
+                    <BellOff className="h-4 w-4" />
+                  )}
+                  <span>Notifications {notificationsOn ? "On" : "Off"}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
+              <ThemeToggle variant="sidebar" />
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Privacy Policy">
                 <Link href="/privacy" data-testid="link-privacy">
                   <Shield className="h-4 w-4" />
                   <span>Privacy Policy</span>
@@ -272,7 +286,7 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
+              <SidebarMenuButton asChild tooltip="Terms of Service">
                 <Link href="/terms" data-testid="link-terms">
                   <FileText className="h-4 w-4" />
                   <span>Terms of Service</span>
@@ -280,7 +294,7 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
+              <SidebarMenuButton asChild tooltip="About Us">
                 <Link href="/about" data-testid="link-about">
                   <Info className="h-4 w-4" />
                   <span>About Us</span>
@@ -288,7 +302,7 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
+              <SidebarMenuButton asChild tooltip="Contact Us">
                 <Link href="/contact" data-testid="link-contact">
                   <Mail className="h-4 w-4" />
                   <span>Contact Us</span>
@@ -297,20 +311,24 @@ export function AppSidebar() {
             </SidebarMenuItem>
             {isAuthenticated ? (
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => {
+                <SidebarMenuButton 
+                  onClick={() => {
                     import("@/lib/auth-client").then(({ signOut }) => {
                       signOut().then(() => {
                         window.location.href = "/";
                       });
                     });
-                  }} data-testid="button-logout-sidebar">
-                    <LogOut className="h-4 w-4" />
-                    <span>Log Out</span>
+                  }} 
+                  tooltip="Log Out"
+                  data-testid="button-logout-sidebar"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Log Out</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ) : (
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild tooltip="Log In">
                   <a href="/login" data-testid="button-login-footer">
                     <LogIn className="h-4 w-4" />
                     <span>Log In</span>
@@ -319,20 +337,22 @@ export function AppSidebar() {
               </SidebarMenuItem>
             )}
           </SidebarMenu>
-          <div className="px-3 py-2 text-xs text-muted-foreground/70" data-testid="text-stockfish-credit">
-            Analysis powered by{" "}
-            <a 
-              href="https://stockfishchess.org/" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="underline hover:text-muted-foreground"
-              data-testid="link-stockfish"
-            >
-              Stockfish
-            </a>
-            {" "}(GPLv3)
-            <div className="text-[10px] text-muted-foreground/50 mt-0.5">v1.5.0</div>
-          </div>
+          {!isCollapsed && (
+            <div className="px-3 py-2 text-xs text-muted-foreground/70" data-testid="text-stockfish-credit">
+              Analysis powered by{" "}
+              <a 
+                href="https://stockfishchess.org/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline hover:text-muted-foreground"
+                data-testid="link-stockfish"
+              >
+                Stockfish
+              </a>
+              {" "}(GPLv3)
+              <div className="text-[10px] text-muted-foreground/50 mt-0.5">v1.5.0</div>
+            </div>
+          )}
         </div>
       </SidebarFooter>
     </Sidebar>
