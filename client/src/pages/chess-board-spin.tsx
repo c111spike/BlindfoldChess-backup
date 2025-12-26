@@ -127,7 +127,9 @@ export default function ChessBoardSpin() {
             Strong position memory provides practical advantages in games. When calculating 
             variations, you must hold both the current position and hypothetical future positions 
             in mind. The better your position memory, the deeper you can calculate without losing 
-            track of the pieces. Board Spin builds this mental capacity through concentrated practice.
+            track of the pieces. Board Spin builds this mental capacity through concentrated practice. 
+            Once you master Board Spin, try the ultimate challenge:{" "}
+            <Link href="/blindfold-chess-training" className="text-primary hover:underline">Blindfold Chess Training</Link>.
           </p>
 
           <h3>The Study Phase Strategy</h3>
@@ -184,7 +186,10 @@ export default function ChessBoardSpin() {
             The bonus round connects memory training to practical chess improvement. Positions 
             that tactical engines find interesting often feature the patterns that appear in 
             real games: forks, pins, discovered attacks, and sacrifices. By practicing both 
-            memorization and tactical solving, you're building complete chess vision.
+            memorization and tactical solving, you're building complete chess vision. Want more 
+            tactical practice? Explore our{" "}
+            <Link href="/chess-puzzles-trainer" className="text-primary hover:underline">Chess Puzzles Trainer</Link>{" "}
+            for thousands of community-created challenges.
           </p>
 
           <h3>Progressive Difficulty</h3>
