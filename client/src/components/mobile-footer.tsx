@@ -2,7 +2,7 @@ import { Link } from "wouter";
 
 export function MobileFooter() {
   return (
-    <footer className="py-6 px-4 border-t bg-background">
+    <footer className="mt-8 py-6 px-4 border-t bg-background">
       <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-sm">
         <Link href="/privacy" className="text-muted-foreground hover:text-foreground min-h-[44px] flex items-center" data-testid="link-footer-privacy">
           Privacy
