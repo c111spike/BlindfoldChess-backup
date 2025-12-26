@@ -185,9 +185,9 @@ function getClassificationWeight(classification: MoveClassification, cpLoss: num
       // Perfect moves get 100%
       return { weight: 100, importance: 1.0 };
     case 'good':
-      // Good moves: 90-95% based on CP loss (1-40 cp loss)
-      // This ensures "Good" is noticeably below "Best" but still solid
-      const goodWeight = Math.max(90, 95 - (cpLoss / 8));
+      // Good moves: 75-85% based on CP loss (1-40 cp loss)
+      // This creates meaningful separation from "Best" moves
+      const goodWeight = Math.max(75, 85 - (cpLoss / 4));
       return { weight: goodWeight, importance: 1.0 };
     case 'imprecise':
       // Imprecise: 60-75% based on CP loss (41-90 cp loss)
