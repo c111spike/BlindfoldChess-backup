@@ -18,7 +18,7 @@ export function MobileFooter() {
         </Link>
       </div>
       <div className="flex justify-center items-center gap-2 mt-3 text-xs text-muted-foreground">
-        <span>v1.1.6</span>
+        <span>v1.2.6</span>
         <span>|</span>
         <span>Analysis by Stockfish</span>
       </div>
