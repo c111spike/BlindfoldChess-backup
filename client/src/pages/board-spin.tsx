@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "wouter";
 import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCw, Clock, Target, Trophy, Play, Sparkles } from "lucide-react";
+import { RotateCw, Clock, Target, Trophy, Play, Sparkles, Home } from "lucide-react";
 import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove } from "@/lib/boardSpinClient";
 import { Chess } from 'chess.js';
 
@@ -75,6 +76,7 @@ interface GeneratedPosition {
 type GamePhase = 'select' | 'memorize' | 'spinning' | 'recreate' | 'bonus' | 'results';
 
 export default function BoardSpin() {
+  const [, navigate] = useLocation();
   const { toast } = useNotifications();
   const [phase, setPhase] = useState<GamePhase>('select');
   const [difficulty, setDifficulty] = useState<string>('easy');
@@ -1052,6 +1054,15 @@ export default function BoardSpin() {
               <Button onClick={resetGame} size="lg" data-testid="button-play-again">
                 <Play className="w-4 h-4 mr-2" />
                 Play Again
+              </Button>
+              <Button 
+                variant="outline" 
+                size="lg" 
+                onClick={() => navigate('/dashboard')}
+                data-testid="button-main-menu"
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Main Menu
               </Button>
             </div>
           </CardContent>

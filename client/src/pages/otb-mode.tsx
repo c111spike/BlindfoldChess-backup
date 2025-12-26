@@ -3091,43 +3091,46 @@ export default function OTBMode() {
               {!inQueue ? (
                 <Card>
                   <CardContent className="pt-6 space-y-4">
-                    <div>
-                      <h2 className="text-lg font-semibold mb-3">Time Control</h2>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div 
-                          className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                            timeControl === "5" 
-                              ? "border-primary bg-primary/10" 
-                              : "border-border hover:border-primary/50"
-                          }`}
-                          onClick={() => setTimeControl("5")}
-                          data-testid="card-time-blitz"
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <Clock className="h-4 w-4" />
-                            <span className="font-semibold">Blitz</span>
+                    {/* Hide Time Control section when bot selection is shown - bot has its own time control */}
+                    {!showBotSelection && (
+                      <div>
+                        <h2 className="text-lg font-semibold mb-3">Time Control</h2>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div 
+                            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                              timeControl === "5" 
+                                ? "border-primary bg-primary/10" 
+                                : "border-border hover:border-primary/50"
+                            }`}
+                            onClick={() => setTimeControl("5")}
+                            data-testid="card-time-blitz"
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <Clock className="h-4 w-4" />
+                              <span className="font-semibold">Blitz</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">5+0</p>
                           </div>
-                          <p className="text-sm text-muted-foreground">5+0</p>
-                        </div>
-                        <div 
-                          className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                            timeControl === "15" 
-                              ? "border-primary bg-primary/10" 
-                              : "border-border hover:border-primary/50"
-                          }`}
-                          onClick={() => setTimeControl("15")}
-                          data-testid="card-time-rapid"
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <Clock className="h-4 w-4" />
-                            <span className="font-semibold">Rapid</span>
+                          <div 
+                            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                              timeControl === "15" 
+                                ? "border-primary bg-primary/10" 
+                                : "border-border hover:border-primary/50"
+                            }`}
+                            onClick={() => setTimeControl("15")}
+                            data-testid="card-time-rapid"
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <Clock className="h-4 w-4" />
+                              <span className="font-semibold">Rapid</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">15+30</p>
                           </div>
-                          <p className="text-sm text-muted-foreground">15+30</p>
                         </div>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="pt-4 border-t">
+                    <div className={!showBotSelection ? "pt-4 border-t" : ""}>
                       {!showBotSelection ? (
                         <>
                           <Button 

@@ -1201,93 +1201,125 @@ export default function StandardMode() {
     };
   }, [gameStarted, gameId, saveGameState]);
 
+  // Voice input effect - separated into setup/teardown to prevent mic flickering
+  const voiceEnabledRef = useRef(false);
+  
   useEffect(() => {
-    if (!gameStarted || !game || !userSettings?.voiceInputEnabled) {
+    // Only run full setup/teardown when voice input setting changes
+    voiceEnabledRef.current = userSettings?.voiceInputEnabled || false;
+    
+    if (!userSettings?.voiceInputEnabled) {
       voiceRecognition.stop();
       return;
     }
     
-    const currentTurn = game.turn();
-    const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
-    
-    if (isMyTurn && !botThinking && !pendingPromotion && gameResult === null) {
-      const allLegalMoves = game.moves();
-      voiceRecognition.setLegalMoves(allLegalMoves);
+    // Set up the result handler once
+    voiceRecognition.setOnResult((move, transcript) => {
+      const currentGame = gameRef.current;
+      if (!currentGame) return;
       
-      voiceRecognition.setOnResult((move, transcript) => {
-        setVoiceTranscript(transcript);
-        
-        if (move) {
-          const spokenConfirm = moveToSpeech(move, move.includes('x'), false, false);
-          speak(spokenConfirm).then(() => {
-            const moveObj = game.move(move);
-            if (moveObj) {
-              const newFen = game.fen();
-              setFen(newFen);
-              setLastMove({ from: moveObj.from, to: moveObj.to });
-              
-              const newMoves = [...movesRef.current, moveObj.san];
-              setMoves(newMoves);
-              movesRef.current = newMoves;
-              
-              setSelectedSquare(null);
-              setLegalMoves([]);
-              setVoiceTranscript(null);
-              
-              if (gameIdRef.current && matchIdRef.current) {
-                sendMove(matchIdRef.current, moveObj.san, newFen, whiteTimeRef.current, blackTimeRef.current);
-              }
-              
-              if (game.isCheckmate()) {
-                const result = game.turn() === "w" ? "black_win" : "white_win";
-                completeGame(result);
-              } else if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
-                completeGame("draw");
-              } else if (isBotGame && selectedBot) {
-                const moveHistorySAN = game.history();
-                const lastMoveInfo = extractLastMoveInfo(moveObj);
-                requestBotMove(newFen, selectedBot.id, moveHistorySAN, lastMoveInfo).then((botMove) => {
-                  if (botMove && gameRef.current) {
-                    const botMoveResult = gameRef.current.move(botMove.move);
-                    if (botMoveResult) {
-                      setLastMove({ from: botMoveResult.from, to: botMoveResult.to });
-                    }
-                    const botNewFen = gameRef.current.fen();
-                    setFen(botNewFen);
-                    const updatedMoves = [...movesRef.current, botMove.move];
-                    setMoves(updatedMoves);
-                    movesRef.current = updatedMoves;
-                    
-                    if (userSettings?.voiceOutputEnabled) {
-                      const isCheck = gameRef.current.isCheck();
-                      const isCapture = botMove.move.includes('x');
-                      const spokenMove = moveToSpeech(botMove.move, isCapture, isCheck, gameRef.current.isCheckmate());
-                      speak(spokenMove);
-                    }
-                  }
-                });
-              }
+      setVoiceTranscript(transcript);
+      
+      if (move) {
+        const spokenConfirm = moveToSpeech(move, move.includes('x'), false, false);
+        speak(spokenConfirm).then(() => {
+          const moveObj = currentGame.move(move);
+          if (moveObj) {
+            const newFen = currentGame.fen();
+            setFen(newFen);
+            setLastMove({ from: moveObj.from, to: moveObj.to });
+            
+            const newMoves = [...movesRef.current, moveObj.san];
+            setMoves(newMoves);
+            movesRef.current = newMoves;
+            
+            setSelectedSquare(null);
+            setLegalMoves([]);
+            setVoiceTranscript(null);
+            
+            if (gameIdRef.current && matchIdRef.current) {
+              sendMove(matchIdRef.current, moveObj.san, newFen, whiteTimeRef.current, blackTimeRef.current);
             }
-          });
-        } else {
-          toast({
-            title: "Didn't understand",
-            description: `Heard: "${transcript}". Try again.`,
-            variant: "destructive",
-          });
-        }
-      });
-      
-      voiceRecognition.setOnListeningChange(setIsVoiceListening);
-      voiceRecognition.start();
-    } else {
-      voiceRecognition.stop();
-    }
+            
+            if (currentGame.isCheckmate()) {
+              const result = currentGame.turn() === "w" ? "black_win" : "white_win";
+              completeGame(result);
+            } else if (currentGame.isDraw() || currentGame.isStalemate() || currentGame.isThreefoldRepetition() || currentGame.isInsufficientMaterial()) {
+              completeGame("draw");
+            }
+          }
+        });
+      } else {
+        toast({
+          title: "Didn't understand",
+          description: `Heard: "${transcript}". Try again.`,
+          variant: "destructive",
+        });
+      }
+    });
+    
+    voiceRecognition.setOnListeningChange(setIsVoiceListening);
     
     return () => {
       voiceRecognition.reset();
     };
-  }, [gameStarted, game, fen, userSettings?.voiceInputEnabled, playerColor, botThinking, pendingPromotion, gameResult, isBotGame, selectedBot, toast, completeGame, sendMove, requestBotMove]);
+  }, [userSettings?.voiceInputEnabled, toast, completeGame, sendMove]);
+  
+  // Separate effect to manage voice recognition start/stop based on turn
+  useEffect(() => {
+    // Always stop if voice is disabled or game not active
+    if (!voiceEnabledRef.current || !gameStarted || !gameRef.current) {
+      voiceRecognition.stop();
+      return;
+    }
+    
+    const currentGame = gameRef.current;
+    const currentTurn = currentGame.turn();
+    const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
+    
+    if (isMyTurn && !botThinking && !pendingPromotion && gameResult === null) {
+      const allLegalMoves = currentGame.moves();
+      voiceRecognition.setLegalMoves(allLegalMoves);
+      voiceRecognition.start();
+    } else {
+      voiceRecognition.stop();
+    }
+  }, [gameStarted, fen, playerColor, botThinking, pendingPromotion, gameResult]);
+  
+  // Handle bot moves after voice input (separate to avoid circular deps)
+  useEffect(() => {
+    if (!isBotGame || !selectedBot || !gameRef.current) return;
+    
+    const currentGame = gameRef.current;
+    const currentTurn = currentGame.turn();
+    const isBotTurn = (currentTurn === "w" && playerColor === "black") || (currentTurn === "b" && playerColor === "white");
+    
+    if (isBotTurn && gameStarted && !botThinking && gameResult === null) {
+      const moveHistorySAN = currentGame.history();
+      const currentFen = currentGame.fen();
+      
+      requestBotMove(currentFen, selectedBot.id, moveHistorySAN, undefined).then((botMove) => {
+        if (botMove && gameRef.current) {
+          const botMoveResult = gameRef.current.move(botMove.move);
+          if (botMoveResult) {
+            setLastMove({ from: botMoveResult.from, to: botMoveResult.to });
+          }
+          const botNewFen = gameRef.current.fen();
+          setFen(botNewFen);
+          const updatedMoves = [...movesRef.current, botMove.move];
+          setMoves(updatedMoves);
+          movesRef.current = updatedMoves;
+          
+          if (userSettings?.voiceOutputEnabled) {
+            const isCheck = gameRef.current.isCheck();
+            const isCapture = botMove.move.includes('x');
+            const spokenMove = moveToSpeech(botMove.move, isCapture, isCheck, gameRef.current.isCheckmate());
+            speak(spokenMove);
+          }
+        }
+      });
+    }
+  }, [fen, isBotGame, selectedBot, playerColor, gameStarted, botThinking, gameResult, userSettings?.voiceOutputEnabled, requestBotMove]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
