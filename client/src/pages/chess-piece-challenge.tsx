@@ -101,10 +101,18 @@ export default function ChessPieceChallenge() {
           <p>
             The classic N-Queens puzzle asks you to place 8 queens on a standard 8×8 chessboard such that 
             no queen can capture another. Since queens attack along rows, columns, and diagonals, finding 
-            a valid arrangement requires careful thought. While there are <strong>92 total solutions</strong> for 
-            an 8×8 board, there are only <strong>12 fundamental solutions</strong>. All others are simply 
-            rotations or mirror images of these twelve. Can you find a unique one that isn't just a 
-            reflection of your last success?
+            a valid arrangement requires careful thought.
+          </p>
+
+          <div className="not-prose my-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
+            <p className="font-semibold text-lg">
+              How many solutions are there to the 8-Queens problem? There are <strong>92 total solutions</strong> for 
+              an 8×8 board, but only <strong>12 fundamental solutions</strong> — all others are rotations or mirror images.
+            </p>
+          </div>
+
+          <p>
+            Can you find a unique one that isn't just a reflection of your last success?
           </p>
 
           <p>
@@ -132,6 +140,9 @@ export default function ChessPieceChallenge() {
 
           <h3>N-Rooks: The Beginner-Friendly Starting Point</h3>
           <p>
+            <strong>N-Rooks Rule: Place one rook per row and one per column — no two rooks can share the same line.</strong>
+          </p>
+          <p>
             Rooks attack along rows and columns — the simplest movement pattern among the major pieces. 
             The N-Rooks challenge asks you to place N rooks on an N×N board so none threaten each other. 
             The solution is straightforward: one rook per row and one per column. This makes it perfect 
@@ -146,6 +157,9 @@ export default function ChessPieceChallenge() {
           </p>
 
           <h3>N-Bishops: Understanding Diagonal Movement</h3>
+          <p>
+            <strong>N-Bishops Rule: You can place up to 14 non-attacking bishops on an 8×8 board (2N - 2 formula).</strong>
+          </p>
           <p>
             Bishops attack along diagonals, and unlike rooks, they're restricted to squares of one color. 
             The N-Bishops puzzle exploits this property: since a light-squared bishop never threatens a 
@@ -169,10 +183,14 @@ export default function ChessPieceChallenge() {
 
           <h3>N-Knights: The Tricky L-Shape</h3>
           <p>
+            <strong>N-Knights Rule: Knights move in an L-shape and can't attack pieces on the same color square.</strong>
+          </p>
+          <p>
             Knights move in an L-shape — two squares in one direction, then one square perpendicular. 
             This unusual pattern confuses many beginners and even intermediate players. The N-Knights 
-            challenge forces you to really understand which squares a knight controls, building the 
-            visualization skill that makes knights effective in actual games.
+            challenge forces you to really understand which squares a knight controls, building the{" "}
+            <Link href="/blindfold-chess-training" className="text-primary hover:underline">visualization skills</Link>{" "}
+            that make knights effective in actual games.
           </p>
 
           <p>
@@ -209,7 +227,9 @@ export default function ChessPieceChallenge() {
             As the board size increases, the number of possible configurations grows exponentially. 
             While a 10×10 board has <strong>724 solutions</strong>, a 12×12 board — available in our 
             challenge mode — jumps to <strong>14,200 solutions</strong>. This makes the larger boards 
-            an incredible test of your systematic problem-solving skills.
+            an incredible test of your{" "}
+            <Link href="/knights-tour-puzzle" className="text-primary hover:underline">systematic problem-solving</Link>{" "}
+            skills.
           </p>
 
           <p>
