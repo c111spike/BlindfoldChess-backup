@@ -152,8 +152,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-simul-exhibition">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col transition-transform duration-300 ease-out hover:-translate-y-1 hover:ring-2 hover:ring-primary-foreground/50 hover:ring-offset-2 hover:ring-offset-primary" data-testid="card-simul-exhibition">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Grid3x3 className="h-8 w-8 text-primary-foreground" />
@@ -164,13 +164,13 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-simul-vs-simul">
+            <Button asChild variant="secondary" size="lg" className="w-full" data-testid="button-mode-simul-vs-simul">
               <Link href="/simul-vs-simul">Start Simul vs Simul</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-otb-mode">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col transition-transform duration-300 ease-out hover:-translate-y-1 hover:ring-2 hover:ring-primary-foreground/50 hover:ring-offset-2 hover:ring-offset-primary" data-testid="card-otb-mode">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Clock className="h-8 w-8 text-primary-foreground" />
@@ -181,13 +181,13 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-otb">
+            <Button asChild variant="secondary" size="lg" className="w-full" data-testid="button-mode-otb">
               <Link href="/otb">Start Game</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-standard-mode">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col transition-transform duration-300 ease-out hover:-translate-y-1 hover:ring-2 hover:ring-primary-foreground/50 hover:ring-offset-2 hover:ring-offset-primary" data-testid="card-standard-mode">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Brain className="h-8 w-8 text-primary-foreground" />
@@ -198,13 +198,13 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-standard">
+            <Button asChild variant="secondary" size="lg" className="w-full" data-testid="button-mode-standard">
               <Link href="/standard">Play Standard</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-board-spin">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col transition-transform duration-300 ease-out hover:-translate-y-1 hover:ring-2 hover:ring-primary-foreground/50 hover:ring-offset-2 hover:ring-offset-primary" data-testid="card-board-spin">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <RotateCw className="h-8 w-8 text-primary-foreground" />
@@ -215,13 +215,13 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-board-spin">
+            <Button asChild variant="secondary" size="lg" className="w-full" data-testid="button-mode-board-spin">
               <Link href="/boardspin">Start Board Spin</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-knights-tour">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col transition-transform duration-300 ease-out hover:-translate-y-1 hover:ring-2 hover:ring-primary-foreground/50 hover:ring-offset-2 hover:ring-offset-primary" data-testid="card-knights-tour">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Crown className="h-8 w-8 text-primary-foreground" />
@@ -232,13 +232,13 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-knights-tour">
+            <Button asChild variant="secondary" size="lg" className="w-full" data-testid="button-mode-knights-tour">
               <Link href="/knights-tour">Start Knight's Tour</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-n-piece-challenge">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col transition-transform duration-300 ease-out hover:-translate-y-1 hover:ring-2 hover:ring-primary-foreground/50 hover:ring-offset-2 hover:ring-offset-primary" data-testid="card-n-piece-challenge">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Crosshair className="h-8 w-8 text-primary-foreground" />
@@ -249,13 +249,13 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-n-piece">
+            <Button asChild variant="secondary" size="lg" className="w-full" data-testid="button-mode-n-piece">
               <Link href="/n-piece">Start N-Piece</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-community-puzzles">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col transition-transform duration-300 ease-out hover:-translate-y-1 hover:ring-2 hover:ring-primary-foreground/50 hover:ring-offset-2 hover:ring-offset-primary" data-testid="card-community-puzzles">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <Puzzle className="h-8 w-8 text-primary-foreground" />
@@ -266,13 +266,13 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-puzzles">
+            <Button asChild variant="secondary" size="lg" className="w-full" data-testid="button-mode-puzzles">
               <Link href="/puzzles">Solve Puzzles</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-repertoire-trainer">
+        <Card className="bg-primary hover-elevate border-primary flex flex-col transition-transform duration-300 ease-out hover:-translate-y-1 hover:ring-2 hover:ring-primary-foreground/50 hover:ring-offset-2 hover:ring-offset-primary" data-testid="card-repertoire-trainer">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between mb-2">
               <BookOpen className="h-8 w-8 text-primary-foreground" />
@@ -283,7 +283,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-repertoire">
+            <Button asChild variant="secondary" size="lg" className="w-full" data-testid="button-mode-repertoire">
               <Link href="/repertoire">Train Openings</Link>
             </Button>
           </CardContent>
