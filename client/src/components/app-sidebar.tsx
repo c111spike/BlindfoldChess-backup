@@ -256,7 +256,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="px-2 py-2 border-t border-sidebar-border">
+        <div className={`py-2 border-t border-sidebar-border pr-2 ${isCollapsed ? 'pl-0' : 'pl-2'}`}>
           <SidebarMenu>
             {isAuthenticated && (
               <SidebarMenuItem>
@@ -350,7 +350,7 @@ export function AppSidebar() {
                 Stockfish
               </a>
               {" "}(GPLv3)
-              <div className="text-[10px] text-muted-foreground/50 mt-0.5">v1.9.0</div>
+              <div className="text-[10px] text-muted-foreground/50 mt-0.5">v1.10.1</div>
             </div>
           )}
         </div>
