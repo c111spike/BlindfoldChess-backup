@@ -29,8 +29,12 @@ import {
   CheckCircle2,
   XCircle,
   Youtube,
-  ExternalLink
+  ExternalLink,
+  Home,
+  List,
+  SkipForward
 } from "lucide-react";
+import { useSearch } from "wouter";
 import type { Puzzle } from "@shared/schema";
 
 const PUZZLE_TYPES = [
@@ -73,6 +77,26 @@ export default function PuzzleSolve() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDescription, setReportDescription] = useState("");
+  const [isLoadingNext, setIsLoadingNext] = useState(false);
+  
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
+  const browseType = searchParams.get("type") || "";
+  const browseDifficulty = searchParams.get("difficulty") || "";
+  const browseMotif = searchParams.get("motif") || "";
+  const browseSortBy = searchParams.get("sortBy") || "newest";
+  
+  const buildBrowseUrl = () => {
+    const params = new URLSearchParams();
+    if (browseType && browseType !== "all") params.set("type", browseType);
+    if (browseDifficulty && browseDifficulty !== "all") params.set("difficulty", browseDifficulty);
+    if (browseMotif && browseMotif !== "all") params.set("motif", browseMotif);
+    if (browseSortBy && browseSortBy !== "newest") params.set("sortBy", browseSortBy);
+    const queryString = params.toString();
+    return `/puzzles${queryString ? `?${queryString}` : ""}`;
+  };
+  
+  const hasBrowseFilters = browseType || browseDifficulty || browseMotif;
   
   const { data: puzzle, isLoading } = useQuery<Puzzle & { userVote?: string | null }>({
     queryKey: ["/api/puzzles", puzzleId],
@@ -161,6 +185,52 @@ export default function PuzzleSolve() {
   const handleNextHint = () => {
     if (puzzle?.hints && hintIndex < puzzle.hints.length - 1) {
       setHintIndex(hintIndex + 1);
+    }
+  };
+  
+  const handleNextPuzzle = async () => {
+    setIsLoadingNext(true);
+    try {
+      const params = new URLSearchParams();
+      if (browseType && browseType !== "all") params.set("type", browseType);
+      if (browseDifficulty && browseDifficulty !== "all") params.set("difficulty", browseDifficulty);
+      if (browseMotif && browseMotif !== "all") params.set("motif", browseMotif);
+      params.set("sortBy", browseSortBy || "newest");
+      params.set("limit", "50");
+      params.set("excludeId", puzzleId || "");
+      
+      const response = await fetch(`/api/puzzles?${params.toString()}`, {
+        credentials: "include"
+      });
+      
+      if (!response.ok) throw new Error("Failed to fetch puzzles");
+      
+      const puzzles = await response.json();
+      
+      if (puzzles.length > 0) {
+        const randomIndex = Math.floor(Math.random() * puzzles.length);
+        const nextPuzzle = puzzles[randomIndex];
+        const currentParams = new URLSearchParams();
+        if (browseType) currentParams.set("type", browseType);
+        if (browseDifficulty) currentParams.set("difficulty", browseDifficulty);
+        if (browseMotif) currentParams.set("motif", browseMotif);
+        if (browseSortBy) currentParams.set("sortBy", browseSortBy);
+        const queryString = currentParams.toString();
+        setLocation(`/puzzle/${nextPuzzle.id}${queryString ? `?${queryString}` : ""}`);
+      } else {
+        toast({
+          title: "No more puzzles",
+          description: "No other puzzles match your current filters.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load next puzzle",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingNext(false);
     }
   };
   
@@ -374,6 +444,35 @@ export default function PuzzleSolve() {
                     </>
                   )}
                 </div>
+                
+                {solved && (
+                  <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-green-500/20">
+                    <Button
+                      onClick={handleNextPuzzle}
+                      disabled={isLoadingNext}
+                      data-testid="button-next-puzzle"
+                    >
+                      <SkipForward className="h-4 w-4 mr-2" />
+                      {isLoadingNext ? "Loading..." : "Next Puzzle"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setLocation(buildBrowseUrl())}
+                      data-testid="button-back-to-browse"
+                    >
+                      <List className="h-4 w-4 mr-2" />
+                      Back to Browse
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setLocation("/")}
+                      data-testid="button-main-menu"
+                    >
+                      <Home className="h-4 w-4 mr-2" />
+                      Main Menu
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>

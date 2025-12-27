@@ -190,9 +190,20 @@ function MiniChessboard({ fen, size = 120 }: { fen: string; size?: number }) {
   );
 }
 
-function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick, onAnonymousClick }: { puzzle: Puzzle & { userVote?: string | null; creatorUsername?: string | null }; onVote: (type: string) => void; onReport: (puzzleId: string) => void; onCreatorClick?: (creatorId: string, creatorUsername: string) => void; onAnonymousClick?: () => void }) {
+function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick, onAnonymousClick, browseFilters }: { puzzle: Puzzle & { userVote?: string | null; creatorUsername?: string | null }; onVote: (type: string) => void; onReport: (puzzleId: string) => void; onCreatorClick?: (creatorId: string, creatorUsername: string) => void; onAnonymousClick?: () => void; browseFilters?: { type?: string; difficulty?: string; motif?: string; sortBy?: string } }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  
+  const buildPuzzleUrl = (puzzleId: string) => {
+    if (!browseFilters) return `/puzzle/${puzzleId}`;
+    const params = new URLSearchParams();
+    if (browseFilters.type && browseFilters.type !== "all") params.set("type", browseFilters.type);
+    if (browseFilters.difficulty && browseFilters.difficulty !== "all") params.set("difficulty", browseFilters.difficulty);
+    if (browseFilters.motif && browseFilters.motif !== "all") params.set("motif", browseFilters.motif);
+    if (browseFilters.sortBy && browseFilters.sortBy !== "newest") params.set("sortBy", browseFilters.sortBy);
+    const queryString = params.toString();
+    return `/puzzle/${puzzleId}${queryString ? `?${queryString}` : ""}`;
+  };
   
   const getDifficultyColor = (difficulty: string | null) => {
     switch (difficulty) {
@@ -219,11 +230,11 @@ function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick, onAnonymousClick
     <Card className="group hover-elevate cursor-pointer transition-all" data-testid={`puzzle-card-${puzzle.id}`}>
       <CardContent className="p-4">
         <div className="flex gap-4">
-          <div onClick={() => setLocation(`/puzzle/${puzzle.id}`)} className="shrink-0">
+          <div onClick={() => setLocation(buildPuzzleUrl(puzzle.id))} className="shrink-0">
             <MiniChessboard fen={puzzle.fen} size={100} />
           </div>
           
-          <div className="flex-1 min-w-0" onClick={() => setLocation(`/puzzle/${puzzle.id}`)}>
+          <div className="flex-1 min-w-0" onClick={() => setLocation(buildPuzzleUrl(puzzle.id))}>
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <Badge className={getDifficultyColor(puzzle.difficulty)} data-testid={`badge-difficulty-${puzzle.id}`}>
                 {puzzle.difficulty || "Unknown"}
@@ -1305,6 +1316,7 @@ function BrowseTab({ initialMotif }: { initialMotif?: string }) {
                 onReport={handleReport}
                 onCreatorClick={handleCreatorClick}
                 onAnonymousClick={handleAnonymousClick}
+                browseFilters={{ type: puzzleType, difficulty, motif: motifFilter, sortBy }}
               />
             ))}
           </div>
