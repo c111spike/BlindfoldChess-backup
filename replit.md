@@ -148,3 +148,29 @@ A TTL-based cache for frequently accessed data to reduce database load:
 - **Tailwind CSS**: Utility-first CSS framework.
 - **Wouter**: Client-side routing library.
 - **Vite**: Build tool and dev server.
+
+## Future Feature Concepts
+
+### Board Reset Challenge (OTB Tournament Prep)
+An optional post-game training feature for OTB mode that simulates resetting the board to starting position after a game ends.
+
+**Concept:**
+- After game ends, pieces remain on their final squares
+- Captured pieces appear on the side of the board
+- Player clicks piece → clicks target starting square (timed)
+- Blocked squares: If a piece occupies another piece's starting square, must move blocker first
+- Example: White bishop on h8 needs to go to f1, but black rook is on f1 → move rook to a8 first, then bishop to f1
+
+**Implementation Notes:**
+- "Tournament Prep Mode" toggle in OTB settings (disabled by default)
+- When enabled: Shows "Reset Board Challenge" button alongside post-game handshake
+- Completely skippable even when enabled
+- Statistics tracked separately: "Average reset time", "Fastest reset", "Resets completed"
+- Validation logic: Check if target square is correct starting square for piece type/color
+- Blocked square detection: Cannot place piece until blocker is moved
+
+**Why it fits:**
+- Authentic OTB training (players reset boards after real tournament games)
+- Reinforces starting position memory
+- Unique differentiator vs other chess apps
+- Aligns with "training for real chess" positioning
