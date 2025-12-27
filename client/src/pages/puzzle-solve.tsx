@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
@@ -32,7 +32,8 @@ import {
   ExternalLink,
   Home,
   List,
-  SkipForward
+  SkipForward,
+  Eye
 } from "lucide-react";
 import { useSearch } from "wouter";
 import type { Puzzle } from "@shared/schema";
@@ -78,6 +79,23 @@ export default function PuzzleSolve() {
   const [reportReason, setReportReason] = useState("");
   const [reportDescription, setReportDescription] = useState("");
   const [isLoadingNext, setIsLoadingNext] = useState(false);
+  const [showSolution, setShowSolution] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [animationIndex, setAnimationIndex] = useState(0);
+  
+  const opponentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  const clearPuzzleTimers = () => {
+    if (opponentTimerRef.current) {
+      clearTimeout(opponentTimerRef.current);
+      opponentTimerRef.current = null;
+    }
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  };
   
   const searchString = useSearch();
   const searchParams = new URLSearchParams(searchString);
@@ -104,13 +122,73 @@ export default function PuzzleSolve() {
     enabled: !!puzzleId,
   });
   
+  // Helper to normalize moves (handle both string and array formats, strip move numbers)
+  const normalizeMoves = (moves: string | string[] | null | undefined): string[] => {
+    if (!moves) return [];
+    let tokens: string[] = [];
+    if (Array.isArray(moves)) {
+      tokens = moves.filter(m => m && m.length > 0);
+    } else if (typeof moves === 'string') {
+      tokens = moves.replace(/,/g, ' ').split(/\s+/).filter(m => m.length > 0);
+    }
+    // Process each token to strip move numbers and clean up
+    return tokens
+      .map(m => {
+        // Remove leading move number patterns like "1.", "1...", "12.", "12..."
+        return m.replace(/^\d+\.{1,3}/, '');
+      })
+      .filter(m => m.length > 0 && !(/^\d+\.{0,3}$/.test(m)));
+  };
+  
+  const rawSolution = normalizeMoves(puzzle?.solution);
+  const rawMoves = normalizeMoves(puzzle?.moves);
+  const solutionMoves = rawSolution.length > 0 ? rawSolution : rawMoves;
+  
   useEffect(() => {
     if (puzzle?.fen) {
+      clearPuzzleTimers();
       setCurrentFen(puzzle.fen);
       setMoveIndex(0);
       setSolved(null);
+      setShowHint(false);
+      setHintIndex(0);
+      setShowSolution(false);
+      setIsAnimating(false);
+      setAnimationIndex(0);
     }
-  }, [puzzle?.fen]);
+  }, [puzzle?.id, puzzle?.fen]);
+  
+  // Animated solution playback
+  useEffect(() => {
+    if (!isAnimating || !puzzle?.fen || solutionMoves.length === 0) return;
+    
+    if (animationIndex >= solutionMoves.length) {
+      setIsAnimating(false);
+      return;
+    }
+    
+    const chess = new Chess(puzzle.fen);
+    for (let i = 0; i < animationIndex; i++) {
+      try {
+        chess.move(solutionMoves[i]);
+      } catch (e) {
+        console.error("Error replaying move:", solutionMoves[i], e);
+      }
+    }
+    
+    const timer = setTimeout(() => {
+      try {
+        chess.move(solutionMoves[animationIndex]);
+        setCurrentFen(chess.fen());
+        setAnimationIndex(prev => prev + 1);
+      } catch (e) {
+        console.error("Error playing animated move:", solutionMoves[animationIndex], e);
+        setIsAnimating(false);
+      }
+    }, animationIndex === 0 ? 0 : 1000);
+    
+    return () => clearTimeout(timer);
+  }, [isAnimating, animationIndex, puzzle?.fen, solutionMoves]);
   
   const voteMutation = useMutation({
     mutationFn: async (voteType: string) => {
@@ -169,12 +247,30 @@ export default function PuzzleSolve() {
   
   const handleReset = () => {
     if (puzzle?.fen) {
+      clearPuzzleTimers();
       setCurrentFen(puzzle.fen);
       setMoveIndex(0);
       setSolved(null);
       setShowHint(false);
       setHintIndex(0);
+      setShowSolution(false);
+      setIsAnimating(false);
+      setAnimationIndex(0);
+      setSelectedSquare(null);
+      setLegalMoves([]);
     }
+  };
+  
+  const handleShowSolution = () => {
+    clearPuzzleTimers();
+    setShowSolution(true);
+    setSolved(null);
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setMoveIndex(0);
+    setCurrentFen(puzzle?.fen || null);
+    setAnimationIndex(0);
+    setIsAnimating(true);
   };
   
   const handleShowHint = () => {
@@ -239,7 +335,7 @@ export default function PuzzleSolve() {
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
 
   const handleSquareClick = (square: string) => {
-    if (!currentFen || solved !== null) return;
+    if (!currentFen || solved !== null || isAnimating) return;
     
     const chess = new Chess(currentFen);
     
@@ -256,7 +352,6 @@ export default function PuzzleSolve() {
           setSelectedSquare(null);
           setLegalMoves([]);
           
-          const solutionMoves = puzzle?.solution || puzzle?.moves || [];
           if (solutionMoves.length > moveIndex) {
             const expectedMove = solutionMoves[moveIndex];
             const moveStr = `${result.from}${result.to}`;
@@ -281,7 +376,7 @@ export default function PuzzleSolve() {
                 attemptMutation.mutate(true);
                 toast({ title: "Congratulations!", description: "You solved the puzzle!" });
               } else if (solutionMoves.length > moveIndex + 1) {
-                setTimeout(() => {
+                opponentTimerRef.current = setTimeout(() => {
                   try {
                     const opponentMove = solutionMoves[moveIndex + 1];
                     const chessAfter = new Chess(chess.fen());
@@ -296,7 +391,7 @@ export default function PuzzleSolve() {
             } else {
               setSolved(false);
               attemptMutation.mutate(false);
-              setTimeout(() => {
+              resetTimerRef.current = setTimeout(() => {
                 setCurrentFen(puzzle?.fen || currentFen);
                 setMoveIndex(0);
                 setSolved(null);
@@ -407,10 +502,50 @@ export default function PuzzleSolve() {
                 onClick={handleReset}
                 data-testid="button-reset"
               >
-                <RotateCcw className="h-4 w-4 mr-2" /> Reset
+                <RotateCcw className="h-4 w-4" />
               </Button>
-              
-              {puzzle.hints && puzzle.hints.length > 0 && (
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleShowSolution}
+                disabled={showSolution || solved === true}
+                data-testid="button-show-solution"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                Show Solution
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleNextPuzzle}
+                disabled={isLoadingNext}
+                data-testid="button-skip-puzzle"
+              >
+                <SkipForward className="mr-2 h-4 w-4" />
+                {solved === true ? "Next Puzzle" : isLoadingNext ? "Loading..." : "Skip"}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleShare}
+                data-testid="button-share-below"
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    data-testid="button-report-below"
+                  >
+                    <Flag className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+              </Dialog>
+            </div>
+            
+            {puzzle.hints && puzzle.hints.length > 0 && !showSolution && (
+              <div className="flex gap-3 max-w-[500px] mx-auto lg:mx-0">
                 <Button
                   variant="outline"
                   onClick={handleShowHint}
@@ -419,8 +554,8 @@ export default function PuzzleSolve() {
                 >
                   <Lightbulb className="h-4 w-4 mr-2" /> Hint
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
             
             {solved !== null && (
               <div className={`max-w-[500px] mx-auto lg:mx-0 p-4 rounded-lg border ${
@@ -428,52 +563,72 @@ export default function PuzzleSolve() {
                   ? "bg-green-500/10 border-green-500/20" 
                   : "bg-red-500/10 border-red-500/20"
               }`}>
-                <div className="flex items-center gap-2">
-                  {solved ? (
-                    <>
-                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                      <p className="font-semibold text-green-600 dark:text-green-400">
-                        Correct! Puzzle solved!
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                      <p className="font-semibold text-red-600 dark:text-red-400">
-                        Not quite - try again!
-                      </p>
-                    </>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {solved ? (
+                      <>
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        <p className="font-semibold text-green-600 dark:text-green-400">
+                          Correct! Puzzle solved!
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        <p className="font-semibold text-red-600 dark:text-red-400">
+                          Not quite - try again!
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  
+                  {solved && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLocation(buildBrowseUrl())}
+                        data-testid="button-back-to-browse"
+                      >
+                        <List className="h-4 w-4 mr-1" />
+                        Browse
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLocation("/")}
+                        data-testid="button-main-menu"
+                      >
+                        <Home className="h-4 w-4 mr-1" />
+                        Menu
+                      </Button>
+                    </div>
                   )}
                 </div>
-                
-                {solved && (
-                  <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-green-500/20">
-                    <Button
-                      onClick={handleNextPuzzle}
-                      disabled={isLoadingNext}
-                      data-testid="button-next-puzzle"
-                    >
-                      <SkipForward className="h-4 w-4 mr-2" />
-                      {isLoadingNext ? "Loading..." : "Next Puzzle"}
-                    </Button>
+              </div>
+            )}
+            
+            {showSolution && !solved && (
+              <div className="max-w-[500px] mx-auto lg:mx-0 p-4 rounded-lg border bg-blue-500/10 border-blue-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <p className="font-semibold text-blue-600 dark:text-blue-400">
+                      {isAnimating ? "Playing solution..." : "Solution shown"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => setLocation(buildBrowseUrl())}
-                      data-testid="button-back-to-browse"
+                      data-testid="button-back-to-browse-solution"
                     >
-                      <List className="h-4 w-4 mr-2" />
-                      Back to Browse
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setLocation("/")}
-                      data-testid="button-main-menu"
-                    >
-                      <Home className="h-4 w-4 mr-2" />
-                      Main Menu
+                      <List className="h-4 w-4 mr-1" />
+                      Browse
                     </Button>
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>
@@ -653,11 +808,13 @@ export default function PuzzleSolve() {
                 <CardTitle className="text-lg">Solution</CardTitle>
               </CardHeader>
               <CardContent>
-                {solved ? (
+                {(solved || showSolution) ? (
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">You found the solution:</p>
+                    <p className="text-sm text-muted-foreground">
+                      {solved ? "You found the solution:" : "Solution:"}
+                    </p>
                     <div className="flex flex-wrap gap-2">
-                      {(puzzle.solution || puzzle.moves || []).map((move, i) => (
+                      {solutionMoves.map((move, i) => (
                         <Badge key={i} variant="outline" className="font-mono">
                           {i % 2 === 0 ? `${Math.floor(i/2) + 1}.` : ""} {move}
                         </Badge>
@@ -666,7 +823,7 @@ export default function PuzzleSolve() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Solve the puzzle to see the solution
+                    Solve the puzzle or click Show Solution
                   </p>
                 )}
               </CardContent>
