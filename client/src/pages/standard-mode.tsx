@@ -1054,6 +1054,19 @@ export default function StandardMode() {
   const handleStartBotGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     if (!user) return;
     
+    // Unlock audio on mobile (Android/iOS require user gesture to enable audio)
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        const context = new AudioContextClass();
+        if (context.state === 'suspended') {
+          await context.resume();
+        }
+      }
+    } catch (e) {
+      // Audio unlock failed, continue anyway
+    }
+    
     const newGame = new Chess();
     setGame(newGame);
     setFen(newGame.fen());

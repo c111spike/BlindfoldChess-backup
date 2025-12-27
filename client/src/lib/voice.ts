@@ -152,8 +152,55 @@ export function moveToSpeech(move: string, isCapture: boolean = false, isCheck: 
   return spoken.trim();
 }
 
+let cachedVoices: SpeechSynthesisVoice[] = [];
+let voicesLoaded = false;
+let voicesLoadPromise: Promise<SpeechSynthesisVoice[]> | null = null;
+
+function loadVoices(): Promise<SpeechSynthesisVoice[]> {
+  if (voicesLoaded && cachedVoices.length > 0) {
+    return Promise.resolve(cachedVoices);
+  }
+  
+  if (voicesLoadPromise) {
+    return voicesLoadPromise;
+  }
+  
+  voicesLoadPromise = new Promise((resolve) => {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      cachedVoices = voices;
+      voicesLoaded = true;
+      voicesLoadPromise = null;
+      resolve(voices);
+      return;
+    }
+    
+    const handleVoicesChanged = () => {
+      cachedVoices = window.speechSynthesis.getVoices();
+      voicesLoaded = true;
+      voicesLoadPromise = null;
+      window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+      resolve(cachedVoices);
+    };
+    
+    window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+    
+    setTimeout(() => {
+      if (!voicesLoaded) {
+        cachedVoices = window.speechSynthesis.getVoices();
+        voicesLoaded = cachedVoices.length > 0;
+        voicesLoadPromise = null;
+        window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+        resolve(cachedVoices);
+      }
+    }, 1000);
+  });
+  
+  return voicesLoadPromise;
+}
+
 export function speak(text: string, rate: number = 0.9): Promise<void> {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve) => {
     if (!('speechSynthesis' in window)) {
       console.warn('Speech synthesis not supported');
       resolve();
@@ -162,15 +209,21 @@ export function speak(text: string, rate: number = 0.9): Promise<void> {
     
     window.speechSynthesis.cancel();
     
+    await new Promise(r => setTimeout(r, 50));
+    
+    const voices = await loadVoices();
+    
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = rate;
     utterance.pitch = 1;
     utterance.volume = 1;
     
-    const voices = window.speechSynthesis.getVoices();
     const englishVoice = voices.find(v => v.lang.startsWith('en-'));
     if (englishVoice) {
       utterance.voice = englishVoice;
+      utterance.lang = englishVoice.lang;
+    } else {
+      utterance.lang = 'en-US';
     }
     
     utterance.onend = () => resolve();
