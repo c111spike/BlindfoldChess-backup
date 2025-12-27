@@ -270,26 +270,46 @@ export default function PuzzleCreator() {
   // Handle click on the solution preview board
   const handleSolutionSquareClick = useCallback((square: string) => {
     const workingFen = workingPosition.fen;
+    const workingBoard = workingPosition.board;
+    
+    // Get piece directly from board array for robust selection
+    const fileIdx = FILES.indexOf(square[0]);
+    const rankIdx = RANKS.indexOf(square[1]);
+    const boardPiece = workingBoard[rankIdx]?.[fileIdx];
+    
+    // Determine expected turn - try chess.js first, fall back to whoToMove state
+    let expectedColor: 'w' | 'b';
+    let chess: Chess | null = null;
+    try {
+      chess = new Chess(workingFen);
+      expectedColor = chess.turn();
+    } catch {
+      // FEN invalid for chess.js, fall back to whoToMove state
+      expectedColor = whoToMove === 'white' ? 'w' : 'b';
+    }
     
     // Helper to check if piece belongs to the side that should move
-    const canSelectPiece = (piece: { color: string } | null | undefined, chessTurn: string) => {
-      if (!piece) return false;
-      // Allow selection if chess.js turn matches piece color
-      if ((chessTurn === 'w' && piece.color === 'w') || (chessTurn === 'b' && piece.color === 'b')) {
-        return true;
-      }
-      // Fallback: Allow selection based on UI whoToMove state (for puzzle creator permissiveness)
-      if (whoToMove === 'white' && piece.color === 'w') return true;
-      if (whoToMove === 'black' && piece.color === 'b') return true;
-      return false;
+    const canSelectPiece = (pieceChar: string | null) => {
+      if (!pieceChar) return false;
+      // White pieces are uppercase, black pieces are lowercase
+      const pieceColor = pieceChar === pieceChar.toUpperCase() ? 'w' : 'b';
+      return pieceColor === expectedColor;
     };
     
-    try {
-      const chess = new Chess(workingFen);
-      const piece = chess.get(square as any);
-      
-      if (selectedSolutionSquare) {
-        // Try to make a move
+    // Helper to get legal moves, with fallback for invalid positions
+    const getLegalMoves = (chessInstance: Chess | null, sq: string): string[] => {
+      if (!chessInstance) return [];
+      try {
+        const moves = chessInstance.moves({ square: sq as any, verbose: true });
+        return moves.map(m => m.to);
+      } catch {
+        return [];
+      }
+    };
+    
+    if (selectedSolutionSquare) {
+      // Try to make a move
+      if (chess) {
         try {
           const move = chess.move({
             from: selectedSolutionSquare as any,
@@ -304,36 +324,38 @@ export default function PuzzleCreator() {
             const newMoves = [...currentValidMoves, move.san, ''];
             setSolutionMoves(newMoves);
             toast({ title: "Move Added", description: `${move.san} added to solution` });
+            setSelectedSolutionSquare(null);
+            setLegalMoves([]);
+            return;
           }
         } catch {
-          // Invalid move, check if clicking on own piece to re-select
-          if (canSelectPiece(piece, chess.turn())) {
+          // Invalid move - check if clicking on own piece to re-select
+          if (canSelectPiece(boardPiece)) {
             setSelectedSolutionSquare(square);
-            const moves = chess.moves({ square: square as any, verbose: true });
-            setLegalMoves(moves.map(m => m.to));
+            setLegalMoves(getLegalMoves(chess, square));
             return;
           }
         }
-        setSelectedSolutionSquare(null);
+      } else if (canSelectPiece(boardPiece)) {
+        // chess.js failed but user clicked on their own piece - allow reselection
+        setSelectedSolutionSquare(square);
         setLegalMoves([]);
-      } else {
-        // First click - select a piece if it belongs to the side to move
-        if (canSelectPiece(piece, chess.turn())) {
-          setSelectedSolutionSquare(square);
-          const moves = chess.moves({ square: square as any, verbose: true });
-          setLegalMoves(moves.map(m => m.to));
-        } else {
-          // Clicking on empty square or opponent piece - clear selection
-          setSelectedSolutionSquare(null);
-          setLegalMoves([]);
-        }
+        return;
       }
-    } catch (e) {
-      console.error("Error handling solution square click:", e);
       setSelectedSolutionSquare(null);
       setLegalMoves([]);
+    } else {
+      // First click - select a piece if it belongs to the side to move
+      if (canSelectPiece(boardPiece)) {
+        setSelectedSolutionSquare(square);
+        setLegalMoves(getLegalMoves(chess, square));
+      } else {
+        // Clicking on empty square or opponent piece - clear selection
+        setSelectedSolutionSquare(null);
+        setLegalMoves([]);
+      }
     }
-  }, [selectedSolutionSquare, workingPosition.fen, solutionMoves, toast, whoToMove]);
+  }, [selectedSolutionSquare, workingPosition.fen, workingPosition.board, solutionMoves, toast, whoToMove]);
   
   // Undo last solution move
   const undoLastSolutionMove = useCallback(() => {
