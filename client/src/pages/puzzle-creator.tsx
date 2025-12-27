@@ -78,10 +78,13 @@ const PUZZLE_TYPES = [
 ];
 
 const DIFFICULTIES = [
-  { value: "beginner", label: "Beginner (800-1200)" },
-  { value: "intermediate", label: "Intermediate (1200-1600)" },
-  { value: "advanced", label: "Advanced (1600-2000)" },
-  { value: "expert", label: "Expert (2000+)" },
+  { value: "patzer", label: "Patzer (400-700)" },
+  { value: "beginner", label: "Beginner (700-1000)" },
+  { value: "intermediate", label: "Intermediate (1000-1400)" },
+  { value: "advanced", label: "Advanced (1400-1800)" },
+  { value: "expert", label: "Expert (1800-2200)" },
+  { value: "master", label: "Master (2200-2500)" },
+  { value: "grandmaster", label: "Grandmaster (2500+)" },
 ];
 
 const SOURCE_TYPES = [
@@ -563,7 +566,7 @@ export default function PuzzleCreator() {
         fen,
         moves: validMoves,
         solution: validMoves,
-        rating: difficulty === "beginner" ? 1000 : difficulty === "intermediate" ? 1400 : difficulty === "advanced" ? 1800 : 2200,
+        rating: difficulty === "patzer" ? 550 : difficulty === "beginner" ? 850 : difficulty === "intermediate" ? 1200 : difficulty === "advanced" ? 1600 : difficulty === "expert" ? 2000 : difficulty === "master" ? 2350 : 2600,
         puzzleType,
         difficulty,
         hints,
