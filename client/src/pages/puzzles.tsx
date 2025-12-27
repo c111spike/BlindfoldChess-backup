@@ -72,10 +72,13 @@ const PUZZLE_TYPES = [
 
 const DIFFICULTIES = [
   { value: "all", label: "All Difficulties" },
+  { value: "patzer", label: "Patzer" },
   { value: "beginner", label: "Beginner" },
   { value: "intermediate", label: "Intermediate" },
   { value: "advanced", label: "Advanced" },
   { value: "expert", label: "Expert" },
+  { value: "master", label: "Master" },
+  { value: "grandmaster", label: "Grandmaster" },
 ];
 
 const SORT_OPTIONS = [
