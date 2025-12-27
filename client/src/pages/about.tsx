@@ -123,7 +123,7 @@ export default function About() {
                 </p>
                 <ul className="text-muted-foreground space-y-2">
                   <li><strong>Stockfish Integration:</strong> Every game is analyzed to show you not just the "Best Move," but your Efficiency Factor and Burnout Levels.</li>
-                  <li><strong>OpenID Authentication:</strong> Secure, seamless login via Replit ensures your data is safe while giving you access to a high-performance training environment.</li>
+                  <li><strong>Secure Authentication:</strong> We use Better-Auth, a world-class authentication framework, to ensure your identity and training data are protected. By using a secure, database-backed session model rather than vulnerable client-side storage, we guarantee that your VSS Mismatch scores and puzzle progress stay private, encrypted, and accessible only to you.</li>
                 </ul>
               </section>
 
