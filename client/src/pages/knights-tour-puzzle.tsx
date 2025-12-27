@@ -12,9 +12,9 @@ export default function KnightsTourPuzzle() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Knight's Tour Puzzle - Chess Brain Training | SimulChess</title>
-        <meta name="description" content="Conquer the Knight's Tour on SimulChess. Master Warnsdorff's Rule, build deep visualization skills, and explore the mathematics behind one of history's most famous chess puzzles." />
+        <meta name="description" content="Play the Knight's Tour on SimulChess to master knight board vision. Improve your chess visualization and calculation skills with this interactive knight movement puzzle." />
         <meta property="og:title" content="Knight's Tour Puzzle - SimulChess" />
-        <meta property="og:description" content="Conquer the Knight's Tour on SimulChess. Master Warnsdorff's Rule, build deep visualization skills, and explore the mathematics behind one of history's most famous chess puzzles." />
+        <meta property="og:description" content="Play the Knight's Tour on SimulChess to master knight board vision. Improve your chess visualization and calculation skills with this interactive knight movement puzzle." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/knights-tour-puzzle" />
         <meta property="og:image" content="https://simulchess.com/og-knights-tour.png" />
@@ -89,10 +89,13 @@ export default function KnightsTourPuzzle() {
           </h2>
 
           <p>
-            Take on the classic Knight's Tour challenge at SimulChess. Improve your visualization with 
-            Warnsdorff's Rule and master knight movement as you visit every square on the chessboard 
-            exactly once. With 64 squares and the knight's unusual L-shaped movement, finding a complete 
-            tour requires careful planning and spatial reasoning that directly improves your chess ability.
+            <strong>Play the Knight's Tour on SimulChess to master knight board vision.</strong> Improve your chess 
+            visualization and calculation skills with this interactive knight movement puzzle.
+          </p>
+
+          <p>
+            With 64 squares and the knight's unusual L-shaped movement, finding a complete tour requires careful 
+            planning and spatial reasoning that directly improves your chess ability.
           </p>
 
           <h3>A Puzzle With Over 1,000 Years of History</h3>

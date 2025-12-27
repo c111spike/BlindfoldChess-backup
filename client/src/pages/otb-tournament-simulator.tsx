@@ -12,9 +12,9 @@ export default function OTBTournamentSimulator() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>OTB Tournament Simulator - Over the Board Chess Practice | SimulChess</title>
-        <meta name="description" content="Bridge the gap between online and over-the-board play. Master touch-move, manual clock discipline, and FIDE-standard castling with the SimulChess OTB Tournament Simulator." />
+        <meta name="description" content="The ultimate OTB training tool to bridge the gap between online and over-the-board play. Master touch-move, manual clock discipline, and OTB-standard rules with our OTB Tournament Simulator." />
         <meta property="og:title" content="OTB Tournament Simulator - SimulChess" />
-        <meta property="og:description" content="Bridge the gap between online and over-the-board play. Master touch-move, manual clock discipline, and FIDE-standard castling with the SimulChess OTB Tournament Simulator." />
+        <meta property="og:description" content="The ultimate OTB training tool to bridge the gap between online and over-the-board play. Master touch-move, manual clock discipline, and OTB-standard rules with our OTB Tournament Simulator." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/otb-tournament-simulator" />
         <meta property="og:image" content="https://simulchess.com/og-otb.png" />
@@ -89,11 +89,14 @@ export default function OTBTournamentSimulator() {
           </h1>
 
           <p>
-            Prepare for real tournaments with SimulChess's OTB Simulator. Master touch-move rules and manual 
-            clocks while building the habits you need to dominate the board. The physical presence of your 
-            opponent, the tactile sensation of moving pieces, the ritual of pressing the clock — these elements 
-            create a unique competitive environment that catches many online players off guard. Our simulator 
-            bridges this gap, developing the skills needed for tournament success.
+            <strong>The ultimate OTB training tool to bridge the gap between online and over-the-board play.</strong> Master 
+            touch-move, manual clock discipline, and OTB-standard rules with our OTB Tournament Simulator.
+          </p>
+
+          <p>
+            The physical presence of your opponent, the tactile sensation of moving pieces, the ritual of pressing 
+            the clock — these elements create a unique competitive environment that catches many online players off 
+            guard. Our simulator bridges this gap, developing the skills needed for tournament success.
           </p>
 
           <h3>The Critical Difference: Touch-Move Rule</h3>

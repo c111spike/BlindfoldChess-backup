@@ -12,9 +12,9 @@ export default function ChessBoardSpin() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Board Spin Chess Training - Memory and Tactics Game | SimulChess</title>
-        <meta name="description" content="Build elite chess visualization with Board Spin on SimulChess. Study meaningful positions, recreate them from new perspectives, and find the best move to master the cognitive science of chess memory." />
+        <meta name="description" content="Master chess visualization with Board Spin on SimulChess. Improve your board vision by studying positions from new perspectives and mastering the cognitive science of chess memory. Start calculating deeper today!" />
         <meta property="og:title" content="Board Spin - Chess Memory Training | SimulChess" />
-        <meta property="og:description" content="Build elite chess visualization with Board Spin on SimulChess. Study meaningful positions, recreate them from new perspectives, and find the best move to master the cognitive science of chess memory." />
+        <meta property="og:description" content="Master chess visualization with Board Spin on SimulChess. Improve your board vision by studying positions from new perspectives and mastering the cognitive science of chess memory. Start calculating deeper today!" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/chess-board-spin" />
         <meta property="og:image" content="https://simulchess.com/og-boardspin.png" />
@@ -89,12 +89,15 @@ export default function ChessBoardSpin() {
           </h2>
 
           <p>
-            Test your memory with Board Spin on SimulChess. Study, rotate, and recreate positions 
-            to build elite visualization — then find the best move in the bonus round to double 
-            your score. You study a position for as long as you need, press Spin, and the board 
-            rotates while the pieces vanish. Your challenge: recreate the entire position from 
-            memory within two minutes. This innovative format trains visualization, memory retention, 
-            and tactical calculation — three skills that compound to create stronger chess players.
+            <strong>Master chess visualization with Board Spin on SimulChess.</strong> Improve your board vision by 
+            studying positions from new perspectives and mastering the cognitive science of chess memory. Start 
+            calculating deeper today!
+          </p>
+
+          <p>
+            You study a position for as long as you need, press Spin, and the board rotates while the pieces vanish. 
+            Your challenge: recreate the entire position from memory within two minutes. This innovative format trains 
+            visualization, memory retention, and tactical calculation.
           </p>
 
           <h3>How Board Spin Works</h3>

@@ -12,9 +12,9 @@ export default function BlindfoldChessTraining() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Blindfold Chess Training: Master Board Visualization | SimulChess</title>
-        <meta name="description" content="Master board vision with SimulChess. Practice blindfold training with adjustable difficulty and immersive voice control. Start building your memory today!" />
+        <meta name="description" content="Master blindfold chess and improve your chess visualization with SimulChess. Practice mental board training with immersive voice control and adjustable difficulty. Start building your memory today!" />
         <meta property="og:title" content="Blindfold Chess Training - SimulChess" />
-        <meta property="og:description" content="Master board vision with SimulChess. Practice blindfold training with adjustable difficulty and immersive voice control." />
+        <meta property="og:description" content="Master blindfold chess and improve your chess visualization with SimulChess. Practice mental board training with immersive voice control and adjustable difficulty. Start building your memory today!" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/blindfold-chess-training" />
         <meta property="og:image" content="https://simulchess.com/og-blindfold.png" />
@@ -89,11 +89,14 @@ export default function BlindfoldChessTraining() {
           </h2>
 
           <p>
-            Master board vision with SimulChess's blindfold training system. Our adjustable difficulty levels and 
-            immersive voice control let you build your memory at your own pace — from beginner-friendly unlimited 
-            peeks to grandmaster-level zero tolerance. Practiced by world champions from Paul Morphy to Magnus 
-            Carlsen, blindfold chess transforms how your brain processes positions and develops skills that 
-            directly translate to tournament success.
+            <strong>Master blindfold chess and improve your chess visualization with SimulChess.</strong> Practice 
+            mental board training with immersive voice control and adjustable difficulty. Start building your memory today!
+          </p>
+
+          <p>
+            From beginner-friendly unlimited peeks to grandmaster-level zero tolerance, our training system lets you 
+            build skills at your own pace. Practiced by world champions from Paul Morphy to Magnus Carlsen, blindfold 
+            chess transforms how your brain processes positions.
           </p>
 
           <h3>What is Blindfold Chess?</h3>

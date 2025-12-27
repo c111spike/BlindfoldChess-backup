@@ -12,9 +12,9 @@ export default function ChessPieceChallenge() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>N-Queens Puzzle and Chess Piece Challenges | SimulChess</title>
-        <meta name="description" content="Master the legendary N-Queens puzzle and piece coordination challenges at SimulChess. From computer science benchmarks to chess visualization, train your mind with history's greatest spatial puzzles." />
+        <meta name="description" content="Take the N-Queens Challenge and master chess piece coordination at SimulChess. Improve your spatial awareness and visualization by solving history's greatest chess puzzles. Train your mind today!" />
         <meta property="og:title" content="N-Queens Puzzle and Chess Piece Challenges | SimulChess" />
-        <meta property="og:description" content="Master the legendary N-Queens puzzle and piece coordination challenges at SimulChess. From computer science benchmarks to chess visualization, train your mind with history's greatest spatial puzzles." />
+        <meta property="og:description" content="Take the N-Queens Challenge and master chess piece coordination at SimulChess. Improve your spatial awareness and visualization by solving history's greatest chess puzzles. Train your mind today!" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/chess-piece-challenge" />
         <meta property="og:image" content="https://simulchess.com/og-npiece.png" />
@@ -89,12 +89,14 @@ export default function ChessPieceChallenge() {
           </h2>
 
           <p>
-            Solve the legendary N-Queens puzzle at SimulChess. Master piece coordination with challenges 
-            for knights, bishops, rooks, and kings — training your mind with history's greatest chess 
-            problems. First posed in 1848 by chess composer Max Bezzel, this deceptively simple puzzle 
-            has captivated mathematicians for nearly two centuries. Our N-Piece Challenge brings it to 
-            life with variations for all piece types, helping players of all levels learn how each piece 
-            moves and attacks.
+            <strong>Take the N-Queens Challenge and master chess piece coordination at SimulChess.</strong> Improve 
+            your spatial awareness and visualization by solving history's greatest chess puzzles. Train your mind today!
+          </p>
+
+          <p>
+            First posed in 1848 by chess composer Max Bezzel, this deceptively simple puzzle has captivated 
+            mathematicians for nearly two centuries. Our N-Piece Challenge brings it to life with variations for 
+            all piece types, helping players of all levels learn how each piece moves and attacks.
           </p>
 
           <h3>The Famous N-Queens Problem</h3>
