@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Users, Gamepad2, EyeOff, RotateCcw, Puzzle, Crown } from "lucide-react";
+import { Clock, Brain, Grid3x3, TrendingUp, TrendingDown, Users, Gamepad2, EyeOff, RotateCcw, RotateCw, Puzzle, Crown, BookOpen, Crosshair } from "lucide-react";
 import type { Rating, Game } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import { ThisDayInChessHistory } from "@/components/this-day-in-chess-history";
@@ -200,6 +200,91 @@ export default function Dashboard() {
           <CardContent className="mt-auto">
             <Button asChild variant="secondary" className="w-full" data-testid="button-mode-standard">
               <Link href="/standard">Play Standard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-board-spin">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <RotateCw className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-primary-foreground text-2xl">Board Spin</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Train your visualization. Board rotates during play.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-board-spin">
+              <Link href="/boardspin">Start Board Spin</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-knights-tour">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <Crown className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-primary-foreground text-2xl">Knight's Tour</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Visit every square exactly once with your knight.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-knights-tour">
+              <Link href="/knights-tour">Start Knight's Tour</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-n-piece-challenge">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <Crosshair className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-primary-foreground text-2xl">N-Piece Challenge</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Win with limited pieces. Test your endgame skills.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-n-piece">
+              <Link href="/n-piece">Start N-Piece</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-community-puzzles">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <Puzzle className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-primary-foreground text-2xl">Community Puzzles</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Solve puzzles created by the community.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-puzzles">
+              <Link href="/puzzles">Solve Puzzles</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-primary hover-elevate border-primary flex flex-col" data-testid="card-repertoire-trainer">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <BookOpen className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-primary-foreground text-2xl">Opening Repertoire Trainer</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Master your opening lines with spaced repetition.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Button asChild variant="secondary" className="w-full" data-testid="button-mode-repertoire">
+              <Link href="/repertoire">Train Openings</Link>
             </Button>
           </CardContent>
         </Card>
