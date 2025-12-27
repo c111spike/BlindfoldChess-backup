@@ -1320,9 +1320,12 @@ export default function OTBMode() {
           setBotTimeControl('blitz');
         }
         
+        // Format personality name nicely (e.g., "tactician" -> "Tactician")
+        const personalityDisplay = randomPersonality.charAt(0).toUpperCase() + randomPersonality.slice(1).replace('_', ' ');
+        
         toast({
-          title: "No opponents found",
-          description: `Playing against ${selectedBot.name} (${selectedBot.elo} Elo) instead`,
+          title: "No players found",
+          description: `Matching you with ${selectedBot.name} (${personalityDisplay}, ${selectedBot.elo} Elo)...`,
         });
         
         // Start bot game with random color
