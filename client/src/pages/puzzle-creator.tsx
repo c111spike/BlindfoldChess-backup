@@ -821,6 +821,63 @@ export default function PuzzleCreator() {
                 </CardContent>
               </Card>
 
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Castling Rights</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Select which castling moves are still available in this position.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="castling-wk"
+                        checked={castling.W_K}
+                        onCheckedChange={(checked) => setCastling(prev => ({ ...prev, W_K: !!checked }))}
+                        data-testid="checkbox-castling-wk"
+                      />
+                      <Label htmlFor="castling-wk" className="text-sm cursor-pointer">
+                        <span className="mr-1">♔</span> W 0-0
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="castling-wq"
+                        checked={castling.W_Q}
+                        onCheckedChange={(checked) => setCastling(prev => ({ ...prev, W_Q: !!checked }))}
+                        data-testid="checkbox-castling-wq"
+                      />
+                      <Label htmlFor="castling-wq" className="text-sm cursor-pointer">
+                        <span className="mr-1">♔</span> W 0-0-0
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="castling-bk"
+                        checked={castling.B_K}
+                        onCheckedChange={(checked) => setCastling(prev => ({ ...prev, B_K: !!checked }))}
+                        data-testid="checkbox-castling-bk"
+                      />
+                      <Label htmlFor="castling-bk" className="text-sm cursor-pointer">
+                        <span className="mr-1">♚</span> B 0-0
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="castling-bq"
+                        checked={castling.B_Q}
+                        onCheckedChange={(checked) => setCastling(prev => ({ ...prev, B_Q: !!checked }))}
+                        data-testid="checkbox-castling-bq"
+                      />
+                      <Label htmlFor="castling-bq" className="text-sm cursor-pointer">
+                        <span className="mr-1">♚</span> B 0-0-0
+                      </Label>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Button
                 className="w-full"
                 size="lg"
