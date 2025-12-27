@@ -136,6 +136,7 @@ export interface IStorage {
   getNextPuzzleForUser(userId: string): Promise<Puzzle | undefined>;
   getFirstPuzzle(): Promise<Puzzle | undefined>;
   createPuzzleAttempt(attempt: InsertPuzzleAttempt): Promise<PuzzleAttempt>;
+  getUserPuzzleStats(userId: string): Promise<{ solvedToday: number; totalSolved: number; successRate: number }>;
   
   getPuzzleSessionProgress(userId: string): Promise<PuzzleSessionProgress | undefined>;
   markPuzzleSeen(userId: string, puzzleId: string): Promise<PuzzleSessionProgress>;
@@ -762,6 +763,25 @@ export class DatabaseStorage implements IStorage {
   async createPuzzleAttempt(attemptData: InsertPuzzleAttempt): Promise<PuzzleAttempt> {
     const [attempt] = await db.insert(puzzleAttempts).values(attemptData).returning();
     return attempt;
+  }
+
+  async getUserPuzzleStats(userId: string): Promise<{ solvedToday: number; totalSolved: number; successRate: number }> {
+    // Get today's start timestamp
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Get all attempts for this user
+    const allAttempts = await db.select({
+      solved: puzzleAttempts.solved,
+      attemptedAt: puzzleAttempts.attemptedAt
+    }).from(puzzleAttempts).where(eq(puzzleAttempts.userId, userId));
+    
+    const totalAttempts = allAttempts.length;
+    const totalSolved = allAttempts.filter(a => a.solved).length;
+    const solvedToday = allAttempts.filter(a => a.solved && a.attemptedAt && a.attemptedAt >= today).length;
+    const successRate = totalAttempts > 0 ? Math.round((totalSolved / totalAttempts) * 100) : 0;
+    
+    return { solvedToday, totalSolved, successRate };
   }
 
   async getPuzzleSessionProgress(userId: string): Promise<PuzzleSessionProgress | undefined> {

@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3, Pencil, Crown, Shuffle, Mic, MicOff, Volume2 } from "lucide-react";
+import { Clock, Play, HandshakeIcon, Flag, Eye, Infinity as InfinityIcon, Bot, ChevronLeft, BarChart3, Pencil, Crown, Shuffle, Mic, MicOff, Volume2, Trophy, RotateCcw } from "lucide-react";
 import { voiceRecognition, speak, moveToSpeech } from "@/lib/voice";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
@@ -155,6 +155,7 @@ export default function StandardMode() {
   const [botTimeControl, setBotTimeControl] = useState<"blitz" | "rapid" | "practice">("blitz");
   const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
   const [selectedBotPersonality, setSelectedBotPersonality] = useState<BotProfile | null>(null);
+  const [queueCountdown, setQueueCountdown] = useState<number | null>(null);
   
   const [pendingPromotion, setPendingPromotion] = useState<{
     from: string;
@@ -185,6 +186,7 @@ export default function StandardMode() {
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const gameCompletionInProgressRef = useRef(false);
+  const botAutoFillInProgressRef = useRef(false);
 
   useEffect(() => {
     gameRef.current = game;
@@ -292,8 +294,7 @@ export default function StandardMode() {
         console.log('[completeGame] Bot game - skipping database save, showing dialog directly');
       }
 
-      // Show game end dialog after server updates (or immediately for bot games)
-      setShowGameEndDialog(true);
+      // Game over UI is now shown inline via the gameResult state (no dialog needed)
     } finally {
       // Always reset guard flag so future games can complete
       gameCompletionInProgressRef.current = false;
@@ -687,11 +688,9 @@ export default function StandardMode() {
   const handleGameEndEvent = useCallback((data: { result: string; reason: string }) => {
     console.log('[handleGameEndEvent] Received game_end WebSocket event:', data);
     
-    // Set the game result so the Game Over dialog shows the correct winner
+    // Set the game result so the inline Game Over banner shows the correct winner
     setGameResult(data.result as "white_win" | "black_win" | "draw");
-    
-    // Show the Game Over dialog
-    setShowGameEndDialog(true);
+    // Game over UI is now shown inline (no dialog needed)
     
     // Stop all timers
     if (saveIntervalRef.current) {
@@ -878,6 +877,99 @@ export default function StandardMode() {
   useEffect(() => {
     setInQueue(queueStatus.inQueue);
   }, [queueStatus]);
+
+  // Queue countdown timer - auto-fill with bot after 30 seconds
+  useEffect(() => {
+    if (inQueue) {
+      // Start 30 second countdown when joining queue
+      setQueueCountdown(30);
+      
+      const countdownInterval = setInterval(() => {
+        setQueueCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => {
+        clearInterval(countdownInterval);
+        setQueueCountdown(null);
+      };
+    } else {
+      // Reset the bot auto-fill guard when we leave the queue
+      botAutoFillInProgressRef.current = false;
+      setQueueCountdown(null);
+    }
+  }, [inQueue]);
+
+  // Auto-fill with bot when countdown reaches 0
+  useEffect(() => {
+    if (queueCountdown === 0 && inQueue && bots && bots.length > 0) {
+      // Guard against duplicate execution
+      if (botAutoFillInProgressRef.current) return;
+      botAutoFillInProgressRef.current = true;
+      
+      // Leave the queue first
+      wsLeaveQueue();
+      setQueueType(null);
+      
+      // Get player's rating for the selected queue type
+      const ratingCategory = queueType?.includes('rapid') ? 'rapid' : 'blitz';
+      const playerElo = playerRatings?.[ratingCategory] || 1200;
+      
+      // Find the two closest bot difficulty brackets
+      const difficultyElos = Object.entries(BOT_DIFFICULTY_ELO) as [BotDifficulty, number][];
+      const sortedByDistance = difficultyElos
+        .map(([diff, elo]) => ({ diff, elo, distance: Math.abs(elo - playerElo) }))
+        .sort((a, b) => a.distance - b.distance);
+      
+      // Get the two closest brackets (guard against only one bracket)
+      const closest = sortedByDistance[0];
+      const secondClosest = sortedByDistance[1] || closest;
+      
+      // Weighted probability: closer rating has higher chance
+      // If player is 1279: distance to 1200=79, distance to 1500=221
+      // Total range = 79+221 = 300
+      // Probability for 1200 = (300-79)/300 = 73.7%
+      const totalDistance = closest.distance + secondClosest.distance;
+      const closestProbability = totalDistance > 0 
+        ? (totalDistance - closest.distance) / totalDistance 
+        : 0.5;
+      
+      const selectedDifficulty = Math.random() < closestProbability 
+        ? closest.diff 
+        : secondClosest.diff;
+      
+      // Random personality
+      const randomPersonality = ALL_PERSONALITIES[Math.floor(Math.random() * ALL_PERSONALITIES.length)];
+      
+      // Find matching bot
+      const selectedBot = bots.find(
+        b => b.difficulty === selectedDifficulty && b.personality === randomPersonality
+      );
+      
+      if (selectedBot) {
+        // Set time control based on queue type
+        if (queueType?.includes('rapid')) {
+          setBotTimeControl('rapid');
+        } else {
+          setBotTimeControl('blitz');
+        }
+        
+        toast({
+          title: "No opponents found",
+          description: `Playing against ${selectedBot.name} (${selectedBot.elo} Elo) instead`,
+        });
+        
+        // Start bot game with random color
+        handleStartBotGame(selectedBot, "random");
+      }
+      // Note: botAutoFillInProgressRef is reset when inQueue becomes false in the countdown effect
+    }
+  }, [queueCountdown, inQueue, bots, playerRatings, queueType]);
 
   const handleJoinQueue = (timeControl: string) => {
     if (!isConnected) {
@@ -1966,7 +2058,11 @@ export default function StandardMode() {
                     <div className="flex justify-center py-8">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                     </div>
-                    <p className="text-muted-foreground">Open another browser window and queue up to play against yourself!</p>
+                    <p className="text-muted-foreground">
+                      {queueCountdown !== null && queueCountdown > 0 
+                        ? `Finding opponent... Playing bot in ${queueCountdown}s`
+                        : "Matching you with a bot..."}
+                    </p>
                     <Button 
                       variant="outline" 
                       onClick={handleLeaveQueue}
@@ -2165,6 +2261,108 @@ export default function StandardMode() {
                 </Card>
               </div>
 
+              {/* Inline Game Over Banner (non-dismissible) */}
+              {gameResult && (
+                <Card className="border-primary bg-primary/10">
+                  <CardContent className="py-4">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Trophy className="h-6 w-6 text-primary" />
+                          <div>
+                            <p className="font-semibold text-lg">Game Over</p>
+                            <p className="text-sm text-muted-foreground">
+                              {gameResult === "draw" 
+                                ? "Game drawn" 
+                                : gameResult === "white_win" 
+                                  ? (playerColor === "white" ? "You win!" : "Opponent wins") 
+                                  : (playerColor === "black" ? "You win!" : "Opponent wins")}
+                            </p>
+                            {ratingChange !== null && !isBotGame && (
+                              <p className={`text-sm font-medium ${ratingChange >= 0 ? 'text-green-500' : 'text-red-500'}`} data-testid="text-inline-rating-change">
+                                {ratingChange >= 0 ? '+' : ''}{ratingChange} rating
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            if (matchId && !isBotGame) {
+                              setWaitingForRematchResponse(true);
+                              didSendRematchRequestRef.current = true;
+                              sendRematchRequest(matchId);
+                              toast({
+                                title: "Rematch requested",
+                                description: "Waiting for opponent...",
+                              });
+                            } else if (isBotGame) {
+                              resetGameState();
+                              setLocation('/standard');
+                            }
+                          }}
+                          disabled={waitingForRematchResponse || rematchDenied}
+                          data-testid="button-inline-rematch"
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          {waitingForRematchResponse ? "Waiting..." : "Rematch"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (gameId) {
+                              resetGameState();
+                              setLocation(`/analysis/${gameId}`);
+                            }
+                          }}
+                          disabled={!gameId}
+                          data-testid="button-inline-analyze"
+                        >
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          Analyze
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            resetGameState();
+                            setLocation('/');
+                          }}
+                          data-testid="button-inline-main-menu"
+                        >
+                          Main Menu
+                        </Button>
+                      </div>
+                      
+                      {!isBotGame && opponentId && (
+                        <div className="text-center">
+                          <ReportPlayerDialog
+                            reportedUserId={opponentId}
+                            reportedUserName={opponentName}
+                            gameId={gameId || undefined}
+                            trigger={
+                              <span 
+                                className="text-xs text-muted-foreground cursor-pointer hover:underline"
+                                data-testid="link-inline-report-player"
+                              >
+                                Report player
+                              </span>
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Game controls - hide when game is over */}
+              {!gameResult && (
               <Card>
                 <CardContent className="py-4 md:py-6 space-y-3">
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -2203,6 +2401,7 @@ export default function StandardMode() {
                   </div>
                 </CardContent>
               </Card>
+              )}
             </>
           )}
         </div>

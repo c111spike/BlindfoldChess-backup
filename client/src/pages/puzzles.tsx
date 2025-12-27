@@ -419,6 +419,11 @@ function TrainTab() {
   const [reportDetails, setReportDetails] = useState("");
   const [afterPuzzleId, setAfterPuzzleId] = useState<string | undefined>(undefined);
   
+  // Fetch user's puzzle stats
+  const { data: puzzleStats } = useQuery<{ solvedToday: number; totalSolved: number; successRate: number }>({
+    queryKey: ["/api/user/puzzle-stats"],
+  });
+  
   // Refs to track pending timers so we can cancel them
   const opponentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -486,6 +491,16 @@ function TrainTab() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to record vote. Please try again.", variant: "destructive" });
+    },
+  });
+
+  const attemptMutation = useMutation({
+    mutationFn: async ({ puzzleId, solved }: { puzzleId: string; solved: boolean }) => {
+      return apiRequest("POST", "/api/puzzles/attempt", { puzzleId, solved, timeSpent: 0 });
+    },
+    onSuccess: () => {
+      // Refresh puzzle stats when an attempt is recorded
+      queryClient.invalidateQueries({ queryKey: ["/api/user/puzzle-stats"] });
     },
   });
 
@@ -614,6 +629,7 @@ function TrainTab() {
               // Check if puzzle is complete
               if (moveIndex + 1 >= solutionMoves.length) {
                 setSolved(true);
+                if (puzzle?.id) attemptMutation.mutate({ puzzleId: puzzle.id, solved: true });
                 toast({ title: "Correct!", description: "You solved the puzzle!" });
               } else if (solutionMoves.length > moveIndex + 1) {
                 // Make opponent's response after a short delay
@@ -632,6 +648,7 @@ function TrainTab() {
             } else {
               // Wrong move - show feedback and reset
               setSolved(false);
+              if (puzzle?.id) attemptMutation.mutate({ puzzleId: puzzle.id, solved: false });
               toast({ 
                 title: "Incorrect", 
                 description: "That's not the best move. Try again!",
@@ -1041,15 +1058,15 @@ function TrainTab() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold" data-testid="text-solved-today">{puzzleStats?.solvedToday ?? 0}</p>
                 <p className="text-xs text-muted-foreground">Solved Today</p>
               </div>
               <div>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold" data-testid="text-total-solved">{puzzleStats?.totalSolved ?? 0}</p>
                 <p className="text-xs text-muted-foreground">Total Solved</p>
               </div>
               <div>
-                <p className="text-2xl font-bold">0%</p>
+                <p className="text-2xl font-bold" data-testid="text-success-rate">{puzzleStats?.successRate ?? 0}%</p>
                 <p className="text-xs text-muted-foreground">Success Rate</p>
               </div>
             </div>

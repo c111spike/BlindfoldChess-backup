@@ -213,6 +213,7 @@ export default function OTBMode() {
   const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
   const [selectedBotPersonality, setSelectedBotPersonality] = useState<BotProfile | null>(null);
   const [botTimeControl, setBotTimeControl] = useState<"blitz" | "rapid" | "practice">("blitz");
+  const [queueCountdown, setQueueCountdown] = useState<number | null>(null);
   
   // Rematch state
   const [rematchRequested, setRematchRequested] = useState(false);
@@ -236,6 +237,7 @@ export default function OTBMode() {
   const legalChessGameRef = useRef<Chess | null>(null);
   const previousLegalFenRef = useRef<string | null>(null); // Tracks FEN before opponent's move for illegal move claims
   const pendingNotationRef = useRef<string | null>(null); // Ref to avoid stale closure in callbacks
+  const botAutoFillInProgressRef = useRef(false);
 
   useEffect(() => {
     gameRef.current = game;
@@ -1243,6 +1245,92 @@ export default function OTBMode() {
       });
     },
   });
+
+  // Queue countdown timer - auto-fill with bot after 30 seconds
+  useEffect(() => {
+    if (inQueue) {
+      // Start 30 second countdown when joining queue
+      setQueueCountdown(30);
+      
+      const countdownInterval = setInterval(() => {
+        setQueueCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => {
+        clearInterval(countdownInterval);
+        setQueueCountdown(null);
+      };
+    } else {
+      // Reset the bot auto-fill guard when we leave the queue
+      botAutoFillInProgressRef.current = false;
+      setQueueCountdown(null);
+    }
+  }, [inQueue]);
+
+  // Auto-fill with bot when countdown reaches 0
+  useEffect(() => {
+    if (queueCountdown === 0 && inQueue) {
+      // Guard against duplicate execution
+      if (botAutoFillInProgressRef.current) return;
+      botAutoFillInProgressRef.current = true;
+      
+      // Leave the queue first
+      leaveQueueMutation.mutate({ queueType });
+      
+      // Get player's rating (use 1200 as default for OTB mode)
+      const playerElo = 1200;
+      
+      // Find the two closest bot difficulty brackets
+      const difficultyElos = Object.entries(BOT_DIFFICULTY_ELO) as [BotDifficulty, number][];
+      const sortedByDistance = difficultyElos
+        .map(([diff, elo]) => ({ diff, elo, distance: Math.abs(elo - playerElo) }))
+        .sort((a, b) => a.distance - b.distance);
+      
+      // Get the two closest brackets (guard against only one bracket)
+      const closest = sortedByDistance[0];
+      const secondClosest = sortedByDistance[1] || closest;
+      
+      // Weighted probability: closer rating has higher chance
+      const totalDistance = closest.distance + secondClosest.distance;
+      const closestProbability = totalDistance > 0 
+        ? (totalDistance - closest.distance) / totalDistance 
+        : 0.5;
+      
+      const selectedDifficulty = Math.random() < closestProbability 
+        ? closest.diff 
+        : secondClosest.diff;
+      
+      // Random personality
+      const randomPersonality = ALL_PERSONALITIES[Math.floor(Math.random() * ALL_PERSONALITIES.length)];
+      
+      // Get matching bot using getBotByConfig
+      const selectedBot = getBotByConfig(selectedDifficulty, randomPersonality);
+      
+      if (selectedBot) {
+        // Set time control based on queue type (OTB uses blitz/rapid patterns)
+        if (queueType?.includes('rapid') || queueType?.includes('15') || queueType?.includes('10')) {
+          setBotTimeControl('rapid');
+        } else {
+          setBotTimeControl('blitz');
+        }
+        
+        toast({
+          title: "No opponents found",
+          description: `Playing against ${selectedBot.name} (${selectedBot.elo} Elo) instead`,
+        });
+        
+        // Start bot game with random color
+        handleStartBotGame(selectedBot, "random");
+      }
+      // Note: botAutoFillInProgressRef is reset when inQueue becomes false in the countdown effect
+    }
+  }, [queueCountdown, inQueue, queueType]);
 
   const pollMatch = useCallback(async () => {
     let attempts = 0;
@@ -3523,7 +3611,11 @@ export default function OTBMode() {
                     <div className="flex justify-center py-8">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                     </div>
-                    <p className="text-muted-foreground">Open another browser window and queue up to play against yourself!</p>
+                    <p className="text-muted-foreground">
+                      {queueCountdown !== null && queueCountdown > 0 
+                        ? `Finding opponent... Playing bot in ${queueCountdown}s`
+                        : "Matching you with a bot..."}
+                    </p>
                     <Button 
                       variant="outline" 
                       onClick={() => leaveQueueMutation.mutate({ queueType })}
