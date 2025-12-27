@@ -272,7 +272,7 @@ export default function PuzzleCreator() {
     const workingFen = workingPosition.fen;
     
     // Helper to check if piece belongs to the side that should move
-    const canSelectPiece = (piece: { color: string } | null, chessTurn: string) => {
+    const canSelectPiece = (piece: { color: string } | null | undefined, chessTurn: string) => {
       if (!piece) return false;
       // Allow selection if chess.js turn matches piece color
       if ((chessTurn === 'w' && piece.color === 'w') || (chessTurn === 'b' && piece.color === 'b')) {
