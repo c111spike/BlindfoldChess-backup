@@ -2197,7 +2197,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = req.user.claims.sub;
     const user = await storage.getUser(userId);
     if (!user?.isAdmin) {
-      return res.status(403).json({ message: "Admin access required" });
+      // Return 404 to hide the existence of admin routes (stealth mode)
+      return res.status(404).json({ message: "Not found" });
     }
     next();
   };

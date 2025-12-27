@@ -49,6 +49,7 @@ import { Input } from "@/components/ui/input";
 import { clientStockfish, TopMoveResult } from "@/lib/stockfish";
 import type { User, Puzzle, CheatReport, UserAntiCheat, PuzzleReport } from "@shared/schema";
 import { Link } from "wouter";
+import NotFound from "@/pages/not-found";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface FlaggedPuzzleWithReports extends Puzzle {
@@ -710,13 +711,7 @@ export default function AdminPage() {
   });
 
   if (!isAdmin) {
-    return (
-      <div className="p-8 text-center">
-        <Shield className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-        <p className="text-muted-foreground">You do not have permission to access this page.</p>
-      </div>
-    );
+    return <NotFound />;
   }
 
   return (
