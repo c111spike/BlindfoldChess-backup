@@ -207,7 +207,7 @@ async function importPuzzles() {
       hints: [],
       sourceType: "lichess",
       sourceName: puzzleId,
-      youtubeVideoUrl: gameUrl,
+      youtubeVideoUrl: null,
       isAnonymous: false,
       whoToMove: result.whoToMove,
       upvotes: 0,

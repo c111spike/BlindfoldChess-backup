@@ -788,6 +788,27 @@ export default function Settings() {
                   <Badge variant="secondary">Public Domain</Badge>
                 </div>
               </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold text-base">Puzzle Database</h3>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="flex-1">
+                    <p className="font-medium">Lichess Puzzle Database</p>
+                    <p className="text-sm text-muted-foreground">Over 4 million chess puzzles curated from real games, available under Creative Commons CC0</p>
+                    <a 
+                      href="https://database.lichess.org/#puzzles" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      data-testid="link-lichess-puzzles-credit"
+                    >
+                      database.lichess.org
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <Badge variant="secondary">CC0 Public Domain</Badge>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
