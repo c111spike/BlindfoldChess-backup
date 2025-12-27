@@ -174,3 +174,27 @@ An optional post-game training feature for OTB mode that simulates resetting the
 - Reinforces starting position memory
 - Unique differentiator vs other chess apps
 - Aligns with "training for real chess" positioning
+
+### King Placement Protocol ("Pro Finish" Animation)
+A visual teaching moment that displays the professional tournament convention for signaling game results via king placement.
+
+**Background:**
+In high-level tournaments (World Chess Championship, Grand Chess Tour), players place both kings on the center four squares (d4, d5, e4, e5) after a game ends. This signals the result to DGT electronic boards and arbiters. Since two kings can never legally be adjacent during play, this "illegal position" tells software to stop broadcasting and record the final score.
+
+**Result Signaling:**
+| Result | White King | Black King | Logic |
+|--------|------------|------------|-------|
+| White Wins (1-0) | e4 (light square) | d5 (light square) | Both on light = White wins |
+| Black Wins (0-1) | d4 (dark square) | e5 (dark square) | Both on dark = Black wins |
+| Draw (½-½) | e4 (light square) | e5 (dark square) | Split colors = Draw |
+
+**Implementation Approach:**
+- **"Pro Finish" Animation**: After handshake is accepted (when Tournament Prep Mode enabled), kings automatically slide to their result squares
+- **Tooltip**: Display elegant popup explaining the convention: "Tournament Protocol: Kings placed on [Color] squares signal a [Result] to the Arbiter/DGT board."
+- **Optional Badge**: "DGT Certified" badge for players who correctly place kings manually before starting the Board Reset Challenge
+
+**Why it fits:**
+- Adds "elite tournament" atmosphere without adding a chore
+- Teaches professional protocol through visual demonstration
+- Professional polish that makes OTB mode feel authentic
+- Pairs naturally with Board Reset Challenge in Tournament Prep Mode flow
