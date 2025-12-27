@@ -199,29 +199,12 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   return voicesLoadPromise;
 }
 
-// Reference to recognition instance for TTS coordination - set after class is defined
-let recognitionInstance: VoiceRecognition | null = null;
-
-export function setRecognitionInstance(instance: VoiceRecognition) {
-  recognitionInstance = instance;
-}
-
 export function speak(text: string, rate: number = 0.9): Promise<void> {
   return new Promise(async (resolve) => {
     if (!('speechSynthesis' in window)) {
       console.warn('Speech synthesis not supported');
       resolve();
       return;
-    }
-    
-    console.log('[Voice] speak() called:', text);
-    
-    // Pause recognition to release audio focus on Android
-    const wasPaused = recognitionInstance?.pauseForTTS() ?? false;
-    
-    // Wait for recognition to fully stop
-    if (wasPaused) {
-      await new Promise(r => setTimeout(r, 150));
     }
     
     window.speechSynthesis.cancel();
@@ -243,24 +226,12 @@ export function speak(text: string, rate: number = 0.9): Promise<void> {
       utterance.lang = 'en-US';
     }
     
-    utterance.onend = () => {
-      console.log('[Voice] speak() completed');
-      // Resume recognition after TTS completes
-      if (wasPaused) {
-        recognitionInstance?.resumeAfterTTS();
-      }
-      resolve();
-    };
+    utterance.onend = () => resolve();
     utterance.onerror = (e) => {
-      console.error('[Voice] Speech error:', e);
-      // Resume recognition even on error
-      if (wasPaused) {
-        recognitionInstance?.resumeAfterTTS();
-      }
+      console.error('Speech error:', e);
       resolve();
     };
     
-    console.log('[Voice] Calling speechSynthesis.speak()');
     window.speechSynthesis.speak(utterance);
   });
 }
@@ -393,7 +364,6 @@ export class VoiceRecognition {
   private restartTimeout: ReturnType<typeof setTimeout> | null = null;
   private shouldBeListening: boolean = false;
   private instanceId: number = 0;
-  private pausedForTTS: boolean = false;
   
   constructor() {
     this.setupRecognition();
@@ -427,8 +397,7 @@ export class VoiceRecognition {
         this.recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
           console.log('Speech recognition error:', event.error);
           if (event.error === 'no-speech' || event.error === 'audio-capture' || event.error === 'network') {
-            // Don't restart if paused for TTS
-            if (this.shouldBeListening && !this.pausedForTTS) {
+            if (this.shouldBeListening) {
               this.scheduleRestart();
             }
           } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -442,8 +411,7 @@ export class VoiceRecognition {
           if (this.onListeningChange) {
             this.onListeningChange(false);
           }
-          // Don't restart if paused for TTS - resumeAfterTTS will handle it
-          if (this.shouldBeListening && !this.pausedForTTS) {
+          if (this.shouldBeListening) {
             this.scheduleRestart();
           }
         };
@@ -459,17 +427,11 @@ export class VoiceRecognition {
   }
   
   private scheduleRestart() {
-    // Don't schedule restart if paused for TTS
-    if (this.pausedForTTS) {
-      return;
-    }
-    
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);
     }
     this.restartTimeout = setTimeout(() => {
-      // Double-check we're not paused for TTS when timeout fires
-      if (this.shouldBeListening && this.recognition && !this.isListening && !this.pausedForTTS) {
+      if (this.shouldBeListening && this.recognition && !this.isListening) {
         try {
           this.recognition.start();
         } catch (e) {
@@ -538,59 +500,6 @@ export class VoiceRecognition {
     this.legalMoves = [];
   }
   
-  // Pause recognition to release audio focus for TTS on Android
-  pauseForTTS(): boolean {
-    if (!this.recognition) return false;
-    
-    // Only pause if we're actively listening
-    if (this.shouldBeListening || this.isListening) {
-      console.log('[Voice] Pausing recognition for TTS');
-      this.pausedForTTS = true;
-      
-      // Clear any pending restart
-      if (this.restartTimeout) {
-        clearTimeout(this.restartTimeout);
-        this.restartTimeout = null;
-      }
-      
-      // Stop recognition to release audio focus
-      if (this.isListening) {
-        try {
-          this.recognition.stop();
-        } catch (e) {
-          console.log('[Voice] Error stopping for TTS:', e);
-        }
-      }
-      
-      return true;
-    }
-    
-    return false;
-  }
-  
-  // Resume recognition after TTS completes
-  resumeAfterTTS() {
-    if (!this.pausedForTTS) return;
-    
-    console.log('[Voice] Resuming recognition after TTS');
-    this.pausedForTTS = false;
-    
-    // Only restart if we were supposed to be listening
-    if (this.shouldBeListening && this.recognition && !this.isListening) {
-      // Small delay to ensure audio focus is fully released
-      setTimeout(() => {
-        if (this.shouldBeListening && !this.isListening) {
-          try {
-            this.recognition?.start();
-          } catch (e) {
-            console.log('[Voice] Error resuming after TTS:', e);
-            this.scheduleRestart();
-          }
-        }
-      }, 100);
-    }
-  }
-  
   isSupported(): boolean {
     return this.recognition !== null;
   }
@@ -598,13 +507,6 @@ export class VoiceRecognition {
   getIsListening(): boolean {
     return this.isListening;
   }
-  
-  isPausedForTTS(): boolean {
-    return this.pausedForTTS;
-  }
 }
 
 export const voiceRecognition = new VoiceRecognition();
-
-// Wire up the recognition instance for TTS coordination
-setRecognitionInstance(voiceRecognition);
