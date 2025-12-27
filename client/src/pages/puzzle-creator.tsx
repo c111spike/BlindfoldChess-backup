@@ -66,6 +66,8 @@ const PUZZLE_TYPES = [
   { value: "mate_in_2", label: "Mate in 2" },
   { value: "mate_in_3", label: "Mate in 3" },
   { value: "mate_in_4_plus", label: "Mate in 4+" },
+  { value: "white_to_play_and_win", label: "White to play and win" },
+  { value: "black_to_play_and_win", label: "Black to play and win" },
   { value: "win_piece", label: "Win a Piece" },
   { value: "positional_advantage", label: "Positional Advantage" },
   { value: "endgame", label: "Endgame" },
@@ -269,6 +271,19 @@ export default function PuzzleCreator() {
   const handleSolutionSquareClick = useCallback((square: string) => {
     const workingFen = workingPosition.fen;
     
+    // Helper to check if piece belongs to the side that should move
+    const canSelectPiece = (piece: { color: string } | null, chessTurn: string) => {
+      if (!piece) return false;
+      // Allow selection if chess.js turn matches piece color
+      if ((chessTurn === 'w' && piece.color === 'w') || (chessTurn === 'b' && piece.color === 'b')) {
+        return true;
+      }
+      // Fallback: Allow selection based on UI whoToMove state (for puzzle creator permissiveness)
+      if (whoToMove === 'white' && piece.color === 'w') return true;
+      if (whoToMove === 'black' && piece.color === 'b') return true;
+      return false;
+    };
+    
     try {
       const chess = new Chess(workingFen);
       const piece = chess.get(square as any);
@@ -292,7 +307,7 @@ export default function PuzzleCreator() {
           }
         } catch {
           // Invalid move, check if clicking on own piece to re-select
-          if (piece && ((chess.turn() === 'w' && piece.color === 'w') || (chess.turn() === 'b' && piece.color === 'b'))) {
+          if (canSelectPiece(piece, chess.turn())) {
             setSelectedSolutionSquare(square);
             const moves = chess.moves({ square: square as any, verbose: true });
             setLegalMoves(moves.map(m => m.to));
@@ -303,7 +318,7 @@ export default function PuzzleCreator() {
         setLegalMoves([]);
       } else {
         // First click - select a piece if it belongs to the side to move
-        if (piece && ((chess.turn() === 'w' && piece.color === 'w') || (chess.turn() === 'b' && piece.color === 'b'))) {
+        if (canSelectPiece(piece, chess.turn())) {
           setSelectedSolutionSquare(square);
           const moves = chess.moves({ square: square as any, verbose: true });
           setLegalMoves(moves.map(m => m.to));
@@ -318,7 +333,7 @@ export default function PuzzleCreator() {
       setSelectedSolutionSquare(null);
       setLegalMoves([]);
     }
-  }, [selectedSolutionSquare, workingPosition.fen, solutionMoves, toast]);
+  }, [selectedSolutionSquare, workingPosition.fen, solutionMoves, toast, whoToMove]);
   
   // Undo last solution move
   const undoLastSolutionMove = useCallback(() => {
