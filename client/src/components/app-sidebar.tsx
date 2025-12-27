@@ -350,7 +350,7 @@ export function AppSidebar() {
                 Stockfish
               </a>
               {" "}(GPLv3)
-              <div className="text-[10px] text-muted-foreground/50 mt-0.5">v1.7.1</div>
+              <div className="text-[10px] text-muted-foreground/50 mt-0.5">v1.8.0</div>
             </div>
           )}
         </div>
