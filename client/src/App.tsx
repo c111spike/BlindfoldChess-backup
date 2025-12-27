@@ -119,7 +119,8 @@ function AppContent() {
     "/blindfold-chess-training", "/otb-tournament-simulator", "/simul-chess-training",
     "/knights-tour-puzzle", "/chess-piece-challenge", "/chess-puzzles-trainer", "/chess-board-spin",
     "/opening-repertoire-trainer", "/chess-game-review",
-    "/login", "/signup", "/forgot-password", "/reset-password"
+    "/login", "/signup", "/forgot-password", "/reset-password",
+    "/admin" // Allow render to show 404, not redirect to login (stealth mode)
   ].includes(location);
 
   useEffect(() => {
@@ -168,6 +169,7 @@ function AppContent() {
       "/chess-board-spin": ChessBoardSpin,
       "/opening-repertoire-trainer": OpeningRepertoireTrainer,
       "/chess-game-review": ChessGameReview,
+      "/admin": NotFound, // Stealth mode: show 404 instead of revealing admin exists
     }[location];
     
     if (PublicPageComponent) {
