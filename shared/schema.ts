@@ -228,16 +228,20 @@ export const puzzleTypeEnum = pgEnum("puzzle_type", [
 ]);
 
 export const puzzleDifficultyEnum = pgEnum("puzzle_difficulty", [
+  "patzer",
   "beginner",
   "intermediate",
   "advanced",
   "expert",
+  "master",
+  "grandmaster",
 ]);
 
 export const puzzleSourceTypeEnum = pgEnum("puzzle_source_type", [
   "created",
   "book",
   "youtube",
+  "lichess",
   "other",
 ]);
 
