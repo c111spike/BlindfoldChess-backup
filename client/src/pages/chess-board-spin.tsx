@@ -12,9 +12,9 @@ export default function ChessBoardSpin() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Board Spin Chess Training - Memory and Tactics Game | SimulChess</title>
-        <meta name="description" content="Master chess visualization with Board Spin on SimulChess. Improve your board vision by studying positions from new perspectives and mastering the cognitive science of chess memory. Start calculating deeper today!" />
+        <meta name="description" content="Master chess visualization with Board Spin on SimulChess. Improve your board vision and memory by studying positions from new perspectives. Start today!" />
         <meta property="og:title" content="Board Spin - Chess Memory Training | SimulChess" />
-        <meta property="og:description" content="Master chess visualization with Board Spin on SimulChess. Improve your board vision by studying positions from new perspectives and mastering the cognitive science of chess memory. Start calculating deeper today!" />
+        <meta property="og:description" content="Master chess visualization with Board Spin on SimulChess. Improve your board vision and memory by studying positions from new perspectives. Start today!" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/chess-board-spin" />
         <meta property="og:image" content="https://simulchess.com/og-boardspin.png" />
@@ -89,9 +89,8 @@ export default function ChessBoardSpin() {
           </h2>
 
           <p>
-            <strong>Master chess visualization with Board Spin on SimulChess.</strong> Improve your board vision by 
-            studying positions from new perspectives and mastering the cognitive science of chess memory. Start 
-            calculating deeper today!
+            <strong>Master chess visualization with Board Spin on SimulChess.</strong> Improve your board vision and 
+            memory by studying positions from new perspectives. Start today!
           </p>
 
           <p>

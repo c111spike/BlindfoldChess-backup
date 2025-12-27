@@ -12,9 +12,9 @@ export default function ChessPieceChallenge() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>N-Queens Puzzle and Chess Piece Challenges | SimulChess</title>
-        <meta name="description" content="Take the N-Queens Challenge and master chess piece coordination at SimulChess. Improve your spatial awareness and visualization by solving history's greatest chess puzzles. Train your mind today!" />
+        <meta name="description" content="Take the N-Queens Challenge and master piece coordination at SimulChess. Improve your spatial awareness and visualization with these classic puzzles." />
         <meta property="og:title" content="N-Queens Puzzle and Chess Piece Challenges | SimulChess" />
-        <meta property="og:description" content="Take the N-Queens Challenge and master chess piece coordination at SimulChess. Improve your spatial awareness and visualization by solving history's greatest chess puzzles. Train your mind today!" />
+        <meta property="og:description" content="Take the N-Queens Challenge and master piece coordination at SimulChess. Improve your spatial awareness and visualization with these classic puzzles." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/chess-piece-challenge" />
         <meta property="og:image" content="https://simulchess.com/og-npiece.png" />
@@ -89,8 +89,8 @@ export default function ChessPieceChallenge() {
           </h2>
 
           <p>
-            <strong>Take the N-Queens Challenge and master chess piece coordination at SimulChess.</strong> Improve 
-            your spatial awareness and visualization by solving history's greatest chess puzzles. Train your mind today!
+            <strong>Take the N-Queens Challenge and master piece coordination at SimulChess.</strong> Improve your 
+            spatial awareness and visualization with these classic puzzles.
           </p>
 
           <p>
