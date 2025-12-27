@@ -100,7 +100,23 @@ function createEmptyBoard(): BoardPosition {
   return Array(8).fill(null).map(() => Array(8).fill(null));
 }
 
-function boardToFen(board: BoardPosition, whoToMove: "white" | "black"): string {
+interface CastlingRights {
+  W_K: boolean;
+  W_Q: boolean;
+  B_K: boolean;
+  B_Q: boolean;
+}
+
+function getCastlingString(rights: CastlingRights): string {
+  let str = "";
+  if (rights.W_K) str += "K";
+  if (rights.W_Q) str += "Q";
+  if (rights.B_K) str += "k";
+  if (rights.B_Q) str += "q";
+  return str || "-";
+}
+
+function boardToFen(board: BoardPosition, whoToMove: "white" | "black", castlingRights: CastlingRights): string {
   let fen = "";
   for (let rank = 0; rank < 8; rank++) {
     let emptyCount = 0;
@@ -121,7 +137,7 @@ function boardToFen(board: BoardPosition, whoToMove: "white" | "black"): string 
     }
     if (rank < 7) fen += "/";
   }
-  fen += ` ${whoToMove === "white" ? "w" : "b"} KQkq - 0 1`;
+  fen += ` ${whoToMove === "white" ? "w" : "b"} ${getCastlingString(castlingRights)} - 0 1`;
   return fen;
 }
 
@@ -155,6 +171,12 @@ export default function PuzzleCreator() {
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
   const [whoToMove, setWhoToMove] = useState<"white" | "black">("white");
   const [orientation, setOrientation] = useState<"white" | "black">("white");
+  const [castling, setCastling] = useState({
+    W_K: false, // White Kingside (K)
+    W_Q: false, // White Queenside (Q)
+    B_K: false, // Black Kingside (k)
+    B_Q: false  // Black Queenside (q)
+  });
   
   const [puzzleType, setPuzzleType] = useState("");
   const [difficulty, setDifficulty] = useState("");
@@ -247,7 +269,7 @@ export default function PuzzleCreator() {
   
   // Compute the current working position (after all valid solution moves)
   const getWorkingPosition = useCallback(() => {
-    const baseFen = boardToFen(board, whoToMove);
+    const baseFen = boardToFen(board, whoToMove, castling);
     const validMoves = solutionMoves.filter(m => m.trim());
     
     if (validMoves.length === 0) {
@@ -266,7 +288,7 @@ export default function PuzzleCreator() {
     } catch {
       return { fen: baseFen, board: board };
     }
-  }, [board, whoToMove, solutionMoves]);
+  }, [board, whoToMove, solutionMoves, castling]);
   
   const workingPosition = getWorkingPosition();
   
@@ -502,7 +524,7 @@ export default function PuzzleCreator() {
 
   // Build FEN at a given move index (position after moves 0..index-1)
   const getFenAtMoveIndex = (moveIndex: number): string | null => {
-    const baseFen = boardToFen(board, whoToMove);
+    const baseFen = boardToFen(board, whoToMove, castling);
     if (moveIndex === 0) return baseFen;
     
     try {
@@ -557,7 +579,7 @@ export default function PuzzleCreator() {
 
   const createPuzzleMutation = useMutation({
     mutationFn: async () => {
-      const fen = boardToFen(board, whoToMove);
+      const fen = boardToFen(board, whoToMove, castling);
       const validMoves = solutionMoves.filter(m => m.trim());
       
       const detectedMotifs = detectPuzzleMotifs(fen, validMoves);

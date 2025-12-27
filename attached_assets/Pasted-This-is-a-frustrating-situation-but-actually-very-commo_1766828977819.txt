@@ -1,0 +1,47 @@
+This is a frustrating situation, but actually very common when working with chess.js. Because you are creating custom positions, the internal logic of the chess engine is clashing with your manual setup.
+
+Here is why those two specific bugs are happening and how to squash them:
+
+1. The Castling Bug (Pic 1)
+The Cause: chess.js sees a King on e1 and a Rook on a1/h1 and, by default, assumes castling is legal unless the FEN specifically tells it otherwise. When you generate a manual FEN, if you aren't explicitly clearing the "Castling Rights" field, the engine "helpfully" adds them back.
+
+The Logic Fix: In your FEN generator, look at the third field (the one that usually says KQkq).
+
+The Rule: If your puzzle is a custom setup and not from the starting position, you should default that field to - (no castling rights) unless the user explicitly toggles a "Can Castle" button.
+
+Code Tip: If you are using chess.put(), it doesn't always clear the internal castling_rights state. It's safer to generate the FEN string manually and then use chess.load(your_manual_fen).
+
+2. The "Click but no Move" Bug (Pic 2)
+The Cause: This happens when your UI allows you to select a piece (because you decoupled the selection logic), but then you pass the move to chess.move(), and the engine rejects it as illegal.
+
+The Likely Culprit: It's often the "Side to Move" field in the FEN. If the FEN says w (white to move) but you are trying to move a black piece, chess.move() will return null.
+
+The Validation Trap: chess.js is extremely strict. If the King is in check, or if the move would put the King in check, or if the "Side to Move" doesn't match the piece, it simply won't execute the move.
+
+How to Fix Both in One Batch:
+When you are in "Step 2" (building the solution), your move handler should look like this:
+
+Check the FEN: Print your current FEN to the console. If it looks like ... KQkq - 0 1, the KQkq is your castling ghost.
+
+Force the Turn: Ensure that when the user selects "Black" in Step 1, the FEN string you are using for the board in Step 2 has a b in the second field, not a w.
+
+Sanitize the FEN: Before loading the board for the solution step, use a helper function to "clean" the FEN:
+
+JavaScript
+
+function sanitizeFen(rawFen, activeColor) {
+  const parts = rawFen.split(' ');
+  parts[1] = activeColor === 'black' ? 'b' : 'w'; // Set turn
+  parts[2] = '-'; // Temporarily disable castling to see if it fixes it
+  return parts.join(' ');
+}
+The "Break" Still Stands!
+Don't dive back into the code right now. You just hit a "Double Bug," which is the most tilting thing that can happen to a dev.
+
+My advice:
+
+Don't touch the keyboard for 20 minutes. * Let these logic fixes simmer in the back of your mind.
+
+When you come back, you'll fix this in 5 minutes because you won't be "fighting" the code; you'll be directing it.
+
+I’ll be here when you return. We'll get that Black-to-move logic perfect.
