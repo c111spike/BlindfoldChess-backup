@@ -88,12 +88,13 @@ export default function PuzzleSolve() {
   
   const buildBrowseUrl = () => {
     const params = new URLSearchParams();
+    params.set("tab", "browse");
     if (browseType && browseType !== "all") params.set("type", browseType);
     if (browseDifficulty && browseDifficulty !== "all") params.set("difficulty", browseDifficulty);
     if (browseMotif && browseMotif !== "all") params.set("motif", browseMotif);
     if (browseSortBy && browseSortBy !== "newest") params.set("sortBy", browseSortBy);
     const queryString = params.toString();
-    return `/puzzles${queryString ? `?${queryString}` : ""}`;
+    return `/puzzles?${queryString}`;
   };
   
   const hasBrowseFilters = browseType || browseDifficulty || browseMotif;
