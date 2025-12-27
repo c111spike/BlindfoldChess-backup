@@ -2080,6 +2080,106 @@ export default function StandardMode() {
             </>
           ) : (
             <>
+              {/* Inline Game Over Banner (non-dismissible) - positioned above board */}
+              {gameResult && (
+                <Card className="border-primary bg-primary/10">
+                  <CardContent className="py-4">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Trophy className="h-6 w-6 text-primary" />
+                          <div>
+                            <p className="font-semibold text-lg">Game Over</p>
+                            <p className="text-sm text-muted-foreground">
+                              {gameResult === "draw" 
+                                ? "Game drawn" 
+                                : gameResult === "white_win" 
+                                  ? (playerColor === "white" ? "You win!" : "Opponent wins") 
+                                  : (playerColor === "black" ? "You win!" : "Opponent wins")}
+                            </p>
+                            {ratingChange !== null && !isBotGame && (
+                              <p className={`text-sm font-medium ${ratingChange >= 0 ? 'text-green-500' : 'text-red-500'}`} data-testid="text-inline-rating-change">
+                                {ratingChange >= 0 ? '+' : ''}{ratingChange} rating
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            if (matchId && !isBotGame) {
+                              setWaitingForRematchResponse(true);
+                              didSendRematchRequestRef.current = true;
+                              sendRematchRequest(matchId);
+                              toast({
+                                title: "Rematch requested",
+                                description: "Waiting for opponent...",
+                              });
+                            } else if (isBotGame) {
+                              resetGameState();
+                              setLocation('/standard');
+                            }
+                          }}
+                          disabled={waitingForRematchResponse || rematchDenied}
+                          data-testid="button-inline-rematch"
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          {waitingForRematchResponse ? "Waiting..." : "Rematch"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (gameId) {
+                              resetGameState();
+                              setLocation(`/analysis/${gameId}`);
+                            }
+                          }}
+                          disabled={!gameId}
+                          data-testid="button-inline-analyze"
+                        >
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          Analyze
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            resetGameState();
+                            setLocation('/');
+                          }}
+                          data-testid="button-inline-main-menu"
+                        >
+                          Main Menu
+                        </Button>
+                      </div>
+                      
+                      {!isBotGame && opponentId && (
+                        <div className="text-center">
+                          <ReportPlayerDialog
+                            reportedUserId={opponentId}
+                            reportedUserName={opponentName}
+                            gameId={gameId || undefined}
+                            trigger={
+                              <span 
+                                className="text-xs text-muted-foreground cursor-pointer hover:underline"
+                                data-testid="link-inline-report-player"
+                              >
+                                Report player
+                              </span>
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <div className="space-y-2">
                 <Card className={`${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-primary" : ""}`}>
                   <CardContent className="py-2 px-4">
@@ -2263,106 +2363,6 @@ export default function StandardMode() {
                   </CardContent>
                 </Card>
               </div>
-
-              {/* Inline Game Over Banner (non-dismissible) */}
-              {gameResult && (
-                <Card className="border-primary bg-primary/10">
-                  <CardContent className="py-4">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Trophy className="h-6 w-6 text-primary" />
-                          <div>
-                            <p className="font-semibold text-lg">Game Over</p>
-                            <p className="text-sm text-muted-foreground">
-                              {gameResult === "draw" 
-                                ? "Game drawn" 
-                                : gameResult === "white_win" 
-                                  ? (playerColor === "white" ? "You win!" : "Opponent wins") 
-                                  : (playerColor === "black" ? "You win!" : "Opponent wins")}
-                            </p>
-                            {ratingChange !== null && !isBotGame && (
-                              <p className={`text-sm font-medium ${ratingChange >= 0 ? 'text-green-500' : 'text-red-500'}`} data-testid="text-inline-rating-change">
-                                {ratingChange >= 0 ? '+' : ''}{ratingChange} rating
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => {
-                            if (matchId && !isBotGame) {
-                              setWaitingForRematchResponse(true);
-                              didSendRematchRequestRef.current = true;
-                              sendRematchRequest(matchId);
-                              toast({
-                                title: "Rematch requested",
-                                description: "Waiting for opponent...",
-                              });
-                            } else if (isBotGame) {
-                              resetGameState();
-                              setLocation('/standard');
-                            }
-                          }}
-                          disabled={waitingForRematchResponse || rematchDenied}
-                          data-testid="button-inline-rematch"
-                        >
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                          {waitingForRematchResponse ? "Waiting..." : "Rematch"}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (gameId) {
-                              resetGameState();
-                              setLocation(`/analysis/${gameId}`);
-                            }
-                          }}
-                          disabled={!gameId}
-                          data-testid="button-inline-analyze"
-                        >
-                          <BarChart3 className="mr-2 h-4 w-4" />
-                          Analyze
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            resetGameState();
-                            setLocation('/');
-                          }}
-                          data-testid="button-inline-main-menu"
-                        >
-                          Main Menu
-                        </Button>
-                      </div>
-                      
-                      {!isBotGame && opponentId && (
-                        <div className="text-center">
-                          <ReportPlayerDialog
-                            reportedUserId={opponentId}
-                            reportedUserName={opponentName}
-                            gameId={gameId || undefined}
-                            trigger={
-                              <span 
-                                className="text-xs text-muted-foreground cursor-pointer hover:underline"
-                                data-testid="link-inline-report-player"
-                              >
-                                Report player
-                              </span>
-                            }
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
               {/* Game controls - hide when game is over */}
               {!gameResult && (
