@@ -12,9 +12,9 @@ export default function BlindfoldChessTraining() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Blindfold Chess Training: Master Board Visualization | SimulChess</title>
-        <meta name="description" content="Master blindfold chess and improve your chess visualization with SimulChess. Practice mental board training with immersive voice control and adjustable difficulty. Start building your memory today!" />
+        <meta name="description" content="Master blindfold chess and visualization with SimulChess. Practice hands-free with voice control and audio. Improve your memory with our blindfold training." />
         <meta property="og:title" content="Blindfold Chess Training - SimulChess" />
-        <meta property="og:description" content="Master blindfold chess and improve your chess visualization with SimulChess. Practice mental board training with immersive voice control and adjustable difficulty. Start building your memory today!" />
+        <meta property="og:description" content="Master blindfold chess and visualization with SimulChess. Practice hands-free with voice control and audio. Improve your memory with our blindfold training." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/blindfold-chess-training" />
         <meta property="og:image" content="https://simulchess.com/og-blindfold.png" />
@@ -89,8 +89,8 @@ export default function BlindfoldChessTraining() {
           </h2>
 
           <p>
-            <strong>Master blindfold chess and improve your chess visualization with SimulChess.</strong> Practice 
-            mental board training with immersive voice control and adjustable difficulty. Start building your memory today!
+            <strong>Master blindfold chess and visualization with SimulChess.</strong> Practice hands-free with voice 
+            control and audio. Improve your memory with our blindfold training.
           </p>
 
           <p>
