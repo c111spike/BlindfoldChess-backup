@@ -3872,19 +3872,17 @@ export default function OTBMode() {
                       )}
                       
                       <div className="flex flex-wrap gap-2">
-                        {/* Bot Rematch - instant */}
-                        {isBotGame && selectedBot && (
+                        {/* Play Another Bot - return to bot selection */}
+                        {isBotGame && (
                           <Button
                             variant="default"
                             onClick={() => {
-                              // Swap colors for rematch
-                              const newColor = playerColor === "white" ? "black" : "white";
-                              handleStartBotGame(selectedBot, newColor);
+                              setShowBotSelection(true);
                             }}
-                            data-testid="button-rematch-bot"
+                            data-testid="button-play-another-bot"
                           >
-                            <RotateCcw className="mr-2 h-4 w-4" />
-                            Rematch
+                            <Bot className="mr-2 h-4 w-4" />
+                            Play Another Bot
                           </Button>
                         )}
                         
