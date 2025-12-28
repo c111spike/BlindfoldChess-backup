@@ -69,7 +69,7 @@ export default function PublicHomePage() {
         <meta property="og:image" content="https://simulchess.com/og-home.png" />
         <link rel="canonical" href="https://simulchess.com/" />
       </Helmet>
-      <section className="relative w-full min-h-[80vh] overflow-hidden">
+      <section className="hero-container relative w-full min-h-[80vh] overflow-hidden">
         <div className="absolute inset-0">
           <img
             src={heroImage}
@@ -82,10 +82,10 @@ export default function PublicHomePage() {
         </div>
         <div className="relative h-full flex items-center px-8 py-16 md:py-24">
           <div className="max-w-2xl space-y-6">
-            <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight" data-testid="text-hero-title">
+            <h1 className="hero-title text-4xl md:text-5xl font-bold text-white leading-tight" data-testid="text-hero-title">
               SimulChess: Professional OTB & Blindfold Chess Training Platform
             </h1>
-            <p className="text-lg md:text-xl text-white/90 leading-relaxed" data-testid="text-hero-subtitle">
+            <p className="hero-subtitle text-lg md:text-xl text-white/90 leading-relaxed" data-testid="text-hero-subtitle">
               SimulChess is your professional chess training platform. Master OTB habits, 
               strengthen memory, and dominate simultaneous exhibitions.
             </p>

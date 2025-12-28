@@ -21,8 +21,13 @@
     <style>
       :root{--background:210 6% 98%;--foreground:210 8% 12%}
       .dark{--background:207 20% 14%;--foreground:210 6% 96%}
-      html,body{margin:0;padding:0;min-height:100vh;background:hsl(var(--background));color:hsl(var(--foreground));font-family:'Inter',system-ui,sans-serif}
+      html,body{margin:0;padding:0;min-height:100vh;background:hsl(var(--background));color:hsl(var(--foreground));font-family:'Inter',system-ui,-apple-system,sans-serif}
       #root{min-height:100vh}
+      /* Hero skeleton - instant dark background before image loads */
+      .hero-container{min-height:80vh;display:flex;position:relative;background:linear-gradient(to bottom,rgba(0,0,0,0.7),rgba(0,0,0,0.6),rgba(0,0,0,0.8))}
+      .hero-title{color:#fff;font-weight:700;font-size:2.25rem;line-height:1.2}
+      .hero-subtitle{color:rgba(255,255,255,0.9);font-size:1.125rem;line-height:1.75}
+      @media(min-width:768px){.hero-title{font-size:3rem}.hero-subtitle{font-size:1.25rem}}
     </style>
     <!-- Theme initialization (must run before render to prevent flash) -->
     <script>
