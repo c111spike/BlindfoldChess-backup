@@ -681,16 +681,16 @@ export default function OTBMode() {
     setWhiteTime(prev => prev + data.timeAdjustment.white);
     setBlackTime(prev => prev + data.timeAdjustment.black);
     
-    // Claim-type specific messages for valid claims
+    // Claim-type specific messages for valid claims (arbiter ruling)
     const validClaimMessagesYou: Record<string, string> = {
-      unsportsmanlike: "You failed to offer handshake! Opponent gains 2 minutes.",
-      illegal: "Your move was illegal! Opponent gains 2 minutes.",
-      distraction: "You were distracting opponent! Opponent gains 2 minutes.",
+      unsportsmanlike: "Arbiter rewarded 2 mins to opponent for unsportsmanlike conduct.",
+      illegal: "Arbiter rewarded 2 mins to opponent for an illegal move.",
+      distraction: "Arbiter rewarded 2 mins to opponent for causing a distraction.",
     };
     const validClaimMessagesOpponent: Record<string, string> = {
-      unsportsmanlike: "Opponent failed to offer handshake! You gain 2 minutes.",
-      illegal: "Opponent's move was illegal! You gain 2 minutes.",
-      distraction: "Opponent was distracting you! You gain 2 minutes.",
+      unsportsmanlike: "Arbiter rewarded 2 mins to you for opponent's unsportsmanlike conduct.",
+      illegal: "Arbiter rewarded 2 mins to you for opponent's illegal move.",
+      distraction: "Arbiter rewarded 2 mins to you for opponent causing a distraction.",
     };
     
     const claimType = data.claimType || "illegal";
@@ -751,14 +751,28 @@ export default function OTBMode() {
       }
     } else {
       // For "legal" rulings (false claims), violatorId is the person who made the false claim
+      const falseClaimMessagesYou: Record<string, string> = {
+        unsportsmanlike: "Arbiter rewarded 2 mins to opponent for creating a false unsportsmanlike claim.",
+        illegal: "Arbiter rewarded 2 mins to opponent for creating a false illegal move claim.",
+        distraction: "Arbiter rewarded 2 mins to opponent for creating a false distraction claim.",
+        threefold: "Arbiter rewarded 2 mins to opponent for creating a false 3-fold repetition claim.",
+        fiftymove: "Arbiter rewarded 2 mins to opponent for creating a false 50-move rule claim.",
+      };
+      const falseClaimMessagesOpponent: Record<string, string> = {
+        unsportsmanlike: "Arbiter rewarded 2 mins to you. Opponent made a false unsportsmanlike claim.",
+        illegal: "Arbiter rewarded 2 mins to you. Opponent made a false illegal move claim.",
+        distraction: "Arbiter rewarded 2 mins to you. Opponent made a false distraction claim.",
+        threefold: "Arbiter rewarded 2 mins to you. Opponent made a false 3-fold repetition claim.",
+        fiftymove: "Arbiter rewarded 2 mins to you. Opponent made a false 50-move rule claim.",
+      };
       if (data.violatorId === user?.id) {
         // I made the false claim, so increment MY false claims
         setMyFalseClaims(prev => ({ ...prev, [claimType]: prev[claimType] + 1 }));
-        setArbiterResult({ type: "legal", message: "Move was legal! Your claim was false - opponent gains 2 minutes." });
+        setArbiterResult({ type: "legal", message: falseClaimMessagesYou[claimType] || "Your claim was false - opponent gains 2 minutes." });
       } else {
         // Opponent made a false claim against me
         setOpponentFalseClaims(prev => ({ ...prev, [claimType]: prev[claimType] + 1 }));
-        setArbiterResult({ type: "legal", message: "Move was legal! Opponent made a false claim. You gain 2 minutes." });
+        setArbiterResult({ type: "legal", message: falseClaimMessagesOpponent[claimType] || "Opponent made a false claim. You gain 2 minutes." });
       }
     }
     
@@ -2082,7 +2096,7 @@ export default function OTBMode() {
         if (newIllegalCount >= 2) {
           toast({
             title: "Game Over - Forfeit",
-            description: "You forfeited due to 2 illegal moves. You did not heed the warning and now lose Elo.",
+            description: "You lost due to a forced forfeit by the arbiter for making illegal moves.",
             variant: "destructive",
           });
           setBotThinking(false);
@@ -2093,10 +2107,10 @@ export default function OTBMode() {
         setMyViolations(prev => ({ ...prev, illegal: newIllegalCount }));
         toast({
           title: "Illegal Move Warning",
-          description: "Your move was illegal! Bot gains 2 minutes. One more illegal move and you forfeit the game.",
+          description: "Arbiter rewarded 2 mins to opponent for an illegal move. One more and you forfeit.",
           variant: "destructive",
         });
-        setArbiterResult({ type: "illegal", message: "Bot called arbiter: Your move was illegal! Bot gains 2 minutes." });
+        setArbiterResult({ type: "illegal", message: "Arbiter rewarded 2 mins to opponent for an illegal move." });
         
         const { rank: fromRank, file: fromFile } = squareToIndices(lastMove.from);
         const { rank: toRank, file: toFile } = squareToIndices(lastMove.to);
@@ -2810,7 +2824,7 @@ export default function OTBMode() {
     if (hasForfeit) {
       toast({
         title: "Game Over - Forfeit",
-        description: "You forfeited due to 2 false arbiter claims. You lose Elo.",
+        description: "You lost due to a forced forfeit by the arbiter for making multiple false claims.",
         variant: "destructive",
       });
       handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
@@ -2907,10 +2921,12 @@ export default function OTBMode() {
     
     // Handle draw claims differently - they end the game in a draw if valid
     if ((claimType === "threefold" || claimType === "fiftymove") && isValidClaim) {
-      const drawType = claimType === "threefold" ? "Threefold Repetition" : "50-Move Rule";
+      const drawMessage = claimType === "threefold" 
+        ? "The arbiter called a draw due to 3-fold repetition."
+        : "The arbiter called a draw due to the 50-move rule.";
       toast({
-        title: "Draw Claimed",
-        description: `Game ends in a draw by ${drawType}.`,
+        title: "Game Over - Draw",
+        description: drawMessage,
       });
       handleGameEnd("draw");
       setArbiterPending(false);
@@ -2921,18 +2937,23 @@ export default function OTBMode() {
       const newViolationCount = opponentViolations[claimType] + 1;
       
       if (newViolationCount >= 2) {
+        const forfeitMessages: Record<string, string> = {
+          unsportsmanlike: "Opponent lost due to a forced forfeit by the arbiter for unsportsmanlike conduct.",
+          illegal: "Opponent lost due to a forced forfeit by the arbiter for making illegal moves.",
+          distraction: "Opponent lost due to a forced forfeit by the arbiter for causing repeated distractions.",
+        };
         toast({
-          title: "Opponent Forfeits",
-          description: `Opponent forfeited due to 2 ${claimType} violations. You win!`,
+          title: "Game Over - You Win!",
+          description: forfeitMessages[claimType] || `Opponent forfeited due to 2 ${claimType} violations.`,
         });
         handleGameEnd(playerColor === "white" ? "white_win" : "black_win");
         return;
       }
       
       const messages: Record<string, string> = {
-        unsportsmanlike: "Opponent failed to offer handshake! You gain 2 minutes.",
-        illegal: "Opponent's move was illegal! You gain 2 minutes.",
-        distraction: "Opponent was distracting you! You gain 2 minutes.",
+        unsportsmanlike: "Arbiter rewarded 2 mins to you for opponent's unsportsmanlike conduct.",
+        illegal: "Arbiter rewarded 2 mins to you for opponent's illegal move.",
+        distraction: "Arbiter rewarded 2 mins to you for opponent causing a distraction.",
       };
       
       toast({
@@ -2971,11 +2992,11 @@ export default function OTBMode() {
         ? { white: 120, black: 0 } 
         : { white: 0, black: 120 };
       
-      // Generate claim-type specific messages
+      // Generate claim-type specific messages (for bot games local display)
       const claimMessages: Record<string, string> = {
-        unsportsmanlike: "Opponent failed to offer handshake! You gain 2 minutes.",
-        illegal: "Opponent's move was illegal! You gain 2 minutes.",
-        distraction: "Opponent was distracting you! You gain 2 minutes.",
+        unsportsmanlike: "Arbiter rewarded 2 mins to you for opponent's unsportsmanlike conduct.",
+        illegal: "Arbiter rewarded 2 mins to you for opponent's illegal move.",
+        distraction: "Arbiter rewarded 2 mins to you for opponent causing a distraction.",
       };
       
       if (matchId && opponentId) {
@@ -3040,10 +3061,37 @@ export default function OTBMode() {
     } else {
       const newFalseClaimCount = myFalseClaims[claimType] + 1;
       
+      // Specific forfeit messages for each false claim type
+      const forfeitMessages: Record<string, string> = {
+        unsportsmanlike: "You lost due to a forced forfeit by the arbiter for making multiple false unsportsmanlike claims.",
+        illegal: "You lost due to a forced forfeit by the arbiter for making multiple false illegal move claims.",
+        distraction: "You lost due to a forced forfeit by the arbiter for making multiple false distraction claims.",
+        threefold: "You lost due to a forced forfeit by the arbiter for making multiple false 3-fold repetition claims.",
+        fiftymove: "You lost due to a forced forfeit by the arbiter for making multiple false 50-move rule claims.",
+      };
+      
+      // Specific warning messages for each false claim type
+      const warningMessages: Record<string, string> = {
+        unsportsmanlike: "Arbiter rewarded 2 mins to opponent for creating a false unsportsmanlike claim. One more and you forfeit.",
+        illegal: "Arbiter rewarded 2 mins to opponent for creating a false illegal move claim. One more and you forfeit.",
+        distraction: "Arbiter rewarded 2 mins to opponent for creating a false distraction claim. One more and you forfeit.",
+        threefold: "Arbiter rewarded 2 mins to opponent for creating a false 3-fold repetition claim. One more and you forfeit.",
+        fiftymove: "Arbiter rewarded 2 mins to opponent for creating a false 50-move rule claim. One more and you forfeit.",
+      };
+      
+      // Bot game local false claim arbiter result messages
+      const falseClaimArbiterMessages: Record<string, string> = {
+        unsportsmanlike: "Arbiter rewarded 2 mins to opponent for creating a false unsportsmanlike claim.",
+        illegal: "Arbiter rewarded 2 mins to opponent for creating a false illegal move claim.",
+        distraction: "Arbiter rewarded 2 mins to opponent for creating a false distraction claim.",
+        threefold: "Arbiter rewarded 2 mins to opponent for creating a false 3-fold repetition claim.",
+        fiftymove: "Arbiter rewarded 2 mins to opponent for creating a false 50-move rule claim.",
+      };
+      
       if (newFalseClaimCount >= 2) {
         toast({
           title: "Game Over - Forfeit",
-          description: `You forfeited due to 2 false ${claimType} claims. You lose Elo.`,
+          description: forfeitMessages[claimType],
           variant: "destructive",
         });
         handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
@@ -3052,7 +3100,7 @@ export default function OTBMode() {
       
       toast({
         title: "False Claim Warning",
-        description: `Your ${claimType} claim was invalid! Opponent gains 2 minutes. One more false ${claimType} claim and you forfeit.`,
+        description: warningMessages[claimType],
         variant: "destructive",
       });
       
@@ -3071,7 +3119,7 @@ export default function OTBMode() {
         setWhiteTime(prev => prev + timeAdj.white);
         setBlackTime(prev => prev + timeAdj.black);
         setMyFalseClaims(prev => ({ ...prev, [claimType]: prev[claimType] + 1 }));
-        setArbiterResult({ type: "legal", message: "Move was legal! Your claim was false - opponent gains 2 minutes." });
+        setArbiterResult({ type: "legal", message: falseClaimArbiterMessages[claimType] });
         setTimeout(() => setArbiterResult(null), 4000);
       }
     }

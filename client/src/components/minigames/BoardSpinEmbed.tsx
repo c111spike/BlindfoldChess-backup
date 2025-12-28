@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNotifications } from "@/hooks/useNotifications";
 import { motion } from "framer-motion";
-import { RotateCw, Clock, Target, Trophy, Play, Sparkles } from "lucide-react";
+import { RotateCw, Clock, Target, Trophy, Play, Sparkles, Eye } from "lucide-react";
 import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove } from "@/lib/boardSpinClient";
 import { Chess } from 'chess.js';
 
@@ -75,6 +75,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   const [score, setScore] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
   const [finalRotation, setFinalRotation] = useState(0);
+  const [showingAnswer, setShowingAnswer] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recreationStartTime = useRef<number>(0);
 
@@ -202,6 +203,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     setSpinRotation(0);
     setScore(0);
     setAccuracy(0);
+    setShowingAnswer(false);
   };
 
   useEffect(() => {
@@ -386,7 +388,20 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   if (phase === 'results') {
     return (
       <div className="flex flex-col items-center p-4">
-        <Card className={`w-full max-w-xs ${accuracy === 100 ? 'bg-green-500/10 border-green-500/30' : 'bg-card'}`}>
+        <div className="relative">
+          {renderBoard(playerBoard, finalRotation, false)}
+          
+          {showingAnswer && position && (
+            <div className="absolute inset-0 z-10 bg-background/95 rounded flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-sm font-medium mb-2 text-muted-foreground">Original Position</p>
+                {renderBoard(position.board, 0, false, true)}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <Card className={`w-full max-w-xs mt-4 ${accuracy === 100 ? 'bg-green-500/10 border-green-500/30' : 'bg-card'}`}>
           <CardContent className="p-4 text-center">
             {accuracy === 100 ? (
               <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
@@ -397,7 +412,23 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
             <p className="text-2xl font-bold">{score} pts</p>
             <p className="text-sm text-muted-foreground">{accuracy}% accuracy</p>
             
-            <Button onClick={playAgain} className="mt-4 w-full">
+            {accuracy < 100 && (
+              <Button
+                variant="outline"
+                className="mt-3 w-full"
+                onMouseDown={() => setShowingAnswer(true)}
+                onMouseUp={() => setShowingAnswer(false)}
+                onMouseLeave={() => setShowingAnswer(false)}
+                onTouchStart={() => setShowingAnswer(true)}
+                onTouchEnd={() => setShowingAnswer(false)}
+                data-testid="button-show-answer"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Hold to Show Answer
+              </Button>
+            )}
+            
+            <Button onClick={playAgain} className="mt-3 w-full">
               <Play className="h-4 w-4 mr-2" />
               Play Again
             </Button>
