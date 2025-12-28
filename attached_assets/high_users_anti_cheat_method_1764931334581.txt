@@ -1,5 +1,0 @@
-Role/Process,Responsibility at 1 Million Users,The Check/Balance
-Reviewer Level 1 (The Analyst),"Reviews R>60 cases. Compiles the raw data (ACPL graphs, time anomalies) and writes a recommendation (e.g., ""90% probability of engine use"").",Cannot issue a ban. They only present the evidence.
-Reviewer Level 2 (The Arbitrator),Reviews the Level 1 packet. Conducts the final manual board-by-board review based on the evidence. Issues the initial suspension.,Cannot delete the account/issue the permanent ban. They are checked by the Manager.
-Review Manager/Lead (Your Hire),Reviews all permanent ban recommendations. Issues the final ban verdict. Manages appeals.,Is the only person who reports to you. Their performance is measured on Accuracy (low false positives/negatives) and Speed.
-The System (The AI),Continuously runs the automated Triage Score (R).,"The ultimate check. If the team is banning users with low R scores, the manager is alerted. If the team is ignoring high R scores, the system reports this to you."
