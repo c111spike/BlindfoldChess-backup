@@ -996,17 +996,22 @@ export default function BoardSpin() {
       {/* Phase: Results */}
       {phase === 'results' && (
         <div className="space-y-4">
-          {/* Board display with Show Answer overlay */}
+          {/* Board display - toggle visibility between recreated and original */}
           <div className="flex justify-center">
-            <div className="relative">
-              {renderBoard(playerBoard, finalRotation, false)}
+            <div className="text-center relative">
+              {/* Player's recreated board - always mounted */}
+              <div>
+                <p className="text-sm font-medium mb-2 text-muted-foreground">Your Recreation</p>
+                {renderBoard(playerBoard, finalRotation, false)}
+              </div>
               
-              {showingAnswer && position && (
-                <div className="absolute inset-0 z-10 bg-background/95 rounded flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-sm font-medium mb-2 text-muted-foreground">Original Position</p>
-                    {renderBoard(position.board, 0, false)}
-                  </div>
+              {/* Original position overlay - covers recreated board when showing answer */}
+              {position && (
+                <div 
+                  className={`absolute inset-0 bg-background transition-opacity duration-100 ${showingAnswer ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                >
+                  <p className="text-sm font-medium mb-2 text-muted-foreground">Original Position</p>
+                  {renderBoard(position.board, 0, false)}
                 </div>
               )}
             </div>

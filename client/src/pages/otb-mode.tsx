@@ -205,6 +205,7 @@ export default function OTBMode() {
     captured: string | null;
   } | null>(null);
   const [gameResult, setGameResult] = useState<"white_win" | "black_win" | "draw" | null>(null);
+  const [gameOverReason, setGameOverReason] = useState<string | null>(null); // Arbiter forfeit reason
   
   const [showBotSelection, setShowBotSelection] = useState(false);
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
@@ -955,6 +956,7 @@ export default function OTBMode() {
       setOpponentWantsRematch(false);
       setRematchDeclined(false);
       setGameResult(null);
+      setGameOverReason(null);
       setMatchId(data.newMatchId);
       matchIdRef.current = data.newMatchId; // Sync ref immediately to avoid stale closure issues
       
@@ -1391,6 +1393,7 @@ export default function OTBMode() {
           setLastMoveSquares([]);
           setSelectedSquare(null);
           setGameResult(null);
+          setGameOverReason(null);
           setGameStarted(true);
           setInQueue(false);
           gameStartTimeRef.current = Date.now(); // Track game start for first move timing
@@ -1466,6 +1469,7 @@ export default function OTBMode() {
   useEffect(() => {
     if (ongoingGame && !restoredGame && !gameStarted && ongoingGame.status === 'active') {
       setGameResult(null);
+      setGameOverReason(null);
       setRestoredGame(true);
     }
   }, [ongoingGame, restoredGame, gameStarted]);
@@ -1797,6 +1801,7 @@ export default function OTBMode() {
     setBlackTime(seconds);
     setIncrement(getIncrementForTimeControl(timeControl));
     setGameResult(null);
+    setGameOverReason(null);
     setGameStarted(true);
     gameStartTimeRef.current = Date.now(); // Track game start for first move timing
     
@@ -1914,6 +1919,7 @@ export default function OTBMode() {
     setWhiteTime(seconds);
     setBlackTime(seconds);
     setGameResult(null);
+    setGameOverReason(null);
     
     const newGame = new Chess();
     setGame(newGame);
@@ -2094,11 +2100,13 @@ export default function OTBMode() {
         const newIllegalCount = myViolations.illegal + 1;
         
         if (newIllegalCount >= 2) {
+          const forfeitReason = "You lost due to a forced forfeit by the arbiter for making illegal moves.";
           toast({
             title: "Game Over - Forfeit",
-            description: "You lost due to a forced forfeit by the arbiter for making illegal moves.",
+            description: forfeitReason,
             variant: "destructive",
           });
+          setGameOverReason(forfeitReason);
           setBotThinking(false);
           handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
           return;
@@ -2842,11 +2850,13 @@ export default function OTBMode() {
     const hasForfeit = newFalseClaims.unsportsmanlike >= 2 || newFalseClaims.illegal >= 2 || newFalseClaims.distraction >= 2 || newFalseClaims.threefold >= 2 || newFalseClaims.fiftymove >= 2;
     
     if (hasForfeit) {
+      const forfeitReason = "You lost due to a forced forfeit by the arbiter for making multiple false claims.";
       toast({
         title: "Game Over - Forfeit",
-        description: "You lost due to a forced forfeit by the arbiter for making multiple false claims.",
+        description: forfeitReason,
         variant: "destructive",
       });
+      setGameOverReason(forfeitReason);
       handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
       return;
     }
@@ -2962,10 +2972,12 @@ export default function OTBMode() {
           illegal: "Opponent lost due to a forced forfeit by the arbiter for making illegal moves.",
           distraction: "Opponent lost due to a forced forfeit by the arbiter for causing repeated distractions.",
         };
+        const forfeitReason = forfeitMessages[claimType] || `Opponent forfeited due to 2 ${claimType} violations.`;
         toast({
           title: "Game Over - You Win!",
-          description: forfeitMessages[claimType] || `Opponent forfeited due to 2 ${claimType} violations.`,
+          description: forfeitReason,
         });
+        setGameOverReason(forfeitReason);
         handleGameEnd(playerColor === "white" ? "white_win" : "black_win");
         return;
       }
@@ -3114,6 +3126,7 @@ export default function OTBMode() {
           description: forfeitMessages[claimType],
           variant: "destructive",
         });
+        setGameOverReason(forfeitMessages[claimType]);
         handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
         return;
       }
@@ -3757,11 +3770,13 @@ export default function OTBMode() {
                           <div>
                             <p className="font-semibold text-lg">Game Over</p>
                             <p className="text-sm text-muted-foreground">
-                              {gameResult === "draw" 
-                                ? "Game drawn" 
-                                : gameResult === "white_win" 
-                                  ? (playerColor === "white" ? "You win!" : "Opponent wins") 
-                                  : (playerColor === "black" ? "You win!" : "Opponent wins")}
+                              {gameOverReason 
+                                ? gameOverReason
+                                : gameResult === "draw" 
+                                  ? "Game drawn" 
+                                  : gameResult === "white_win" 
+                                    ? (playerColor === "white" ? "You win!" : "Opponent wins") 
+                                    : (playerColor === "black" ? "You win!" : "Opponent wins")}
                             </p>
                             {ratingChange !== null && !isBotGame && (
                               <p className={`text-sm font-medium ${ratingChange >= 0 ? 'text-green-500' : 'text-red-500'}`} data-testid="text-rating-change">
@@ -3928,6 +3943,7 @@ export default function OTBMode() {
                           onClick={() => {
                             setLocation("/");
                             setGameResult(null);
+                            setGameOverReason(null);
                             setGameStarted(false);
                             setGameId(null);
                             setMatchId(null);
