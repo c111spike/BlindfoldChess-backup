@@ -386,3 +386,15 @@
     inset: -1px;
   }
 }
+
+/* CLS Prevention - Reserve footer space to prevent layout shifts during load */
+main > footer {
+  contain: size layout;
+  min-height: 120px;
+  display: block;
+}
+
+/* Ensure main container doesn't collapse while content loads */
+main.flex-1 {
+  min-height: 100vh;
+}

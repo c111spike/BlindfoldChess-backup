@@ -175,30 +175,43 @@ function AppContent() {
     }
   }
 
-  // Public landing pages now use the sidebar layout below (fall through)
-
-  if (isLoading) {
-    return <div className="h-screen bg-background" />;
-  }
-
-  // Allow homepage and public landing pages to render with sidebar for guest users
-  if (!isAuthenticated && !isUsingTestUser && !isHomePage && !isPublicLandingPage) {
-    return (
-      <div className="h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-foreground mb-4">Redirecting to login...</p>
-          <a href="/login" className="text-primary underline">Click here if not redirected</a>
+  // Determine what content to show in the main area
+  const renderMainContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
+      );
+    }
+
+    if (!isAuthenticated && !isUsingTestUser && !isHomePage && !isPublicLandingPage) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-foreground mb-4">Redirecting to login...</p>
+            <a href="/login" className="text-primary underline">Click here if not redirected</a>
+          </div>
+        </div>
+      );
+    }
+
+    if (!isAuthenticated && isUsingTestUser) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-foreground">Authenticating test user...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="px-4 pb-4">
+        <Router />
       </div>
     );
-  }
+  };
 
-  if (!isAuthenticated && isUsingTestUser) {
-    return <div className="h-screen bg-background flex items-center justify-center">
-      <p className="text-foreground">Authenticating test user...</p>
-    </div>;
-  }
-
+  // Always render the sidebar layout shell to prevent CLS from footer appearing/disappearing
   return (
     <SidebarProvider style={sidebarStyle as React.CSSProperties}>
       <div className="flex h-screen w-full">
@@ -216,10 +229,8 @@ function AppContent() {
               <TestUserSwitcher />
             )}
           </div>
-          <main className="flex-1 overflow-auto">
-            <div className="px-4 pb-4">
-              <Router />
-            </div>
+          <main className="flex-1 overflow-auto flex flex-col">
+            {renderMainContent()}
             <MobileFooter />
           </main>
         </div>
