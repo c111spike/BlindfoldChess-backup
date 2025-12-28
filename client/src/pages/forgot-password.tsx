@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { forgetPassword } from "@/lib/auth-client";
 import { Loader2, Mail, ArrowLeft } from "lucide-react";
-import logoImage from "@assets/SimulChess_Logo_1766758716992.png";
+import logoImage from "@assets/simulchess_logo_480.webp";
 
 export default function ForgotPassword() {
   const { toast } = useToast();
