@@ -3872,36 +3872,90 @@ export default function OTBMode() {
                       )}
                       
                       <div className="flex flex-wrap gap-2">
-                        {/* Play Another Bot - return to bot selection */}
-                        {isBotGame && (
+                        {/* Rematch Request - works for both bot and PvP */}
+                        {(isBotGame || (matchId && !rematchRequested && !opponentWantsRematch && !rematchDeclined)) && (
                           <Button
                             variant="default"
                             onClick={() => {
-                              // Clear game state to show pre-game setup
-                              setGameResult(null);
-                              setGameStarted(false);
-                              setIsBotGame(false);
-                              setShowBotSelection(true);
-                            }}
-                            data-testid="button-play-another-bot"
-                          >
-                            <Bot className="mr-2 h-4 w-4" />
-                            Play Another Bot
-                          </Button>
-                        )}
-                        
-                        {/* PvP Rematch Request */}
-                        {!isBotGame && matchId && !rematchRequested && !opponentWantsRematch && !rematchDeclined && (
-                          <Button
-                            variant="default"
-                            onClick={() => {
-                              setRematchRequested(true);
-                              sendRematchRequest(matchId);
+                              if (isBotGame) {
+                                // Bot auto-accepts rematch - reset game state locally
+                                setGameResult(null);
+                                setGameOverReason(null);
+                                setBoardState(INITIAL_BOARD.map(row => [...row]));
+                                setLegalChessGame(new Chess());
+                                setMoves([]);
+                                setConfirmedMoves([]);
+                                setPendingNotation(null);
+                                setNotationQueue([]);
+                                setPendingPlayerNotation(null);
+                                setWaitingForNotation(false);
+                                setLastMoveSquares([]);
+                                setActiveColor("white");
+                                setClockTurn("white");
+                                
+                                // Clear game identifiers for fresh session
+                                setGameId(null);
+                                setMatchId(null);
+                                matchIdRef.current = null;
+                                
+                                // Swap colors for variety
+                                const newColor = playerColor === "white" ? "black" : "white";
+                                setPlayerColor(newColor);
+                                
+                                // Reset times
+                                const minutes = parseInt(timeControl);
+                                const seconds = minutes * 60;
+                                setWhiteTime(seconds);
+                                setBlackTime(seconds);
+                                
+                                // Reset all other game state
+                                setClockPresses(0);
+                                setMyViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+                                setOpponentViolations({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
+                                setMyFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0, threefold: 0, fiftymove: 0 });
+                                setOpponentFalseClaims({ unsportsmanlike: 0, illegal: 0, distraction: 0 });
+                                setMyHandshakeOffered(false);
+                                setOpponentHandshakeOffered(false);
+                                setHandshakeComplete(false);
+                                setShowHandshakeUI(true);
+                                setMyHandshakeBeforeFirstMove(false);
+                                setOpponentHandshakeBeforeFirstMove(false);
+                                setOpponentHandshakeViolation(false);
+                                setPostGameHandshakeOffered(false);
+                                setOpponentPostGameHandshakeOffered(false);
+                                setPostGameHandshakeComplete(false);
+                                setTouchedPiece(null);
+                                setArbiterResult(null);
+                                setHasMadeMove(false);
+                                setPendingCheckmate(null);
+                                setArbiterPending(false);
+                                setDrawOffered(false);
+                                setOpponentOfferedDraw(false);
+                                setSelectedSquare(null);
+                                setLockedPiece(null);
+                                setBotThinking(false);
+                                setRematchRequested(false);
+                                setOpponentWantsRematch(false);
+                                setRematchDeclined(false);
+                                
+                                // Start the new game (keep selectedBot and difficulty for rematch)
+                                setGameStarted(true);
+                                gameStartTimeRef.current = Date.now();
+                                
+                                toast({
+                                  title: "Rematch Started!",
+                                  description: `You are now playing as ${newColor}`,
+                                });
+                              } else if (matchId) {
+                                // PvP - send request to server
+                                setRematchRequested(true);
+                                sendRematchRequest(matchId);
+                              }
                             }}
                             data-testid="button-request-rematch"
                           >
                             <RotateCcw className="mr-2 h-4 w-4" />
-                            Request Rematch
+                            Rematch
                           </Button>
                         )}
                         
