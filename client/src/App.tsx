@@ -169,54 +169,14 @@ function AppContent() {
     }
   }
 
-  // Handle public pages (privacy, terms, about, contact, SEO landing pages) - accessible without auth
-  if (isPublicLandingPage && !isAuthenticated && !isUsingTestUser) {
-    const PublicPageComponent = {
-      "/privacy": PrivacyPolicy,
-      "/terms": TermsOfService,
-      "/about": About,
-      "/contact": Contact,
-      "/blindfold-chess-training": BlindfoldChessTraining,
-      "/otb-tournament-simulator": OTBTournamentSimulator,
-      "/simul-chess-training": SimulChessTraining,
-      "/knights-tour-puzzle": KnightsTourPuzzle,
-      "/chess-piece-challenge": ChessPieceChallenge,
-      "/chess-puzzles-trainer": ChessPuzzlesTrainer,
-      "/chess-board-spin": ChessBoardSpin,
-      "/opening-repertoire-trainer": OpeningRepertoireTrainer,
-      "/chess-game-review": ChessGameReview,
-      "/admin": NotFound, // Stealth mode: show 404 instead of revealing admin exists
-    }[location];
-    
-    if (PublicPageComponent) {
-      return (
-        <div className="min-h-screen bg-background flex flex-col">
-          <div className="flex justify-between items-center px-4 py-2">
-            <div className="flex items-center gap-2">
-              <BackButton />
-              <a href="/login" className="text-primary hover:underline text-sm" data-testid="link-login">
-                Sign in
-              </a>
-            </div>
-            <ThemeToggle />
-          </div>
-          <div className="flex-1">
-            <Suspense fallback={<PageLoader />}>
-              <PublicPageComponent />
-            </Suspense>
-          </div>
-          <MobileFooter />
-        </div>
-      );
-    }
-  }
+  // Public landing pages now use the sidebar layout below (fall through)
 
   if (isLoading) {
     return <div className="h-screen bg-background" />;
   }
 
-  // Allow homepage to render with sidebar for guest users
-  if (!isAuthenticated && !isUsingTestUser && !isHomePage) {
+  // Allow homepage and public landing pages to render with sidebar for guest users
+  if (!isAuthenticated && !isUsingTestUser && !isHomePage && !isPublicLandingPage) {
     return (
       <div className="h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -243,17 +203,15 @@ function AppContent() {
             className="md:hidden fixed top-3 left-3 z-50 bg-sidebar text-sidebar-foreground border border-sidebar-border rounded-md" 
             data-testid="button-mobile-sidebar-toggle" 
           />
-          {/* Back button - visible on non-home pages, positioned after hamburger on mobile */}
-          <div className="fixed top-3 left-14 md:left-3 z-50">
+          {/* Header bar with back button and dev tools */}
+          <div className="flex items-center justify-between px-4 py-2 pl-14 md:pl-4">
             <BackButton />
-          </div>
-          {isAuthenticated && isDevelopment && (
-            <div className="flex items-center justify-end px-4 py-1">
+            {isAuthenticated && isDevelopment && (
               <TestUserSwitcher />
-            </div>
-          )}
+            )}
+          </div>
           <main className="flex-1 overflow-auto">
-            <div className="p-4">
+            <div className="px-4 pb-4">
               <Router />
             </div>
             <MobileFooter />
