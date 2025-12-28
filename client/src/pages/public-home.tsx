@@ -75,6 +75,8 @@ export default function PublicHomePage() {
             src={heroImage}
             alt="Chess tournament player in deep concentration"
             className="w-full h-full object-cover object-center"
+            fetchPriority="high"
+            decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
         </div>

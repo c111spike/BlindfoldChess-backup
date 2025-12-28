@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
@@ -13,44 +13,57 @@ import { TestUserSwitcher } from "@/components/TestUserSwitcher";
 import { MobileFooter } from "@/components/mobile-footer";
 import { useAuth } from "@/hooks/useAuth";
 import { isDevelopment, getTestUserId } from "@/lib/devMode";
+
+// Eagerly loaded pages (lightweight, critical path)
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
-import OTBMode from "@/pages/otb-mode";
-import StandardMode from "@/pages/standard-mode";
-import BoardSpin from "@/pages/board-spin";
-import NPieceChallenge from "@/pages/n-piece-challenge";
-import KnightsTour from "@/pages/knights-tour";
-import History from "@/pages/history";
-import StatisticsPage from "@/pages/statistics";
-import Settings from "@/pages/settings";
-import GameAnalysis from "@/pages/game-analysis";
-import SimulVsSimulMode from "@/pages/simul-vs-simul-mode";
-import SimulMatchReview from "@/pages/simul-match-review";
-import PuzzleCreator from "@/pages/puzzle-creator";
-import Puzzles from "@/pages/puzzles";
-import PuzzleSolve from "@/pages/puzzle-solve";
-import AdminPage from "@/pages/admin";
-import RepertoireTrainer from "@/pages/repertoire-trainer";
-import PrivacyPolicy from "@/pages/privacy-policy";
-import TermsOfService from "@/pages/terms-of-service";
-import Help from "@/pages/help";
-import About from "@/pages/about";
-import Contact from "@/pages/contact";
-import OidcError from "@/pages/oidc-error";
+import PublicHomePage from "@/pages/public-home";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
-import BlindfoldChessTraining from "@/pages/blindfold-chess-training";
-import OTBTournamentSimulator from "@/pages/otb-tournament-simulator";
-import SimulChessTraining from "@/pages/simul-chess-training";
-import KnightsTourPuzzle from "@/pages/knights-tour-puzzle";
-import ChessPieceChallenge from "@/pages/chess-piece-challenge";
-import ChessPuzzlesTrainer from "@/pages/chess-puzzles-trainer";
-import ChessBoardSpin from "@/pages/chess-board-spin";
-import OpeningRepertoireTrainer from "@/pages/opening-repertoire-trainer";
-import ChessGameReview from "@/pages/chess-game-review";
-import PublicHomePage from "@/pages/public-home";
+import OidcError from "@/pages/oidc-error";
+
+// Lazy loaded pages (heavy, not needed on initial load)
+const OTBMode = lazy(() => import("@/pages/otb-mode"));
+const StandardMode = lazy(() => import("@/pages/standard-mode"));
+const BoardSpin = lazy(() => import("@/pages/board-spin"));
+const NPieceChallenge = lazy(() => import("@/pages/n-piece-challenge"));
+const KnightsTour = lazy(() => import("@/pages/knights-tour"));
+const History = lazy(() => import("@/pages/history"));
+const StatisticsPage = lazy(() => import("@/pages/statistics"));
+const Settings = lazy(() => import("@/pages/settings"));
+const GameAnalysis = lazy(() => import("@/pages/game-analysis"));
+const SimulVsSimulMode = lazy(() => import("@/pages/simul-vs-simul-mode"));
+const SimulMatchReview = lazy(() => import("@/pages/simul-match-review"));
+const PuzzleCreator = lazy(() => import("@/pages/puzzle-creator"));
+const Puzzles = lazy(() => import("@/pages/puzzles"));
+const PuzzleSolve = lazy(() => import("@/pages/puzzle-solve"));
+const AdminPage = lazy(() => import("@/pages/admin"));
+const RepertoireTrainer = lazy(() => import("@/pages/repertoire-trainer"));
+const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
+const TermsOfService = lazy(() => import("@/pages/terms-of-service"));
+const Help = lazy(() => import("@/pages/help"));
+const About = lazy(() => import("@/pages/about"));
+const Contact = lazy(() => import("@/pages/contact"));
+const BlindfoldChessTraining = lazy(() => import("@/pages/blindfold-chess-training"));
+const OTBTournamentSimulator = lazy(() => import("@/pages/otb-tournament-simulator"));
+const SimulChessTraining = lazy(() => import("@/pages/simul-chess-training"));
+const KnightsTourPuzzle = lazy(() => import("@/pages/knights-tour-puzzle"));
+const ChessPieceChallenge = lazy(() => import("@/pages/chess-piece-challenge"));
+const ChessPuzzlesTrainer = lazy(() => import("@/pages/chess-puzzles-trainer"));
+const ChessBoardSpin = lazy(() => import("@/pages/chess-board-spin"));
+const OpeningRepertoireTrainer = lazy(() => import("@/pages/opening-repertoire-trainer"));
+const ChessGameReview = lazy(() => import("@/pages/chess-game-review"));
+
+// Loading fallback component
+function PageLoader() {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="animate-pulse text-muted-foreground">Loading...</div>
+    </div>
+  );
+}
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -60,45 +73,47 @@ function Router() {
   }
 
   return (
-    <Switch>
-      <Route path="/" component={isAuthenticated ? Dashboard : PublicHomePage} />
-      <Route path="/otb" component={OTBMode} />
-      <Route path="/standard" component={StandardMode} />
-      <Route path="/simul-vs-simul" component={SimulVsSimulMode} />
-      <Route path="/boardspin" component={BoardSpin} />
-      <Route path="/n-piece" component={NPieceChallenge} />
-      <Route path="/knights-tour" component={KnightsTour} />
-      <Route path="/history" component={History} />
-      <Route path="/statistics" component={StatisticsPage} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/analysis/:gameId" component={GameAnalysis} />
-      <Route path="/analysis/shared/:shareCode" component={GameAnalysis} />
-      <Route path="/simul-match/:matchId/review" component={SimulMatchReview} />
-      <Route path="/puzzles" component={Puzzles} />
-      <Route path="/puzzles/create" component={PuzzleCreator} />
-      <Route path="/puzzle/:id" component={PuzzleSolve} />
-      <Route path="/admin" component={AdminPage} />
-      <Route path="/repertoire" component={RepertoireTrainer} />
-      <Route path="/privacy" component={PrivacyPolicy} />
-      <Route path="/terms" component={TermsOfService} />
-      <Route path="/help" component={Help} />
-      <Route path="/about" component={About} />
-      <Route path="/contact" component={Contact} />
-      <Route path="/blindfold-chess-training" component={BlindfoldChessTraining} />
-      <Route path="/otb-tournament-simulator" component={OTBTournamentSimulator} />
-      <Route path="/simul-chess-training" component={SimulChessTraining} />
-      <Route path="/knights-tour-puzzle" component={KnightsTourPuzzle} />
-      <Route path="/chess-piece-challenge" component={ChessPieceChallenge} />
-      <Route path="/chess-puzzles-trainer" component={ChessPuzzlesTrainer} />
-      <Route path="/chess-board-spin" component={ChessBoardSpin} />
-      <Route path="/opening-repertoire-trainer" component={OpeningRepertoireTrainer} />
-      <Route path="/chess-game-review" component={ChessGameReview} />
-      <Route path="/login" component={Login} />
-      <Route path="/signup" component={Signup} />
-      <Route path="/forgot-password" component={ForgotPassword} />
-      <Route path="/reset-password" component={ResetPassword} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<PageLoader />}>
+      <Switch>
+        <Route path="/" component={isAuthenticated ? Dashboard : PublicHomePage} />
+        <Route path="/otb" component={OTBMode} />
+        <Route path="/standard" component={StandardMode} />
+        <Route path="/simul-vs-simul" component={SimulVsSimulMode} />
+        <Route path="/boardspin" component={BoardSpin} />
+        <Route path="/n-piece" component={NPieceChallenge} />
+        <Route path="/knights-tour" component={KnightsTour} />
+        <Route path="/history" component={History} />
+        <Route path="/statistics" component={StatisticsPage} />
+        <Route path="/settings" component={Settings} />
+        <Route path="/analysis/:gameId" component={GameAnalysis} />
+        <Route path="/analysis/shared/:shareCode" component={GameAnalysis} />
+        <Route path="/simul-match/:matchId/review" component={SimulMatchReview} />
+        <Route path="/puzzles" component={Puzzles} />
+        <Route path="/puzzles/create" component={PuzzleCreator} />
+        <Route path="/puzzle/:id" component={PuzzleSolve} />
+        <Route path="/admin" component={AdminPage} />
+        <Route path="/repertoire" component={RepertoireTrainer} />
+        <Route path="/privacy" component={PrivacyPolicy} />
+        <Route path="/terms" component={TermsOfService} />
+        <Route path="/help" component={Help} />
+        <Route path="/about" component={About} />
+        <Route path="/contact" component={Contact} />
+        <Route path="/blindfold-chess-training" component={BlindfoldChessTraining} />
+        <Route path="/otb-tournament-simulator" component={OTBTournamentSimulator} />
+        <Route path="/simul-chess-training" component={SimulChessTraining} />
+        <Route path="/knights-tour-puzzle" component={KnightsTourPuzzle} />
+        <Route path="/chess-piece-challenge" component={ChessPieceChallenge} />
+        <Route path="/chess-puzzles-trainer" component={ChessPuzzlesTrainer} />
+        <Route path="/chess-board-spin" component={ChessBoardSpin} />
+        <Route path="/opening-repertoire-trainer" component={OpeningRepertoireTrainer} />
+        <Route path="/chess-game-review" component={ChessGameReview} />
+        <Route path="/login" component={Login} />
+        <Route path="/signup" component={Signup} />
+        <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/reset-password" component={ResetPassword} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
@@ -182,7 +197,9 @@ function AppContent() {
             <ThemeToggle />
           </div>
           <div className="flex-1">
-            <PublicPageComponent />
+            <Suspense fallback={<PageLoader />}>
+              <PublicPageComponent />
+            </Suspense>
           </div>
           <MobileFooter />
         </div>
