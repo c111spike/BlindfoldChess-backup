@@ -2125,67 +2125,9 @@ export default function StandardMode() {
                           size="sm"
                           onClick={() => {
                             if (isBotGame && selectedBot) {
-                              // Bot auto-accepts rematch - reset game state locally
-                              if (saveIntervalRef.current) {
-                                clearInterval(saveIntervalRef.current);
-                                saveIntervalRef.current = null;
-                              }
-                              if (clockIntervalRef.current) {
-                                clearInterval(clockIntervalRef.current);
-                                clockIntervalRef.current = null;
-                              }
-                              gameCompletionInProgressRef.current = false;
-                              clearPositionHistory();
-                              
-                              // Create fresh game
-                              const newGame = new Chess();
-                              setGame(newGame);
-                              gameRef.current = newGame;
-                              setFen(newGame.fen());
-                              setMoves([]);
-                              movesRef.current = [];
-                              
-                              // Swap colors for variety
+                              // Bot auto-accepts rematch - use handleStartBotGame with swapped color
                               const newColor = playerColor === "white" ? "black" : "white";
-                              setPlayerColor(newColor);
-                              
-                              // Reset game identifiers
-                              setGameId(null);
-                              setMatchId(null);
-                              gameIdRef.current = null;
-                              matchIdRef.current = null;
-                              
-                              // Reset times
-                              const tc = timeControl || 180;
-                              setWhiteTime(tc);
-                              setBlackTime(tc);
-                              whiteTimeRef.current = tc;
-                              blackTimeRef.current = tc;
-                              turnStartTimeRef.current = Date.now();
-                              
-                              // Reset other state
-                              setGameResult(null);
-                              setSelectedSquare(null);
-                              setLegalMoves([]);
-                              setLastMove(null);
-                              setPremove(null);
-                              setArrowDrawMode(false);
-                              setBotThinking(false);
-                              setThinkingTimes([]);
-                              thinkingTimesRef.current = [];
-                              setShowRematchDialog(false);
-                              setWaitingForRematchResponse(false);
-                              setRematchDenied(false);
-                              rematchExitIntentRef.current = false;
-                              didSendRematchRequestRef.current = false;
-                              
-                              // Keep bot game settings (selectedBot, selectedBotDifficulty, isBotGame stay the same)
-                              setGameStarted(true);
-                              
-                              toast({
-                                title: "Rematch Started!",
-                                description: `You are now playing as ${newColor}`,
-                              });
+                              handleStartBotGame(selectedBot, newColor);
                             } else if (matchId && !isBotGame) {
                               setWaitingForRematchResponse(true);
                               didSendRematchRequestRef.current = true;
@@ -2740,69 +2682,10 @@ export default function StandardMode() {
                 className="flex-1"
                 onClick={() => {
                   if (isBotGame && selectedBot) {
-                    // Bot auto-accepts rematch - reset game state locally
+                    // Bot auto-accepts rematch - use handleStartBotGame with swapped color
                     setShowGameEndDialog(false);
-                    
-                    if (saveIntervalRef.current) {
-                      clearInterval(saveIntervalRef.current);
-                      saveIntervalRef.current = null;
-                    }
-                    if (clockIntervalRef.current) {
-                      clearInterval(clockIntervalRef.current);
-                      clockIntervalRef.current = null;
-                    }
-                    gameCompletionInProgressRef.current = false;
-                    clearPositionHistory();
-                    
-                    // Create fresh game
-                    const newGame = new Chess();
-                    setGame(newGame);
-                    gameRef.current = newGame;
-                    setFen(newGame.fen());
-                    setMoves([]);
-                    movesRef.current = [];
-                    
-                    // Swap colors for variety
                     const newColor = playerColor === "white" ? "black" : "white";
-                    setPlayerColor(newColor);
-                    
-                    // Reset game identifiers
-                    setGameId(null);
-                    setMatchId(null);
-                    gameIdRef.current = null;
-                    matchIdRef.current = null;
-                    
-                    // Reset times
-                    const tc = timeControl || 180;
-                    setWhiteTime(tc);
-                    setBlackTime(tc);
-                    whiteTimeRef.current = tc;
-                    blackTimeRef.current = tc;
-                    turnStartTimeRef.current = Date.now();
-                    
-                    // Reset other state
-                    setGameResult(null);
-                    setSelectedSquare(null);
-                    setLegalMoves([]);
-                    setLastMove(null);
-                    setPremove(null);
-                    setArrowDrawMode(false);
-                    setBotThinking(false);
-                    setThinkingTimes([]);
-                    thinkingTimesRef.current = [];
-                    setShowRematchDialog(false);
-                    setWaitingForRematchResponse(false);
-                    setRematchDenied(false);
-                    rematchExitIntentRef.current = false;
-                    didSendRematchRequestRef.current = false;
-                    
-                    // Keep bot game settings (selectedBot, selectedBotDifficulty, isBotGame stay the same)
-                    setGameStarted(true);
-                    
-                    toast({
-                      title: "Rematch Started!",
-                      description: `You are now playing as ${newColor}`,
-                    });
+                    handleStartBotGame(selectedBot, newColor);
                   } else if (matchId) {
                     setWaitingForRematchResponse(true);
                     didSendRematchRequestRef.current = true;
