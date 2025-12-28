@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { ChessBoard } from "@/components/chess-board";
 
 // Path to the wooden chess set GLB model
-const CHESS_MODEL_PATH = "/attached_assets/wooden_chess_set_1766401857181.glb";
+const CHESS_MODEL_PATH = "/attached_assets/3d-models/chess_set.glb";
 
 // Mesh name mappings from the GLB file structure
 // Format: Object3D name -> child Mesh name
