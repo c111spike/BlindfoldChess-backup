@@ -75,6 +75,49 @@ function isValidPosition(fen: string): boolean {
   }
 }
 
+// Check which kings are in check and determine the correct turn
+// Returns: { valid: boolean, turn: 'w' | 'b' }
+// - If both kings in check: invalid (impossible position)
+// - If one king in check: that side must be to move
+// - If neither in check: either side can move (random)
+function validateAndFixTurn(boardFen: string): { valid: boolean; turn: 'w' | 'b' } {
+  // boardFen is just the piece positions (e.g., "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+  
+  // Check if white is in check (set white to move and check)
+  let whiteInCheck = false;
+  try {
+    const chessWhite = new Chess(`${boardFen} w - - 0 1`);
+    whiteInCheck = chessWhite.inCheck();
+  } catch {
+    // Invalid position
+  }
+  
+  // Check if black is in check (set black to move and check)
+  let blackInCheck = false;
+  try {
+    const chessBlack = new Chess(`${boardFen} b - - 0 1`);
+    blackInCheck = chessBlack.inCheck();
+  } catch {
+    // Invalid position
+  }
+  
+  // Both kings in check = impossible position
+  if (whiteInCheck && blackInCheck) {
+    return { valid: false, turn: 'w' };
+  }
+  
+  // If one king is in check, that side must move
+  if (whiteInCheck) {
+    return { valid: true, turn: 'w' };
+  }
+  if (blackInCheck) {
+    return { valid: true, turn: 'b' };
+  }
+  
+  // Neither in check - random turn
+  return { valid: true, turn: Math.random() > 0.5 ? 'w' : 'b' };
+}
+
 // Helper to determine if a square is light or dark (a1 is dark)
 function isLightSquare(file: number, rank: number): boolean {
   return (file + rank) % 2 === 1;
@@ -283,37 +326,48 @@ function generateRandomPosition(targetPieces: number): string {
     failedAttempts = 0; // Reset on success
   }
   
-  // Convert board to FEN
-  let fen = '';
+  // Convert board to FEN (piece positions only)
+  let boardFen = '';
   for (let rank = 7; rank >= 0; rank--) {
     let emptyCount = 0;
     for (let file = 0; file < 8; file++) {
       const piece = board[rank][file];
       if (piece) {
         if (emptyCount > 0) {
-          fen += emptyCount;
+          boardFen += emptyCount;
           emptyCount = 0;
         }
-        fen += piece;
+        boardFen += piece;
       } else {
         emptyCount++;
       }
     }
     if (emptyCount > 0) {
-      fen += emptyCount;
+      boardFen += emptyCount;
     }
-    if (rank > 0) fen += '/';
+    if (rank > 0) boardFen += '/';
   }
   
-  const turn = Math.random() > 0.5 ? 'w' : 'b';
-  fen += ` ${turn} - - 0 1`;
+  // Validate check conditions and determine correct turn
+  const { valid, turn } = validateAndFixTurn(boardFen);
   
-  return fen;
+  // Return null marker if both kings in check (caller should retry)
+  if (!valid) {
+    return `${boardFen} w - - 0 1`; // Will be rejected by isValidPosition
+  }
+  
+  return `${boardFen} ${turn} - - 0 1`;
 }
 
-function generateValidRandomPosition(targetPieces: number, maxAttempts: number = 20): string {
+function generateValidRandomPosition(targetPieces: number, maxAttempts: number = 50): string {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const fen = generateRandomPosition(targetPieces);
+    
+    // Check if position has both kings in check (invalid)
+    const boardFen = fen.split(' ')[0];
+    const { valid } = validateAndFixTurn(boardFen);
+    if (!valid) continue;
+    
     if (isValidPosition(fen)) {
       return fen;
     }
@@ -386,45 +440,34 @@ function generateDecisive4PiecePosition(maxAttempts: number = 20): string {
     );
     board[p2Rank][p2File] = piece2IsWhite ? piece2 : piece2.toLowerCase();
     
-    // Convert board to FEN
-    let fen = '';
+    // Convert board to FEN (piece positions only)
+    let boardFen = '';
     for (let rank = 7; rank >= 0; rank--) {
       let emptyCount = 0;
       for (let file = 0; file < 8; file++) {
         const p = board[rank][file];
         if (p) {
           if (emptyCount > 0) {
-            fen += emptyCount;
+            boardFen += emptyCount;
             emptyCount = 0;
           }
-          fen += p;
+          boardFen += p;
         } else {
           emptyCount++;
         }
       }
       if (emptyCount > 0) {
-        fen += emptyCount;
+        boardFen += emptyCount;
       }
-      if (rank > 0) fen += '/';
+      if (rank > 0) boardFen += '/';
     }
     
-    // Determine who moves - prefer the side with more/stronger material
-    const whiteHasMajor = (piece1IsWhite && MAJOR_PIECES.includes(piece1)) || 
-                          (piece2IsWhite && MAJOR_PIECES.includes(piece2));
-    const blackHasMajor = (!piece1IsWhite && MAJOR_PIECES.includes(piece1)) || 
-                          (!piece2IsWhite && MAJOR_PIECES.includes(piece2));
+    // Validate check conditions - if both kings in check, skip this position
+    const checkResult = validateAndFixTurn(boardFen);
+    if (!checkResult.valid) continue;
     
-    let turn: string;
-    if (whiteHasMajor && !blackHasMajor) {
-      turn = 'w';
-    } else if (blackHasMajor && !whiteHasMajor) {
-      turn = 'b';
-    } else {
-      // Both have equal material, random turn
-      turn = Math.random() > 0.5 ? 'w' : 'b';
-    }
-    
-    fen += ` ${turn} - - 0 1`;
+    // Use the validated turn (respects check conditions)
+    const fen = `${boardFen} ${checkResult.turn} - - 0 1`;
     
     if (isValidPosition(fen)) {
       return fen;
@@ -469,31 +512,34 @@ function generateDecisive3PiecePosition(maxAttempts: number = 20): string {
     
     board[pieceRank][pieceFile] = isWhite ? piece : piece.toLowerCase();
     
-    // Convert board to FEN
-    let fen = '';
+    // Convert board to FEN (piece positions only)
+    let boardFen = '';
     for (let rank = 7; rank >= 0; rank--) {
       let emptyCount = 0;
       for (let file = 0; file < 8; file++) {
         const p = board[rank][file];
         if (p) {
           if (emptyCount > 0) {
-            fen += emptyCount;
+            boardFen += emptyCount;
             emptyCount = 0;
           }
-          fen += p;
+          boardFen += p;
         } else {
           emptyCount++;
         }
       }
       if (emptyCount > 0) {
-        fen += emptyCount;
+        boardFen += emptyCount;
       }
-      if (rank > 0) fen += '/';
+      if (rank > 0) boardFen += '/';
     }
     
-    // Side with the piece moves first (to avoid giving away the piece)
-    const turn = isWhite ? 'w' : 'b';
-    fen += ` ${turn} - - 0 1`;
+    // Validate check conditions - if both kings in check, skip this position
+    const checkResult = validateAndFixTurn(boardFen);
+    if (!checkResult.valid) continue;
+    
+    // Use the validated turn (respects check conditions)
+    const fen = `${boardFen} ${checkResult.turn} - - 0 1`;
     
     if (isValidPosition(fen)) {
       return fen;
