@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Eye, Clock, Brain, Navigation, Crown, Puzzle, RotateCw, Book, Users } from "lucide-react";
-import heroImage from "@assets/generated_images/chess_tournament_hero_image.webp";
+import heroImage from "@assets/stock_images/chess_tournament_pro_hero.webp";
 
 const landingPages = [
   {
