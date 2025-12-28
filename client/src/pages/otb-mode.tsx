@@ -2397,12 +2397,13 @@ export default function OTBMode() {
     newBoard[fromRank][fromFile] = null;
     newBoard[toRank][toFile] = promotedPiece || originalPiece;
     
-    // Handle en passant capture - pawn moves diagonally to empty square
+    // Handle en passant capture - pawn moves diagonally EXACTLY ONE RANK to empty square
     const isPawn = originalPiece?.toLowerCase() === 'p';
     const isDiagonalMove = Math.abs(toFile - fromFile) === 1;
+    const isOneRankMove = Math.abs(toRank - fromRank) === 1;
     const destinationWasEmpty = !captured;
     
-    if (isPawn && isDiagonalMove && destinationWasEmpty) {
+    if (isPawn && isDiagonalMove && isOneRankMove && destinationWasEmpty) {
       // This is en passant - remove the captured pawn from its actual position
       // The captured pawn is on the same file as destination, but same rank as origin
       const capturedPawnRank = fromRank;

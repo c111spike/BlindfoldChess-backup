@@ -235,7 +235,10 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
             onClick={interactive ? () => handleSquareClick(rank, file) : undefined}
           >
             {piece && (
-              <span className={`text-lg sm:text-2xl select-none ${piece === piece.toUpperCase() ? 'text-white drop-shadow-md' : 'text-gray-900 dark:text-gray-950'}`}>
+              <span 
+                className={`text-lg sm:text-2xl select-none ${piece === piece.toUpperCase() ? 'text-white drop-shadow-md' : 'text-gray-900 dark:text-gray-950'}`}
+                style={{ transform: `rotate(${-rotation}deg)` }}
+              >
                 {PIECE_UNICODE[piece]}
               </span>
             )}

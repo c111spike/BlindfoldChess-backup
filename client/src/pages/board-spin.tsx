@@ -9,7 +9,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCw, Clock, Target, Trophy, Play, Sparkles, Home } from "lucide-react";
+import { RotateCw, Clock, Target, Trophy, Play, Sparkles, Home, Eye } from "lucide-react";
 import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove } from "@/lib/boardSpinClient";
 import { Chess } from 'chess.js';
 
@@ -103,6 +103,7 @@ export default function BoardSpin() {
     Array(8).fill(null).map(() => Array(8).fill(null))
   );
   const [validBonusMoves, setValidBonusMoves] = useState<string[]>([]);
+  const [showingAnswer, setShowingAnswer] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recreationStartTime = useRef<number>(0);
 
@@ -452,6 +453,7 @@ export default function BoardSpin() {
     setBonusSelectedSquare(null);
     setBonusBoard(Array(8).fill(null).map(() => Array(8).fill(null)));
     setValidBonusMoves([]);
+    setShowingAnswer(false);
     recreationStartTime.current = 0;
   };
 
@@ -993,80 +995,116 @@ export default function BoardSpin() {
 
       {/* Phase: Results */}
       {phase === 'results' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="w-5 h-5" />
-              Results
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Accuracy</p>
-                <p className="text-3xl font-bold">{accuracy}%</p>
-              </div>
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Score</p>
-                <p className="text-3xl font-bold">{score}</p>
-                {bonusResult === true && (
-                  <Badge className="mt-1" variant="default">×2 Bonus!</Badge>
-                )}
-              </div>
+        <div className="space-y-4">
+          {/* Board display with Show Answer overlay */}
+          <div className="flex justify-center">
+            <div className="relative">
+              {renderBoard(playerBoard, finalRotation, false)}
+              
+              {showingAnswer && position && (
+                <div className="absolute inset-0 z-10 bg-background/95 rounded flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-sm font-medium mb-2 text-muted-foreground">Original Position</p>
+                    {renderBoard(position.board, 0, false)}
+                  </div>
+                </div>
+              )}
             </div>
-            
-            {bonusResult !== null && (
-              <div className={`p-4 rounded-lg text-center ${bonusResult ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
-                {bonusResult ? (
-                  isAlternativeOptimal ? (
-                    <p className="text-green-700 dark:text-green-300">
-                      Correct! You found an equally optimal move. Score doubled!
-                      {optimalMoves.length > 1 && (
-                        <span className="block text-sm mt-1 opacity-80">
-                          (Other optimal moves: {optimalMoves.map(m => m.move).join(', ')})
-                        </span>
+          </div>
+          
+          {/* Show Answer button for accuracy < 100% */}
+          {accuracy < 100 && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                onMouseDown={() => setShowingAnswer(true)}
+                onMouseUp={() => setShowingAnswer(false)}
+                onMouseLeave={() => setShowingAnswer(false)}
+                onTouchStart={() => setShowingAnswer(true)}
+                onTouchEnd={() => setShowingAnswer(false)}
+                data-testid="button-show-answer"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Hold to Show Answer
+              </Button>
+            </div>
+          )}
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="w-5 h-5" />
+                Results
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Accuracy</p>
+                  <p className="text-3xl font-bold">{accuracy}%</p>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Score</p>
+                  <p className="text-3xl font-bold">{score}</p>
+                  {bonusResult === true && (
+                    <Badge className="mt-1" variant="default">×2 Bonus!</Badge>
+                  )}
+                </div>
+              </div>
+              
+              {bonusResult !== null && (
+                <div className={`p-4 rounded-lg text-center ${bonusResult ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
+                  {bonusResult ? (
+                    isAlternativeOptimal ? (
+                      <p className="text-green-700 dark:text-green-300">
+                        Correct! You found an equally optimal move. Score doubled!
+                        {optimalMoves.length > 1 && (
+                          <span className="block text-sm mt-1 opacity-80">
+                            (Other optimal moves: {optimalMoves.map(m => m.move).join(', ')})
+                          </span>
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-green-700 dark:text-green-300">
+                        Correct! Best move was {bestMove}. Score doubled!
+                      </p>
+                    )
+                  ) : (
+                    <p className="text-red-700 dark:text-red-300">
+                      {optimalMoves.length > 1 ? (
+                        <>The optimal moves were {optimalMoves.map(m => m.move).join(', ')}. No bonus this time.</>
+                      ) : (
+                        <>The best move was {bestMove}. No bonus this time.</>
                       )}
                     </p>
-                  ) : (
-                    <p className="text-green-700 dark:text-green-300">
-                      Correct! Best move was {bestMove}. Score doubled!
-                    </p>
-                  )
-                ) : (
-                  <p className="text-red-700 dark:text-red-300">
-                    {optimalMoves.length > 1 ? (
-                      <>The optimal moves were {optimalMoves.map(m => m.move).join(', ')}. No bonus this time.</>
-                    ) : (
-                      <>The best move was {bestMove}. No bonus this time.</>
-                    )}
-                  </p>
-                )}
+                  )}
+                </div>
+              )}
+              
+              {accuracy === 100 && bonusResult === null && (
+                <p className="text-center text-muted-foreground">
+                  You skipped the bonus round.
+                </p>
+              )}
+              
+              <div className="flex gap-2 justify-center">
+                <Button onClick={resetGame} size="lg" data-testid="button-play-again">
+                  <Play className="w-4 h-4 mr-2" />
+                  Play Again
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  onClick={() => navigate('/')}
+                  data-testid="button-main-menu"
+                >
+                  <Home className="w-4 h-4 mr-2" />
+                  Main Menu
+                </Button>
               </div>
-            )}
-            
-            {accuracy === 100 && bonusResult === null && (
-              <p className="text-center text-muted-foreground">
-                You skipped the bonus round.
-              </p>
-            )}
-            
-            <div className="flex gap-2 justify-center">
-              <Button onClick={resetGame} size="lg" data-testid="button-play-again">
-                <Play className="w-4 h-4 mr-2" />
-                Play Again
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                onClick={() => navigate('/')}
-                data-testid="button-main-menu"
-              >
-                <Home className="w-4 h-4 mr-2" />
-                Main Menu
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
