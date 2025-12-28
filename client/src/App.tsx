@@ -205,7 +205,7 @@ function AppContent() {
     }
 
     return (
-      <div className="px-4 pb-4">
+      <div className="flex-1 px-4 pb-4">
         <Router />
       </div>
     );
