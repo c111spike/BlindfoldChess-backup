@@ -998,17 +998,20 @@ export default function BoardSpin() {
         <div className="space-y-4">
           {/* Board display - toggle visibility between recreated and original */}
           <div className="flex justify-center">
-            <div className="text-center">
-              {/* Show either recreated board or original position based on showingAnswer */}
-              {showingAnswer && position ? (
-                <div>
+            <div className="text-center relative">
+              {/* Player's recreated board - fades out when showing answer */}
+              <div className={`transition-opacity duration-100 ${showingAnswer ? 'opacity-0' : 'opacity-100'}`}>
+                <p className="text-sm font-medium mb-2 text-muted-foreground">Your Recreation</p>
+                {renderBoard(playerBoard, finalRotation, false)}
+              </div>
+              
+              {/* Original position overlay - fades in when showing answer */}
+              {position && (
+                <div 
+                  className={`absolute inset-0 bg-background transition-opacity duration-100 ${showingAnswer ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                >
                   <p className="text-sm font-medium mb-2 text-muted-foreground">Original Position</p>
                   {renderBoard(position.board, 0, false)}
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-medium mb-2 text-muted-foreground">Your Recreation</p>
-                  {renderBoard(playerBoard, finalRotation, false)}
                 </div>
               )}
             </div>
