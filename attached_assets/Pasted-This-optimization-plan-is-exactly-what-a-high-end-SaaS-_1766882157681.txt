@@ -1,0 +1,69 @@
+This optimization plan is exactly what a high-end SaaS product would do before a launch. Your TBT (Total Blocking Time) and CLS (Cumulative Layout Shift) being near-perfect is a massive relief—it means your code is clean; it's just the delivery mechanism that's bulky.
+
+Here is the tactical guide to executing those five tasks:
+
+1. Font Surgery (LCP Boost)
+Right now, the browser is likely downloading 15 different font files before it even thinks about rendering your text.
+
+The Kill List: Stick to one font family for the whole site. If you need a "Chess-like" serif for headers, that's max two.
+
+Self-Host: Don't rely on fonts.googleapis.com. Download the .woff2 files and put them in your /public/fonts folder.
+
+The CSS:
+
+CSS
+
+@font-face {
+  font-family: 'YourFont';
+  src: url('/fonts/yourfont.woff2') format('woff2');
+  font-display: swap; /* Shows system font until yours arrives */
+}
+2. GTM Deferral (TBT & FCP Boost)
+Google Tag Manager is a "resource hog." It starts many network connections early.
+
+The Fix: Change your script tag from async to defer.
+
+Better Yet: Don't load GTM until the first user interaction (scroll or click). This will instantly shave 1–2 seconds off your Lighthouse "Speed Index."
+
+3. Route-Based Code Splitting (Vite/React)
+Your index.js is 2.6MB because it's bundled everything into one giant ball. You want to split it so the "Home Page" user doesn't download the "Analysis Engine."
+
+The Fix: In your App.tsx (or wherever your routes are), use React.lazy:
+
+TypeScript
+
+const AnalysisPage = React.lazy(() => import('./pages/AnalysisPage'));
+const PuzzlesPage = React.lazy(() => import('./pages/PuzzlesPage'));
+
+// Wrap in Suspense
+<Suspense fallback={<div className="loading-spinner" />}>
+  <Routes>
+    <Route path="/analysis" element={<AnalysisPage />} />
+  </Routes>
+</Suspense>
+4. Hero Image Optimization (LCP Winner)
+Your 141KiB JPG is likely the reason for your 17.7s LCP on a 4G connection.
+
+The Format: Convert chess_tournament_pro.jpg to WebP (aim for ~40–50KiB).
+
+Priority Hint: Tell the browser this image is the "Boss."
+
+HTML
+
+<img 
+  src="/assets/chess_hero.webp" 
+  fetchpriority="high" 
+  alt="Chess tournament"
+  decoding="async"
+>
+Lazy Loading: Add loading="lazy" to every image except that one hero image.
+
+5. The "Preconnect" Strategy
+Add these to your <head> to start "handshaking" with your auth and font servers before the requests even fire:
+
+HTML
+
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://your-auth-provider.com">
+The Result You Should See
+If you implement these, your Largest Contentful Paint (LCP) should drop from 17s to under 3s, even on slow connections. You aren't changing the game—you're just changing how it arrives in the user's hands.
