@@ -75,15 +75,176 @@ function isValidPosition(fen: string): boolean {
   }
 }
 
+// Helper to determine if a square is light or dark (a1 is dark)
+function isLightSquare(file: number, rank: number): boolean {
+  return (file + rank) % 2 === 1;
+}
+
+// Piece tracking for realistic constraints
+interface PieceCounts {
+  whitePawns: number;
+  blackPawns: number;
+  whiteQueens: number;
+  blackQueens: number;
+  whiteRooks: number;
+  blackRooks: number;
+  whiteKnights: number;
+  blackKnights: number;
+  whiteBishopOnLight: number;
+  whiteBishopOnDark: number;
+  blackBishopOnLight: number;
+  blackBishopOnDark: number;
+}
+
+function createPieceCounts(): PieceCounts {
+  return {
+    whitePawns: 0,
+    blackPawns: 0,
+    whiteQueens: 0,
+    blackQueens: 0,
+    whiteRooks: 0,
+    blackRooks: 0,
+    whiteKnights: 0,
+    blackKnights: 0,
+    whiteBishopOnLight: 0,
+    whiteBishopOnDark: 0,
+    blackBishopOnLight: 0,
+    blackBishopOnDark: 0,
+  };
+}
+
+// Calculate max pawns based on promoted pieces
+function getMaxPawns(counts: PieceCounts, isWhite: boolean): number {
+  // Base max is 8, reduced by extra pieces (beyond starting amounts)
+  // Extra queens (more than 1) and extra knights (more than 2) require pawn promotions
+  let promotionsUsed = 0;
+  
+  if (isWhite) {
+    if (counts.whiteQueens > 1) promotionsUsed += (counts.whiteQueens - 1);
+    if (counts.whiteKnights > 2) promotionsUsed += (counts.whiteKnights - 2);
+    if (counts.whiteRooks > 2) promotionsUsed += (counts.whiteRooks - 2);
+    const totalBishops = counts.whiteBishopOnLight + counts.whiteBishopOnDark;
+    if (totalBishops > 2) promotionsUsed += (totalBishops - 2);
+  } else {
+    if (counts.blackQueens > 1) promotionsUsed += (counts.blackQueens - 1);
+    if (counts.blackKnights > 2) promotionsUsed += (counts.blackKnights - 2);
+    if (counts.blackRooks > 2) promotionsUsed += (counts.blackRooks - 2);
+    const totalBishops = counts.blackBishopOnLight + counts.blackBishopOnDark;
+    if (totalBishops > 2) promotionsUsed += (totalBishops - 2);
+  }
+  
+  return Math.max(0, 8 - promotionsUsed);
+}
+
+// Check if a piece can be placed given current constraints
+function canPlacePiece(piece: string, isWhite: boolean, file: number, rank: number, counts: PieceCounts): boolean {
+  const isLight = isLightSquare(file, rank);
+  
+  switch (piece) {
+    case 'P':
+      // Pawns cannot be on ranks 1 or 8 (0 or 7 in 0-indexed)
+      if (rank === 0 || rank === 7) return false;
+      if (isWhite) {
+        return counts.whitePawns < getMaxPawns(counts, true);
+      } else {
+        return counts.blackPawns < getMaxPawns(counts, false);
+      }
+    
+    case 'Q':
+      // Max 2 queens per color
+      if (isWhite) {
+        return counts.whiteQueens < 2;
+      } else {
+        return counts.blackQueens < 2;
+      }
+    
+    case 'R':
+      // Max 2 rooks per color
+      if (isWhite) {
+        return counts.whiteRooks < 2;
+      } else {
+        return counts.blackRooks < 2;
+      }
+    
+    case 'N':
+      // Max 3 knights per color (2 original + 1 promoted)
+      if (isWhite) {
+        return counts.whiteKnights < 3;
+      } else {
+        return counts.blackKnights < 3;
+      }
+    
+    case 'B':
+      // Max 1 bishop per square color per player color
+      if (isWhite) {
+        if (isLight) {
+          return counts.whiteBishopOnLight < 1;
+        } else {
+          return counts.whiteBishopOnDark < 1;
+        }
+      } else {
+        if (isLight) {
+          return counts.blackBishopOnLight < 1;
+        } else {
+          return counts.blackBishopOnDark < 1;
+        }
+      }
+    
+    default:
+      return true;
+  }
+}
+
+// Update counts after placing a piece
+function updatePieceCounts(piece: string, isWhite: boolean, file: number, rank: number, counts: PieceCounts): void {
+  const isLight = isLightSquare(file, rank);
+  
+  switch (piece) {
+    case 'P':
+      if (isWhite) counts.whitePawns++;
+      else counts.blackPawns++;
+      break;
+    case 'Q':
+      if (isWhite) counts.whiteQueens++;
+      else counts.blackQueens++;
+      break;
+    case 'R':
+      if (isWhite) counts.whiteRooks++;
+      else counts.blackRooks++;
+      break;
+    case 'N':
+      if (isWhite) counts.whiteKnights++;
+      else counts.blackKnights++;
+      break;
+    case 'B':
+      if (isWhite) {
+        if (isLight) counts.whiteBishopOnLight++;
+        else counts.whiteBishopOnDark++;
+      } else {
+        if (isLight) counts.blackBishopOnLight++;
+        else counts.blackBishopOnDark++;
+      }
+      break;
+  }
+}
+
+// Get available pieces that can still be placed given constraints
+function getAvailablePieces(isWhite: boolean, file: number, rank: number, counts: PieceCounts): string[] {
+  return PIECES.filter(piece => canPlacePiece(piece, isWhite, file, rank, counts));
+}
+
 function generateRandomPosition(targetPieces: number): string {
   const board: (string | null)[][] = Array(8).fill(null).map(() => Array(8).fill(null));
+  const counts = createPieceCounts();
   let piecesPlaced = 0;
   
+  // Place white king (bottom half)
   const whiteKingFile = getRandomInt(0, 7);
   const whiteKingRank = getRandomInt(0, 2);
   board[whiteKingRank][whiteKingFile] = 'K';
   piecesPlaced++;
   
+  // Place black king (top half, at least 2 squares away)
   let blackKingFile: number, blackKingRank: number;
   do {
     blackKingFile = getRandomInt(0, 7);
@@ -93,22 +254,36 @@ function generateRandomPosition(targetPieces: number): string {
   board[blackKingRank][blackKingFile] = 'k';
   piecesPlaced++;
   
-  while (piecesPlaced < targetPieces) {
+  // Track failed attempts to avoid infinite loops
+  let failedAttempts = 0;
+  const maxFailedAttempts = 100;
+  
+  while (piecesPlaced < targetPieces && failedAttempts < maxFailedAttempts) {
     const file = getRandomInt(0, 7);
     const rank = getRandomInt(0, 7);
     
-    if (board[rank][file] !== null) continue;
+    if (board[rank][file] !== null) {
+      failedAttempts++;
+      continue;
+    }
     
-    const isEdgeRank = rank === 0 || rank === 7;
-    const availablePieces = isEdgeRank ? PIECES.filter(p => p !== 'P') : PIECES;
+    const isWhite = Math.random() > 0.5;
+    const availablePieces = getAvailablePieces(isWhite, file, rank, counts);
+    
+    if (availablePieces.length === 0) {
+      failedAttempts++;
+      continue;
+    }
     
     const piece = getRandomElement(availablePieces);
-    const isWhite = Math.random() > 0.5;
     
     board[rank][file] = isWhite ? piece : piece.toLowerCase();
+    updatePieceCounts(piece, isWhite, file, rank, counts);
     piecesPlaced++;
+    failedAttempts = 0; // Reset on success
   }
   
+  // Convert board to FEN
   let fen = '';
   for (let rank = 7; rank >= 0; rank--) {
     let emptyCount = 0;
