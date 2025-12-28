@@ -3877,6 +3877,10 @@ export default function OTBMode() {
                           <Button
                             variant="default"
                             onClick={() => {
+                              // Clear game state to show pre-game setup
+                              setGameResult(null);
+                              setGameStarted(false);
+                              setIsBotGame(false);
                               setShowBotSelection(true);
                             }}
                             data-testid="button-play-another-bot"
