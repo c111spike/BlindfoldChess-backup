@@ -7,7 +7,7 @@ import heroImage from "@assets/generated_images/chess_tournament_hero_image.webp
 import otbIcon from "@assets/generated_images/otb_tournament_mode_icon.webp";
 import blindfoldIcon from "@assets/generated_images/blindfold_mode_icon.webp";
 import simulIcon from "@assets/generated_images/simul_mode_icon.webp";
-import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
+import logoImage from "@assets/simulchess_logo_480.webp";
 
 export default function Landing() {
   return (
