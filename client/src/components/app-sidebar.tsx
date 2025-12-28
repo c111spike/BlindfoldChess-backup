@@ -56,7 +56,7 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "OTB Tournament",
+    title: "OTB Mode",
     url: "/otb",
     icon: Clock,
   },
@@ -124,7 +124,7 @@ const guestMenuItems = [
     icon: Eye,
   },
   {
-    title: "OTB Tournament",
+    title: "OTB Mode",
     url: "/otb-tournament-simulator",
     icon: Clock,
   },
@@ -350,7 +350,7 @@ export function AppSidebar() {
                 Stockfish
               </a>
               {" "}(GPLv3)
-              <div className="text-[10px] text-muted-foreground/50 mt-0.5">v1.13.0</div>
+              <div className="text-[10px] text-muted-foreground/50 mt-0.5">v1.14.0</div>
             </div>
           )}
         </div>

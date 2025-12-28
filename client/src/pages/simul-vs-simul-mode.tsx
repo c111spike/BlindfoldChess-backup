@@ -96,6 +96,7 @@ export default function SimulVsSimulMode() {
   const [pendingDrawOffers, setPendingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with sent draw offers
   const [incomingDrawOffers, setIncomingDrawOffers] = useState<Set<string>>(new Set()); // pairingIds with received draw offers
   const [showMobileSidebar, setShowMobileSidebar] = useState(false); // Mobile sidebar toggle
+  const [queueCountdown, setQueueCountdown] = useState(30); // Bot fill countdown
   
   const boardsRef = useRef<SimulVsSimulBoard[]>([]);
   const activeBoardRef = useRef(0);
@@ -196,6 +197,25 @@ export default function SimulVsSimulMode() {
       }
     };
   }, []);
+  
+  // Queue bot-fill countdown timer
+  useEffect(() => {
+    if (!inQueue) {
+      setQueueCountdown(30);
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      setQueueCountdown(prev => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [inQueue]);
   
   // Client-side countdown timer - decrements active board's timer every second
   useEffect(() => {
@@ -1320,7 +1340,9 @@ export default function SimulVsSimulMode() {
                     Need {(queueInfo?.playersNeeded || parseInt(boardCount) + 1) - (queueInfo?.playersInQueue || 0)} more player(s) to start
                   </p>
                   <p className="text-xs text-muted-foreground italic">
-                    After 30 seconds, remaining spots will be filled with bots
+                    {queueCountdown > 0 
+                      ? `Filling with bots in ${queueCountdown}s...`
+                      : "Filling with bots now..."}
                   </p>
                   <Button
                     variant="outline"

@@ -265,6 +265,13 @@
     textarea {
       font-size: 16px;
     }
+    
+    /* Position toasts at bottom on Simul vs Simul page to avoid covering View All Boards button */
+    [data-testid="page-simul-vs-simul"] ~ [data-radix-toast-viewport],
+    body:has([data-testid="page-simul-vs-simul"]) [data-radix-toast-viewport] {
+      top: auto !important;
+      bottom: 0 !important;
+    }
   }
 }
 

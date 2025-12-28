@@ -123,10 +123,20 @@ export function RepertoireTutorial({ open, onOpenChange, onComplete }: Repertoir
     setCurrentStep(0);
     onComplete?.();
   };
+  
+  const handleDialogChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      // X button or backdrop click - skip tutorial without calling onOpenChange again
+      localStorage.setItem(REPERTOIRE_TUTORIAL_COMPLETED_KEY, "true");
+      setCurrentStep(0);
+      onComplete?.();
+    }
+    onOpenChange(isOpen);
+  };
 
   if (completed) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleDialogChange}>
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center py-8 gap-4">
             <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -143,7 +153,7 @@ export function RepertoireTutorial({ open, onOpenChange, onComplete }: Repertoir
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center justify-between">

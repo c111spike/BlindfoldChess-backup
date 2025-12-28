@@ -98,7 +98,77 @@ export default function History() {
           {games.map((game) => (
             <Card key={game.id} className="hover-elevate" data-testid={`game-${game.id}`}>
               <CardContent className="py-5">
-                <div className="grid grid-cols-12 gap-4 items-center">
+                <div className="flex flex-col gap-3 sm:hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {getResultBadge(game)}
+                      <div>
+                        <p className="font-semibold">{game.opponentName || "Computer"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {game.mode.replace(/_/g, " ").toUpperCase()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(game.completedAt || game.createdAt!).toLocaleDateString()}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(game.completedAt || game.createdAt!).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <span className="font-mono text-sm text-muted-foreground">
+                        {game.timeControl}+{game.increment}
+                      </span>
+                      {game.ratingChange && (
+                        <div className={`flex items-center gap-1 font-mono font-semibold ${
+                          game.ratingChange > 0 
+                            ? "text-green-600 dark:text-green-400" 
+                            : "text-red-600 dark:text-red-400"
+                        }`}>
+                          {game.ratingChange > 0 ? (
+                            <TrendingUp className="h-4 w-4" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4" />
+                          )}
+                          <span>{game.ratingChange > 0 ? "+" : ""}{game.ratingChange}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setLocation(`/analysis/${game.id}`)}
+                        data-testid={`button-analyze-mobile-${game.id}`}
+                      >
+                        <BarChart3 className="w-4 h-4 mr-1" />
+                        Analyze
+                      </Button>
+                      {game.opponentId && (
+                        <ReportPlayerDialog
+                          reportedUserId={game.opponentId}
+                          reportedUserName={game.opponentName || "Opponent"}
+                          gameId={game.id}
+                          trigger={
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-muted-foreground h-8 w-8"
+                              data-testid={`button-report-mobile-${game.id}`}
+                            >
+                              <Flag className="h-4 w-4" />
+                            </Button>
+                          }
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden sm:grid grid-cols-12 gap-4 items-center">
                   <div className="col-span-2">
                     {getResultBadge(game)}
                   </div>

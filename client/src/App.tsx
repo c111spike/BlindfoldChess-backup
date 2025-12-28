@@ -11,6 +11,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TestUserSwitcher } from "@/components/TestUserSwitcher";
 import { MobileFooter } from "@/components/mobile-footer";
+import { BackButton } from "@/components/back-button";
 import { useAuth } from "@/hooks/useAuth";
 import { isDevelopment, getTestUserId } from "@/lib/devMode";
 
@@ -191,9 +192,12 @@ function AppContent() {
       return (
         <div className="min-h-screen bg-background flex flex-col">
           <div className="flex justify-between items-center px-4 py-2">
-            <a href="/login" className="text-primary hover:underline text-sm" data-testid="link-login">
-              Sign in
-            </a>
+            <div className="flex items-center gap-2">
+              <BackButton />
+              <a href="/login" className="text-primary hover:underline text-sm" data-testid="link-login">
+                Sign in
+              </a>
+            </div>
             <ThemeToggle />
           </div>
           <div className="flex-1">
@@ -239,6 +243,10 @@ function AppContent() {
             className="md:hidden fixed top-3 left-3 z-50 bg-sidebar text-sidebar-foreground border border-sidebar-border rounded-md" 
             data-testid="button-mobile-sidebar-toggle" 
           />
+          {/* Back button - visible on non-home pages, positioned after hamburger on mobile */}
+          <div className="fixed top-3 left-14 md:left-3 z-50">
+            <BackButton />
+          </div>
           {isAuthenticated && isDevelopment && (
             <div className="flex items-center justify-end px-4 py-1">
               <TestUserSwitcher />
