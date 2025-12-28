@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, Brain, Grid3x3, Check, ArrowRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import heroImage from "@assets/stock_images/chess_tournament_pro_50e5cb14.jpg";
+import heroImage from "@assets/generated_images/chess_tournament_hero_image.webp";
 import otbIcon from "@assets/generated_images/otb_tournament_mode_icon.webp";
 import blindfoldIcon from "@assets/generated_images/blindfold_mode_icon.webp";
 import simulIcon from "@assets/generated_images/simul_mode_icon.webp";
