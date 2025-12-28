@@ -998,7 +998,7 @@ export default function BoardSpin() {
         <div className="space-y-4">
           {/* Board display - toggle visibility between recreated and original */}
           <div className="flex justify-center">
-            <div className="text-center relative">
+            <div className="text-center relative w-full max-w-[400px]">
               {/* Player's recreated board - fades out when showing answer */}
               <div className={`transition-opacity duration-100 ${showingAnswer ? 'opacity-0' : 'opacity-100'}`}>
                 <p className="text-sm font-medium mb-2 text-muted-foreground">Your Recreation</p>
