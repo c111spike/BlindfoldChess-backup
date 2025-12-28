@@ -1008,7 +1008,8 @@ export default function BoardSpin() {
               {/* Original position overlay - covers recreated board when showing answer */}
               {position && (
                 <div 
-                  className={`absolute inset-0 bg-background transition-opacity duration-100 ${showingAnswer ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                  className={`absolute inset-0 z-10 transition-opacity duration-100 ${showingAnswer ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                  style={{ backgroundColor: 'hsl(var(--background))' }}
                 >
                   <p className="text-sm font-medium mb-2 text-muted-foreground">Original Position</p>
                   {renderBoard(position.board, 0, false)}
