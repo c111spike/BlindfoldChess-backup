@@ -105,11 +105,6 @@ const menuItems = [
     url: "/statistics",
     icon: BarChart3,
   },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-  },
 ];
 
 const guestMenuItems = [
@@ -259,20 +254,30 @@ export function AppSidebar() {
         <div className={`py-2 border-t border-sidebar-border pr-2 ${isCollapsed ? 'pl-0' : 'pl-2'}`}>
           <SidebarMenu>
             {isAuthenticated && (
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={handleToggleNotifications} 
-                  tooltip={notificationsOn ? "Disable Notifications" : "Enable Notifications"}
-                  data-testid="toggle-notifications"
-                >
-                  {notificationsOn ? (
-                    <Bell className="h-4 w-4" />
-                  ) : (
-                    <BellOff className="h-4 w-4" />
-                  )}
-                  <span>Notifications {notificationsOn ? "On" : "Off"}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/settings"} tooltip="Settings">
+                    <Link href="/settings" data-testid="nav-settings">
+                      <Settings className="h-4 w-4" />
+                      <span>Settings</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    onClick={handleToggleNotifications} 
+                    tooltip={notificationsOn ? "Disable Notifications" : "Enable Notifications"}
+                    data-testid="toggle-notifications"
+                  >
+                    {notificationsOn ? (
+                      <Bell className="h-4 w-4" />
+                    ) : (
+                      <BellOff className="h-4 w-4" />
+                    )}
+                    <span>Notifications {notificationsOn ? "On" : "Off"}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
             )}
             <SidebarMenuItem>
               <ThemeToggle variant="sidebar" />
