@@ -2124,7 +2124,69 @@ export default function StandardMode() {
                           variant="default"
                           size="sm"
                           onClick={() => {
-                            if (matchId && !isBotGame) {
+                            if (isBotGame && selectedBot) {
+                              // Bot auto-accepts rematch - reset game state locally
+                              if (saveIntervalRef.current) {
+                                clearInterval(saveIntervalRef.current);
+                                saveIntervalRef.current = null;
+                              }
+                              if (clockIntervalRef.current) {
+                                clearInterval(clockIntervalRef.current);
+                                clockIntervalRef.current = null;
+                              }
+                              gameCompletionInProgressRef.current = false;
+                              clearPositionHistory();
+                              
+                              // Create fresh game
+                              const newGame = new Chess();
+                              setGame(newGame);
+                              gameRef.current = newGame;
+                              setFen(newGame.fen());
+                              setMoves([]);
+                              movesRef.current = [];
+                              
+                              // Swap colors for variety
+                              const newColor = playerColor === "white" ? "black" : "white";
+                              setPlayerColor(newColor);
+                              
+                              // Reset game identifiers
+                              setGameId(null);
+                              setMatchId(null);
+                              gameIdRef.current = null;
+                              matchIdRef.current = null;
+                              
+                              // Reset times
+                              const tc = timeControl || 180;
+                              setWhiteTime(tc);
+                              setBlackTime(tc);
+                              whiteTimeRef.current = tc;
+                              blackTimeRef.current = tc;
+                              turnStartTimeRef.current = Date.now();
+                              
+                              // Reset other state
+                              setGameResult(null);
+                              setSelectedSquare(null);
+                              setLegalMoves([]);
+                              setLastMove(null);
+                              setPremove(null);
+                              setArrowDrawMode(false);
+                              setBotThinking(false);
+                              setThinkingTimes([]);
+                              thinkingTimesRef.current = [];
+                              setShowRematchDialog(false);
+                              setWaitingForRematchResponse(false);
+                              setRematchDenied(false);
+                              rematchExitIntentRef.current = false;
+                              didSendRematchRequestRef.current = false;
+                              
+                              // Keep bot game settings (selectedBot, selectedBotDifficulty, isBotGame stay the same)
+                              setGameStarted(true);
+                              
+                              toast({
+                                title: "Rematch Started!",
+                                description: `You are now playing as ${newColor}`,
+                              });
+                            } else if (matchId && !isBotGame) {
                               setWaitingForRematchResponse(true);
                               didSendRematchRequestRef.current = true;
                               sendRematchRequest(matchId);
@@ -2132,9 +2194,6 @@ export default function StandardMode() {
                                 title: "Rematch requested",
                                 description: "Waiting for opponent...",
                               });
-                            } else if (isBotGame) {
-                              resetGameState();
-                              setLocation('/standard');
                             }
                           }}
                           disabled={waitingForRematchResponse || rematchDenied}
@@ -2680,7 +2739,71 @@ export default function StandardMode() {
               <Button
                 className="flex-1"
                 onClick={() => {
-                  if (matchId) {
+                  if (isBotGame && selectedBot) {
+                    // Bot auto-accepts rematch - reset game state locally
+                    setShowGameEndDialog(false);
+                    
+                    if (saveIntervalRef.current) {
+                      clearInterval(saveIntervalRef.current);
+                      saveIntervalRef.current = null;
+                    }
+                    if (clockIntervalRef.current) {
+                      clearInterval(clockIntervalRef.current);
+                      clockIntervalRef.current = null;
+                    }
+                    gameCompletionInProgressRef.current = false;
+                    clearPositionHistory();
+                    
+                    // Create fresh game
+                    const newGame = new Chess();
+                    setGame(newGame);
+                    gameRef.current = newGame;
+                    setFen(newGame.fen());
+                    setMoves([]);
+                    movesRef.current = [];
+                    
+                    // Swap colors for variety
+                    const newColor = playerColor === "white" ? "black" : "white";
+                    setPlayerColor(newColor);
+                    
+                    // Reset game identifiers
+                    setGameId(null);
+                    setMatchId(null);
+                    gameIdRef.current = null;
+                    matchIdRef.current = null;
+                    
+                    // Reset times
+                    const tc = timeControl || 180;
+                    setWhiteTime(tc);
+                    setBlackTime(tc);
+                    whiteTimeRef.current = tc;
+                    blackTimeRef.current = tc;
+                    turnStartTimeRef.current = Date.now();
+                    
+                    // Reset other state
+                    setGameResult(null);
+                    setSelectedSquare(null);
+                    setLegalMoves([]);
+                    setLastMove(null);
+                    setPremove(null);
+                    setArrowDrawMode(false);
+                    setBotThinking(false);
+                    setThinkingTimes([]);
+                    thinkingTimesRef.current = [];
+                    setShowRematchDialog(false);
+                    setWaitingForRematchResponse(false);
+                    setRematchDenied(false);
+                    rematchExitIntentRef.current = false;
+                    didSendRematchRequestRef.current = false;
+                    
+                    // Keep bot game settings (selectedBot, selectedBotDifficulty, isBotGame stay the same)
+                    setGameStarted(true);
+                    
+                    toast({
+                      title: "Rematch Started!",
+                      description: `You are now playing as ${newColor}`,
+                    });
+                  } else if (matchId) {
                     setWaitingForRematchResponse(true);
                     didSendRematchRequestRef.current = true;
                     console.log('[Rematch Button] Set didSendRematchRequestRef to true');
@@ -2691,10 +2814,10 @@ export default function StandardMode() {
                     });
                   }
                 }}
-                disabled={waitingForRematchResponse || rematchDenied || isBotGame}
+                disabled={waitingForRematchResponse || rematchDenied}
                 data-testid="button-request-rematch"
               >
-                {waitingForRematchResponse ? "Waiting..." : "Ask for Rematch"}
+                {waitingForRematchResponse ? "Waiting..." : (isBotGame ? "Rematch" : "Ask for Rematch")}
               </Button>
             </div>
             <Button
