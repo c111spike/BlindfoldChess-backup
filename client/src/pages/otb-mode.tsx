@@ -2397,20 +2397,39 @@ export default function OTBMode() {
     newBoard[fromRank][fromFile] = null;
     newBoard[toRank][toFile] = promotedPiece || originalPiece;
     
-    // Handle en passant capture - pawn moves diagonally EXACTLY ONE RANK to empty square
+    // Handle en passant capture - requires ALL four conditions:
+    // 1. Moving piece is a pawn
+    // 2. Move is exactly one rank forward and one file sideways (diagonal)
+    // 3. Destination square was empty (not a normal capture)
+    // 4. Captured pawn must be on the correct en passant rank AND be an OPPONENT's pawn
+    //    - White (uppercase P) captures from rank 5 (index 3), moving forward (decreasing rank index)
+    //    - Black (lowercase p) captures from rank 4 (index 4), moving forward (increasing rank index)
     const isPawn = originalPiece?.toLowerCase() === 'p';
+    const isWhitePawn = originalPiece === 'P';
     const isDiagonalMove = Math.abs(toFile - fromFile) === 1;
     const isOneRankMove = Math.abs(toRank - fromRank) === 1;
     const destinationWasEmpty = !captured;
     
-    if (isPawn && isDiagonalMove && isOneRankMove && destinationWasEmpty) {
-      // This is en passant - remove the captured pawn from its actual position
-      // The captured pawn is on the same file as destination, but same rank as origin
+    // Check rank eligibility for en passant
+    // White pawns capture en passant from rank 5 (board index 3) moving to rank 6 (index 2)
+    // Black pawns capture en passant from rank 4 (board index 4) moving to rank 3 (index 5)
+    const isCorrectEnPassantRank = isWhitePawn 
+      ? (fromRank === 3 && toRank === 2)  // White: from rank 5 to rank 6
+      : (fromRank === 4 && toRank === 5); // Black: from rank 4 to rank 3
+    
+    if (isPawn && isDiagonalMove && isOneRankMove && destinationWasEmpty && isCorrectEnPassantRank) {
+      // Potential en passant - verify captured pawn is an opponent's pawn
       const capturedPawnRank = fromRank;
       const capturedPawnFile = toFile;
       const capturedPawn = newBoard[capturedPawnRank][capturedPawnFile];
       
-      if (capturedPawn?.toLowerCase() === 'p') {
+      // Captured pawn must exist AND be the opponent's color
+      const isOpponentPawn = capturedPawn && (
+        (isWhitePawn && capturedPawn === 'p') ||  // White capturing black pawn
+        (!isWhitePawn && capturedPawn === 'P')    // Black capturing white pawn
+      );
+      
+      if (isOpponentPawn) {
         newBoard[capturedPawnRank][capturedPawnFile] = null;
         console.log('[OTB] En passant capture: removed pawn from', String.fromCharCode(97 + capturedPawnFile) + (8 - capturedPawnRank));
       }
