@@ -244,12 +244,12 @@ function generateRandomPosition(targetPieces: number): string {
   board[whiteKingRank][whiteKingFile] = 'K';
   piecesPlaced++;
   
-  // Place black king (top half, at least 2 squares away)
+  // Place black king (top half, never adjacent to white king - kings can't "capture" each other)
   let blackKingFile: number, blackKingRank: number;
   do {
     blackKingFile = getRandomInt(0, 7);
     blackKingRank = getRandomInt(5, 7);
-  } while (Math.abs(blackKingFile - whiteKingFile) < 2 && Math.abs(blackKingRank - whiteKingRank) < 2);
+  } while (Math.abs(blackKingFile - whiteKingFile) <= 1 && Math.abs(blackKingRank - whiteKingRank) <= 1);
   
   board[blackKingRank][blackKingFile] = 'k';
   piecesPlaced++;
@@ -334,12 +334,12 @@ function generateDecisive4PiecePosition(maxAttempts: number = 20): string {
     const whiteKingRank = getRandomInt(0, 3);
     board[whiteKingRank][whiteKingFile] = 'K';
     
-    // Place black king (top half, at least 2 squares away)
+    // Place black king (top half, never adjacent to white king - kings can't "capture" each other)
     let blackKingFile: number, blackKingRank: number;
     do {
       blackKingFile = getRandomInt(0, 7);
       blackKingRank = getRandomInt(4, 7);
-    } while (Math.abs(blackKingFile - whiteKingFile) < 2 && Math.abs(blackKingRank - whiteKingRank) < 2);
+    } while (Math.abs(blackKingFile - whiteKingFile) <= 1 && Math.abs(blackKingRank - whiteKingRank) <= 1);
     board[blackKingRank][blackKingFile] = 'k';
     
     // Pick two additional pieces (excluding pawns for simplicity on edge ranks)
@@ -445,12 +445,12 @@ function generateDecisive3PiecePosition(maxAttempts: number = 20): string {
     const whiteKingRank = getRandomInt(0, 3);
     board[whiteKingRank][whiteKingFile] = 'K';
     
-    // Place black king (top half of board, at least 2 squares away)
+    // Place black king (top half of board, never adjacent to white king - kings can't "capture" each other)
     let blackKingFile: number, blackKingRank: number;
     do {
       blackKingFile = getRandomInt(0, 7);
       blackKingRank = getRandomInt(4, 7);
-    } while (Math.abs(blackKingFile - whiteKingFile) < 2 && Math.abs(blackKingRank - whiteKingRank) < 2);
+    } while (Math.abs(blackKingFile - whiteKingFile) <= 1 && Math.abs(blackKingRank - whiteKingRank) <= 1);
     board[blackKingRank][blackKingFile] = 'k';
     
     // Place one rook or queen (either color)
