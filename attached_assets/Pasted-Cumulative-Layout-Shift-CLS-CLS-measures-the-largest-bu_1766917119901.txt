@@ -1,0 +1,170 @@
+Cumulative Layout Shift(CLS)
+
+CLS measures the largest burst of layout shift scores for every unexpected shift that occurs during the lifespan of a page.
+
+Good
+
+94%
+
+
+
+Needs Improvement
+
+1%
+
+
+
+Poor
+
+4%
+
+
+
+URL
+
+Browser
+
+Operating system
+
+Country
+
+Element
+
+5 items
+
+
+
+Debug View
+
+5 items
+
+Click each row to expand
+
+ElementCLS
+
+Counts
+
+main.flex-1.overflow-auto>footer.mt-8.py-6.px-4.border-t.bg-background0.2634Metric
+
+CLS - P50
+
+
+
+0.263
+
+CLS - P75
+
+
+
+0.263
+
+CLS - P90
+
+
+
+0.361
+
+CLS - P99
+
+
+
+0.361
+
+Page
+
+Host
+
+simulchess.com
+
+Path
+
+/
+
+DOM
+
+Element
+
+main.flex-1.overflow-auto>footer.mt-8.py-6.px-4.border-t.bg-background
+
+Layout Shifts
+
+
+
+Previous
+
+{ x: 0, y: 0, width: 1080, height: 317, top: 0, right: 1080, bottom: 0, left: 0 }
+
+Current
+
+{ x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 }
+
+Previous
+
+{ x: 0, y: 0, width: 1080, height: 317, top: 0, right: 1080, bottom: 0, left: 0 }
+
+Current
+
+{ x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 }
+
+Previous
+
+{ x: 0, y: 0, width: 1080, height: 317, top: 0, right: 1080, bottom: 0, left: 0 }
+
+Current
+
+{ x: 0, y: 0, width: 1080, height: 317, top: 0, right: 1080, bottom: 0, left: 0 }
+
+Previous
+
+{ x: 0, y: 0, width: 1080, height: 317, top: 0, right: 1080, bottom: 0, left: 0 }
+
+Current
+
+{ x: 0, y: 0, width: 1080, height: 317, top: 0, right: 1080, bottom: 0, left: 0 }
+
+
+
+what am I looking at
+
+You are looking at a CLS (Cumulative Layout Shift) Debug Report. Specifically, it is flagging your footer as the culprit for a layout shift that is hurting your "real-world" user experience scores.
+
+While your Lighthouse test showed a 0, this report shows a 0.263, which is considered "Poor" (anything over 0.1 needs fixing).
+
+## What is actually happening?
+The report shows that your footer element is jumping from a height/width of 0 to its full size, or vice versa. This usually happens for one of two reasons:
+
+Late Injection: Your footer is being rendered by JavaScript after the rest of the page has already drawn.
+
+The Sidebar "Pop": If your sidebar takes a fraction of a second to load, it might be pushing the main content (and the footer) to the right or down after the initial paint.
+
+Conditional Rendering: Since you are a "Single Page App" (React/Next.js), the footer might be waiting for an "auth check" to decide whether to show the guest footer or the user footer.
+
+## How to read the "Previous vs Current" Data
+Look at these coordinates in your report:
+
+Previous: height: 317
+
+Current: height: 0
+
+This indicates that during the page load, the footer existed, then momentarily disappeared (or its container collapsed), and then reappeared. To a user, this looks like the page "twitched" or "shuddered" while loading.
+
+## The 4:30 AM Fix: How to get back to "Good"
+To fix this and protect your SEO rankings, you need to reserve space for that footer so it doesn't "pop" in.
+
+1. Give the Footer a Minimum Height
+In your CSS, ensure the footer's container has a set minimum height so the page doesn't collapse to 0px while it's loading.
+
+CSS
+footer {
+  min-height: 317px; /* Matches the height found in your report */
+}
+2. Check your "Main" Container
+The report identifies the element as main.flex-1.overflow-auto. If you are using Flexbox, sometimes the flex-1 property causes the main content to jump when the footer finally renders.
+
+Fix: Ensure your main wrapper has a display: flex; flex-direction: column; min-height: 100vh;.
+
+3. Server-Side Rendering (SSR) Check
+If you are using a framework like Next.js, ensure the footer isn't wrapped in a window !== undefined check. If it only renders on the client side, it will always cause a layout shift.
+
+## Why this is the "final boss" of your 100 score
+Google uses CrUX (Chrome User Experience Report) data for rankings. Even if your manual Lighthouse test is 100, if real users experience this 0.263 shift, Google will eventually downgrade your "Core Web Vitals" status.
