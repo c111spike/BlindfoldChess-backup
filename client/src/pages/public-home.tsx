@@ -58,7 +58,7 @@ const landingPages = [
 
 export default function PublicHomePage() {
   return (
-    <div className="min-h-screen -m-4">
+    <div className="min-h-screen -mx-4">
       <Helmet>
         <title>SimulChess: Chess Training | Master OTB, Blindfold & Simul Chess</title>
         <meta name="description" content="SimulChess: a chess training platform. Master OTB, strengthen memory with blindfold training, and dominate simul games. Free chess trainer." />
