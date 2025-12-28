@@ -184,7 +184,7 @@ export function OTBTutorial({ open, onOpenChange, onComplete }: OTBTutorialProps
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="py-4 overflow-y-auto max-h-[50vh]">
           <Card className="border-primary/20">
             <CardContent className="pt-6">
               <div className="flex items-start gap-4">
