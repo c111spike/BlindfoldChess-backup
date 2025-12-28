@@ -202,14 +202,18 @@ export function AppSidebar() {
 
         {!isAuthenticated && (
           <SidebarGroup>
-            <div className="px-4 py-2">
-              <Button asChild className="w-full" data-testid="button-login-sidebar">
-                <a href="/login">
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Login / Join Free
-                </a>
-              </Button>
-            </div>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Login / Join Free">
+                    <a href="/login" data-testid="button-login-sidebar">
+                      <LogIn className="h-4 w-4" />
+                      <span>Login / Join Free</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
           </SidebarGroup>
         )}
 
