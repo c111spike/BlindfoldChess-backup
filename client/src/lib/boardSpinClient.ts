@@ -194,11 +194,11 @@ function canPlacePiece(piece: string, isWhite: boolean, file: number, rank: numb
       }
     
     case 'Q':
-      // Max 2 queens per color
+      // Max 1 queen per color (only the original queen)
       if (isWhite) {
-        return counts.whiteQueens < 2;
+        return counts.whiteQueens < 1;
       } else {
-        return counts.blackQueens < 2;
+        return counts.blackQueens < 1;
       }
     
     case 'R':
@@ -210,11 +210,11 @@ function canPlacePiece(piece: string, isWhite: boolean, file: number, rank: numb
       }
     
     case 'N':
-      // Max 3 knights per color (2 original + 1 promoted)
+      // Max 2 knights per color (only the original two)
       if (isWhite) {
-        return counts.whiteKnights < 3;
+        return counts.whiteKnights < 2;
       } else {
-        return counts.blackKnights < 3;
+        return counts.blackKnights < 2;
       }
     
     case 'B':
