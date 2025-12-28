@@ -112,7 +112,7 @@ export default function PublicHomePage() {
               </Button>
             </div>
             <p className="text-sm text-white/70" data-testid="text-login-info">
-              Secure, one-click login via Google or GitHub. Start your training instantly without managing another set of credentials, while your progress is safely synced across all devices.
+              Save your journey. A secure account keeps your Simul, OTB, and Blindfold training progress synced and ready, no matter which device you use to practice.
             </p>
           </div>
         </div>
@@ -156,13 +156,13 @@ export default function PublicHomePage() {
               <h3 className="text-xl font-semibold mb-3">Train Like You Play</h3>
               <p className="text-muted-foreground leading-relaxed mb-4">
                 Most online chess platforms focus on rapid play with automatic move validation and instant clock switching. 
-                SimulChess is different. We simulate the authentic over-the-board tournament experience where you must 
+                SimulChess <Link href="/otb-tournament-simulator" className="text-primary hover:underline">OTB Mode</Link> is different. We simulate the authentic over-the-board tournament experience where you must 
                 physically press your clock, follow touch-move rules, and handle the psychological pressure of real competition.
               </p>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                Unlike traditional online chess servers that automate the boring parts, SimulChess forces you to develop the 
+                Unlike traditional online chess servers that automate the boring parts, SimulChess <Link href="/otb-tournament-simulator" className="text-primary hover:underline">OTB Mode</Link> forces you to develop the 
                 muscle memory required for tournament success. By requiring manual clock presses and enforcing strict touch-move 
-                protocols, we eliminate the "lazy habits" that often lead to blunders in real-world <Link href="/otb-tournament-simulator" className="text-primary hover:underline">Over-The-Board (OTB)</Link> settings. 
+                protocols, we eliminate the "lazy habits" that often lead to blunders in real-world Over-The-Board (OTB) settings. 
                 Our platform is built for the competitive player who wants their digital practice to translate directly to the physical board.
               </p>
               <p className="text-muted-foreground leading-relaxed">

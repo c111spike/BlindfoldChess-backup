@@ -11,10 +11,10 @@ export default function OTBTournamentSimulator() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>OTB Tournament Simulator - Over the Board Chess Practice | SimulChess</title>
-        <meta name="description" content="The ultimate OTB training tool to bridge the gap between online and over-the-board play. Master touch-move and OTB rules with our OTB Tournament Simulator." />
-        <meta property="og:title" content="OTB Tournament Simulator - SimulChess" />
-        <meta property="og:description" content="The ultimate OTB training tool to bridge the gap between online and over-the-board play. Master touch-move and OTB rules with our OTB Tournament Simulator." />
+        <title>OTB Mode Simulator - Over the Board Chess Practice | SimulChess</title>
+        <meta name="description" content="The ultimate OTB training tool to bridge the gap between online and over-the-board play. Master touch-move and OTB rules with our OTB Mode Simulator." />
+        <meta property="og:title" content="OTB Mode Simulator - SimulChess" />
+        <meta property="og:description" content="The ultimate OTB training tool to bridge the gap between online and over-the-board play. Master touch-move and OTB rules with our OTB Mode Simulator." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/otb-tournament-simulator" />
         <meta property="og:image" content="https://simulchess.com/og-otb.png" />
@@ -25,7 +25,7 @@ export default function OTBTournamentSimulator() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Trophy className="h-10 w-10 text-primary" />
-            <span className="text-3xl md:text-4xl font-bold">OTB Tournament Simulator</span>
+            <span className="text-3xl md:text-4xl font-bold">OTB Mode Simulator</span>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Train with realistic over-the-board conditions to dominate your next tournament
@@ -81,7 +81,7 @@ export default function OTBTournamentSimulator() {
 
           <p>
             <strong>The ultimate OTB training tool to bridge the gap between online and over-the-board play.</strong> Master 
-            touch-move and OTB rules with our OTB Tournament Simulator.
+            touch-move and OTB rules with our OTB Mode Simulator.
           </p>
 
           <p>
