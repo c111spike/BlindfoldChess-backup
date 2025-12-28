@@ -156,6 +156,13 @@ let cachedVoices: SpeechSynthesisVoice[] = [];
 let voicesLoaded = false;
 let voicesLoadPromise: Promise<SpeechSynthesisVoice[]> | null = null;
 
+// Listening lock to prevent TTS output from being picked up by speech recognition
+let isBotSpeaking = false;
+
+export function getIsBotSpeaking(): boolean {
+  return isBotSpeaking;
+}
+
 function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   if (voicesLoaded && cachedVoices.length > 0) {
     return Promise.resolve(cachedVoices);
@@ -226,9 +233,37 @@ export function speak(text: string, rate: number = 0.9): Promise<void> {
       utterance.lang = 'en-US';
     }
     
-    utterance.onend = () => resolve();
+    // Listening lock: abort recognition when TTS starts to prevent feedback loop
+    utterance.onstart = () => {
+      isBotSpeaking = true;
+      // Use abort() to immediately clear the audio buffer - prevents "phantom moves"
+      // from the bot's own voice being transcribed
+      voiceRecognition.abort();
+      console.log('[Voice] Mic muted: Bot is speaking');
+    };
+    
+    utterance.onend = () => {
+      isBotSpeaking = false;
+      // 100ms delay solves Chrome "engine-error" where hardware isn't ready
+      // to listen immediately after speaker stops
+      setTimeout(() => {
+        if (!isBotSpeaking) {
+          voiceRecognition.resumeAfterTTS();
+          console.log('[Voice] Mic active: Listening for your move');
+        }
+      }, 100);
+      resolve();
+    };
+    
     utterance.onerror = (e) => {
       console.error('Speech error:', e);
+      isBotSpeaking = false;
+      // Still try to resume recognition on error
+      setTimeout(() => {
+        if (!isBotSpeaking) {
+          voiceRecognition.resumeAfterTTS();
+        }
+      }, 100);
       resolve();
     };
     
@@ -431,6 +466,10 @@ export class VoiceRecognition {
       clearTimeout(this.restartTimeout);
     }
     this.restartTimeout = setTimeout(() => {
+      // Don't restart while bot is speaking - prevents mic from picking up TTS
+      if (isBotSpeaking) {
+        return;
+      }
       if (this.shouldBeListening && this.recognition && !this.isListening) {
         try {
           this.recognition.start();
@@ -490,6 +529,47 @@ export class VoiceRecognition {
     this.isListening = false;
     if (this.onListeningChange) {
       this.onListeningChange(false);
+    }
+  }
+  
+  // Abort recognition immediately - clears audio buffer to prevent "phantom moves"
+  // from TTS output being transcribed. Use this when TTS starts speaking.
+  abort() {
+    if (this.restartTimeout) {
+      clearTimeout(this.restartTimeout);
+      this.restartTimeout = null;
+    }
+    
+    if (this.recognition && this.isListening) {
+      try {
+        // abort() is better than stop() here because it kills audio processing
+        // instantly without trying to return a final transcript of the bot's voice
+        this.recognition.abort();
+      } catch (e) {
+        console.log('Error aborting recognition:', e);
+      }
+    }
+    
+    this.isListening = false;
+    if (this.onListeningChange) {
+      this.onListeningChange(false);
+    }
+  }
+  
+  // Resume recognition after TTS finishes. Only restarts if we were
+  // supposed to be listening (shouldBeListening is still true).
+  resumeAfterTTS() {
+    if (!this.recognition) {
+      return;
+    }
+    
+    // Only resume if we were supposed to be listening before TTS interrupted
+    if (this.shouldBeListening && !this.isListening) {
+      try {
+        this.recognition.start();
+      } catch (e) {
+        console.log('Recognition already active or error:', e);
+      }
     }
   }
   

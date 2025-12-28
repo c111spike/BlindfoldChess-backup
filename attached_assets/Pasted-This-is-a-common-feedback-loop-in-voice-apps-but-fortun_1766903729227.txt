@@ -1,0 +1,61 @@
+This is a common "feedback loop" in voice apps, but fortunately, the Web Speech API has built-in event listeners that make the fix relatively simple.
+
+The strategy is to create a "Listening Lock." You want to abort the microphone the moment the bot starts to speak and restart it only after the onend event of the speech synthesis fires.
+
+## Implementation Guide
+Here is the logic you should add to your bot move-announcement function.
+
+JavaScript
+
+// 1. Setup a global flag to prevent race conditions
+let isBotSpeaking = false;
+
+function announceMove(text) {
+    const synth = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    // 2. Before speaking: Stop the mic
+    utterance.onstart = () => {
+        isBotSpeaking = true;
+        if (recognition) {
+            // .abort() is better than .stop() here because it 
+            // kills the audio processing instantly without 
+            // trying to return a final transcript of the bot's voice.
+            recognition.abort(); 
+            console.log("Mic muted: Bot is announcing move.");
+        }
+    };
+
+    // 3. After speaking: Resume the mic
+    utterance.onend = () => {
+        isBotSpeaking = false;
+        try {
+            recognition.start();
+            console.log("Mic active: Listening for your move.");
+        } catch (e) {
+            // Ignore error if recognition is already running
+        }
+    };
+
+    synth.speak(utterance);
+}
+## Why this is the "Golden" Fix
+Zero "Echo" Transcription: By using recognition.abort(), you tell the browser to discard whatever audio it just heard. This prevents the bot from "talking to itself" and triggering moves like "D4" just because it heard itself say "D4."
+
+Hardware Level Priority: In most browsers (especially Chrome), the OS level echo cancellation works better when the mic is explicitly toggled by the application.
+
+Visual Sync: You can use the isBotSpeaking flag to update your UI (e.g., turning the microphone icon grey or showing a "Bot is thinking/speaking" status).
+
+## Important: The Chrome "Interruption" Bug
+Sometimes, if you call recognition.start() too fast after the bot finishes, Chrome might throw an engine-error. If you experience this, simply add a tiny 100ms delay inside the onend listener:
+
+JavaScript
+
+utterance.onend = () => {
+    isBotSpeaking = false;
+    setTimeout(() => {
+        try { recognition.start(); } catch(e) {}
+    }, 100); 
+};
+## Final Result for the User
+User perspective: The bot moves, speaks the move, and the moment it's done, the mic becomes active again for the player's counter-move. It feels like a natural conversation rather than a "walkie-talkie" where you have to wait.
