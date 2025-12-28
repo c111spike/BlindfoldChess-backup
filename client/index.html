@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SimulChess - Professional Chess Training Platform</title>
     <meta name="description" content="SimulChess is your professional chess training platform. Master over-the-board habits, strengthen memory with blindfold training, and dominate simultaneous exhibitions. Free online chess trainer." />
     <!-- Google Search favicon (48x48 is Google's magic number) -->
@@ -14,9 +14,6 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png">
     <!-- Modern high-res fallback -->
     <link rel="icon" href="/favicon.png" sizes="any">
-    <!-- Preload fonts (self-hosted - no third-party network hops) -->
-    <link rel="preload" href="/fonts/inter-roman.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin>
     <!-- Critical CSS for above-the-fold content - prevents white screen -->
     <style>
       :root{--background:210 6% 98%;--foreground:210 8% 12%}
@@ -29,6 +26,8 @@
       .hero-subtitle{color:rgba(255,255,255,0.9);font-size:1.125rem;line-height:1.75}
       @media(min-width:768px){.hero-title{font-size:3rem}.hero-subtitle{font-size:1.25rem}}
     </style>
+    <!-- Preload only Inter font (JetBrains Mono deferred to not compete with hero) -->
+    <link rel="preload" href="/fonts/inter-roman.woff2" as="font" type="font/woff2" crossorigin>
     <!-- Theme initialization (must run before render to prevent flash) -->
     <script>
       (function() {
@@ -36,17 +35,26 @@
         document.documentElement.classList.add(theme);
       })();
     </script>
-    <!-- Defer analytics to not block rendering -->
-    <script defer src="https://www.googletagmanager.com/gtag/js?id=G-MRNQT1V5EY"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-MRNQT1V5EY');
-    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Delayed GTM loading - frees main thread for LCP rendering -->
+    <script>
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          var script = document.createElement('script');
+          script.src = 'https://www.googletagmanager.com/gtag/js?id=G-MRNQT1V5EY';
+          script.async = true;
+          document.head.appendChild(script);
+          script.onload = function() {
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-MRNQT1V5EY');
+          };
+        }, 2500);
+      });
+    </script>
   </body>
 </html>
