@@ -47,7 +47,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getNotificationsEnabled, setNotificationsEnabled } from "@/hooks/useNotifications";
-import logoImage from "@assets/SimulChess Logo2_1763871911272.png";
+import logoImage from "@assets/simulchess_logo_480.webp";
 
 const menuItems = [
   {
