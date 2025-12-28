@@ -1914,6 +1914,9 @@ export default function OTBMode() {
     // Reset bot thinking state to prevent frozen board on rematch
     setBotThinking(false);
     
+    // Reset hasMadeMove to allow player to make moves on rematch
+    setHasMadeMove(false);
+    
     // Use botTimeControl for bot games instead of general timeControl
     const isPracticeMode = botTimeControl === "practice";
     const minutes = isPracticeMode ? 99999999 : (botTimeControl === "blitz" ? 5 : 15);
