@@ -56,19 +56,19 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
+    title: "Simul vs Simul",
+    url: "/simul-vs-simul",
+    icon: Users,
+  },
+  {
     title: "OTB Mode",
     url: "/otb",
     icon: Clock,
   },
   {
-    title: "Standard",
+    title: "Standard (Blindfold)",
     url: "/standard",
     icon: Brain,
-  },
-  {
-    title: "Simul vs Simul",
-    url: "/simul-vs-simul",
-    icon: Users,
   },
   {
     title: "Board Spin",
@@ -76,22 +76,22 @@ const menuItems = [
     icon: RotateCw,
   },
   {
-    title: "N-Piece Challenge",
-    url: "/n-piece",
-    icon: Crown,
-  },
-  {
     title: "Knight's Tour",
     url: "/knights-tour",
     icon: Navigation,
   },
   {
-    title: "Puzzles",
+    title: "N-Piece Challenge",
+    url: "/n-piece",
+    icon: Crown,
+  },
+  {
+    title: "Community Puzzles",
     url: "/puzzles",
     icon: Puzzle,
   },
   {
-    title: "Repertoire Trainer",
+    title: "Opening Repertoire",
     url: "/repertoire",
     icon: Book,
   },
@@ -119,9 +119,9 @@ const guestMenuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Blindfold Training",
-    url: "/blindfold-chess-training",
-    icon: Eye,
+    title: "Simul Training",
+    url: "/simul-chess-training",
+    icon: Users,
   },
   {
     title: "OTB Mode",
@@ -129,9 +129,14 @@ const guestMenuItems = [
     icon: Clock,
   },
   {
-    title: "Simul Training",
-    url: "/simul-chess-training",
-    icon: Users,
+    title: "Blindfold Training",
+    url: "/blindfold-chess-training",
+    icon: Eye,
+  },
+  {
+    title: "Board Spin",
+    url: "/chess-board-spin",
+    icon: RotateCw,
   },
   {
     title: "Knight's Tour",
@@ -147,11 +152,6 @@ const guestMenuItems = [
     title: "Chess Puzzles",
     url: "/chess-puzzles-trainer",
     icon: Puzzle,
-  },
-  {
-    title: "Board Spin",
-    url: "/chess-board-spin",
-    icon: RotateCw,
   },
   {
     title: "Repertoire Trainer",
