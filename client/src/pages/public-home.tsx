@@ -60,10 +60,10 @@ export default function PublicHomePage() {
   return (
     <div className="min-h-screen -m-4">
       <Helmet>
-        <title>SimulChess - Professional Chess Training Platform | Master OTB, Blindfold & Simul Chess</title>
-        <meta name="description" content="SimulChess is your professional chess training platform. Master over-the-board habits, strengthen memory with blindfold training, and dominate simultaneous exhibitions. Free online chess trainer." />
-        <meta property="og:title" content="SimulChess - Professional Chess Training Platform" />
-        <meta property="og:description" content="Master over-the-board habits, strengthen memory with blindfold training, and dominate simultaneous exhibitions. Your path to grandmaster vision." />
+        <title>SimulChess: Chess Training | Master OTB, Blindfold & Simul Chess</title>
+        <meta name="description" content="SimulChess: a chess training platform. Master OTB, strengthen memory with blindfold training, and dominate simul games. Free chess trainer." />
+        <meta property="og:title" content="SimulChess: Chess Training | Master OTB, Blindfold & Simul Chess" />
+        <meta property="og:description" content="SimulChess: a chess training platform. Master OTB, strengthen memory with blindfold training, and dominate simul games. Free chess trainer." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://simulchess.com/" />
         <meta property="og:image" content="https://simulchess.com/og-home.png" />
