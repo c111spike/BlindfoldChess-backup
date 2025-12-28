@@ -171,11 +171,6 @@ export default function Signup() {
               Log in
             </Link>
           </div>
-          <div className="mt-4 text-center">
-            <Link href="/" className="text-sm text-muted-foreground hover:underline" data-testid="link-home">
-              Back to home
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </div>

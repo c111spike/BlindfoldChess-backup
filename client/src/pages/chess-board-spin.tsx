@@ -22,15 +22,6 @@ export default function ChessBoardSpin() {
       </Helmet>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-6">
-          <Link href="/">
-            <Button variant="ghost" size="sm" data-testid="button-back-home">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
-        </div>
-
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <RotateCw className="h-10 w-10 text-primary" />
