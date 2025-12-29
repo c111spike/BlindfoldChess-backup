@@ -127,15 +127,57 @@ export function selectOpeningMoveByPersonality(
         break;
         
       case 'bishop_lover':
-        // No specific opening preference, but favor moves that keep bishops active
-        // (This would require deeper analysis, so just use popularity)
-        score += Math.log(m.totalGames + 1) * 10;
+        // Favor fianchetto setups and Italian-style openings where bishops thrive
+        // Fianchetto pawn moves: g3, b3, g6, b6 (with optional check/mate suffix)
+        const isFianchettoPawn = /^[gb][36][+#]?$/.test(m.san);
+        // Fianchetto bishop moves: Bg2, Bb2, Bg7, Bb7 (handles B1xg2+, Bxg2, etc.)
+        // Pattern: B + 0-2 disambiguation chars + optional x + g/b + 2/7 + optional check
+        const isFianchettoBishop = /^B[a-h1-8]{0,2}x?[gb][27][+#]?$/.test(m.san);
+        // Active bishop development to specific strong squares (not retreats like Be2, Bd1)
+        // Strong squares: c4, b5, c5, b4, f4, g5, a3, h4 (attacking/central diagonals)
+        const activeBishopSquares = ['c4', 'b5', 'c5', 'b4', 'f4', 'g5', 'a3', 'h4', 'a6', 'h3', 'f5', 'c3', 'f6', 'c6'];
+        const destinationSquare = m.san.match(/([a-h][1-8])[+#]?$/)?.[1];
+        const isActiveBishopMove = m.san.startsWith('B') && destinationSquare && activeBishopSquares.includes(destinationSquare);
+        const isBishopFriendly = isFianchettoPawn || isFianchettoBishop || isActiveBishopMove;
+        
+        if (isBishopFriendly) {
+          score += 40; // Strong bonus for bishop-friendly moves
+        }
+        // Favor main lines (bishops do well in open positions from popular openings)
+        score += Math.log(m.totalGames + 1) * 12;
+        // Slight preference for lines with fewer draws (bishops like dynamic play)
+        score += (1 - m.drawRate) * 15;
         break;
         
       case 'knight_lover':
-        // Prefer closed positions (harder to detect from opening stats alone)
-        // Slightly favor less popular lines
-        score += Math.log(m.totalGames + 1) * 5;
+        // Favor closed/semi-closed positions where knights outperform bishops
+        // Knight moves: N + 0-2 disambiguation chars + optional x + destination + optional check
+        // Matches: Nc3, Nf3, Nbd2, Nxe4, Nc3+, N1xe5, Nbdxe5, etc.
+        const isKnightMove = /^N[a-h1-8]{0,2}x?[a-h][1-8][+#]?$/.test(m.san);
+        // Penalize fianchetto (bishop-favoring) openings
+        const isFianchettoPawnMove = /^[gb][36][+#]?$/.test(m.san);
+        // Fianchetto bishop: B + 0-2 disambiguation + optional x + g/b + 2/7 + optional check
+        const isFianchettoBishopMove = /^B[a-h1-8]{0,2}x?[gb][27][+#]?$/.test(m.san);
+        const isFianchettoMove = isFianchettoPawnMove || isFianchettoBishopMove;
+        // Prefer pawn moves that create closed positions: d3, e3, d6, e6 (French/Philidor style)
+        const isClosedPawnMove = /^[de][36][+#]?$/.test(m.san);
+        // c4/c5 can lead to closed games too
+        const isSemiClosedPawn = /^c[45][+#]?$/.test(m.san);
+        
+        if (isKnightMove) {
+          score += 25; // Bonus for developing knights
+        }
+        if (isClosedPawnMove) {
+          score += 30; // Strong bonus for closed pawn structures
+        }
+        if (isSemiClosedPawn) {
+          score += 15; // Moderate bonus for semi-closed options
+        }
+        if (isFianchettoMove) {
+          score -= 20; // Penalize bishop-favoring fianchetto
+        }
+        // Prefer slightly less popular lines (knights thrive in complex positions)
+        score += Math.log(m.totalGames + 1) * 6;
         break;
         
       case 'balanced':
