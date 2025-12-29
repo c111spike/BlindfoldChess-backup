@@ -1579,12 +1579,27 @@ function canSeeMate(mateIn: number, difficulty: BotDifficulty): boolean {
 }
 
 // Find the best visible winning mate for a given difficulty
+// botColor is needed because evaluation is always from White's perspective:
+// - White winning mate: evaluation > 0
+// - Black winning mate: evaluation < 0
 function findVisibleWinningMate(
   topMoves: TopMoveResult[], 
-  difficulty: BotDifficulty
+  difficulty: BotDifficulty,
+  botColor: 'w' | 'b'
 ): TopMoveResult | null {
-  // Filter to winning mates only (isMate=true, evaluation>0 means WE deliver mate)
-  const winningMates = topMoves.filter(m => m.isMate && m.evaluation > 0 && m.mateIn !== undefined);
+  // Filter to winning mates only
+  // isMate=true means forced mate exists
+  // For White: evaluation > 0 means White delivers mate
+  // For Black: evaluation < 0 means Black delivers mate
+  const winningMates = topMoves.filter(m => {
+    if (!m.isMate || m.mateIn === undefined) return false;
+    // Check if this is a winning mate for the bot's color
+    if (botColor === 'w') {
+      return m.evaluation > 0; // Positive eval = White wins
+    } else {
+      return m.evaluation < 0; // Negative eval = Black wins
+    }
+  });
   
   if (winningMates.length === 0) {
     return null;
@@ -1596,7 +1611,7 @@ function findVisibleWinningMate(
   // Find the shortest mate this difficulty can see
   for (const mate of winningMates) {
     if (canSeeMate(mate.mateIn!, difficulty)) {
-      console.log(`[MateVision] ${difficulty} can see mate in ${mate.mateIn} with ${mate.move}!`);
+      console.log(`[MateVision] ${difficulty} (${botColor}) can see mate in ${mate.mateIn} with ${mate.move}!`);
       return mate;
     }
   }
@@ -1631,9 +1646,9 @@ function selectMoveByPersonality(
   // ============================================
   // This happens BEFORE everything else - survival mode, recaptures, personality scoring
   // If the bot can "see" a winning checkmate based on their vision config, they ALWAYS play it
-  const visibleMate = findVisibleWinningMate(topMoves, difficulty);
+  const visibleMate = findVisibleWinningMate(topMoves, difficulty, botColor);
   if (visibleMate) {
-    console.log(`[ClientBot] CHECKMATE PRIORITY: ${difficulty} sees mate in ${visibleMate.mateIn}! Playing ${visibleMate.move} immediately - no exceptions.`);
+    console.log(`[ClientBot] CHECKMATE PRIORITY: ${difficulty} (${botColor}) sees mate in ${visibleMate.mateIn}! Playing ${visibleMate.move} immediately - no exceptions.`);
     return visibleMate;
   }
   
