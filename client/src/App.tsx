@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useEffect, lazy, Suspense } from "react";
+import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
@@ -130,21 +130,17 @@ function AppContent() {
   const isUsingTestUser = isDevelopment && !!getTestUserId();
   const isOidcErrorPage = location === "/oidc-error";
   const isHomePage = location === "/";
+  // Public pages that anyone can access without authentication
   const isPublicLandingPage = [
-    "/privacy", "/terms", "/about", "/contact",
+    "/privacy", "/terms", "/about", "/contact", "/help",
     "/blindfold-chess-training", "/otb-tournament-simulator", "/simul-chess-training",
     "/knights-tour-puzzle", "/chess-piece-challenge", "/chess-puzzles-trainer", "/chess-board-spin",
     "/opening-repertoire-trainer", "/chess-game-review",
-    "/login", "/signup", "/forgot-password", "/reset-password",
-    "/admin" // Allow render to show 404, not redirect to login (stealth mode)
+    "/login", "/signup", "/forgot-password", "/reset-password"
   ].includes(location);
 
-  useEffect(() => {
-    // Don't redirect if we're on public pages, homepage, or OIDC error page
-    if (!isLoading && !isAuthenticated && !isUsingTestUser && !isOidcErrorPage && !isPublicLandingPage && !isHomePage) {
-      window.location.href = "/login";
-    }
-  }, [isLoading, isAuthenticated, isUsingTestUser, isOidcErrorPage, isPublicLandingPage, isHomePage]);
+  // No redirect to login for non-authenticated users - they see 404 page instead (stealth mode)
+  // This prevents attackers from discovering which protected routes exist
 
   // Handle OIDC error page - accessible without auth
   if (isOidcErrorPage) {
@@ -185,13 +181,12 @@ function AppContent() {
       );
     }
 
+    // For non-authenticated users on non-public pages, render NotFound (stealth mode)
+    // This shows the fun 404 Board Spin page instead of revealing protected routes exist
     if (!isAuthenticated && !isUsingTestUser && !isHomePage && !isPublicLandingPage) {
       return (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-foreground mb-4">Redirecting to login...</p>
-            <a href="/login" className="text-primary underline">Click here if not redirected</a>
-          </div>
+        <div className="flex-1 px-4 pb-4">
+          <NotFound />
         </div>
       );
     }
