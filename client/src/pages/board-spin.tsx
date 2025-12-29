@@ -526,7 +526,7 @@ export default function BoardSpin() {
     return heatmap;
   };
 
-  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive: boolean = false, bonusMode: boolean = false, heatmap?: (string | null)[][], hidePieces: boolean = false) => {
+  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive: boolean = false, bonusMode: boolean = false, heatmap?: (string | null)[][], hidePieces: boolean = false, highlightedSquares?: string[]) => {
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
     const whiteToMove = position?.fen.split(' ')[1] === 'w';
@@ -555,6 +555,7 @@ export default function BoardSpin() {
               const isBonusSelected = bonusMode && bonusSelectedSquare?.rank === actualRank && bonusSelectedSquare?.file === fileIdx;
               const squareNotation = file + (actualRank + 1);
               const isValidMoveTarget = bonusMode && validBonusMoves.includes(squareNotation);
+              const isHighlighted = highlightedSquares?.includes(squareNotation);
               const isClickablePiece = bonusMode && piece && !bonusSelectedSquare && (
                 (whiteToMove && piece === piece.toUpperCase()) || 
                 (!whiteToMove && piece !== piece.toUpperCase())
@@ -585,6 +586,7 @@ export default function BoardSpin() {
                     ${isBonusSelected ? 'ring-4 ring-green-500 ring-inset brightness-110' : ''}
                     ${isValidMoveTarget ? 'ring-4 ring-blue-400 ring-inset' : ''}
                     ${bonusMode && isClickablePiece && !isBonusSelected ? 'ring-2 ring-primary/50 ring-inset' : ''}
+                    ${isHighlighted ? 'ring-4 ring-cyan-400 ring-inset brightness-110' : ''}
                   `}
                   onClick={() => {
                     if (interactive) handleSquareClick(actualRank, fileIdx);
@@ -1079,18 +1081,37 @@ export default function BoardSpin() {
       {/* Phase: Results */}
       {phase === 'results' && (
         <div className="space-y-4">
-          {/* Board display with heatmap - toggle visibility between recreated and original */}
+          {/* Board display - show original with best move if bonus completed, otherwise show recreation with heatmap */}
           <div className="flex justify-center">
             <div className="text-center relative w-full max-w-[400px]">
-              <p className="text-sm font-medium mb-2 text-muted-foreground">
-                {showingAnswer ? 'Correct Pieces (Ghost Icons)' : 'Your Recreation'}
-              </p>
-              {position && renderBoard(playerBoard, finalRotation, false, false, computeHeatmap(position.board, playerBoard), showingAnswer)}
+              {bonusResult !== null ? (
+                <>
+                  <p className="text-sm font-medium mb-2 text-muted-foreground">
+                    Original Position (Best Move Highlighted)
+                  </p>
+                  {position && renderBoard(
+                    position.board, 
+                    0, 
+                    false, 
+                    false, 
+                    undefined, 
+                    false, 
+                    bestMove ? [bestMove.substring(0, 2), bestMove.substring(2, 4)] : undefined
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium mb-2 text-muted-foreground">
+                    {showingAnswer ? 'Correct Pieces (Ghost Icons)' : 'Your Recreation'}
+                  </p>
+                  {position && renderBoard(playerBoard, finalRotation, false, false, computeHeatmap(position.board, playerBoard), showingAnswer)}
+                </>
+              )}
             </div>
           </div>
           
-          {/* Heatmap legend */}
-          {accuracy < 100 && (
+          {/* Heatmap legend - only show when displaying recreation (not when showing original after bonus) */}
+          {accuracy < 100 && bonusResult === null && (
             <div className="flex flex-wrap justify-center gap-3 text-sm">
               <div className="flex items-center gap-1.5">
                 <div className="w-4 h-4 rounded bg-green-400 dark:bg-green-600" />
@@ -1107,8 +1128,8 @@ export default function BoardSpin() {
             </div>
           )}
           
-          {/* Show Answer button for accuracy < 100% */}
-          {accuracy < 100 && (
+          {/* Show Answer button - only show when displaying recreation (not when showing original after bonus) */}
+          {accuracy < 100 && bonusResult === null && (
             <div className="flex justify-center">
               <Button
                 variant="outline"
