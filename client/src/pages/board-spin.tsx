@@ -79,7 +79,7 @@ export default function BoardSpin() {
   const [, navigate] = useLocation();
   const { toast } = useNotifications();
   const [phase, setPhase] = useState<GamePhase>('select');
-  const [difficulty, setDifficulty] = useState<string>('easy');
+  const [difficulty, setDifficulty] = useState<string>('beginner');
   const [position, setPosition] = useState<GeneratedPosition | null>(null);
   const [playerBoard, setPlayerBoard] = useState<(string | null)[][]>(
     Array(8).fill(null).map(() => Array(8).fill(null))
