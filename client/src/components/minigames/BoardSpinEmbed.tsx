@@ -64,7 +64,7 @@ interface BoardSpinEmbedProps {
 export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps) {
   const { toast } = useNotifications();
   const [phase, setPhase] = useState<GamePhase>('select');
-  const [difficulty, setDifficulty] = useState<string>('beginner');
+  const [difficulty, setDifficulty] = useState<string>('patzer');
   const [position, setPosition] = useState<GeneratedPosition | null>(null);
   const [playerBoard, setPlayerBoard] = useState<(string | null)[][]>(
     Array(8).fill(null).map(() => Array(8).fill(null))
@@ -80,10 +80,10 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   const recreationStartTime = useRef<number>(0);
 
   const difficulties = [
-    { value: 'beginner', label: 'Beginner (3-4 pieces)', multiplier: '1.0x' },
-    { value: 'easy', label: 'Easy (5-7 pieces)', multiplier: '1.5x' },
+    { value: 'patzer', label: 'Patzer (3-4 pieces)', multiplier: '1.0x' },
+    { value: 'novice', label: 'Novice (5-7 pieces)', multiplier: '1.5x' },
     { value: 'intermediate', label: 'Intermediate (8-11 pieces)', multiplier: '2.0x' },
-    { value: 'advanced', label: 'Advanced (12-14 pieces)', multiplier: '2.5x' },
+    { value: 'clubplayer', label: 'Club Player (12-14 pieces)', multiplier: '2.5x' },
     { value: 'expert', label: 'Expert (15-17 pieces)', multiplier: '3.0x' },
     { value: 'master', label: 'Master (18-20 pieces)', multiplier: '4.0x' },
     { value: 'grandmaster', label: 'Grandmaster (21-25 pieces)', multiplier: '5.0x' },

@@ -405,11 +405,23 @@ export default function KnightsTour() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {BOARD_SIZES.map(size => (
-                        <SelectItem key={size} value={size.toString()}>
-                          {size} x {size} ({size * size} squares)
-                        </SelectItem>
-                      ))}
+                      {BOARD_SIZES.map(size => {
+                        const difficultyLabels: Record<number, string> = {
+                          5: 'Patzer',
+                          6: 'Novice',
+                          7: 'Intermediate',
+                          8: 'Club Player',
+                          9: 'Advanced',
+                          10: 'Expert',
+                          11: 'Master',
+                          12: 'Grandmaster'
+                        };
+                        return (
+                          <SelectItem key={size} value={size.toString()}>
+                            {difficultyLabels[size]} {size}x{size} ({size * size} squares)
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>

@@ -79,9 +79,9 @@ const PUZZLE_TYPES = [
 
 const DIFFICULTIES = [
   { value: "patzer", label: "Patzer (400-700)" },
-  { value: "beginner", label: "Beginner (700-1000)" },
+  { value: "novice", label: "Novice (700-1000)" },
   { value: "intermediate", label: "Intermediate (1000-1400)" },
-  { value: "advanced", label: "Advanced (1400-1800)" },
+  { value: "clubplayer", label: "Club Player (1400-1800)" },
   { value: "expert", label: "Expert (1800-2200)" },
   { value: "master", label: "Master (2200-2500)" },
   { value: "grandmaster", label: "Grandmaster (2500+)" },
@@ -588,7 +588,7 @@ export default function PuzzleCreator() {
         fen,
         moves: validMoves,
         solution: validMoves,
-        rating: difficulty === "patzer" ? 550 : difficulty === "beginner" ? 850 : difficulty === "intermediate" ? 1200 : difficulty === "advanced" ? 1600 : difficulty === "expert" ? 2000 : difficulty === "master" ? 2350 : 2600,
+        rating: difficulty === "patzer" ? 550 : difficulty === "novice" ? 850 : difficulty === "intermediate" ? 1200 : difficulty === "clubplayer" ? 1600 : difficulty === "expert" ? 2000 : difficulty === "master" ? 2350 : 2600,
         puzzleType,
         difficulty,
         hints,

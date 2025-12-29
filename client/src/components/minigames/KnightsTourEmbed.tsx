@@ -266,11 +266,19 @@ export function KnightsTourEmbed({ onClose }: KnightsTourEmbedProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {BOARD_SIZES.map((size) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size}×{size} ({size * size} squares)
-                  </SelectItem>
-                ))}
+                {BOARD_SIZES.map((size) => {
+                  const difficultyLabels: Record<number, string> = {
+                    5: 'Patzer',
+                    6: 'Novice',
+                    7: 'Intermediate',
+                    8: 'Club Player'
+                  };
+                  return (
+                    <SelectItem key={size} value={size.toString()}>
+                      {difficultyLabels[size]} {size}×{size} ({size * size} squares)
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

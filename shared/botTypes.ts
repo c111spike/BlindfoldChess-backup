@@ -8,13 +8,13 @@ export type BotPersonality =
   | "knight_lover";
 
 export type BotDifficulty = 
-  | "beginner"    // ~400 Elo
-  | "novice"      // ~450 Elo
-  | "intermediate" // ~500 Elo
-  | "club"        // ~550 Elo
-  | "advanced"    // ~600 Elo
-  | "expert"      // ~650 Elo
-  | "master"      // ~700 Elo
+  | "patzer"       // ~400 Elo
+  | "novice"       // ~600 Elo
+  | "intermediate" // ~900 Elo
+  | "club"         // ~1200 Elo
+  | "advanced"     // ~1500 Elo
+  | "expert"       // ~1800 Elo
+  | "master"       // ~2000 Elo
   | "grandmaster"; // ~2500 Elo
 
 export interface BotProfile {
@@ -28,7 +28,7 @@ export interface BotProfile {
 }
 
 export const BOT_DIFFICULTY_ELO: Record<BotDifficulty, number> = {
-  beginner: 400,
+  patzer: 400,
   novice: 600,
   intermediate: 900,
   club: 1200,
@@ -39,7 +39,7 @@ export const BOT_DIFFICULTY_ELO: Record<BotDifficulty, number> = {
 };
 
 export const BOT_DIFFICULTY_NAMES: Record<BotDifficulty, string> = {
-  beginner: "Beginner",
+  patzer: "Patzer",
   novice: "Novice",
   intermediate: "Intermediate",
   club: "Club Player",
@@ -80,7 +80,7 @@ export const BOT_PERSONALITY_ICONS: Record<BotPersonality, string> = {
 };
 
 export const ALL_DIFFICULTIES: BotDifficulty[] = [
-  "beginner",
+  "patzer",
   "novice", 
   "intermediate",
   "club",

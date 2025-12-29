@@ -73,9 +73,9 @@ const PUZZLE_TYPES = [
 const DIFFICULTIES = [
   { value: "all", label: "All Difficulties" },
   { value: "patzer", label: "Patzer" },
-  { value: "beginner", label: "Beginner" },
+  { value: "novice", label: "Novice" },
   { value: "intermediate", label: "Intermediate" },
-  { value: "advanced", label: "Advanced" },
+  { value: "clubplayer", label: "Club Player" },
   { value: "expert", label: "Expert" },
   { value: "master", label: "Master" },
   { value: "grandmaster", label: "Grandmaster" },
@@ -207,10 +207,13 @@ function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick, onAnonymousClick
   
   const getDifficultyColor = (difficulty: string | null) => {
     switch (difficulty) {
-      case "beginner": return "bg-green-500/20 text-green-600 dark:text-green-400";
+      case "patzer": return "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400";
+      case "novice": return "bg-green-500/20 text-green-600 dark:text-green-400";
       case "intermediate": return "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400";
-      case "advanced": return "bg-orange-500/20 text-orange-600 dark:text-orange-400";
+      case "clubplayer": return "bg-orange-500/20 text-orange-600 dark:text-orange-400";
       case "expert": return "bg-red-500/20 text-red-600 dark:text-red-400";
+      case "master": return "bg-purple-500/20 text-purple-600 dark:text-purple-400";
+      case "grandmaster": return "bg-pink-500/20 text-pink-600 dark:text-pink-400";
       default: return "bg-muted text-muted-foreground";
     }
   };

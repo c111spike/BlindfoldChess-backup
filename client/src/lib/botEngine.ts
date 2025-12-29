@@ -1426,9 +1426,9 @@ function shouldSeekDraw(
 }
 
 const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
-  // Beginner (400 Elo): No advanced heuristics, basic evaluation
+  // Patzer (400 Elo): No advanced heuristics, basic evaluation
   // No draw-seeking - fights to the death
-  beginner: { 
+  patzer: { 
     elo: 400, timePerMoveMs: 500, maxDepth: 2, multiPvCount: 5, stockfishNodes: 10000, 
     mistakeProbability: 0.4, useStockfish: false,
     useKillers: false, useHistory: false,
@@ -1513,8 +1513,8 @@ interface MateVisionConfig {
 }
 
 const MATE_VISION_CONFIG: Record<BotDifficulty, MateVisionConfig> = {
-  // Beginner: Only sees mate in 1
-  beginner: { 
+  // Patzer: Only sees mate in 1
+  patzer: { 
     mateInMax: 1, 
     mateInProbability: {} 
   },

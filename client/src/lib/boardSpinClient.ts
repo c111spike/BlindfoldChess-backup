@@ -10,14 +10,14 @@ interface DifficultyConfig {
 }
 
 const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
-  'beginner': {
+  'patzer': {
     minPieces: 3,
     maxPieces: 4,
     rotationInterval: 120,
     excludedAngles: [0],
     multiplier: 1.0
   },
-  'easy': {
+  'novice': {
     minPieces: 5,
     maxPieces: 7,
     rotationInterval: 90,
@@ -31,7 +31,7 @@ const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
     excludedAngles: [0],
     multiplier: 2.0
   },
-  'advanced': {
+  'clubplayer': {
     minPieces: 12,
     maxPieces: 14,
     rotationInterval: 45,
@@ -858,11 +858,11 @@ export function generatePositionClient(difficulty: string): GeneratedPosition {
   
   const targetPieces = getRandomInt(config.minPieces, config.maxPieces);
   
-  // For beginner difficulty, use special decisive position generators to avoid draws
+  // For patzer difficulty, use special decisive position generators to avoid draws
   // 3-piece: both kings + rook or queen
   // 4-piece: ensure minor pieces (B/N) aren't split between sides
   let fen: string;
-  if (difficulty === 'beginner') {
+  if (difficulty === 'patzer') {
     if (targetPieces === 3) {
       fen = generateDecisive3PiecePosition();
     } else if (targetPieces === 4) {
