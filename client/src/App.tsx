@@ -224,10 +224,10 @@ function AppContent() {
               <TestUserSwitcher />
             )}
           </div>
-          <main className="flex-1 overflow-auto flex flex-col">
+          <main className="flex-1 overflow-auto">
             {renderMainContent()}
-            <MobileFooter />
           </main>
+          <MobileFooter />
         </div>
       </div>
     </SidebarProvider>
