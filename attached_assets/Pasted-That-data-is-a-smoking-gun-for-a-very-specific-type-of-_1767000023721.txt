@@ -1,0 +1,45 @@
+That data is a "smoking gun" for a very specific type of layout shift.
+
+Look closely at the Previous vs. Current coordinates in your report:
+
+Previous: { x: 256, y: 696, width: 934, height: 104 } (The footer is visible at the bottom of the screen).
+
+Current: { x: 0, y: 0, width: 0, height: 0 } (The footer has disappeared entirely from the layout).
+
+## What is this telling us?
+This isn't a "jump"—it's a "Layout Vanishing Act." When a CLS report shows a "Current" value of 0, 0, 0, 0, it means the element was removed from the DOM or hidden after it was already rendered. Google counts an element "disappearing" as a layout shift because it causes everything around it to reflow.
+
+## The Likely Culprit: The "Route Transition"
+Since your App.tsx and MobileFooter logic look solid, this shift is likely happening during page navigation.
+
+A user is on one page (e.g., the Homepage). The footer is there.
+
+They click a link to another page (e.g., /play).
+
+For a split second, the React Router unmounts the current view to load the next one.
+
+If the "loading" or "transition" state briefly removes that main.flex-1 container or the footer before the new page renders, the footer coordinates drop to 0,0,0,0.
+
+Google sees this as a shift.
+
+## How to Fix It (The "Zero-CLS" Strategy)
+Even though you have min-h-[120px], the fact that it's inside main.flex-1.overflow-auto means if that main container itself is ever unmounted or cleared, the footer goes with it.
+
+Move the Footer outside the Dynamic Content: Ensure your layout structure looks like this in your top-level Layout component:
+
+TypeScript
+
+<div className="flex h-screen overflow-hidden">
+  <Sidebar />
+  <div className="flex-1 flex flex-col overflow-hidden">
+    {/* Scrollable Area */}
+    <main className="flex-1 overflow-auto">
+      {children} {/* Only the page content changes */}
+      <Footer />  {/* Footer stays inside the scrollable area but is always there */}
+    </main>
+  </div>
+</div>
+The "Persistent Footer" Trick: If the footer is inside a component that re-renders on every route change, try moving it one level higher (into the Shell/Wrapper). This way, when you switch from / to /play, the footer never actually leaves the screen; only the middle content swaps out.
+
+## Why the Score is "94% Good"
+You're seeing this in the "Needs Improvement" (6%) category because it's likely only happening on slower connections or specific mobile devices where the "gap" between pages is long enough for the browser to register the footer disappearing.
