@@ -41,7 +41,18 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **Simul Mode**: Multi-board management training for simultaneous exhibitions.
 
 ### Bot Engine
-A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM, and custom minimax with personality-aware move selection. Supports 8 Elo levels (400-2300) and 7 distinct personalities. Features tiered checkmate vision and draw-seeking behavior (survival mode) based on difficulty.
+A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM, and custom minimax with personality-aware move selection. Supports 8 Elo levels (400-2500) and 7 distinct personalities. Features tiered checkmate vision and draw-seeking behavior (survival mode) based on difficulty.
+
+### Standardized Difficulty Naming
+All game modes use consistent difficulty naming:
+- **Patzer** (~400 Elo): Beginner level, basic evaluation
+- **Novice** (~600 Elo): Minimal heuristics, slight awareness
+- **Intermediate** (~900 Elo): Basic search heuristics
+- **Club Player** (~1200 Elo): Full heuristics, decent evaluation
+- **Advanced** (~1500 Elo): Strong heuristics
+- **Expert** (~1800 Elo): Full strength
+- **Master** (~2000 Elo): Near-perfect play
+- **Grandmaster** (~2500 Elo): Maximum difficulty
 
 ### Post-Game Analysis System
 Provides two tabbed modes for game analysis:
