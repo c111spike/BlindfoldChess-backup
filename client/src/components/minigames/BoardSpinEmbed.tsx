@@ -304,7 +304,11 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
             {/* Ghost icon for missed/wrong pieces */}
             {showGhost && correctPiece && (
               <span 
-                className="absolute text-base sm:text-xl select-none opacity-40 pointer-events-none"
+                className={`absolute text-base sm:text-xl select-none opacity-50 pointer-events-none text-white ${
+                  correctPiece === correctPiece.toUpperCase() 
+                    ? 'drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' 
+                    : 'drop-shadow-[0_0_3px_rgba(0,0,0,1)] [text-shadow:_0_0_2px_rgb(0_0_0),_0_0_4px_rgb(0_0_0)]'
+                }`}
                 style={{ transform: `rotate(${-rotation}deg)` }}
               >
                 {PIECE_UNICODE[correctPiece]}

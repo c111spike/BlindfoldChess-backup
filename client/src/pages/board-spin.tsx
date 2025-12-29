@@ -621,7 +621,11 @@ export default function BoardSpin() {
                   {/* Ghost icon showing what the correct piece should be */}
                   {showGhost && correctPiece && (
                     <span 
-                      className="absolute text-xl sm:text-2xl md:text-3xl select-none opacity-40 pointer-events-none"
+                      className={`absolute text-xl sm:text-2xl md:text-3xl select-none opacity-50 pointer-events-none text-white ${
+                        correctPiece === correctPiece.toUpperCase() 
+                          ? 'drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' 
+                          : 'drop-shadow-[0_0_3px_rgba(0,0,0,1)] [text-shadow:_0_0_2px_rgb(0_0_0),_0_0_4px_rgb(0_0_0)]'
+                      }`}
                       style={{ transform: `rotate(${-rotation}deg)` }}
                       title={`Should be: ${correctPiece}`}
                     >
