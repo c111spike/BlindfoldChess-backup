@@ -510,11 +510,11 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
               <Button
                 variant="outline"
                 className="mt-3 w-full"
-                onMouseDown={() => setShowingAnswer(true)}
-                onMouseUp={() => setShowingAnswer(false)}
+                onMouseDown={(e) => { e.preventDefault(); setShowingAnswer(true); }}
+                onMouseUp={(e) => { e.preventDefault(); setShowingAnswer(false); }}
                 onMouseLeave={() => setShowingAnswer(false)}
-                onTouchStart={() => setShowingAnswer(true)}
-                onTouchEnd={() => setShowingAnswer(false)}
+                onTouchStart={(e) => { e.preventDefault(); setShowingAnswer(true); }}
+                onTouchEnd={(e) => { e.preventDefault(); setShowingAnswer(false); }}
                 data-testid="button-show-answer"
               >
                 <Eye className="h-4 w-4 mr-2" />
