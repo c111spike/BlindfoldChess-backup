@@ -1408,7 +1408,8 @@ function shouldSeekDraw(
   evaluation: number, 
   difficulty: BotDifficulty, 
   moveCount: number,
-  botColor: 'w' | 'b'
+  botColor: 'w' | 'b',
+  personality: BotPersonality
 ): boolean {
   const config = DIFFICULTY_CONFIG[difficulty];
   
@@ -1421,8 +1422,20 @@ function shouldSeekDraw(
   // Evaluation is always from White's perspective, so adjust for bot's color
   const botEval = botColor === 'w' ? evaluation : -evaluation;
   
+  // Tactician penalty: subtract 2.0 from threshold (fights harder, seeks draws less)
+  // GM Tactician: -1.0 - 2.0 = -3.0 (fights until down a minor piece)
+  const isTactician = personality === 'tactician';
+  const tacticianPenalty = isTactician ? 2.0 : 0;
+  const effectiveThreshold = config.drawSeekThreshold - tacticianPenalty;
+  
   // Only enter survival mode if we're losing (botEval < threshold)
-  return botEval < config.drawSeekThreshold;
+  const shouldSeek = botEval < effectiveThreshold;
+  
+  if (isTactician && shouldSeek) {
+    console.log(`[DrawSeek] Tactician entering survival mode at eval ${botEval.toFixed(2)} (threshold: ${effectiveThreshold.toFixed(1)}, normal: ${config.drawSeekThreshold})`);
+  }
+  
+  return shouldSeek;
 }
 
 const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
@@ -1555,22 +1568,50 @@ const MATE_VISION_CONFIG: Record<BotDifficulty, MateVisionConfig> = {
   },
 };
 
-// Check if a bot can "see" a mate at a given depth based on difficulty
-function canSeeMate(mateIn: number, difficulty: BotDifficulty): boolean {
+// Check if a bot can "see" a mate at a given depth based on difficulty and personality
+function canSeeMate(mateIn: number, difficulty: BotDifficulty, personality: BotPersonality): boolean {
   const config = MATE_VISION_CONFIG[difficulty];
   
+  // Tactician bonus: +1 to guaranteed mate depth
+  const isTactician = personality === 'tactician';
+  const effectiveMateInMax = isTactician ? config.mateInMax + 1 : config.mateInMax;
+  
   // Always sees mates within guaranteed range
-  if (mateIn <= config.mateInMax) {
+  if (mateIn <= effectiveMateInMax) {
+    if (isTactician && mateIn > config.mateInMax) {
+      console.log(`[MateVision] Tactician bonus: ${difficulty} sees mate in ${mateIn} (normally max ${config.mateInMax})`);
+    }
     return true;
   }
   
   // Check probabilistic detection for deeper mates
-  const probability = config.mateInProbability[mateIn];
+  // For Tactician: shift existing probability up one level and add +25%
+  // This is done at query-time: when checking mate in N, we look at the probability
+  // that was configured for mate in (N-1) and add 25%. This effectively shifts the
+  // entire probability table up by one level. For example:
+  //   Club (mateInMax=2, prob={3: 0.5}) → Club Tactician:
+  //   - Mate in 4: looks at prob[3]=0.5, adds 0.25 → 75% chance
+  //   - Mate in 5: looks at prob[4]=undefined→0, adds 0.25 → 25% chance
+  let probability = config.mateInProbability[mateIn];
+  
+  if (isTactician) {
+    // Look up the probability from one level shallower and add the Tactician bonus
+    const shiftedProbability = config.mateInProbability[mateIn - 1] || 0;
+    const tacticianBonus = 0.25;
+    probability = Math.min(1.0, shiftedProbability + tacticianBonus);
+    
+    if (probability > 0 && shiftedProbability > 0) {
+      console.log(`[MateVision] Tactician bonus: mate in ${mateIn} probability ${(shiftedProbability * 100).toFixed(0)}% + 25% = ${(probability * 100).toFixed(0)}%`);
+    } else if (probability > 0) {
+      console.log(`[MateVision] Tactician bonus: mate in ${mateIn} gets +25% chance`);
+    }
+  }
+  
   if (probability !== undefined && probability > 0) {
     // Roll the dice - this creates natural variation
     const roll = Math.random();
     const sees = roll < probability;
-    console.log(`[MateVision] ${difficulty} rolling for mate in ${mateIn}: ${(probability * 100).toFixed(0)}% chance, rolled ${(roll * 100).toFixed(0)}% -> ${sees ? 'SEES IT!' : 'missed'}`);
+    console.log(`[MateVision] ${difficulty}${isTactician ? ' (Tactician)' : ''} rolling for mate in ${mateIn}: ${(probability * 100).toFixed(0)}% chance, rolled ${(roll * 100).toFixed(0)}% -> ${sees ? 'SEES IT!' : 'missed'}`);
     return sees;
   }
   
@@ -1578,14 +1619,15 @@ function canSeeMate(mateIn: number, difficulty: BotDifficulty): boolean {
   return false;
 }
 
-// Find the best visible winning mate for a given difficulty
+// Find the best visible winning mate for a given difficulty and personality
 // botColor is needed because evaluation is always from White's perspective:
 // - White winning mate: evaluation > 0
 // - Black winning mate: evaluation < 0
 function findVisibleWinningMate(
   topMoves: TopMoveResult[], 
   difficulty: BotDifficulty,
-  botColor: 'w' | 'b'
+  botColor: 'w' | 'b',
+  personality: BotPersonality
 ): TopMoveResult | null {
   // Filter to winning mates only
   // isMate=true means forced mate exists
@@ -1610,8 +1652,8 @@ function findVisibleWinningMate(
   
   // Find the shortest mate this difficulty can see
   for (const mate of winningMates) {
-    if (canSeeMate(mate.mateIn!, difficulty)) {
-      console.log(`[MateVision] ${difficulty} (${botColor}) can see mate in ${mate.mateIn} with ${mate.move}!`);
+    if (canSeeMate(mate.mateIn!, difficulty, personality)) {
+      console.log(`[MateVision] ${difficulty}${personality === 'tactician' ? ' (Tactician)' : ''} (${botColor}) can see mate in ${mate.mateIn} with ${mate.move}!`);
       return mate;
     }
   }
@@ -1646,9 +1688,9 @@ function selectMoveByPersonality(
   // ============================================
   // This happens BEFORE everything else - survival mode, recaptures, personality scoring
   // If the bot can "see" a winning checkmate based on their vision config, they ALWAYS play it
-  const visibleMate = findVisibleWinningMate(topMoves, difficulty, botColor);
+  const visibleMate = findVisibleWinningMate(topMoves, difficulty, botColor, personality);
   if (visibleMate) {
-    console.log(`[ClientBot] CHECKMATE PRIORITY: ${difficulty} (${botColor}) sees mate in ${visibleMate.mateIn}! Playing ${visibleMate.move} immediately - no exceptions.`);
+    console.log(`[ClientBot] CHECKMATE PRIORITY: ${difficulty}${personality === 'tactician' ? ' (Tactician)' : ''} (${botColor}) sees mate in ${visibleMate.mateIn}! Playing ${visibleMate.move} immediately - no exceptions.`);
     return visibleMate;
   }
   
@@ -1656,7 +1698,7 @@ function selectMoveByPersonality(
   // Use the best move's evaluation to determine if we're losing
   const bestEval = topMoves[0].evaluation;
   const inSurvivalMode = moveCount !== undefined && 
-    shouldSeekDraw(bestEval, difficulty, moveCount, botColor);
+    shouldSeekDraw(bestEval, difficulty, moveCount, botColor, personality);
   
   // CRITICAL RECAPTURE LOGIC: For Master/Grandmaster, prioritize recaptures of valuable pieces
   // If opponent just captured a piece worth 3+ points (bishop/knight or higher), we MUST recapture
