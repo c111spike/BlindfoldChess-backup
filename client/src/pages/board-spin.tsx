@@ -618,13 +618,10 @@ export default function BoardSpin() {
                       style={{ transform: `rotate(${-rotation}deg)` }}
                     />
                   )}
-                  {/* Ghost icon showing what the correct piece should be */}
-                  {/* Show on missed/wrong squares normally, OR show all correct pieces when hidePieces is true */}
-                  {((showGhost && correctPiece) || (hidePieces && correctPiece)) && (
+                  {/* Ghost icon showing correct pieces - only visible when holding the "show answer" button */}
+                  {hidePieces && correctPiece && (
                     <span 
-                      className={`absolute text-xl sm:text-2xl md:text-3xl select-none pointer-events-none text-white ${
-                        hidePieces ? 'opacity-90' : 'opacity-50'
-                      } ${
+                      className={`absolute text-xl sm:text-2xl md:text-3xl select-none pointer-events-none text-white opacity-90 ${
                         correctPiece === correctPiece.toUpperCase() 
                           ? 'drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' 
                           : 'drop-shadow-[0_0_3px_rgba(0,0,0,1)] [text-shadow:_0_0_2px_rgb(0_0_0),_0_0_4px_rgb(0_0_0)]'
@@ -638,7 +635,7 @@ export default function BoardSpin() {
                   {/* Pieces counter-rotate to stay upright (hidden when hidePieces is true) */}
                   {piece && !hidePieces && (
                     <span 
-                      className={`text-2xl sm:text-3xl md:text-4xl select-none ${showGhost ? 'z-10' : ''}
+                      className={`text-2xl sm:text-3xl md:text-4xl select-none
                         ${piece === piece.toUpperCase() ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : 'text-gray-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.5)]'}
                       `}
                       style={{ transform: `rotate(${-rotation}deg)` }}
