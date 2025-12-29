@@ -2762,24 +2762,13 @@ export default function OTBMode() {
         return;
       }
       
-      // Touch-move rule: Can only switch pieces if the locked piece has NO legal moves
+      // Once a piece is selected, ignore clicks on other own pieces
+      // This prevents confusing highlight switching in OTB mode
       if (pieceColor === activeColor) {
-        // Check if trying to switch to a different piece
-        if (square !== selectedSquare) {
-          // Only allow switching if locked piece has no legal moves
-          if (lockedPiece && pieceHasLegalMoves(lockedPiece)) {
-            toast({
-              title: "Touch-Move Rule",
-              description: "You touched a piece with legal moves. You must move it.",
-              variant: "destructive",
-            });
-            return;
-          }
-          // Can switch - new piece becomes the selection (and potentially locked)
-          setSelectedSquare(square);
-          if (pieceHasLegalMoves(square)) {
-            setLockedPiece(square);
-          }
+        // Clicking on the same piece deselects it, otherwise ignore
+        if (square === selectedSquare) {
+          setSelectedSquare(null);
+          setLockedPiece(null);
         }
         return;
       }
