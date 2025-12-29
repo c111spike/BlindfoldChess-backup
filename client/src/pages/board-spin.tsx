@@ -128,6 +128,7 @@ export default function BoardSpin() {
     { value: 'advanced', label: 'Advanced (12-14 pieces)', multiplier: '2.5x' },
     { value: 'expert', label: 'Expert (15-17 pieces)', multiplier: '3.0x' },
     { value: 'master', label: 'Master (18-20 pieces)', multiplier: '4.0x' },
+    { value: 'grandmaster', label: 'Grandmaster (21-25 pieces)', multiplier: '5.0x' },
   ];
 
   const generateNewPosition = async () => {

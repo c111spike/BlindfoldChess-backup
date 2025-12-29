@@ -51,6 +51,13 @@ const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
     rotationInterval: 15,
     excludedAngles: [0, 15, 30, 330, 345],
     multiplier: 4.0
+  },
+  'grandmaster': {
+    minPieces: 21,
+    maxPieces: 25,
+    rotationInterval: 15,
+    excludedAngles: [0, 15, 30, 330, 345],
+    multiplier: 5.0
   }
 };
 
