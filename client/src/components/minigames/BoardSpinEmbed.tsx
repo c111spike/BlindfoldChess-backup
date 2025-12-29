@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useNotifications } from "@/hooks/useNotifications";
 import { motion } from "framer-motion";
 import { RotateCw, Clock, Target, Trophy, Play, Sparkles, Eye } from "lucide-react";
-import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove } from "@/lib/boardSpinClient";
+import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove, wouldPawnCreateCrossing } from "@/lib/boardSpinClient";
 import { Chess } from 'chess.js';
 
 const PIECE_UNICODE: Record<string, string> = {
@@ -188,6 +188,20 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     }
     
     if (selectedPiece) {
+      // Check for pawn crossing constraint before placing
+      const isPawn = selectedPiece === 'P' || selectedPiece === 'p';
+      if (isPawn) {
+        const isWhitePawn = selectedPiece === 'P';
+        if (wouldPawnCreateCrossing(playerBoard, file, rank, isWhitePawn)) {
+          toast({
+            title: "Invalid placement",
+            description: "Pawns cannot cross each other on the same file",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      
       const newBoard = playerBoard.map(r => [...r]);
       newBoard[rank][file] = selectedPiece;
       setPlayerBoard(newBoard);

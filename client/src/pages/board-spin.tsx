@@ -10,7 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCw, Clock, Target, Trophy, Play, Sparkles, Home, Eye } from "lucide-react";
-import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove } from "@/lib/boardSpinClient";
+import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove, wouldPawnCreateCrossing } from "@/lib/boardSpinClient";
 import { Chess } from 'chess.js';
 
 const PIECE_UNICODE: Record<string, string> = {
@@ -329,6 +329,20 @@ export default function BoardSpin() {
     if (phase !== 'recreate') return;
     
     if (selectedPiece) {
+      // Check for pawn crossing constraint before placing
+      const isPawn = selectedPiece === 'P' || selectedPiece === 'p';
+      if (isPawn) {
+        const isWhitePawn = selectedPiece === 'P';
+        if (wouldPawnCreateCrossing(playerBoard, file, rank, isWhitePawn)) {
+          toast({
+            title: "Invalid placement",
+            description: "Pawns cannot be placed where they would have had to pass through an opposing pawn",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      
       // Place the piece
       const newBoard = playerBoard.map(row => [...row]);
       newBoard[rank][file] = selectedPiece;
