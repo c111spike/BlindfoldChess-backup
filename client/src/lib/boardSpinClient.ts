@@ -179,14 +179,88 @@ function getMaxPawns(counts: PieceCounts, isWhite: boolean): number {
   return Math.max(0, 8 - promotionsUsed);
 }
 
+// Track pawn positions per file for crossing validation
+// Key: file (0-7), Value: { whitePawnRanks: number[], blackPawnRanks: number[] }
+interface PawnFileTracking {
+  whitePawnRanks: number[];  // Ranks where white pawns exist on this file
+  blackPawnRanks: number[];  // Ranks where black pawns exist on this file
+}
+
+function createPawnTracking(): Map<number, PawnFileTracking> {
+  const tracking = new Map<number, PawnFileTracking>();
+  for (let file = 0; file < 8; file++) {
+    tracking.set(file, { whitePawnRanks: [], blackPawnRanks: [] });
+  }
+  return tracking;
+}
+
+// Check if placing a pawn would create an impossible crossing
+// White pawns move up (increasing rank), black pawns move down (decreasing rank)
+// So a white pawn can NEVER be on a higher rank than a black pawn on the same file
+// (they would have had to pass through each other)
+function wouldCreatePawnCrossing(
+  file: number, 
+  rank: number, 
+  isWhite: boolean, 
+  pawnTracking: Map<number, PawnFileTracking>
+): boolean {
+  const fileData = pawnTracking.get(file);
+  if (!fileData) return false;
+  
+  if (isWhite) {
+    // White pawn at this rank - check if any black pawn is below it
+    // If black pawn is on a lower rank, white would have had to pass through it
+    for (const blackRank of fileData.blackPawnRanks) {
+      if (blackRank < rank) {
+        // Black pawn is below white pawn - impossible crossing!
+        return true;
+      }
+    }
+  } else {
+    // Black pawn at this rank - check if any white pawn is above it
+    // If white pawn is on a higher rank, it would have had to pass through black
+    for (const whiteRank of fileData.whitePawnRanks) {
+      if (whiteRank > rank) {
+        // White pawn is above black pawn - impossible crossing!
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+// Update pawn tracking after placing a pawn
+function updatePawnTracking(
+  file: number, 
+  rank: number, 
+  isWhite: boolean, 
+  pawnTracking: Map<number, PawnFileTracking>
+): void {
+  const fileData = pawnTracking.get(file);
+  if (!fileData) return;
+  
+  if (isWhite) {
+    fileData.whitePawnRanks.push(rank);
+  } else {
+    fileData.blackPawnRanks.push(rank);
+  }
+}
+
 // Check if a piece can be placed given current constraints
-function canPlacePiece(piece: string, isWhite: boolean, file: number, rank: number, counts: PieceCounts): boolean {
+function canPlacePiece(piece: string, isWhite: boolean, file: number, rank: number, counts: PieceCounts, pawnTracking?: Map<number, PawnFileTracking>): boolean {
   const isLight = isLightSquare(file, rank);
   
   switch (piece) {
     case 'P':
       // Pawns cannot be on ranks 1 or 8 (0 or 7 in 0-indexed)
       if (rank === 0 || rank === 7) return false;
+      
+      // Check for pawn crossing constraint
+      if (pawnTracking && wouldCreatePawnCrossing(file, rank, isWhite, pawnTracking)) {
+        return false;
+      }
+      
       if (isWhite) {
         return counts.whitePawns < getMaxPawns(counts, true);
       } else {
@@ -272,13 +346,14 @@ function updatePieceCounts(piece: string, isWhite: boolean, file: number, rank: 
 }
 
 // Get available pieces that can still be placed given constraints
-function getAvailablePieces(isWhite: boolean, file: number, rank: number, counts: PieceCounts): string[] {
-  return PIECES.filter(piece => canPlacePiece(piece, isWhite, file, rank, counts));
+function getAvailablePieces(isWhite: boolean, file: number, rank: number, counts: PieceCounts, pawnTracking?: Map<number, PawnFileTracking>): string[] {
+  return PIECES.filter(piece => canPlacePiece(piece, isWhite, file, rank, counts, pawnTracking));
 }
 
 function generateRandomPosition(targetPieces: number): string {
   const board: (string | null)[][] = Array(8).fill(null).map(() => Array(8).fill(null));
   const counts = createPieceCounts();
+  const pawnTracking = createPawnTracking();
   let piecesPlaced = 0;
   
   // Place white king (bottom half)
@@ -311,7 +386,7 @@ function generateRandomPosition(targetPieces: number): string {
     }
     
     const isWhite = Math.random() > 0.5;
-    const availablePieces = getAvailablePieces(isWhite, file, rank, counts);
+    const availablePieces = getAvailablePieces(isWhite, file, rank, counts, pawnTracking);
     
     if (availablePieces.length === 0) {
       failedAttempts++;
@@ -322,6 +397,12 @@ function generateRandomPosition(targetPieces: number): string {
     
     board[rank][file] = isWhite ? piece : piece.toLowerCase();
     updatePieceCounts(piece, isWhite, file, rank, counts);
+    
+    // Track pawn positions for crossing validation
+    if (piece === 'P') {
+      updatePawnTracking(file, rank, isWhite, pawnTracking);
+    }
+    
     piecesPlaced++;
     failedAttempts = 0; // Reset on success
   }
@@ -602,6 +683,64 @@ export interface GeneratedPosition {
   multiplier: number;
   pointsPerPiece: number;
   maxScore: number;
+}
+
+// Validate a board for pawn crossing violations
+// Returns true if the board has NO crossing violations (valid position)
+// Returns false if any white pawn is on a higher rank than any black pawn on the same file
+export function validateNoPawnCrossing(board: (string | null)[][]): boolean {
+  // For each file, collect white and black pawn ranks
+  for (let file = 0; file < 8; file++) {
+    const whitePawnRanks: number[] = [];
+    const blackPawnRanks: number[] = [];
+    
+    for (let rank = 0; rank < 8; rank++) {
+      const piece = board[rank][file];
+      if (piece === 'P') {
+        whitePawnRanks.push(rank);
+      } else if (piece === 'p') {
+        blackPawnRanks.push(rank);
+      }
+    }
+    
+    // Check for crossing: white pawn above black pawn on same file
+    for (const whiteRank of whitePawnRanks) {
+      for (const blackRank of blackPawnRanks) {
+        if (whiteRank > blackRank) {
+          // White pawn is on higher rank than black pawn - impossible!
+          return false;
+        }
+      }
+    }
+  }
+  
+  return true;
+}
+
+// Check if placing a specific pawn would create a crossing violation
+// Used during gameplay to validate individual piece placements
+export function wouldPawnCreateCrossing(
+  board: (string | null)[][],
+  file: number,
+  rank: number,
+  isWhitePawn: boolean
+): boolean {
+  // Check existing pawns on this file
+  for (let r = 0; r < 8; r++) {
+    const piece = board[r][file];
+    if (isWhitePawn) {
+      // Placing white pawn - check if any black pawn is below this rank
+      if (piece === 'p' && r < rank) {
+        return true; // Black pawn below white = crossing!
+      }
+    } else {
+      // Placing black pawn - check if any white pawn is above this rank
+      if (piece === 'P' && r > rank) {
+        return true; // White pawn above black = crossing!
+      }
+    }
+  }
+  return false;
 }
 
 export function generatePositionClient(difficulty: string): GeneratedPosition {
