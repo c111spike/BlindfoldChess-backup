@@ -3269,209 +3269,233 @@ export default function OTBMode() {
               {!inQueue ? (
                 <Card>
                   <CardContent className="pt-6 space-y-4">
-                    {/* Hide Time Control section when bot selection is shown - bot has its own time control */}
-                    {!showBotSelection && (
-                      <div>
-                        <h2 className="text-lg font-semibold mb-3">Time Control</h2>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div 
-                            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                              timeControl === "5" 
-                                ? "border-primary bg-primary/10" 
-                                : "border-border hover:border-primary/50"
-                            }`}
-                            onClick={() => setTimeControl("5")}
-                            data-testid="card-time-blitz"
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <Clock className="h-4 w-4" />
-                              <span className="font-semibold">Blitz</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">5+0</p>
-                          </div>
-                          <div 
-                            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                              timeControl === "15" 
-                                ? "border-primary bg-primary/10" 
-                                : "border-border hover:border-primary/50"
-                            }`}
-                            onClick={() => setTimeControl("15")}
-                            data-testid="card-time-rapid"
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <Clock className="h-4 w-4" />
-                              <span className="font-semibold">Rapid</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">15+30</p>
-                          </div>
+                    {!showBotSelection ? (
+                      <>
+                        {/* Training Wheels Toggle - collapsible like Blindfold Mode in Standard */}
+                        <div className="flex items-center justify-between pb-4 border-b">
+                          <Label htmlFor="training-wheels-toggle" className="text-base font-semibold">
+                            Training Wheels
+                          </Label>
+                          <Switch
+                            id="training-wheels-toggle"
+                            checked={highlightLastMove || showLegalMoves || showPieceHighlight}
+                            onCheckedChange={(checked) => {
+                              setHighlightLastMove(checked);
+                              setShowLegalMoves(checked);
+                              setShowPieceHighlight(checked);
+                            }}
+                            data-testid="switch-training-wheels"
+                          />
                         </div>
-                      </div>
-                    )}
+                        {(highlightLastMove || showLegalMoves || showPieceHighlight) && (
+                          <div className="space-y-3 pb-4 border-b">
+                            <p className="text-sm text-muted-foreground">
+                              Visual aids to help you play. Disable for authentic OTB experience.
+                            </p>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="highlight-last-move" className="text-sm cursor-pointer">Highlight Last Move</Label>
+                                <Switch
+                                  id="highlight-last-move"
+                                  checked={highlightLastMove}
+                                  onCheckedChange={setHighlightLastMove}
+                                  data-testid="switch-highlight-last-move"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="show-legal-moves" className="text-sm cursor-pointer">Show Legal Moves</Label>
+                                <Switch
+                                  id="show-legal-moves"
+                                  checked={showLegalMoves}
+                                  onCheckedChange={setShowLegalMoves}
+                                  data-testid="switch-show-legal-moves"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="show-piece-highlight" className="text-sm cursor-pointer">Highlight Selected Piece</Label>
+                                <Switch
+                                  id="show-piece-highlight"
+                                  checked={showPieceHighlight}
+                                  onCheckedChange={setShowPieceHighlight}
+                                  data-testid="switch-show-piece-highlight"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
-                    <div className={!showBotSelection ? "pt-4 border-t" : ""}>
-                      {!showBotSelection ? (
-                        <>
+                        {/* OTB Training Tools Toggle - collapsible */}
+                        <div className="flex items-center justify-between pb-4 border-b">
+                          <Label htmlFor="otb-tools-toggle" className="text-base font-semibold">
+                            OTB Training Tools
+                          </Label>
+                          <Switch
+                            id="otb-tools-toggle"
+                            checked={perspective3d || notationPractice}
+                            onCheckedChange={(checked) => {
+                              setPerspective3d(checked);
+                              if (isNotationAllowed) {
+                                setNotationPractice(checked);
+                              }
+                            }}
+                            data-testid="switch-otb-tools"
+                          />
+                        </div>
+                        {(perspective3d || notationPractice) && (
+                          <div className="space-y-3 pb-4 border-b">
+                            <p className="text-sm text-muted-foreground">
+                              Realistic tournament simulation features.
+                            </p>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                  <Label htmlFor="perspective-3d" className="text-sm cursor-pointer">3D Perspective View</Label>
+                                  <p className="text-xs text-muted-foreground">View board as if sitting at a table</p>
+                                </div>
+                                <Switch
+                                  id="perspective-3d"
+                                  checked={perspective3d}
+                                  onCheckedChange={setPerspective3d}
+                                  data-testid="switch-perspective-3d"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                  <Label 
+                                    htmlFor="notation-practice" 
+                                    className={`text-sm ${isNotationAllowed ? 'cursor-pointer' : 'text-muted-foreground cursor-not-allowed'}`}
+                                  >
+                                    Notation Practice
+                                  </Label>
+                                  <p className="text-xs text-muted-foreground">
+                                    {isNotationAllowed 
+                                      ? "Move → Clock → Write flow"
+                                      : "Not required under 5 min (OTB rules)"
+                                    }
+                                  </p>
+                                </div>
+                                <Switch
+                                  id="notation-practice"
+                                  checked={notationPractice}
+                                  onCheckedChange={setNotationPractice}
+                                  disabled={!isNotationAllowed}
+                                  data-testid="switch-notation-practice"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Find Opponent Section */}
+                        <h2 className="text-lg md:text-xl font-semibold">Find Opponent</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <Button 
-                            variant="default"
-                            onClick={() => handleJoinQueue(timeControl)}
+                            variant="outline"
+                            size="lg"
+                            className="min-h-11"
+                            onClick={() => handleJoinQueue("5")}
                             disabled={joinQueueMutation.isPending}
-                            className="w-full mb-3" 
-                            data-testid="button-find-opponent"
+                            data-testid="button-queue-blitz"
                           >
-                            <Play className="mr-2 h-4 w-4" />
-                            Find Opponent
+                            <Clock className="mr-2 h-4 w-4" />
+                            Blitz (5 min)
                           </Button>
                           <Button 
                             variant="outline"
-                            onClick={() => setShowBotSelection(true)} 
-                            className="w-full" 
+                            size="lg"
+                            className="min-h-11"
+                            onClick={() => handleJoinQueue("15")}
+                            disabled={joinQueueMutation.isPending}
+                            data-testid="button-queue-rapid"
+                          >
+                            <Clock className="mr-2 h-4 w-4" />
+                            Rapid (15 min)
+                          </Button>
+                        </div>
+                        
+                        {/* Practice vs Bot Section */}
+                        <div className="pt-4 border-t">
+                          <h2 className="text-lg md:text-xl font-semibold mb-3">Practice vs Bot</h2>
+                          <Button 
+                            variant="default"
+                            size="lg"
+                            className="w-full min-h-11"
+                            onClick={() => setShowBotSelection(true)}
                             data-testid="button-play-bot"
                           >
                             <Bot className="mr-2 h-4 w-4" />
-                            Practice vs Bot
+                            Choose Bot Opponent
                           </Button>
-                        </>
-                      ) : !selectedBotDifficulty ? (
-                        <>
-                          <div className="flex items-center gap-2 mb-4">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setShowBotSelection(false);
-                                setSelectedBotDifficulty(null);
-                              }}
-                              data-testid="button-back-from-bots"
+                        </div>
+                      </>
+                    ) : !selectedBotDifficulty ? (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setShowBotSelection(false);
+                              setSelectedBotDifficulty(null);
+                            }}
+                            data-testid="button-back-from-bots"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <h2 className="text-lg md:text-xl font-semibold">Select Difficulty</h2>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          <Button
+                            variant={botTimeControl === "blitz" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setBotTimeControl("blitz")}
+                            data-testid="button-bot-blitz"
+                          >
+                            <Clock className="mr-1 h-3 w-3" />
+                            Blitz (5 min)
+                          </Button>
+                          <Button
+                            variant={botTimeControl === "rapid" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setBotTimeControl("rapid")}
+                            data-testid="button-bot-rapid"
+                          >
+                            <Clock className="mr-1 h-3 w-3" />
+                            Rapid (15+0)
+                          </Button>
+                          <Button
+                            variant={botTimeControl === "practice" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setBotTimeControl("practice")}
+                            data-testid="button-bot-practice"
+                          >
+                            <InfinityIcon className="mr-1 h-3 w-3" />
+                            Practice
+                          </Button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-2">
+                          {ALL_DIFFICULTIES.map((difficulty) => (
+                            <Card 
+                              key={difficulty}
+                              className="cursor-pointer hover-elevate"
+                              onClick={() => setSelectedBotDifficulty(difficulty)}
+                              data-testid={`card-difficulty-${difficulty}`}
                             >
-                              <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <h3 className="text-lg font-semibold">Select Bot Difficulty</h3>
-                          </div>
-                          
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            <Button
-                              variant={botTimeControl === "blitz" ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setBotTimeControl("blitz")}
-                              data-testid="button-bot-blitz"
-                            >
-                              <Clock className="mr-1 h-3 w-3" />
-                              Blitz (5+0)
-                            </Button>
-                            <Button
-                              variant={botTimeControl === "rapid" ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setBotTimeControl("rapid")}
-                              data-testid="button-bot-rapid"
-                            >
-                              <Clock className="mr-1 h-3 w-3" />
-                              Rapid (15+30)
-                            </Button>
-                            <Button
-                              variant={botTimeControl === "practice" ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setBotTimeControl("practice")}
-                              data-testid="button-bot-practice"
-                            >
-                              <InfinityIcon className="mr-1 h-3 w-3" />
-                              Practice
-                            </Button>
-                          </div>
-
-                          {/* Training Wheels - Bot Mode */}
-                          <div className="mb-4 pb-3 border-b">
-                            <h4 className="text-sm font-medium mb-2 text-muted-foreground">Training Wheels</h4>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="highlight-bot" className="text-sm cursor-pointer">Highlight Last Move</Label>
-                                <Switch
-                                  id="highlight-bot"
-                                  checked={highlightLastMove}
-                                  onCheckedChange={setHighlightLastMove}
-                                  data-testid="switch-highlight-last-move-bot"
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="legal-bot" className="text-sm cursor-pointer">Show Legal Moves</Label>
-                                <Switch
-                                  id="legal-bot"
-                                  checked={showLegalMoves}
-                                  onCheckedChange={setShowLegalMoves}
-                                  data-testid="switch-show-legal-moves-bot"
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="piece-bot" className="text-sm cursor-pointer">Highlight Selected Piece</Label>
-                                <Switch
-                                  id="piece-bot"
-                                  checked={showPieceHighlight}
-                                  onCheckedChange={setShowPieceHighlight}
-                                  data-testid="switch-show-piece-highlight-bot"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* OTB Training Tools - Bot Mode */}
-                          <div className="mb-4 pb-3 border-b">
-                            <h4 className="text-sm font-medium mb-2 text-muted-foreground">OTB Training Tools</h4>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="perspective-bot" className="text-sm cursor-pointer">3D Perspective View</Label>
-                                <Switch
-                                  id="perspective-bot"
-                                  checked={perspective3d}
-                                  onCheckedChange={setPerspective3d}
-                                  data-testid="switch-perspective-3d-bot"
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <Label 
-                                  htmlFor="notation-bot" 
-                                  className={`text-sm ${botTimeControl !== "blitz" ? 'cursor-pointer' : 'text-muted-foreground cursor-not-allowed'}`}
-                                >
-                                  Notation Practice
-                                </Label>
-                                <Switch
-                                  id="notation-bot"
-                                  checked={notationPractice}
-                                  onCheckedChange={setNotationPractice}
-                                  disabled={botTimeControl === "blitz"}
-                                  data-testid="switch-notation-practice-bot"
-                                />
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                {botTimeControl !== "blitz" 
-                                  ? "Move → Clock → Write: Record moves after pressing clock"
-                                  : "Notation not required under 5 minutes (OTB rules)"
-                                }
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <ScrollArea className="h-[160px] pr-2">
-                            <div className="grid grid-cols-1 gap-2">
-                              {ALL_DIFFICULTIES.map((difficulty) => (
-                                <Card 
-                                  key={difficulty}
-                                  className="cursor-pointer hover-elevate"
-                                  onClick={() => setSelectedBotDifficulty(difficulty)}
-                                  data-testid={`card-difficulty-${difficulty}`}
-                                >
-                                  <CardContent className="p-3">
-                                    <div className="flex items-center justify-between">
-                                      <span className="font-semibold">{BOT_DIFFICULTY_NAMES[difficulty]}</span>
-                                      <Badge variant="secondary">
-                                        {BOT_DIFFICULTY_ELO[difficulty]} Elo
-                                      </Badge>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </>
-                      ) : !selectedBotPersonality ? (
+                              <CardContent className="p-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold">{BOT_DIFFICULTY_NAMES[difficulty]}</span>
+                                  <Badge variant="secondary">
+                                    {BOT_DIFFICULTY_ELO[difficulty]} Elo
+                                  </Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </>
+                    ) : !selectedBotPersonality ? (
                         <>
                           <div className="flex items-center gap-2 mb-2">
                             <Button
@@ -3605,93 +3629,6 @@ export default function OTBMode() {
                           </div>
                         </>
                       )}
-                    </div>
-
-                    {/* Only show these settings when not in bot selection mode (to avoid duplicates) */}
-                    {!showBotSelection && (
-                      <>
-                        <div className="pt-4 border-t">
-                          <h3 className="text-sm font-semibold mb-3">Training Wheels</h3>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="highlight-last-move-pregame" className="text-sm cursor-pointer">
-                                Highlight Last Move
-                              </Label>
-                              <Switch
-                                id="highlight-last-move-pregame"
-                                checked={highlightLastMove}
-                                onCheckedChange={setHighlightLastMove}
-                                data-testid="switch-highlight-last-move"
-                              />
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="show-legal-moves-pregame" className="text-sm cursor-pointer">
-                                Show Legal Moves
-                              </Label>
-                              <Switch
-                                id="show-legal-moves-pregame"
-                                checked={showLegalMoves}
-                                onCheckedChange={setShowLegalMoves}
-                                data-testid="switch-show-legal-moves"
-                              />
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="show-piece-highlight-pregame" className="text-sm cursor-pointer">
-                                Highlight Selected Piece
-                              </Label>
-                              <Switch
-                                id="show-piece-highlight-pregame"
-                                checked={showPieceHighlight}
-                                onCheckedChange={setShowPieceHighlight}
-                                data-testid="switch-show-piece-highlight"
-                              />
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">Settings cannot be changed during gameplay</p>
-                        </div>
-
-                        <div className="pt-4 border-t">
-                          <h3 className="text-sm font-semibold mb-3">OTB Training Tools</h3>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="perspective-3d-pregame" className="text-sm cursor-pointer">
-                                3D Perspective View
-                              </Label>
-                              <Switch
-                                id="perspective-3d-pregame"
-                                checked={perspective3d}
-                                onCheckedChange={setPerspective3d}
-                                data-testid="switch-perspective-3d"
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground -mt-1 ml-0">
-                              View board as if sitting at a table
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <Label 
-                                htmlFor="notation-practice-pregame" 
-                                className={`text-sm ${isNotationAllowed ? 'cursor-pointer' : 'text-muted-foreground cursor-not-allowed'}`}
-                              >
-                                Notation Practice
-                              </Label>
-                              <Switch
-                                id="notation-practice-pregame"
-                                checked={notationPractice}
-                                onCheckedChange={setNotationPractice}
-                                disabled={!isNotationAllowed}
-                                data-testid="switch-notation-practice"
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground -mt-1 ml-0">
-                              {isNotationAllowed 
-                                ? "Move → Clock → Write: Record moves after pressing clock"
-                                : "Notation not required under 5 minutes (OTB rules)"
-                              }
-                            </p>
-                          </div>
-                        </div>
-                      </>
-                    )}
                   </CardContent>
                 </Card>
               ) : (
