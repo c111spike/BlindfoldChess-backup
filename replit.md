@@ -83,6 +83,28 @@ A TTL-based cache (`server/memoryCache.ts`) for frequently accessed data (platfo
 - **Color Strategy**: High-contrast, semantic color tokens.
 - **Responsive Design**: Mobile-first approach.
 
+### Position Cache Architecture
+The engine layer uses FEN-only caching for "Pure Engine Truth":
+- **positionCache**: Stores Stockfish analysis results keyed by FEN hash (SHA-256). Contains evaluation, depth, bestMove, hitCount, and expiration.
+- **syzygyCache**: Stores endgame tablebase results keyed by FEN hash. Contains DTZ (distance to zeroing), WDL (win/draw/loss), and optimal moves.
+
+This design is intentional—the best move doesn't change based on who's playing; only the player's ability to find it varies by skill level.
+
+### Future Enhancement: Human Performance Analytics
+When the player base diversifies beyond the starting 1200 Elo, a `humanPerformance` table can be added to track behavioral data without polluting the engine cache:
+
+| Column | What it stores | Why it matters |
+|--------|----------------|----------------|
+| `fenHash` | Links to positionCache | Connects "Truth" to "Behavior" |
+| `eloRange` | Elo bucket (e.g., 1000-1200) | Identify which skill levels reach this position |
+| `blunderRate` | % who missed the bestMove | Training module gold mine |
+| `commonMistake` | Most frequent wrong move | Valuable for targeted coaching |
+| `sampleSize` | Number of games analyzed | Statistical confidence |
+
+**Buyout Value**: A database showing "Players at 1100 Elo have a 70% fail rate on this Rook endgame" is premium analytics data.
+
+**Implementation Note**: Not built yet—all players currently start at 1200 Elo, so meaningful Elo-stratified data requires time for the player base to spread across rating ranges.
+
 ## External Dependencies
 - **Neon Database**: Serverless PostgreSQL.
 - **Replit Auth**: OpenID Connect authentication.
