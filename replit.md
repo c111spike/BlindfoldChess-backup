@@ -43,6 +43,20 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 ### Bot Engine
 A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM (client-side), and custom minimax with personality-aware move selection. It supports 8 Elo levels (400-2300) and 7 distinct personalities.
 
+**Tiered Checkmate Vision:**
+- Bulletproof detection: Runs FIRST in selectMoveByPersonality before survival mode, recaptures, or personality scoring
+- Bots always play visible checkmates - no exceptions
+- Vision thresholds by difficulty:
+  - Beginner: Mate in 1 only
+  - Novice: Mate in 1, 50% chance to see mate in 2
+  - Intermediate: Mate in 1-2
+  - Club: Mate in 1-2, 50% chance to see mate in 3
+  - Advanced: Mate in 1-3, 25% chance to see mate in 4
+  - Expert: All mates up to depth 4
+  - Master/Grandmaster: All forced checkmates (unlimited depth)
+- Correctly handles both colors: Evaluations adjusted for White/Black perspective
+- Helper functions: `canSeeMate()` with probability rolling, `findVisibleWinningMate()` for shortest visible mate
+
 **Draw-Seeking Behavior (Survival Mode):**
 - Bots seek draws via threefold repetition when losing significantly after move 20
 - Tiered thresholds by difficulty: Intermediate (-5.0), Expert/Advanced (-3.5), Master (-2.5), Grandmaster (-2.0)
