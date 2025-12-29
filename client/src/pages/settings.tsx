@@ -630,7 +630,7 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Voice Control</CardTitle>
-              <CardDescription>Voice features for Standard and Simul games (not available in OTB mode)</CardDescription>
+              <CardDescription>Voice features for Standard and Simul games (not available in OTB mode). Not supported on Safari.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
@@ -661,6 +661,12 @@ export default function Settings() {
                   disabled={isVoiceInputUnsupported}
                   data-testid="switch-voice-input"
                 />
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+                <p className="text-sm font-medium">Disambiguation Tip</p>
+                <p className="text-sm text-muted-foreground">
+                  When two pieces can move to the same square (e.g., rooks on a1 and f1), specify which one by saying the file: "Rook a e1" or "Rook f e1".
+                </p>
               </div>
               {isVoiceInputUnsupported && (
                 <Alert variant="default" className="bg-amber-500/10 border-amber-500/20" data-testid="alert-voice-unsupported">
