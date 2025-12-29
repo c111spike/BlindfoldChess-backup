@@ -2383,16 +2383,18 @@ export default function StandardMode() {
               <Card>
                 <CardContent className="py-4 md:py-6 space-y-3">
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1" 
-                      onClick={handleOfferDraw} 
-                      disabled={waitingForDrawResponse}
-                      data-testid="button-offer-draw"
-                    >
-                      <HandshakeIcon className="mr-2 h-4 w-4" />
-                      {waitingForDrawResponse ? "Waiting..." : "Offer Draw"}
-                    </Button>
+                    {!isBotGame && (
+                      <Button 
+                        variant="outline" 
+                        className="flex-1" 
+                        onClick={handleOfferDraw} 
+                        disabled={waitingForDrawResponse}
+                        data-testid="button-offer-draw"
+                      >
+                        <HandshakeIcon className="mr-2 h-4 w-4" />
+                        {waitingForDrawResponse ? "Waiting..." : "Offer Draw"}
+                      </Button>
+                    )}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" className="flex-1" data-testid="button-resign">

@@ -4288,28 +4288,30 @@ export default function OTBMode() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {opponentOfferedDraw ? (
-                    <>
-                      <Button variant="default" size="sm" onClick={handleAcceptDraw} data-testid="button-accept-draw">
-                        <CheckCircle className="mr-1 h-3 w-3" />
-                        Accept Draw
+                  {!isBotGame && (
+                    opponentOfferedDraw ? (
+                      <>
+                        <Button variant="default" size="sm" onClick={handleAcceptDraw} data-testid="button-accept-draw">
+                          <CheckCircle className="mr-1 h-3 w-3" />
+                          Accept Draw
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleDeclineDraw} data-testid="button-decline-draw">
+                          <XCircle className="mr-1 h-3 w-3" />
+                          Decline
+                        </Button>
+                      </>
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleOfferDraw} 
+                        disabled={drawOffered}
+                        data-testid="button-offer-draw"
+                      >
+                        <HandshakeIcon className="mr-1 h-3 w-3" />
+                        {drawOffered ? "Draw Offered..." : "Draw"}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handleDeclineDraw} data-testid="button-decline-draw">
-                        <XCircle className="mr-1 h-3 w-3" />
-                        Decline
-                      </Button>
-                    </>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleOfferDraw} 
-                      disabled={drawOffered}
-                      data-testid="button-offer-draw"
-                    >
-                      <HandshakeIcon className="mr-1 h-3 w-3" />
-                      {drawOffered ? "Draw Offered..." : "Draw"}
-                    </Button>
+                    )
                   )}
                   <Button variant="destructive" size="sm" onClick={handleResign} data-testid="button-resign">
                     <Flag className="mr-1 h-3 w-3" />
