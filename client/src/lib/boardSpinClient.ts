@@ -230,6 +230,46 @@ function wouldCreatePawnCrossing(
   return false;
 }
 
+// Check if placing a pawn would create invalid doubled pawns (for position generation)
+// Rule: If 2+ same-color pawns are on a file, at least 1 adjacent file must be empty of that color
+function wouldCreateInvalidDoubling(
+  file: number,
+  isWhite: boolean,
+  pawnTracking: Map<number, PawnFileTracking>
+): boolean {
+  const fileData = pawnTracking.get(file);
+  if (!fileData) return false;
+  
+  // Count same-color pawns on this file (including the new one we're about to place)
+  const currentPawnsOnFile = isWhite ? fileData.whitePawnRanks.length : fileData.blackPawnRanks.length;
+  const pawnsAfterPlacing = currentPawnsOnFile + 1;
+  
+  // If only 1 pawn on file after placing, no doubling issue
+  if (pawnsAfterPlacing < 2) {
+    return false;
+  }
+  
+  // Check adjacent files for same-color pawns
+  const adjacentFiles: number[] = [];
+  if (file > 0) adjacentFiles.push(file - 1);
+  if (file < 7) adjacentFiles.push(file + 1);
+  
+  // Count how many adjacent files are empty of this color's pawns
+  let emptyAdjacentFiles = 0;
+  for (const adjFile of adjacentFiles) {
+    const adjFileData = pawnTracking.get(adjFile);
+    if (!adjFileData) continue;
+    
+    const adjPawns = isWhite ? adjFileData.whitePawnRanks.length : adjFileData.blackPawnRanks.length;
+    if (adjPawns === 0) {
+      emptyAdjacentFiles++;
+    }
+  }
+  
+  // If no adjacent files are empty of same-color pawns, doubled pawns are invalid
+  return emptyAdjacentFiles === 0;
+}
+
 // Update pawn tracking after placing a pawn
 function updatePawnTracking(
   file: number, 
@@ -258,6 +298,11 @@ function canPlacePiece(piece: string, isWhite: boolean, file: number, rank: numb
       
       // Check for pawn crossing constraint
       if (pawnTracking && wouldCreatePawnCrossing(file, rank, isWhite, pawnTracking)) {
+        return false;
+      }
+      
+      // Check for invalid doubled pawns (need capture path from adjacent file)
+      if (pawnTracking && wouldCreateInvalidDoubling(file, isWhite, pawnTracking)) {
         return false;
       }
       
@@ -746,6 +791,56 @@ export function wouldPawnCreateCrossing(
     }
   }
   return false;
+}
+
+// Check if placing a pawn would create invalid doubled pawns
+// Rule: If 2+ same-color pawns are on a file, at least 1 adjacent file must be empty of that color
+// This simulates that one pawn must have captured onto that file from an adjacent file
+export function wouldPawnCreateInvalidDoubling(
+  board: (string | null)[][],
+  file: number,
+  rank: number,
+  isWhitePawn: boolean
+): boolean {
+  const pawnChar = isWhitePawn ? 'P' : 'p';
+  
+  // Count same-color pawns on this file (excluding target square, including the new one)
+  let sameColorPawnsOnFile = 1; // Start with 1 for the pawn we're placing
+  for (let r = 0; r < 8; r++) {
+    if (r === rank) continue; // Skip target square
+    if (board[r][file] === pawnChar) {
+      sameColorPawnsOnFile++;
+    }
+  }
+  
+  // If only 1 pawn on file after placing, no doubling issue
+  if (sameColorPawnsOnFile < 2) {
+    return false;
+  }
+  
+  // Check adjacent files for same-color pawns
+  const adjacentFiles: number[] = [];
+  if (file > 0) adjacentFiles.push(file - 1);
+  if (file < 7) adjacentFiles.push(file + 1);
+  
+  // Count how many adjacent files are empty of this color's pawns
+  let emptyAdjacentFiles = 0;
+  for (const adjFile of adjacentFiles) {
+    let hasSameColorPawn = false;
+    for (let r = 0; r < 8; r++) {
+      if (board[r][adjFile] === pawnChar) {
+        hasSameColorPawn = true;
+        break;
+      }
+    }
+    if (!hasSameColorPawn) {
+      emptyAdjacentFiles++;
+    }
+  }
+  
+  // If no adjacent files are empty of same-color pawns, doubled pawns are invalid
+  // (no capture path available)
+  return emptyAdjacentFiles === 0;
 }
 
 export function generatePositionClient(difficulty: string): GeneratedPosition {
