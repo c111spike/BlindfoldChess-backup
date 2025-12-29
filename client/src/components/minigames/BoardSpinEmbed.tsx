@@ -308,7 +308,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
             {/* Ghost icon showing correct pieces - only visible when holding the "show answer" button */}
             {hidePieces && correctPiece && (
               <span 
-                className={`absolute text-base sm:text-xl leading-none select-none pointer-events-none text-white opacity-90 ${
+                className={`absolute text-xl sm:text-2xl leading-none select-none pointer-events-none text-white opacity-90 ${
                   correctPiece === correctPiece.toUpperCase() 
                     ? 'drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' 
                     : 'drop-shadow-[0_0_3px_rgba(0,0,0,1)] [text-shadow:_0_0_2px_rgb(0_0_0),_0_0_4px_rgb(0_0_0)]'
@@ -320,7 +320,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
             )}
             {piece && !hidePieces && (
               <span 
-                className={`text-lg sm:text-2xl leading-none select-none ${piece === piece.toUpperCase() ? 'text-white drop-shadow-md' : 'text-gray-900 dark:text-gray-950'}`}
+                className={`text-xl sm:text-3xl leading-none select-none ${piece === piece.toUpperCase() ? 'text-white drop-shadow-md' : 'text-gray-900 dark:text-gray-950'}`}
                 style={{ transform: `rotate(${-rotation}deg)` }}
               >
                 {PIECE_UNICODE[piece]}
@@ -349,7 +349,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     
     return (
       <div 
-        className="grid grid-cols-8 grid-rows-8 w-full max-w-[240px] aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
+        className="grid grid-cols-8 grid-rows-8 w-full max-w-[320px] aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
         style={{ transform: `rotate(${rotation}deg)` }}
       >
         {squares}
