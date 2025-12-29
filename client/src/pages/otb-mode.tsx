@@ -133,8 +133,8 @@ export default function OTBMode() {
   const [queueType, setQueueType] = useState<string | null>(null);
   const [lastMoveSquares, setLastMoveSquares] = useState<string[]>([]);
   const [showLegalMoves, setShowLegalMoves] = useState(false);
-  const [highlightLastMove, setHighlightLastMove] = useState(true);
-  const [showPieceHighlight, setShowPieceHighlight] = useState(true);
+  const [highlightLastMove, setHighlightLastMove] = useState(false);
+  const [showPieceHighlight, setShowPieceHighlight] = useState(false);
   const [perspective3d, setPerspective3d] = useState(false);
   const [notationPractice, setNotationPractice] = useState(false);
   const [pendingNotation, setPendingNotation] = useState<string | null>(null);
