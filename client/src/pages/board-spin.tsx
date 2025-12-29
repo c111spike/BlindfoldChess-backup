@@ -526,7 +526,7 @@ export default function BoardSpin() {
     return heatmap;
   };
 
-  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive: boolean = false, bonusMode: boolean = false, heatmap?: (string | null)[][]) => {
+  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive: boolean = false, bonusMode: boolean = false, heatmap?: (string | null)[][], hidePieces: boolean = false) => {
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
     const whiteToMove = position?.fen.split(' ')[1] === 'w';
@@ -619,9 +619,12 @@ export default function BoardSpin() {
                     />
                   )}
                   {/* Ghost icon showing what the correct piece should be */}
-                  {showGhost && correctPiece && (
+                  {/* Show on missed/wrong squares normally, OR show all correct pieces when hidePieces is true */}
+                  {((showGhost && correctPiece) || (hidePieces && correctPiece)) && (
                     <span 
-                      className={`absolute text-xl sm:text-2xl md:text-3xl select-none opacity-50 pointer-events-none text-white ${
+                      className={`absolute text-xl sm:text-2xl md:text-3xl select-none pointer-events-none text-white ${
+                        hidePieces ? 'opacity-90' : 'opacity-50'
+                      } ${
                         correctPiece === correctPiece.toUpperCase() 
                           ? 'drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' 
                           : 'drop-shadow-[0_0_3px_rgba(0,0,0,1)] [text-shadow:_0_0_2px_rgb(0_0_0),_0_0_4px_rgb(0_0_0)]'
@@ -632,8 +635,8 @@ export default function BoardSpin() {
                       {PIECE_UNICODE[correctPiece]}
                     </span>
                   )}
-                  {/* Pieces counter-rotate to stay upright */}
-                  {piece && (
+                  {/* Pieces counter-rotate to stay upright (hidden when hidePieces is true) */}
+                  {piece && !hidePieces && (
                     <span 
                       className={`text-2xl sm:text-3xl md:text-4xl select-none ${showGhost ? 'z-10' : ''}
                         ${piece === piece.toUpperCase() ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : 'text-gray-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.5)]'}
@@ -1082,21 +1085,10 @@ export default function BoardSpin() {
           {/* Board display with heatmap - toggle visibility between recreated and original */}
           <div className="flex justify-center">
             <div className="text-center relative w-full max-w-[400px]">
-              {/* Player's recreated board with heatmap - fades out when showing answer */}
-              <div className={`transition-opacity duration-100 ${showingAnswer ? 'opacity-0' : 'opacity-100'}`}>
-                <p className="text-sm font-medium mb-2 text-muted-foreground">Your Recreation</p>
-                {position && renderBoard(playerBoard, finalRotation, false, false, computeHeatmap(position.board, playerBoard))}
-              </div>
-              
-              {/* Original position overlay - fades in when showing answer */}
-              {position && (
-                <div 
-                  className={`absolute inset-0 bg-background transition-opacity duration-100 ${showingAnswer ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                >
-                  <p className="text-sm font-medium mb-2 text-muted-foreground">Original Position</p>
-                  {renderBoard(position.board, 0, false)}
-                </div>
-              )}
+              <p className="text-sm font-medium mb-2 text-muted-foreground">
+                {showingAnswer ? 'Correct Pieces (Ghost Icons)' : 'Your Recreation'}
+              </p>
+              {position && renderBoard(playerBoard, finalRotation, false, false, computeHeatmap(position.board, playerBoard), showingAnswer)}
             </div>
           </div>
           
@@ -1131,7 +1123,7 @@ export default function BoardSpin() {
                 data-testid="button-show-answer"
               >
                 <Eye className="w-4 h-4 mr-2" />
-                Hold to Show Answer
+                Hold to See Correct Pieces
               </Button>
             </div>
           )}

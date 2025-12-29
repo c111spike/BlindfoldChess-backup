@@ -267,7 +267,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     return heatmap;
   };
 
-  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive = false, showLabels = true, heatmap?: (string | null)[][]) => {
+  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive = false, showLabels = true, heatmap?: (string | null)[][], hidePieces: boolean = false) => {
     const squares = [];
     
     for (let rank = 0; rank < 8; rank++) {
@@ -301,10 +301,12 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
             `}
             onClick={interactive ? () => handleSquareClick(rank, file) : undefined}
           >
-            {/* Ghost icon for missed/wrong pieces */}
-            {showGhost && correctPiece && (
+            {/* Ghost icon for missed/wrong pieces, OR show all correct pieces when hidePieces is true */}
+            {((showGhost && correctPiece) || (hidePieces && correctPiece)) && (
               <span 
-                className={`absolute text-base sm:text-xl select-none opacity-50 pointer-events-none text-white ${
+                className={`absolute text-base sm:text-xl select-none pointer-events-none text-white ${
+                  hidePieces ? 'opacity-90' : 'opacity-50'
+                } ${
                   correctPiece === correctPiece.toUpperCase() 
                     ? 'drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' 
                     : 'drop-shadow-[0_0_3px_rgba(0,0,0,1)] [text-shadow:_0_0_2px_rgb(0_0_0),_0_0_4px_rgb(0_0_0)]'
@@ -314,7 +316,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
                 {PIECE_UNICODE[correctPiece]}
               </span>
             )}
-            {piece && (
+            {piece && !hidePieces && (
               <span 
                 className={`text-lg sm:text-2xl select-none ${showGhost ? 'z-10' : ''} ${piece === piece.toUpperCase() ? 'text-white drop-shadow-md' : 'text-gray-900 dark:text-gray-950'}`}
                 style={{ transform: `rotate(${-rotation}deg)` }}
@@ -471,17 +473,11 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   if (phase === 'results') {
     return (
       <div className="flex flex-col items-center p-4">
+        <p className="text-xs font-medium mb-2 text-muted-foreground">
+          {showingAnswer ? 'Correct Pieces' : 'Your Recreation'}
+        </p>
         <div className="relative">
-          {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard))}
-          
-          {showingAnswer && position && (
-            <div className="absolute inset-0 z-10 bg-background/95 rounded flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-sm font-medium mb-2 text-muted-foreground">Original Position</p>
-                {renderBoard(position.board, 0, false, true)}
-              </div>
-            </div>
-          )}
+          {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard), showingAnswer)}
         </div>
         
         {/* Heatmap legend */}
@@ -525,7 +521,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
                 data-testid="button-show-answer"
               >
                 <Eye className="h-4 w-4 mr-2" />
-                Hold to Show Answer
+                Hold to See Correct Pieces
               </Button>
             )}
             
