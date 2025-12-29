@@ -1501,6 +1501,110 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   },
 };
 
+// ============================================
+// MATE VISION CONFIG
+// ============================================
+// Defines what checkmates each difficulty level can "see"
+// mateInMax: Guaranteed to see mates up to this depth
+// mateInProbability: { depth: probability } for probabilistic detection beyond mateInMax
+interface MateVisionConfig {
+  mateInMax: number;           // Always sees mates up to this depth
+  mateInProbability: Record<number, number>; // depth -> probability (0-1) for deeper mates
+}
+
+const MATE_VISION_CONFIG: Record<BotDifficulty, MateVisionConfig> = {
+  // Beginner: Only sees mate in 1
+  beginner: { 
+    mateInMax: 1, 
+    mateInProbability: {} 
+  },
+  // Novice: Sees mate in 1, 50% chance to see mate in 2
+  novice: { 
+    mateInMax: 1, 
+    mateInProbability: { 2: 0.5 } 
+  },
+  // Intermediate: Sees mate in 1-2
+  intermediate: { 
+    mateInMax: 2, 
+    mateInProbability: {} 
+  },
+  // Club: Sees mate in 1-2, 50% chance to see mate in 3
+  club: { 
+    mateInMax: 2, 
+    mateInProbability: { 3: 0.5 } 
+  },
+  // Advanced: Sees mate in 1-3, 25% chance to see mate in 4
+  advanced: { 
+    mateInMax: 3, 
+    mateInProbability: { 4: 0.25 } 
+  },
+  // Expert: Sees all mates up to 4
+  expert: { 
+    mateInMax: 4, 
+    mateInProbability: {} 
+  },
+  // Master: Sees all forced checkmates (no limit)
+  master: { 
+    mateInMax: Infinity, 
+    mateInProbability: {} 
+  },
+  // Grandmaster: Sees all forced checkmates (no limit)
+  grandmaster: { 
+    mateInMax: Infinity, 
+    mateInProbability: {} 
+  },
+};
+
+// Check if a bot can "see" a mate at a given depth based on difficulty
+function canSeeMate(mateIn: number, difficulty: BotDifficulty): boolean {
+  const config = MATE_VISION_CONFIG[difficulty];
+  
+  // Always sees mates within guaranteed range
+  if (mateIn <= config.mateInMax) {
+    return true;
+  }
+  
+  // Check probabilistic detection for deeper mates
+  const probability = config.mateInProbability[mateIn];
+  if (probability !== undefined && probability > 0) {
+    // Roll the dice - this creates natural variation
+    const roll = Math.random();
+    const sees = roll < probability;
+    console.log(`[MateVision] ${difficulty} rolling for mate in ${mateIn}: ${(probability * 100).toFixed(0)}% chance, rolled ${(roll * 100).toFixed(0)}% -> ${sees ? 'SEES IT!' : 'missed'}`);
+    return sees;
+  }
+  
+  // Can't see this mate
+  return false;
+}
+
+// Find the best visible winning mate for a given difficulty
+function findVisibleWinningMate(
+  topMoves: TopMoveResult[], 
+  difficulty: BotDifficulty
+): TopMoveResult | null {
+  // Filter to winning mates only (isMate=true, evaluation>0 means WE deliver mate)
+  const winningMates = topMoves.filter(m => m.isMate && m.evaluation > 0 && m.mateIn !== undefined);
+  
+  if (winningMates.length === 0) {
+    return null;
+  }
+  
+  // Sort by shortest mate first
+  winningMates.sort((a, b) => (a.mateIn || 999) - (b.mateIn || 999));
+  
+  // Find the shortest mate this difficulty can see
+  for (const mate of winningMates) {
+    if (canSeeMate(mate.mateIn!, difficulty)) {
+      console.log(`[MateVision] ${difficulty} can see mate in ${mate.mateIn} with ${mate.move}!`);
+      return mate;
+    }
+  }
+  
+  // No visible mate
+  return null;
+}
+
 // Personality-based move selection from MultiPV candidates
 function selectMoveByPersonality(
   game: Chess,
@@ -1522,26 +1626,22 @@ function selectMoveByPersonality(
   const isHighLevel = difficulty === 'grandmaster' || difficulty === 'master' || difficulty === 'expert';
   const botColor = game.turn();
   
+  // ============================================
+  // BULLETPROOF CHECKMATE DETECTION - FIRST PRIORITY
+  // ============================================
+  // This happens BEFORE everything else - survival mode, recaptures, personality scoring
+  // If the bot can "see" a winning checkmate based on their vision config, they ALWAYS play it
+  const visibleMate = findVisibleWinningMate(topMoves, difficulty);
+  if (visibleMate) {
+    console.log(`[ClientBot] CHECKMATE PRIORITY: ${difficulty} sees mate in ${visibleMate.mateIn}! Playing ${visibleMate.move} immediately - no exceptions.`);
+    return visibleMate;
+  }
+  
   // Check if we should enter survival mode (draw-seeking)
   // Use the best move's evaluation to determine if we're losing
   const bestEval = topMoves[0].evaluation;
   const inSurvivalMode = moveCount !== undefined && 
     shouldSeekDraw(bestEval, difficulty, moveCount, botColor);
-  
-  if (inSurvivalMode) {
-    console.log(`[ClientBot] SURVIVAL MODE ACTIVE: eval=${bestEval.toFixed(2)}, threshold=${config.drawSeekThreshold}, seeking repetition...`);
-  }
-  
-  // CRITICAL: For Master/Grandmaster level, immediately return any winning mate
-  // This ensures forced mates are never missed due to personality scoring
-  // Note: isMate=true, evaluation>0 means WE deliver mate; evaluation<0 means we GET mated
-  if (isHighLevel) {
-    const winningMate = topMoves.find(m => m.isMate && m.evaluation > 0);
-    if (winningMate) {
-      console.log(`[ClientBot] Found forced mate in ${winningMate.mateIn}! Playing ${winningMate.move} immediately.`);
-      return winningMate;
-    }
-  }
   
   // CRITICAL RECAPTURE LOGIC: For Master/Grandmaster, prioritize recaptures of valuable pieces
   // If opponent just captured a piece worth 3+ points (bishop/knight or higher), we MUST recapture
