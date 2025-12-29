@@ -4054,9 +4054,9 @@ export default function OTBMode() {
                         max="70"
                         value={tiltAngle}
                         onChange={(e) => handleTiltChange(Number(e.target.value))}
-                        className="h-24 w-3 appearance-none bg-muted-foreground/30 rounded-full cursor-pointer [writing-mode:vertical-lr] [-webkit-appearance:slider-vertical]"
+                        className="w-24 h-3 appearance-none bg-muted-foreground/30 rounded-full cursor-pointer"
                         style={{
-                          WebkitAppearance: 'slider-vertical',
+                          transform: 'rotate(-90deg)',
                         }}
                         data-testid="input-tilt-slider"
                       />
