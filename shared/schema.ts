@@ -229,9 +229,9 @@ export const puzzleTypeEnum = pgEnum("puzzle_type", [
 
 export const puzzleDifficultyEnum = pgEnum("puzzle_difficulty", [
   "patzer",
-  "beginner",
+  "novice",
   "intermediate",
-  "advanced",
+  "clubplayer",
   "expert",
   "master",
   "grandmaster",
@@ -426,12 +426,13 @@ export const matches = pgTable("matches", {
 });
 
 export const boardSpinDifficultyEnum = pgEnum("board_spin_difficulty", [
-  "beginner",
-  "easy",
+  "patzer",
+  "novice",
   "intermediate",
-  "advanced",
+  "clubplayer",
   "expert",
   "master",
+  "grandmaster",
 ]);
 
 export const boardSpinScores = pgTable("board_spin_scores", {

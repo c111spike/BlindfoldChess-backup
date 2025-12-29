@@ -21,14 +21,14 @@ function isValidPosition(fen: string): boolean {
 }
 
 const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
-  'beginner': {
+  'patzer': {
     minPieces: 2,
     maxPieces: 4,
     rotationInterval: 120,
     excludedAngles: [0],
     multiplier: 1.0
   },
-  'easy': {
+  'novice': {
     minPieces: 5,
     maxPieces: 7,
     rotationInterval: 90,
@@ -42,7 +42,7 @@ const DIFFICULTY_CONFIGS: Record<string, DifficultyConfig> = {
     excludedAngles: [0],
     multiplier: 2.0
   },
-  'advanced': {
+  'clubplayer': {
     minPieces: 12,
     maxPieces: 14,
     rotationInterval: 45,

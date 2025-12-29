@@ -573,7 +573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Bot difficulty levels with their Elo ratings (sorted ascending)
           const botLevels = [
-            { difficulty: 'beginner', elo: 400 },
+            { difficulty: 'patzer', elo: 400 },
             { difficulty: 'novice', elo: 600 },
             { difficulty: 'intermediate', elo: 900 },
             { difficulty: 'club', elo: 1200 },
