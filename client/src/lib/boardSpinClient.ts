@@ -725,16 +725,21 @@ export function wouldPawnCreateCrossing(
   rank: number,
   isWhitePawn: boolean
 ): boolean {
-  // Check existing pawns on this file
+  // Check existing pawns on this file (excluding the target square since it will be overwritten)
   for (let r = 0; r < 8; r++) {
+    if (r === rank) continue; // Skip target square - it will be replaced
     const piece = board[r][file];
     if (isWhitePawn) {
       // Placing white pawn - check if any black pawn is below this rank
+      // White pawns move up (increasing rank), so if black pawn is at lower rank,
+      // white would have had to pass through it
       if (piece === 'p' && r < rank) {
         return true; // Black pawn below white = crossing!
       }
     } else {
       // Placing black pawn - check if any white pawn is above this rank
+      // Black pawns move down (decreasing rank), so if white pawn is at higher rank,
+      // black would have had to pass through it
       if (piece === 'P' && r > rank) {
         return true; // White pawn above black = crossing!
       }
