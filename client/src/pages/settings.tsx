@@ -668,10 +668,7 @@ export default function Settings() {
                   If two identical pieces (e.g., two Rooks) can move to the same square, specify the starting file or rank.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  <span className="font-medium">Example:</span> Say "Rook A to E1" or "Rook F to E1."
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium">Shortened:</span> "A E1" or "F E1" also works.
+                  <span className="font-medium">Example:</span> Say "Rook A E1" or "Rook F E1."
                 </p>
               </div>
               <p className="text-sm text-muted-foreground">
