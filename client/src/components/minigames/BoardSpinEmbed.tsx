@@ -240,6 +240,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   }, []);
 
   // Compute heatmap data comparing player's board to original
+  // Both boards use logical coordinates (rank 0 = rank 1/bottom)
   const computeHeatmap = (originalBoard: (string | null)[][], playerBoardData: (string | null)[][]): (string | null)[][] => {
     const heatmap: (string | null)[][] = Array(8).fill(null).map(() => Array(8).fill(null));
     
@@ -270,15 +271,19 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive = false, showLabels = true, heatmap?: (string | null)[][], hidePieces: boolean = false) => {
     const squares = [];
     
-    for (let rank = 0; rank < 8; rank++) {
-      for (let file = 0; file < 8; file++) {
-        const isLight = (rank + file) % 2 === 0;
-        const piece = board[rank][file];
-        const isA1 = rank === 7 && file === 0;
-        const isH8 = rank === 0 && file === 7;
+    // Loop through visual positions (rankIdx 0 = top of rendered board)
+    // Use actualRank = 7 - rankIdx for all board data access (logical coordinates)
+    for (let rankIdx = 0; rankIdx < 8; rankIdx++) {
+      for (let fileIdx = 0; fileIdx < 8; fileIdx++) {
+        const isLight = (rankIdx + fileIdx) % 2 === 0;
+        // Convert visual rank to logical rank for board access
+        const actualRank = 7 - rankIdx;
+        const piece = board[actualRank][fileIdx];
+        const isA1 = actualRank === 0 && fileIdx === 0;
+        const isH8 = actualRank === 7 && fileIdx === 7;
         
-        // Heatmap coloring
-        const heatmapValue = heatmap?.[rank]?.[file];
+        // Heatmap coloring - uses logical coordinates
+        const heatmapValue = heatmap?.[actualRank]?.[fileIdx];
         const heatmapBg = heatmapValue === 'correct' 
           ? 'bg-green-400 dark:bg-green-600' 
           : heatmapValue === 'wrong' || heatmapValue === 'extra'
@@ -287,18 +292,18 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
           ? 'bg-amber-400 dark:bg-amber-500'
           : '';
         
-        // Get correct piece for ghost icon (from component state via closure - same as main page)
-        const correctPiece = position?.board?.[rank]?.[file];
+        // Get correct piece for ghost icon - uses logical coordinates
+        const correctPiece = position?.board?.[actualRank]?.[fileIdx];
         
         squares.push(
           <div
-            key={`${rank}-${file}`}
+            key={`${rankIdx}-${fileIdx}`}
             className={`
               aspect-square flex items-center justify-center relative
               ${heatmapBg || (isLight ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-amber-700 dark:bg-amber-800')}
               ${interactive ? 'cursor-pointer hover:brightness-110' : ''}
             `}
-            onClick={interactive ? () => handleSquareClick(rank, file) : undefined}
+            onClick={interactive ? () => handleSquareClick(actualRank, fileIdx) : undefined}
           >
             {/* Ghost icon showing correct pieces - only visible when holding the "show answer" button */}
             {hidePieces && correctPiece && (
@@ -510,13 +515,13 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
               <Button
                 variant="outline"
                 className="mt-3 w-full pointer-events-auto relative z-10"
-                onMouseDown={() => { console.log('[BoardSpinEmbed] Button pressed'); setShowingAnswer(true); }}
-                onMouseUp={() => { console.log('[BoardSpinEmbed] Button released'); setShowingAnswer(false); }}
+                onMouseDown={() => setShowingAnswer(true)}
+                onMouseUp={() => setShowingAnswer(false)}
                 onMouseLeave={() => setShowingAnswer(false)}
-                onTouchStart={() => { console.log('[BoardSpinEmbed] Touch start'); setShowingAnswer(true); }}
-                onTouchEnd={() => { console.log('[BoardSpinEmbed] Touch end'); setShowingAnswer(false); }}
-                onPointerDown={() => { console.log('[BoardSpinEmbed] Pointer down'); setShowingAnswer(true); }}
-                onPointerUp={() => { console.log('[BoardSpinEmbed] Pointer up'); setShowingAnswer(false); }}
+                onTouchStart={() => setShowingAnswer(true)}
+                onTouchEnd={() => setShowingAnswer(false)}
+                onPointerDown={() => setShowingAnswer(true)}
+                onPointerUp={() => setShowingAnswer(false)}
                 data-testid="button-show-answer"
               >
                 <Eye className="h-4 w-4 mr-2" />
