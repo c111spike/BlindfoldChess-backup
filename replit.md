@@ -16,136 +16,55 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **UI**: Radix UI primitives, shadcn/ui components, Tailwind CSS ("new-york" style).
 - **State Management**: TanStack Query.
 - **Routing**: Wouter.
-- **Chess Logic**: `chess.js` for validation and move generation.
+- **Chess Logic**: `chess.js`.
 
 ### Backend
 - **Runtime**: Node.js with Express.js (TypeScript).
 - **API**: RESTful endpoints with WebSocket support for real-time features.
-- **Authentication**: Better Auth with email/password (no email verification, autoSignIn enabled). Uses `better-auth/react` for React integration to avoid duplicate React instance issues. Database adapter syncs auth_user to the main users table via database hooks. Sessions stored in auth_session table with 7-day expiry.
+- **Authentication**: Better Auth with email/password, integrated with React via `better-auth/react`.
 - **Real-time**: WebSocket server (`/ws`) for multiplayer synchronization using match-based rooms.
 
 ### Data Storage
 - **Database**: PostgreSQL via Neon's serverless driver.
-- **ORM**: Drizzle ORM for type-safe queries and schema management.
+- **ORM**: Drizzle ORM.
 - **Schema**: Includes `users`, `ratings`, `games`, `matches`, `simulGames`, `puzzles`, `puzzleAttempts`, `userSettings`, `statistics`, and `sessions`.
 
 ### Game Mechanics
-- **Time Controls**: Various options (e.g., 3+0, 5+0, 10+0).
+- **Time Controls**: Various options.
 - **Rating System**: Separate rating pools for various modes, with new users starting at 1200 (Simul/OTB at 1000). Matchmaking is FIFO within ±300 Elo.
-- **Disconnect Handling**: 30-second grace period for all game modes (including Simul vs Simul); auto-abort or auto-resign after grace period expires. Reconnecting within the grace period cancels auto-resignation.
+- **Disconnect Handling**: 30-second grace period for all game modes; auto-abort or auto-resign thereafter.
 
 ### Training Modes
 - **Standard Mode**: Traditional multiplayer chess.
-- **OTB Tournament Mode**: Simulates OTB tournaments with features like manual clock taps, touch-move, and an arbiter warning system, including authentic castling mechanics.
+- **OTB Tournament Mode**: Simulates OTB tournaments with manual clock taps, touch-move, and arbiter warning system.
 - **Blindfold Mode**: Memory and visualization training with a press-and-hold peek system.
-- **Simul Mode**: Multi-board management training for simultaneous exhibitions and Simul vs Simul tournaments.
+- **Simul Mode**: Multi-board management training for simultaneous exhibitions.
 
 ### Bot Engine
-A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM (client-side), and custom minimax with personality-aware move selection. It supports 8 Elo levels (400-2300) and 7 distinct personalities.
-
-**Tiered Checkmate Vision:**
-- Bulletproof detection: Runs FIRST in selectMoveByPersonality before survival mode, recaptures, or personality scoring
-- Bots always play visible checkmates - no exceptions
-- Vision thresholds by difficulty:
-  - Beginner: Mate in 1 only
-  - Novice: Mate in 1, 50% chance to see mate in 2
-  - Intermediate: Mate in 1-2
-  - Club: Mate in 1-2, 50% chance to see mate in 3
-  - Advanced: Mate in 1-3, 25% chance to see mate in 4
-  - Expert: All mates up to depth 4
-  - Master/Grandmaster: All forced checkmates (unlimited depth)
-- Correctly handles both colors: Evaluations adjusted for White/Black perspective
-- Helper functions: `canSeeMate()` with probability rolling, `findVisibleWinningMate()` for shortest visible mate
-
-**Draw-Seeking Behavior (Survival Mode):**
-- Bots seek draws via threefold repetition when losing significantly after move 20
-- Tiered thresholds by difficulty: Intermediate (-5.0), Expert/Advanced (-3.5), Master (-2.5), Grandmaster (-2.0)
-- Position history tracking: Uses FEN key (pieces + color + castling + en passant) to detect repetitions
-- Repetition bonuses: 3rd occurrence +50000 (forced draw), 2nd +10000, 1st +2000, +500 for checks
-- Recapture integration: Recaptures first if position improves above survival threshold
-- Implemented in `client/src/lib/botEngine.ts` via `recordPosition()`, `clearPositionHistory()`, `getPositionHistory()`
+A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM, and custom minimax with personality-aware move selection. Supports 8 Elo levels (400-2300) and 7 distinct personalities. Features tiered checkmate vision and draw-seeking behavior (survival mode) based on difficulty.
 
 ### Post-Game Analysis System
 Provides two tabbed modes for game analysis:
-- **Analyze Tab**: Stockfish-powered engine analysis with interactive board, evaluation bar, move classification, and accuracy scores.
-- **Review Tab**: Psychology-focused coaching analysis with diagnostic markers like Focus Check, Efficiency Factor, Time Trouble detection, Burnout Line, and VSS Mismatch alerts.
-
-**Move Classification System (Master-Level Thresholds):**
-- **Forced**: Only one legal move available
-- **Genius**: Best move that delivers mate OR sound sacrifice (evalAfter > -1.0)
-- **Fantastic**: Best move that is the only winning move (second-best drops 100+ cp) and maintains position
-- **Best**: Matches engine's top recommendation
-- **Good**: 1-40 centipawn loss
-- **Imprecise**: 41-90 centipawn loss
-- **Mistake**: 91-200 centipawn loss
-- **Blunder**: 201+ centipawn loss
-
-**Special Move Safeguards:**
-- No Genius/Fantastic in crushing positions (|eval| >= 5.0)
-- Sacrifice detection: Trade-down by 2+ piece values or piece move with 50cp+ gain
-- Only-winning-move detection: Second-best move drops eval by 100+ cp
-
-**Strict Genius Detection (Anti-False-Positive Rules):**
-- Real sacrifices only: Non-capture moves that leave material hanging (trades are never genius)
-- Hard to find: Second-best move must drop eval by 150+ cp (stricter than Fantastic's 100cp)
-- Sound sacrifice: Final eval must be > -1.0 (sacrifice isn't losing)
-- Mating moves only genius if hard to find AND not in crushing position
-
-**Tactical Motif Detection & Personalized Coaching (`client/src/lib/motifDetection.ts`):**
-- Client-side detection engine analyzes positions to detect 35+ tactical patterns
-- **Detected Motifs**: Knight/Bishop/Rook/Queen forks, pins, skewers, discovered attacks/checks, back-rank mates, smothered mates, queen/rook/minor sacrifices, material wins, promotions, en passant
-- **Puzzle Auto-Tagging**: When puzzles are created, solution moves are analyzed and `tacticalMotifs` field is auto-populated
-- **User Motif Stats**: `userMotifStats` table tracks solved/failed counts per motif per user, updated on puzzle attempts
-- **Review Tab Integration**: PuzzlePatternInsights component shows missed tactics cross-referenced with puzzle training history
-- **Coaching Insights Examples**:
-  - "You've solved 12 similar Knight Fork puzzles with 87% accuracy — this pattern should be in your toolkit"
-  - "Bishop Fork puzzles: 45% accuracy (5/11) — focus area"
-  - "No puzzle practice data for Discovered Check patterns — add to training"
-- **Clickable Training Links**: "practice more" and "add to training" links in Tactical Pattern Insights navigate directly to `/puzzles?motif={motif}` for filtered puzzle practice
-- **API Endpoints**: `/api/user/motif-stats` (all stats), `/api/user/motif-stats/:motifName` (specific motif)
-
-**Puzzle Motif Filtering:**
-- Backend uses PostgreSQL array containment (`@>`) with `sql.param()` for safe parameter binding
-- 35-motif allowlist validation prevents invalid filter values
-- Frontend uses wouter's `useSearch()` hook for reactive URL parameter detection
-- URL params: `?motif=xxx` sets active filter and switches to Browse tab
-- Filter state syncs between parent `Puzzles` component and child `BrowseTab`
+- **Analyze Tab**: Stockfish-powered engine analysis with interactive board, evaluation, move classification, and accuracy scores.
+- **Review Tab**: Psychology-focused coaching analysis with diagnostic markers like Focus Check, Efficiency Factor, Time Trouble detection, and VSS Mismatch alerts.
+- **Move Classification System**: Categorizes moves (Genius, Fantastic, Best, Good, Imprecise, Mistake, Blunder) based on centipawn loss and strategic impact.
+- **Tactical Motif Detection**: Client-side engine detects 35+ tactical patterns for personalized coaching and puzzle auto-tagging. Integrates with user motif statistics and provides clickable training links.
 
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.
-- **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles.
-  - Optional YouTube video URL support for all puzzle source types (educational supplementary content)
-  - YouTube URLs normalized to canonical format to prevent duplicate video submissions across different URL formats
+- **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles, including optional YouTube video URL support.
 
 ### Anti-Cheat & Report System
-- **Cheat Reports**: User-submitted reports with reason selection, optional details, and screenshot evidence.
-- **Screenshot Upload**: Uses Replit Object Storage with browser-image-compression.
-  - Max 1920px width, 1MB size limit, WebP format conversion
-  - Authentication required for presigned URL generation
-  - Admin interface shows thumbnail previews with click-to-expand
-- **Admin Moderation**: Pending/resolved report filtering, suspend/ban actions, rating refunds.
+- **Cheat Reports**: User-submitted reports with reason selection, details, and screenshot evidence. Screenshots are compressed and uploaded to Replit Object Storage.
+- **Admin Moderation**: Interface for managing reports, suspending/banning users, and issuing rating refunds.
 
 ### Infrastructure
 - **Cloudflare CDN**: Configured for performance and caching.
-- **PostgreSQL Scaling Optimizations**: Database indexes, connection pooling, and in-memory caching for high-concurrency.
-- **Stockfish Scaling**: Primarily client-side via WebAssembly for infinite scalability.
+- **PostgreSQL Scaling Optimizations**: Database indexes, connection pooling, and in-memory caching.
+- **Stockfish Scaling**: Primarily client-side via WebAssembly.
 
-### In-Memory Caching System (`server/memoryCache.ts`)
-A TTL-based cache for frequently accessed data to reduce database load:
-
-**Cache Keys:**
-- `stats:platform` (30s TTL) - Platform-wide statistics
-- `leaderboard:{mode}` (60s TTL) - Rating leaderboards by mode
-- `boardspin:leaderboard:{difficulty}` (60s TTL) - Board Spin high scores
-- `stats:training` (30s TTL) - Training challenge counts
-- `puzzles:count` (120s TTL) - Puzzle counts
-
-**Centralized Invalidation Helpers:**
-- `invalidateCaches.puzzles()` - Clears puzzle and training counts
-- `invalidateCaches.training()` - Clears training stats, game stats, and board spin leaderboards
-- `invalidateCaches.gameComplete()` - Clears game stats and all rating leaderboards
-
-**All mutation endpoints use these helpers** to ensure cache consistency on writes.
+### In-Memory Caching System
+A TTL-based cache (`server/memoryCache.ts`) for frequently accessed data (platform stats, leaderboards, puzzle counts) with centralized invalidation helpers to ensure consistency.
 
 ### Design System
 - **Typography**: Defined scale, monospace for notation.
@@ -162,53 +81,3 @@ A TTL-based cache for frequently accessed data to reduce database load:
 - **Tailwind CSS**: Utility-first CSS framework.
 - **Wouter**: Client-side routing library.
 - **Vite**: Build tool and dev server.
-
-## Future Feature Concepts
-
-### Board Reset Challenge (OTB Tournament Prep)
-An optional post-game training feature for OTB mode that simulates resetting the board to starting position after a game ends.
-
-**Concept:**
-- After game ends, pieces remain on their final squares
-- Captured pieces appear on the side of the board
-- Player clicks piece → clicks target starting square (timed)
-- Blocked squares: If a piece occupies another piece's starting square, must move blocker first
-- Example: White bishop on h8 needs to go to f1, but black rook is on f1 → move rook to a8 first, then bishop to f1
-
-**Implementation Notes:**
-- "Tournament Prep Mode" toggle in OTB settings (disabled by default)
-- When enabled: Shows "Reset Board Challenge" button alongside post-game handshake
-- Completely skippable even when enabled
-- Statistics tracked separately: "Average reset time", "Fastest reset", "Resets completed"
-- Validation logic: Check if target square is correct starting square for piece type/color
-- Blocked square detection: Cannot place piece until blocker is moved
-
-**Why it fits:**
-- Authentic OTB training (players reset boards after real tournament games)
-- Reinforces starting position memory
-- Unique differentiator vs other chess apps
-- Aligns with "training for real chess" positioning
-
-### King Placement Protocol ("Pro Finish" Animation)
-A visual teaching moment that displays the professional tournament convention for signaling game results via king placement.
-
-**Background:**
-In high-level tournaments (World Chess Championship, Grand Chess Tour), players place both kings on the center four squares (d4, d5, e4, e5) after a game ends. This signals the result to DGT electronic boards and arbiters. Since two kings can never legally be adjacent during play, this "illegal position" tells software to stop broadcasting and record the final score.
-
-**Result Signaling:**
-| Result | White King | Black King | Logic |
-|--------|------------|------------|-------|
-| White Wins (1-0) | e4 (light square) | d5 (light square) | Both on light = White wins |
-| Black Wins (0-1) | d4 (dark square) | e5 (dark square) | Both on dark = Black wins |
-| Draw (½-½) | e4 (light square) | e5 (dark square) | Split colors = Draw |
-
-**Implementation Approach:**
-- **"Pro Finish" Animation**: After handshake is accepted (when Tournament Prep Mode enabled), kings automatically slide to their result squares
-- **Tooltip**: Display elegant popup explaining the convention: "Tournament Protocol: Kings placed on [Color] squares signal a [Result] to the Arbiter/DGT board."
-- **Optional Badge**: "DGT Certified" badge for players who correctly place kings manually before starting the Board Reset Challenge
-
-**Why it fits:**
-- Adds "elite tournament" atmosphere without adding a chore
-- Teaches professional protocol through visual demonstration
-- Professional polish that makes OTB mode feel authentic
-- Pairs naturally with Board Reset Challenge in Tournament Prep Mode flow

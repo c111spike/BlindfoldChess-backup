@@ -1445,59 +1445,59 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     drawSeekThreshold: -99 // Never seeks draws
   },
   // Intermediate (900 Elo): Basic search heuristics, growing positional awareness
-  // -5.0 threshold: Only panics when a major piece down
+  // -3.0 threshold: Minor piece down triggers survival mode
   intermediate: { 
     elo: 900, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
     mistakeProbability: 0.1, useStockfish: true,
     useKillers: true, useHistory: false,
     mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false,
-    drawSeekThreshold: -5.0 // Major piece down = seek draw
+    drawSeekThreshold: -3.0 // Minor piece down = seek draw
   },
   // Club (1200 Elo): Full search heuristics, decent evaluation
-  // -4.0 threshold: Minor piece + pawn down triggers survival mode
+  // -3.0 threshold: Minor piece down triggers survival mode (same as intermediate)
   club: { 
     elo: 1200, timePerMoveMs: 2000, maxDepth: 5, multiPvCount: 4, stockfishNodes: 200000, 
     mistakeProbability: 0.01, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 60, kingSafetyWeight: 50, mopUpWeight: 50, useTaperedEval: true,
-    drawSeekThreshold: -4.0
+    drawSeekThreshold: -3.0
   },
   // Advanced (1500 Elo): Strong heuristics, good evaluation
-  // -3.5 threshold: Single piece down (without compensation) triggers draw-seeking
+  // -2.5 threshold: 2-pawn deficit triggers draw-seeking
   advanced: { 
     elo: 1500, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
     mistakeProbability: 0.005, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true,
-    drawSeekThreshold: -3.5
+    drawSeekThreshold: -2.5
   },
   // Expert (1800 Elo): Full strength heuristics
-  // -3.5 threshold: Recognizes a piece down is likely a loss
+  // -2.0 threshold: Recognizes 2 pawns down is likely a loss
   expert: { 
     elo: 1800, timePerMoveMs: 3000, maxDepth: 8, multiPvCount: 3, stockfishNodes: 1000000, 
     mistakeProbability: 0.001, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 90, kingSafetyWeight: 90, mopUpWeight: 90, useTaperedEval: true,
-    drawSeekThreshold: -3.5
+    drawSeekThreshold: -2.0
   },
   // Master (2000 Elo): Maximum strength
-  // -2.5 threshold: Starts digging for draws at 2-pawn deficit
+  // -1.5 threshold: Very sensitive - seeks draws at 1.5 pawn deficit
   master: { 
     elo: 2000, timePerMoveMs: 4000, maxDepth: 10, multiPvCount: 3, stockfishNodes: 2000000, 
     mistakeProbability: 0.00025, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
-    drawSeekThreshold: -2.5
+    drawSeekThreshold: -1.5
   },
   // Grandmaster (2500 Elo): Uses transposition tables and advanced pawn evaluation
-  // -2.0 threshold: High alert - seeks draws immediately when losing
-  // "Cynical Chess" - prefers 0.0 draw over grinding -2.1 loss
+  // -1.0 threshold: Ultra-sensitive - any pawn deficit triggers draw-seeking
+  // "Cynical Chess" - prefers 0.0 draw over grinding -1.1 loss
   grandmaster: { 
     elo: 2500, timePerMoveMs: 5000, maxDepth: 12, multiPvCount: 3, stockfishNodes: 3000000, 
     mistakeProbability: 0.00001, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
-    drawSeekThreshold: -2.0
+    drawSeekThreshold: -1.0
   },
 };
 
