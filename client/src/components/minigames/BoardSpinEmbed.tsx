@@ -478,9 +478,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
         <p className="text-xs font-medium mb-2 text-muted-foreground">
           {showingAnswer ? 'Correct Pieces' : 'Your Recreation'}
         </p>
-        <div className="relative">
-          {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard), showingAnswer)}
-        </div>
+        {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard), showingAnswer)}
         
         {/* Heatmap legend */}
         {accuracy < 100 && (
