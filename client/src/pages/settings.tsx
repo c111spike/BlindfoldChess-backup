@@ -630,7 +630,7 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Voice Control</CardTitle>
-              <CardDescription>Voice features for Standard and Simul games (not available in OTB mode). Not supported on Safari.</CardDescription>
+              <CardDescription>Voice features for Standard and Simul games (not available in OTB mode).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
@@ -662,12 +662,21 @@ export default function Settings() {
                   data-testid="switch-voice-input"
                 />
               </div>
-              <div className="rounded-lg bg-muted/50 p-3 space-y-1">
-                <p className="text-sm font-medium">Disambiguation Tip</p>
+              <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+                <p className="text-sm font-medium">Handling Ambiguity</p>
                 <p className="text-sm text-muted-foreground">
-                  When two pieces can move to the same square (e.g., rooks on a1 and f1), specify which one by saying the file: "Rook a e1" or "Rook f e1".
+                  If two identical pieces (e.g., two Rooks) can move to the same square, specify the starting file or rank.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Example:</span> Say "Rook A to E1" or "Rook F to E1."
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Shortened:</span> "A E1" or "F E1" also works.
                 </p>
               </div>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium">Note:</span> Voice control is currently not supported on Safari. Please use Chrome, Edge, or Firefox for the best experience.
+              </p>
               {isVoiceInputUnsupported && (
                 <Alert variant="default" className="bg-amber-500/10 border-amber-500/20" data-testid="alert-voice-unsupported">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
