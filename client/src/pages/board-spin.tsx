@@ -494,7 +494,39 @@ export default function BoardSpin() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive: boolean = false, bonusMode: boolean = false) => {
+  // Compute heatmap data comparing player's board to original
+  // Returns a 2D array where each cell is: 'correct' | 'wrong' | 'missed' | 'extra' | null
+  const computeHeatmap = (originalBoard: (string | null)[][], playerBoard: (string | null)[][]): (string | null)[][] => {
+    const heatmap: (string | null)[][] = Array(8).fill(null).map(() => Array(8).fill(null));
+    
+    for (let rank = 0; rank < 8; rank++) {
+      for (let file = 0; file < 8; file++) {
+        const original = originalBoard[rank][file];
+        const player = playerBoard[rank][file];
+        
+        if (original) {
+          // There should be a piece here
+          if (player === original) {
+            heatmap[rank][file] = 'correct'; // Green - correct piece
+          } else if (player) {
+            heatmap[rank][file] = 'wrong'; // Red - wrong piece placed
+          } else {
+            heatmap[rank][file] = 'missed'; // Yellow - piece was missed
+          }
+        } else {
+          // This square should be empty
+          if (player) {
+            heatmap[rank][file] = 'extra'; // Red - extra piece placed wrongly
+          }
+          // If both empty, leave as null (no highlight)
+        }
+      }
+    }
+    
+    return heatmap;
+  };
+
+  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive: boolean = false, bonusMode: boolean = false, heatmap?: (string | null)[][]) => {
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
     const whiteToMove = position?.fen.split(' ')[1] === 'w';
@@ -528,11 +560,25 @@ export default function BoardSpin() {
                 (!whiteToMove && piece !== piece.toUpperCase())
               );
               
+              // Heatmap coloring
+              const heatmapValue = heatmap?.[actualRank]?.[fileIdx];
+              const heatmapBg = heatmapValue === 'correct' 
+                ? 'bg-green-400 dark:bg-green-600' 
+                : heatmapValue === 'wrong' || heatmapValue === 'extra'
+                ? 'bg-red-400 dark:bg-red-600'
+                : heatmapValue === 'missed'
+                ? 'bg-amber-400 dark:bg-amber-500'
+                : '';
+              
+              // Get the correct piece for ghost icon (for missed/wrong squares)
+              const correctPiece = position?.board?.[actualRank]?.[fileIdx];
+              const showGhost = heatmap && (heatmapValue === 'missed' || heatmapValue === 'wrong') && correctPiece;
+              
               return (
                 <div
                   key={`${file}${rank}`}
                   className={`aspect-square flex items-center justify-center cursor-pointer transition-colors relative
-                    ${isLight ? 'bg-amber-100 dark:bg-amber-200' : 'bg-amber-700 dark:bg-amber-800'}
+                    ${heatmapBg || (isLight ? 'bg-amber-100 dark:bg-amber-200' : 'bg-amber-700 dark:bg-amber-800')}
                     ${interactive ? 'hover:brightness-110' : ''}
                     ${interactive && selectedPiece ? 'hover:ring-2 hover:ring-primary' : ''}
                     ${bonusMode ? 'hover:brightness-110' : ''}
@@ -572,10 +618,20 @@ export default function BoardSpin() {
                       style={{ transform: `rotate(${-rotation}deg)` }}
                     />
                   )}
+                  {/* Ghost icon showing what the correct piece should be */}
+                  {showGhost && correctPiece && (
+                    <span 
+                      className="absolute text-xl sm:text-2xl md:text-3xl select-none opacity-40 pointer-events-none"
+                      style={{ transform: `rotate(${-rotation}deg)` }}
+                      title={`Should be: ${correctPiece}`}
+                    >
+                      {PIECE_UNICODE[correctPiece]}
+                    </span>
+                  )}
                   {/* Pieces counter-rotate to stay upright */}
                   {piece && (
                     <span 
-                      className={`text-2xl sm:text-3xl md:text-4xl select-none
+                      className={`text-2xl sm:text-3xl md:text-4xl select-none ${showGhost ? 'z-10' : ''}
                         ${piece === piece.toUpperCase() ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : 'text-gray-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.5)]'}
                       `}
                       style={{ transform: `rotate(${-rotation}deg)` }}
@@ -1019,13 +1075,13 @@ export default function BoardSpin() {
       {/* Phase: Results */}
       {phase === 'results' && (
         <div className="space-y-4">
-          {/* Board display - toggle visibility between recreated and original */}
+          {/* Board display with heatmap - toggle visibility between recreated and original */}
           <div className="flex justify-center">
             <div className="text-center relative w-full max-w-[400px]">
-              {/* Player's recreated board - fades out when showing answer */}
+              {/* Player's recreated board with heatmap - fades out when showing answer */}
               <div className={`transition-opacity duration-100 ${showingAnswer ? 'opacity-0' : 'opacity-100'}`}>
                 <p className="text-sm font-medium mb-2 text-muted-foreground">Your Recreation</p>
-                {renderBoard(playerBoard, finalRotation, false)}
+                {position && renderBoard(playerBoard, finalRotation, false, false, computeHeatmap(position.board, playerBoard))}
               </div>
               
               {/* Original position overlay - fades in when showing answer */}
@@ -1039,6 +1095,24 @@ export default function BoardSpin() {
               )}
             </div>
           </div>
+          
+          {/* Heatmap legend */}
+          {accuracy < 100 && (
+            <div className="flex flex-wrap justify-center gap-3 text-sm">
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded bg-green-400 dark:bg-green-600" />
+                <span className="text-muted-foreground">Correct</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded bg-red-400 dark:bg-red-600" />
+                <span className="text-muted-foreground">Wrong</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded bg-amber-400 dark:bg-amber-500" />
+                <span className="text-muted-foreground">Missed</span>
+              </div>
+            </div>
+          )}
           
           {/* Show Answer button for accuracy < 100% */}
           {accuracy < 100 && (

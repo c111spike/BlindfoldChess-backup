@@ -239,7 +239,35 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     };
   }, []);
 
-  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive = false, showLabels = true) => {
+  // Compute heatmap data comparing player's board to original
+  const computeHeatmap = (originalBoard: (string | null)[][], playerBoardData: (string | null)[][]): (string | null)[][] => {
+    const heatmap: (string | null)[][] = Array(8).fill(null).map(() => Array(8).fill(null));
+    
+    for (let rank = 0; rank < 8; rank++) {
+      for (let file = 0; file < 8; file++) {
+        const original = originalBoard[rank][file];
+        const player = playerBoardData[rank][file];
+        
+        if (original) {
+          if (player === original) {
+            heatmap[rank][file] = 'correct';
+          } else if (player) {
+            heatmap[rank][file] = 'wrong';
+          } else {
+            heatmap[rank][file] = 'missed';
+          }
+        } else {
+          if (player) {
+            heatmap[rank][file] = 'extra';
+          }
+        }
+      }
+    }
+    
+    return heatmap;
+  };
+
+  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive = false, showLabels = true, heatmap?: (string | null)[][]) => {
     const squares = [];
     
     for (let rank = 0; rank < 8; rank++) {
@@ -249,19 +277,42 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
         const isA1 = rank === 7 && file === 0;
         const isH8 = rank === 0 && file === 7;
         
+        // Heatmap coloring
+        const heatmapValue = heatmap?.[rank]?.[file];
+        const heatmapBg = heatmapValue === 'correct' 
+          ? 'bg-green-400 dark:bg-green-600' 
+          : heatmapValue === 'wrong' || heatmapValue === 'extra'
+          ? 'bg-red-400 dark:bg-red-600'
+          : heatmapValue === 'missed'
+          ? 'bg-amber-400 dark:bg-amber-500'
+          : '';
+        
+        // Get correct piece for ghost icon
+        const correctPiece = position?.board?.[rank]?.[file];
+        const showGhost = heatmap && (heatmapValue === 'missed' || heatmapValue === 'wrong') && correctPiece;
+        
         squares.push(
           <div
             key={`${rank}-${file}`}
             className={`
               aspect-square flex items-center justify-center relative
-              ${isLight ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-amber-700 dark:bg-amber-800'}
+              ${heatmapBg || (isLight ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-amber-700 dark:bg-amber-800')}
               ${interactive ? 'cursor-pointer hover:brightness-110' : ''}
             `}
             onClick={interactive ? () => handleSquareClick(rank, file) : undefined}
           >
+            {/* Ghost icon for missed/wrong pieces */}
+            {showGhost && correctPiece && (
+              <span 
+                className="absolute text-base sm:text-xl select-none opacity-40 pointer-events-none"
+                style={{ transform: `rotate(${-rotation}deg)` }}
+              >
+                {PIECE_UNICODE[correctPiece]}
+              </span>
+            )}
             {piece && (
               <span 
-                className={`text-lg sm:text-2xl select-none ${piece === piece.toUpperCase() ? 'text-white drop-shadow-md' : 'text-gray-900 dark:text-gray-950'}`}
+                className={`text-lg sm:text-2xl select-none ${showGhost ? 'z-10' : ''} ${piece === piece.toUpperCase() ? 'text-white drop-shadow-md' : 'text-gray-900 dark:text-gray-950'}`}
                 style={{ transform: `rotate(${-rotation}deg)` }}
               >
                 {PIECE_UNICODE[piece]}
@@ -417,7 +468,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     return (
       <div className="flex flex-col items-center p-4">
         <div className="relative">
-          {renderBoard(playerBoard, finalRotation, false)}
+          {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard))}
           
           {showingAnswer && position && (
             <div className="absolute inset-0 z-10 bg-background/95 rounded flex items-center justify-center">
@@ -428,6 +479,24 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
             </div>
           )}
         </div>
+        
+        {/* Heatmap legend */}
+        {accuracy < 100 && (
+          <div className="flex flex-wrap justify-center gap-2 mt-2 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-green-400 dark:bg-green-600" />
+              <span className="text-muted-foreground">Correct</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-red-400 dark:bg-red-600" />
+              <span className="text-muted-foreground">Wrong</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-amber-400 dark:bg-amber-500" />
+              <span className="text-muted-foreground">Missed</span>
+            </div>
+          </div>
+        )}
         
         <Card className={`w-full max-w-xs mt-4 ${accuracy === 100 ? 'bg-green-500/10 border-green-500/30' : 'bg-card'}`}>
           <CardContent className="p-4 text-center">
