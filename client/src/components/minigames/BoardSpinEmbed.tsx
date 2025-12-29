@@ -267,7 +267,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     return heatmap;
   };
 
-  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive = false, showLabels = true, heatmap?: (string | null)[][], hidePieces: boolean = false) => {
+  const renderBoard = (board: (string | null)[][], rotation: number = 0, interactive = false, showLabels = true, heatmap?: (string | null)[][], hidePieces: boolean = false, correctBoard?: (string | null)[][]) => {
     const squares = [];
     
     for (let rank = 0; rank < 8; rank++) {
@@ -287,9 +287,8 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
           ? 'bg-amber-400 dark:bg-amber-500'
           : '';
         
-        // Get correct piece for ghost icon
-        const correctPiece = position?.board?.[rank]?.[file];
-        const showGhost = heatmap && (heatmapValue === 'missed' || heatmapValue === 'wrong') && correctPiece;
+        // Get correct piece for ghost icon (from explicitly passed correctBoard)
+        const correctPiece = correctBoard?.[rank]?.[file];
         
         squares.push(
           <div
@@ -475,7 +474,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
           {showingAnswer ? 'Correct Pieces' : 'Your Recreation'}
         </p>
         <div className="relative">
-          {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard), showingAnswer)}
+          {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard), showingAnswer, position.board)}
         </div>
         
         {/* Heatmap legend */}
