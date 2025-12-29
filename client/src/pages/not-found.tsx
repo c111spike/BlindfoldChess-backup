@@ -103,9 +103,10 @@ export default function NotFound() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              className="pointer-events-auto"
             >
-              <Card>
-                <CardContent className="p-2 sm:p-4">
+              <Card className="pointer-events-auto">
+                <CardContent className="p-2 sm:p-4 pointer-events-auto">
                   <BoardSpinEmbed 
                     onClose={() => setShowGame(false)}
                     onGameComplete={(accuracy) => {

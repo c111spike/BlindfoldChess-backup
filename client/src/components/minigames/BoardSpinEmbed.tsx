@@ -495,8 +495,8 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
           </div>
         )}
         
-        <Card className={`w-full max-w-xs mt-4 ${accuracy === 100 ? 'bg-green-500/10 border-green-500/30' : 'bg-card'}`}>
-          <CardContent className="p-4 text-center">
+        <Card className={`w-full max-w-xs mt-4 pointer-events-auto ${accuracy === 100 ? 'bg-green-500/10 border-green-500/30' : 'bg-card'}`}>
+          <CardContent className="p-4 text-center pointer-events-auto">
             {accuracy === 100 ? (
               <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
             ) : (
@@ -509,12 +509,14 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
             {accuracy < 100 && (
               <Button
                 variant="outline"
-                className="mt-3 w-full"
-                onMouseDown={() => setShowingAnswer(true)}
-                onMouseUp={() => setShowingAnswer(false)}
+                className="mt-3 w-full pointer-events-auto relative z-10"
+                onMouseDown={() => { console.log('[BoardSpinEmbed] Button pressed'); setShowingAnswer(true); }}
+                onMouseUp={() => { console.log('[BoardSpinEmbed] Button released'); setShowingAnswer(false); }}
                 onMouseLeave={() => setShowingAnswer(false)}
-                onTouchStart={() => setShowingAnswer(true)}
-                onTouchEnd={() => setShowingAnswer(false)}
+                onTouchStart={() => { console.log('[BoardSpinEmbed] Touch start'); setShowingAnswer(true); }}
+                onTouchEnd={() => { console.log('[BoardSpinEmbed] Touch end'); setShowingAnswer(false); }}
+                onPointerDown={() => { console.log('[BoardSpinEmbed] Pointer down'); setShowingAnswer(true); }}
+                onPointerUp={() => { console.log('[BoardSpinEmbed] Pointer up'); setShowingAnswer(false); }}
                 data-testid="button-show-answer"
               >
                 <Eye className="h-4 w-4 mr-2" />
