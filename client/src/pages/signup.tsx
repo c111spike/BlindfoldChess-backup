@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { signUp } from "@/lib/auth-client";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2, UserPlus } from "lucide-react";
-import logoImage from "@assets/simulchess_logo_480.webp";
+import logoImage from "@assets/optimized/simulchess_logo_64.webp";
 
 export default function Signup() {
   const { toast } = useToast();

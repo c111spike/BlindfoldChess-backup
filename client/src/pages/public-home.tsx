@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Eye, Clock, Brain, Navigation, Crown, Puzzle, RotateCw, Book, Users } from "lucide-react";
 import heroImage from "@assets/stock_images/simulchess-hero-2025.webp";
+import heroImageMobile from "@assets/optimized/simulchess-hero-768.webp";
 
 const landingPages = [
   {
@@ -73,6 +74,8 @@ export default function PublicHomePage() {
         <div className="absolute inset-0">
           <img
             src={heroImage}
+            srcSet={`${heroImageMobile} 768w, ${heroImage} 1280w`}
+            sizes="100vw"
             alt="Chess tournament player in deep concentration"
             className="w-full h-full object-cover object-center"
             loading="eager"

@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Clock, Brain, Grid3x3, Check, ArrowRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import heroImage from "@assets/stock_images/simulchess-hero-2025.webp";
+import heroImageMobile from "@assets/optimized/simulchess-hero-768.webp";
 import otbIcon from "@assets/generated_images/otb_tournament_mode_icon.webp";
 import blindfoldIcon from "@assets/generated_images/blindfold_mode_icon.webp";
 import simulIcon from "@assets/generated_images/simul_mode_icon.webp";
-import logoImage from "@assets/simulchess_logo_480.webp";
+import logoImage from "@assets/optimized/simulchess_logo_64.webp";
 
 export default function Landing() {
   return (
@@ -31,8 +32,12 @@ export default function Landing() {
         <div className="absolute inset-0">
           <img
             src={heroImage}
+            srcSet={`${heroImageMobile} 768w, ${heroImage} 1280w`}
+            sizes="100vw"
             alt="Chess tournament player in deep concentration"
             className="w-full h-full object-cover"
+            loading="eager"
+            decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
         </div>
