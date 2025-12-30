@@ -80,6 +80,7 @@ interface MoveRecord {
   promotion?: string;
   notation: string;
   timestamp: number;
+  moverColor: "white" | "black"; // Explicit mover color for reliable lastMoveBy tracking
 }
 
 export default function OTBMode() {
@@ -194,6 +195,9 @@ export default function OTBMode() {
   const [ratingChange, setRatingChange] = useState<number | null>(null);
   const [clockTurn, setClockTurn] = useState<"white" | "black">("white");
   const [hasMadeMove, setHasMadeMove] = useState(false);
+  // Track who made the last move for arbiter bonus calculation
+  // Set when a move is committed, cleared when arbiter claim is resolved
+  const [lastMoveBy, setLastMoveBy] = useState<"white" | "black" | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{
     from: string;
     to: string;
@@ -437,12 +441,14 @@ export default function OTBMode() {
         }
       }
       
-      const castlingMove = {
+      const opponentMoverColor: "white" | "black" = playerColor === "white" ? "black" : "white";
+      const castlingMove: MoveRecord = {
         from: data.from || '',
         to: data.to || '',
         piece: 'K',
         notation: data.move,
         timestamp: Date.now(),
+        moverColor: opponentMoverColor,
       };
       setMoves(prev => [...prev, castlingMove]);
       // Opponent moves are auto-confirmed (player doesn't record them)
@@ -451,6 +457,9 @@ export default function OTBMode() {
       if (data.from && data.to) {
         setLastMoveSquares([data.from, data.to]);
       }
+      
+      // Track that opponent made this castling move for arbiter bonus calculation
+      setLastMoveBy(opponentMoverColor);
       
       setWhiteTime(data.whiteTime);
       setBlackTime(data.blackTime);
@@ -494,7 +503,8 @@ export default function OTBMode() {
         return newBoard;
       });
       
-      const opponentMove = {
+      const opponentMoverColor: "white" | "black" = playerColor === "white" ? "black" : "white";
+      const opponentMove: MoveRecord = {
         from: data.from!,
         to: data.to!,
         piece: data.piece || "?",
@@ -502,6 +512,7 @@ export default function OTBMode() {
         promotion: data.promotion,
         notation: data.move,
         timestamp: Date.now(),
+        moverColor: opponentMoverColor,
       };
       
       setMoves(prev => {
@@ -536,6 +547,9 @@ export default function OTBMode() {
       setConfirmedMoves(prev => [...prev, opponentMove]);
       
       setLastMoveSquares([data.from, data.to]);
+      
+      // Track that opponent made the last move for arbiter bonus calculation
+      setLastMoveBy(opponentMoverColor);
       
       // Validate opponent's move legality for king capture differentiation
       let opponentMoveWasLegal = false;
@@ -732,7 +746,18 @@ export default function OTBMode() {
         setClockTurn(newActiveColor);
         
         // Only slice moves if we have the FEN (guards against double-slice)
-        setMoves(prev => prev.slice(0, -1));
+        setMoves(prev => {
+          const newMoves = prev.slice(0, -1);
+          // Recompute lastMoveBy after rollback using explicit moverColor field
+          if (newMoves.length === 0) {
+            setLastMoveBy(null);
+          } else {
+            // Use the explicit moverColor from the last remaining move
+            const lastRemainingMove = newMoves[newMoves.length - 1];
+            setLastMoveBy(lastRemainingMove.moverColor);
+          }
+          return newMoves;
+        });
         // Only slice confirmedMoves if the move was already confirmed (no pending notation)
         // Use ref to get current value and avoid stale closure
         if (!pendingNotationRef.current) {
@@ -974,6 +999,7 @@ export default function OTBMode() {
       setBoardState(INITIAL_BOARD.map(row => [...row]));
       setMoves([]);
       setConfirmedMoves([]);
+      setLastMoveBy(null);
       setPendingNotation(null);
       setNotationQueue([]);
       setPendingPlayerNotation(null);
@@ -1386,6 +1412,7 @@ export default function OTBMode() {
           setBoardState(INITIAL_BOARD.map(row => [...row]));
           setMoves([]);
           setConfirmedMoves([]);
+          setLastMoveBy(null);
           setPendingNotation(null);
           setNotationQueue([]);
           setPendingPlayerNotation(null);
@@ -1811,6 +1838,7 @@ export default function OTBMode() {
     setBoardState(INITIAL_BOARD.map(row => [...row]));
     setMoves([]);
     setConfirmedMoves([]);
+    setLastMoveBy(null);
     setPendingNotation(null);
     setNotationQueue([]);
     setPendingPlayerNotation(null);
@@ -1933,6 +1961,7 @@ export default function OTBMode() {
     setBoardState(INITIAL_BOARD.map(row => [...row]));
     setMoves([]);
     setConfirmedMoves([]);
+    setLastMoveBy(null);
     setPendingNotation(null);
     setNotationQueue([]);
     setPendingPlayerNotation(null);
@@ -2021,6 +2050,7 @@ export default function OTBMode() {
             setBoardState(newBoard);
             
             const pieceChar = move.piece.toUpperCase();
+            const botMoverColor: "white" | "black" = "white"; // Bot is white when player is black
             setMoves([{
               from: move.from,
               to: move.to,
@@ -2028,7 +2058,10 @@ export default function OTBMode() {
               captured: captured || undefined,
               notation: move.san, // Use standard algebraic notation from chess.js
               timestamp: Date.now(),
+              moverColor: botMoverColor,
             }]);
+            // Track that bot made this initial move
+            setLastMoveBy(botMoverColor);
             setLastMoveSquares([move.from, move.to]);
             
             setTimeout(() => {
@@ -2136,7 +2169,17 @@ export default function OTBMode() {
           return newBoard;
         });
         
-        setMoves(prev => prev.slice(0, -1));
+        setMoves(prev => {
+          const newMoves = prev.slice(0, -1);
+          // Recompute lastMoveBy after rollback using explicit moverColor field
+          if (newMoves.length === 0) {
+            setLastMoveBy(null);
+          } else {
+            const lastRemainingMove = newMoves[newMoves.length - 1];
+            setLastMoveBy(lastRemainingMove.moverColor);
+          }
+          return newMoves;
+        });
         // Only slice confirmedMoves if the move was already confirmed (no pending notation)
         // Use ref to get current value and avoid stale closure
         if (!pendingNotationRef.current) {
@@ -2267,7 +2310,7 @@ export default function OTBMode() {
           }
           
           const pieceChar = moveResult.piece.toUpperCase();
-          const botMoveRecord = {
+          const botMoveRecord: MoveRecord = {
             from: moveResult.from,
             to: moveResult.to,
             piece: piece || (moveResult.color === 'w' ? pieceChar : pieceChar.toLowerCase()),
@@ -2275,6 +2318,7 @@ export default function OTBMode() {
             promotion: moveResult.promotion,
             notation: moveResult.san, // Use standard algebraic notation from chess.js
             timestamp: Date.now(),
+            moverColor: botColor as "white" | "black",
           };
           setMoves(prevMoves => [...prevMoves, botMoveRecord]);
           // Bot moves are auto-confirmed (player doesn't record them)
@@ -2284,6 +2328,9 @@ export default function OTBMode() {
         });
         
         setLastMoveSquares([moveResult.from, moveResult.to]);
+        
+        // Track that bot made the last move for arbiter bonus calculation
+        setLastMoveBy(botColor);
         
         // Notation practice: add bot's move to queue for player to record
         if (notationPractice) {
@@ -2532,6 +2579,7 @@ export default function OTBMode() {
       promotion: promotedPiece,
       notation: moveNotation,
       timestamp: Date.now(),
+      moverColor: activeColor as "white" | "black",
     };
     
     setMoves(prev => [...prev, newMove]);
@@ -2553,6 +2601,10 @@ export default function OTBMode() {
     if (matchId || isBotGame) {
       setHasMadeMove(true);
     }
+    
+    // Always track who made the last move for arbiter bonus calculation
+    // This works for promotions too since they flow through completeMove
+    setLastMoveBy(activeColor);
     
     // Use the FEN from chess.js if we have it, otherwise compute from board
     const newFen = newFenFromChess || boardToFen(newBoard, nextTurn);
@@ -2706,6 +2758,7 @@ export default function OTBMode() {
                   piece: movingPiece!,
                   notation: castlingNotation,
                   timestamp: Date.now(),
+                  moverColor: activeColor as "white" | "black",
                 };
                 
                 setMoves(prev => [...prev, newMove]);
@@ -2716,6 +2769,8 @@ export default function OTBMode() {
                 
                 if (matchId || isBotGame) {
                   setHasMadeMove(true);
+                  // Track who made this move for arbiter bonus calculation
+                  setLastMoveBy(activeColor);
                 }
                 
                 // Use legalChessGame FEN for accurate castling rights
@@ -3026,7 +3081,10 @@ export default function OTBMode() {
       
       // For multiplayer games, send arbiter ruling via WebSocket - handleArbiterRuling will apply changes
       // For bot games (no matchId), apply changes locally immediately
-      const timeAdj = playerColor === "white" 
+      // IMPORTANT: Award time bonus to the OPPONENT of whoever made the last move (the offender)
+      // Use lastMoveBy state which explicitly tracks who made the last move
+      const victimColor = lastMoveBy === "white" ? "black" : "white";
+      const timeAdj = victimColor === "white" 
         ? { white: 120, black: 0 } 
         : { white: 0, black: 120 };
       
@@ -3081,7 +3139,17 @@ export default function OTBMode() {
           const newActiveColor = turnChar === 'w' ? 'white' : 'black';
           setActiveColor(newActiveColor);
           setClockTurn(newActiveColor);
-          setMoves(prev => prev.slice(0, -1));
+          setMoves(prev => {
+            const newMoves = prev.slice(0, -1);
+            // Recompute lastMoveBy after rollback using explicit moverColor field
+            if (newMoves.length === 0) {
+              setLastMoveBy(null);
+            } else {
+              const lastRemainingMove = newMoves[newMoves.length - 1];
+              setLastMoveBy(lastRemainingMove.moverColor);
+            }
+            return newMoves;
+          });
           // Only slice confirmedMoves if the move was already confirmed (no pending notation)
           // Use ref to get current value and avoid stale closure
           if (!pendingNotationRef.current) {
@@ -3822,6 +3890,7 @@ export default function OTBMode() {
                                 setLegalChessGame(new Chess());
                                 setMoves([]);
                                 setConfirmedMoves([]);
+                                setLastMoveBy(null);
                                 setPendingNotation(null);
                                 setNotationQueue([]);
                                 setPendingPlayerNotation(null);
@@ -3949,6 +4018,7 @@ export default function OTBMode() {
                             matchIdRef.current = null; // Sync ref immediately to avoid stale closure issues
                             setMoves([]);
                             setConfirmedMoves([]);
+                            setLastMoveBy(null);
                             setPendingNotation(null);
                             setNotationQueue([]);
                             setPendingPlayerNotation(null);
@@ -4160,18 +4230,20 @@ export default function OTBMode() {
                   <div style={{ height: '12.5%' }} />
                   
                   {/* Call Arbiter button (1x1 tile) at bottom-right corner */}
+                  {/* Available: before any moves (handshake), or when opponent made the last move */}
+                  {/* Disabled if: mid-move, piece locked, you made the last move, or it's not your turn */}
                   <div className="flex justify-end" style={{ height: '12.5%' }}>
                     <button
                       onClick={handleCallArbiter}
-                      disabled={arbiterPending || moves.length === 0 || clockTurn !== playerColor}
+                      disabled={arbiterPending || clockTurn !== playerColor || hasMadeMove || !!lockedPiece || lastMoveBy === playerColor}
                       className={`aspect-square h-full rounded-md border-2 transition-all flex items-center justify-center
-                        ${arbiterPending || moves.length === 0 || clockTurn !== playerColor
+                        ${arbiterPending || clockTurn !== playerColor || hasMadeMove || !!lockedPiece || lastMoveBy === playerColor
                           ? "bg-muted/50 text-muted-foreground border-muted cursor-not-allowed opacity-50"
                           : "bg-orange-500/10 text-orange-600 border-orange-500 hover:bg-orange-500/20 cursor-pointer active:scale-95"
                         }
                       `}
                       data-testid="button-call-arbiter"
-                      title="Call Arbiter"
+                      title={lastMoveBy === playerColor ? "You made the last move" : (hasMadeMove ? "Press clock first" : (lockedPiece ? "Complete your move first" : "Call Arbiter"))}
                     >
                       <Gavel className="w-5 h-5" />
                     </button>
