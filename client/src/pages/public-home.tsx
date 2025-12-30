@@ -71,7 +71,7 @@ export default function PublicHomePage() {
         <link rel="canonical" href="https://simulchess.com/" />
       </Helmet>
       <section className="hero-container relative z-0 w-full min-h-[80vh] overflow-hidden pt-16">
-        <div className="absolute inset-0 top-14 md:top-0 pointer-events-none">
+        <div className="absolute left-0 right-0 bottom-0 top-16 md:top-0 pointer-events-none">
           <img
             src={heroImage}
             srcSet={`${heroImageMobile} 768w, ${heroImage} 1280w`}
