@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { generateBotMoveClient } from "@/lib/botEngine";
+import type { BotPersonality, BotDifficulty } from "@shared/botTypes";
 import { Label } from "@/components/ui/label";
 import { ChessBoard } from "@/components/chess-board";
 import { Card, CardContent } from "@/components/ui/card";
@@ -616,6 +618,55 @@ export default function SimulVsSimulMode() {
           
           return newBoards;
         });
+        break;
+        
+      case 'simul_bot_turn':
+        {
+          const { pairingId, botId, personality, difficulty, fen, moves, moveCount, botColor } = data;
+          console.log(`[SimulBot] Received bot turn notification for pairing ${pairingId}, bot: ${botId}`);
+          
+          // Calculate human-like delay:
+          // - First 10 moves (moveCount 0-9): 1 second
+          // - After move 10: 3-5 seconds random
+          // - When clock under 1 minute: 1 second (not applicable in simul turn timer)
+          const calculateBotDelay = (mc: number): number => {
+            if (mc < 10) return 1000;
+            return 3000 + Math.random() * 2000;
+          };
+          
+          const delay = calculateBotDelay(moveCount);
+          
+          setTimeout(async () => {
+            try {
+              const botMove = await generateBotMoveClient(
+                fen,
+                personality as BotPersonality,
+                difficulty as BotDifficulty,
+                undefined,
+                moveCount
+              );
+              
+              if (botMove && wsRef.current?.readyState === WebSocket.OPEN) {
+                console.log(`[SimulBot] Sending bot move result: ${botMove.move}`);
+                const game = new Chess(fen);
+                game.move({ from: botMove.from, to: botMove.to, promotion: botMove.promotion });
+                const newFen = game.fen();
+                
+                wsRef.current.send(JSON.stringify({
+                  type: 'simul_bot_move_result',
+                  pairingId,
+                  move: botMove.move,
+                  from: botMove.from,
+                  to: botMove.to,
+                  promotion: botMove.promotion,
+                  fen: newFen,
+                }));
+              }
+            } catch (error) {
+              console.error(`[SimulBot] Error calculating bot move for pairing ${pairingId}:`, error);
+            }
+          }, delay);
+        }
         break;
         
       case 'simul_game_end':
