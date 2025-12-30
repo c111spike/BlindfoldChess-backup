@@ -367,6 +367,9 @@ export const userSettings = pgTable("user_settings", {
   availableMovesColor: varchar("available_moves_color").default("#22c55e"),
   lastMoveColor: varchar("last_move_color").default("#facc15"),
   otbTiltAngle: real("otb_tilt_angle").default(45),
+  otbHighlightLastMove: boolean("otb_highlight_last_move").default(true),
+  otbShowLegalMoves: boolean("otb_show_legal_moves").default(true),
+  otbShowPieceHighlight: boolean("otb_show_piece_highlight").default(true),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
