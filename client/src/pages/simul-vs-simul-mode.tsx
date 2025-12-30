@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo } from "@/lib/botEngine";
+import { generateBotMoveClient, countBotPieces, detectRecapture, detectFreeCaptures, LastMoveInfo } from "@/lib/botEngine";
 import type { BotPersonality, BotDifficulty } from "@shared/botTypes";
 
 // Piece values for recapture detection
@@ -671,10 +671,18 @@ export default function SimulVsSimulMode() {
           
           // Calculate human-like delay for simul mode (30-second per-turn timer)
           // Priority order:
+          // 0. Free piece capture → 2 seconds (obvious take)
           // 1. Recapture available → 1 second
           // 2. Piece count determines endgame (longer delays since 30s timer)
           // 3. Move count determines opening/middlegame
           const calculateBotDelay = (mc: number, fenStr: string, bColor: 'white' | 'black', lm: LastMoveInfo | undefined): number => {
+            // 0. Free piece capture - reflexive "obvious take" (2 seconds)
+            const freeCaptures = detectFreeCaptures(fenStr);
+            if (freeCaptures.length > 0) {
+              console.log(`[SimulBot] Free piece detected - using 2s reflexive delay`);
+              return 2000;
+            }
+            
             // 1. Recapture - quick reflexive move
             if (detectRecapture(lm, fenStr)) {
               return 1000;

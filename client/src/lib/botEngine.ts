@@ -71,6 +71,75 @@ export function detectRecapture(lastMove: LastMoveInfo | undefined, fen: string)
   }
 }
 
+/**
+ * Detect free piece captures (hanging pieces).
+ * A capture is "free" if the opponent cannot recapture on that square.
+ * @param fen - Current board position in FEN notation
+ * @returns Array of moves that capture undefended pieces, with their values
+ */
+export function detectFreeCaptures(fen: string): { move: Move; capturedValue: number }[] {
+  try {
+    // Get legal moves from the original position
+    const originalGame = new Chess(fen);
+    const legalMoves = originalGame.moves({ verbose: true });
+    const captures = legalMoves.filter(m => m.captured);
+    const freeCaptures: { move: Move; capturedValue: number }[] = [];
+    
+    for (const capture of captures) {
+      const capturedValue = capture.captured ? PIECE_VALUES[capture.captured] || 0 : 0;
+      
+      // Create a FRESH Chess instance for each simulation to avoid state corruption
+      const simGame = new Chess(fen);
+      
+      // Simulate the capture
+      simGame.move(capture);
+      
+      // Check if opponent can recapture on that square
+      const opponentMoves = simGame.moves({ verbose: true });
+      const canBeRecaptured = opponentMoves.some(om => om.to === capture.to && om.captured);
+      
+      // If piece is undefended (free), add to list
+      if (!canBeRecaptured) {
+        freeCaptures.push({ move: capture, capturedValue });
+      }
+    }
+    
+    // Sort by value (highest first)
+    freeCaptures.sort((a, b) => b.capturedValue - a.capturedValue);
+    
+    return freeCaptures;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Check if a specific move is a free capture.
+ * Used for move ordering and delay calculation.
+ * @param fen - Current board position in FEN notation
+ * @param move - The move to check
+ * @returns True if this move captures an undefended piece
+ */
+export function isFreeCapture(fen: string, move: Move): boolean {
+  if (!move.captured) return false;
+  
+  try {
+    // Create a fresh Chess instance for simulation
+    const simGame = new Chess(fen);
+    
+    // Simulate the capture
+    simGame.move(move);
+    
+    // Check if opponent can recapture on that square
+    const opponentMoves = simGame.moves({ verbose: true });
+    const canBeRecaptured = opponentMoves.some(om => om.to === move.to && om.captured);
+    
+    return !canBeRecaptured;
+  } catch {
+    return false;
+  }
+}
+
 // Piece values for MVV-LVA ordering (opening/middlegame values)
 const PIECE_VALUES: Record<string, number> = {
   p: 100,
@@ -2196,7 +2265,7 @@ export async function generateBotMoveClient(
   remainingTimeMs?: number,
   moveCount?: number,
   lastMoveInfo?: LastMoveInfo
-): Promise<{ move: string; from: string; to: string; promotion?: string } | null> {
+): Promise<{ move: string; from: string; to: string; promotion?: string; isFreeCapture?: boolean } | null> {
   const game = new Chess(fen);
   const moves = game.moves({ verbose: true });
   
@@ -2221,6 +2290,57 @@ export async function generateBotMoveClient(
   }
   
   const config = DIFFICULTY_CONFIG[difficulty];
+  
+  // ============================================
+  // PRIORITY 1: IMMEDIATE CHECKMATE (Always take if available)
+  // ============================================
+  const checkmateMove = moves.find(m => m.san.includes('#'));
+  if (checkmateMove) {
+    console.log(`[ClientBot] CHECKMATE! Playing ${checkmateMove.san}`);
+    return {
+      move: checkmateMove.san,
+      from: checkmateMove.from,
+      to: checkmateMove.to,
+      promotion: checkmateMove.promotion,
+    };
+  }
+  
+  // ============================================
+  // PRIORITY 2: FREE PIECE CAPTURE (Clean material gain)
+  // ============================================
+  // Check for hanging pieces before any deep analysis
+  // Uses same probability scaling as recaptures: Patzer 25%, Novice 50%, Intermediate 75%, Club+ 100%
+  const freeCaptureRoll = Math.random();
+  const shouldSeeFreeCaptures = freeCaptureRoll < config.recaptureChance;
+  
+  if (shouldSeeFreeCaptures) {
+    const freeCaptures = detectFreeCaptures(fen);
+    
+    if (freeCaptures.length > 0) {
+      // Take the highest-value free piece
+      const bestFreeCapture = freeCaptures[0];
+      const pieceNames: Record<string, string> = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen' };
+      const pieceName = bestFreeCapture.move.captured ? pieceNames[bestFreeCapture.move.captured] || 'piece' : 'piece';
+      
+      console.log(`[ClientBot] FREE PIECE DETECTED! Taking hanging ${pieceName} on ${bestFreeCapture.move.to} (${bestFreeCapture.capturedValue} cp)`);
+      
+      return {
+        move: bestFreeCapture.move.san,
+        from: bestFreeCapture.move.from,
+        to: bestFreeCapture.move.to,
+        promotion: bestFreeCapture.move.promotion,
+        isFreeCapture: true,  // Flag for 2-second delay
+      };
+    }
+  } else {
+    // Log when bot "misses" a free piece due to probability roll
+    const freeCaptures = detectFreeCaptures(fen);
+    if (freeCaptures.length > 0) {
+      const pieceNames: Record<string, string> = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen' };
+      const pieceName = freeCaptures[0].move.captured ? pieceNames[freeCaptures[0].move.captured] || 'piece' : 'piece';
+      console.log(`[ClientBot] Missed free ${pieceName} (${(config.recaptureChance * 100).toFixed(0)}% chance, rolled ${(freeCaptureRoll * 100).toFixed(0)}%)`);
+    }
+  }
   
   // Tactician depth/nodes bonus: Tactics require seeing 1-2 moves further to "land"
   // Lower difficulties get +2 depth, higher get +1 (they already have high depth)

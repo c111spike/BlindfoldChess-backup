@@ -1093,9 +1093,16 @@ export default function StandardMode() {
       }
       
       // Apply human-like delay BEFORE returning the move (keeps botThinking=true during delay)
-      const moveNumber = Math.ceil((moveCount + 2) / 2); // +2 because this will be bot's response
-      const botColor: 'white' | 'black' = playerColor === 'white' ? 'black' : 'white';
-      const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime, currentFen, botColor, lastMoveInfo);
+      let thinkDelay: number;
+      
+      if (result.isFreeCapture) {
+        // Free piece capture - quick reflexive "obvious take" timing (2 seconds)
+        thinkDelay = 2000;
+      } else {
+        const moveNumber = Math.ceil((moveCount + 2) / 2); // +2 because this will be bot's response
+        const botColor: 'white' | 'black' = playerColor === 'white' ? 'black' : 'white';
+        thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime, currentFen, botColor, lastMoveInfo);
+      }
       await delay(thinkDelay);
       
       return result;

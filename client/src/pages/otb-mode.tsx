@@ -2358,11 +2358,19 @@ export default function OTBMode() {
     console.log('[OTB Bot] Bot response:', botMove);
     
     // Add human-like delay before applying the move
-    // Move number is (current moves + 1) since bot is about to make a move
-    const botMoveNumber = Math.ceil((moves.length + 1) / 2); // Convert to full move number (each side)
-    const botRemainingTime = botColor === 'white' ? whiteTimeRef.current : blackTimeRef.current;
-    const thinkingDelay = getBotMoveDelay(botMoveNumber, botRemainingTime, currentFen, botColor, playerLastMoveInfo);
-    console.log('[OTB Bot] Thinking delay:', thinkingDelay, 'ms (move', botMoveNumber, ', time:', botRemainingTime, 's)');
+    let thinkingDelay: number;
+    
+    if (botMove?.isFreeCapture) {
+      // Free piece capture - quick reflexive "obvious take" timing (2 seconds)
+      thinkingDelay = 2000;
+      console.log('[OTB Bot] Free piece capture - using 2s reflexive delay');
+    } else {
+      // Move number is (current moves + 1) since bot is about to make a move
+      const botMoveNumber = Math.ceil((moves.length + 1) / 2); // Convert to full move number (each side)
+      const botRemainingTime = botColor === 'white' ? whiteTimeRef.current : blackTimeRef.current;
+      thinkingDelay = getBotMoveDelay(botMoveNumber, botRemainingTime, currentFen, botColor, playerLastMoveInfo);
+      console.log('[OTB Bot] Thinking delay:', thinkingDelay, 'ms (move', botMoveNumber, ', time:', botRemainingTime, 's)');
+    }
     await delay(thinkingDelay);
     
     if (botMove && botMove.move) {
