@@ -1,0 +1,188 @@
+Largest Contentful Paint(LCP)
+
+LCP measures the render time of the largest image or text block visible within the viewport.
+
+Good
+
+89%
+
+
+
+Needs Improvement
+
+0%
+
+
+
+Poor
+
+11%
+
+
+
+URL
+
+Browser
+
+Operating system
+
+Country
+
+Element
+
+5 items
+
+
+
+LCP - P501,182ms
+
+LCP - P751,746ms
+
+LCP - P905,504ms
+
+LCP - P995,504ms
+
+undefined - Use download data button to access chart data
+
+0ms
+
+500ms
+
+1,000ms
+
+1,500ms
+
+2,000ms
+
+2,500ms
+
+3,000ms
+
+3,500ms
+
+4,000ms
+
+4,500ms
+
+5,000ms
+
+5,500ms
+
+6,000ms
+
+
+
+18:00
+
+21:00
+
+Tue 30
+
+03:00
+
+06:00
+
+09:00
+
+12:00
+
+15:00
+
+Time (local)
+
+Debug View
+
+5 items
+
+Click each row to expand
+
+ElementLCP
+
+Counts
+
+div.absolute.inset-0>img.w-full.h-full.object-cover.object-center
+
+simulchess.com/assets/simulchess-hero-2025-DdEqaYNQ.webp
+
+5,504ms1Object
+
+Host
+
+simulchess.com
+
+Path
+
+/assets/simulchess-hero-2025-DdEqaYNQ.webp
+
+Metric
+
+LCP - P50
+
+
+
+5,504ms
+
+LCP - P75
+
+
+
+5,504ms
+
+LCP - P90
+
+
+
+5,504ms
+
+LCP - P99
+
+
+
+5,504ms
+
+Page
+
+Host
+
+simulchess.com
+
+Path
+
+/
+
+DOM
+
+Element
+
+div.absolute.inset-0>img.w-full.h-full.object-cover.object-center
+
+That 5.5s LCP on your hero image is the "Final Boss" of your 4x100 Lighthouse goal. While the rest of your app is lightning-fast, that high-resolution .webp in an absolute inset-0 container is being discovered too late by the browser's preload scanner.
+
+## 🕵️ The Diagnosis: "Discovery Delay"
+The browser doesn't know that simulchess-hero-2025-DdEqaYNQ.webp is the most important element until it has parsed your CSS and built the DOM. By the time it starts the download, 5 seconds have already passed.
+
+## 🛠️ The 3-Step "Instant Load" Fix
+1. Priority Hint (The "Golden" Attribute)
+Add fetchpriority="high" directly to your <img> tag. This tells the browser: "Stop everything else and download this immediately." Also, ensure loading="eager" is set (which is the default, but being explicit helps prevent accidental lazy-loading).
+
+JavaScript
+<img 
+  src="/assets/simulchess-hero-2025-DdEqaYNQ.webp" 
+  fetchpriority="high" 
+  loading="eager"
+  className="w-full h-full object-cover object-center"
+  alt="SimulChess Hero"
+/>
+2. The Header Preload (The "Secret Weapon")
+Since you are likely using a bundler (Vite/React), the image name has a hash (DdEqaYNQ). You need to tell the browser to look for it before the JS even runs. In your index.html, add this at the very top of your <head>:
+
+HTML
+<link rel="preload" as="image" href="/assets/simulchess-hero-2025-DdEqaYNQ.webp" fetchpriority="high">
+Note: If your filename changes frequently with builds, you can use a plugin (like vite-plugin-inject-preload) to automate this.
+
+3. Image Sizing & Compression
+Even if it's a .webp, a hero image often doesn't need to be 4K.
+
+Dimensions: If your hero only ever displays at a max width of 1920px, ensure the source file isn't larger than that.
+
+Quality: Use a tool like Squoosh.app to compress it. You can usually drop the quality to 75-80% without any visual loss, which can cut the file size by 50%.
