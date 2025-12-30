@@ -347,19 +347,19 @@ export function AppSidebar() {
             )}
           </SidebarMenu>
           {!isCollapsed && (
-            <div className="px-3 py-2 text-xs text-muted-foreground/70" data-testid="text-stockfish-credit">
+            <div className="px-3 py-2 text-xs text-muted-foreground" data-testid="text-stockfish-credit">
               Analysis powered by{" "}
               <a 
                 href="https://stockfishchess.org/" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="underline hover:text-muted-foreground"
+                className="underline hover:text-foreground"
                 data-testid="link-stockfish"
               >
                 Stockfish
               </a>
               {" "}(GPLv3)
-              <div className="text-[10px] text-muted-foreground/50 mt-0.5">v1.2.0</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">v1.2.0</div>
             </div>
           )}
         </div>
