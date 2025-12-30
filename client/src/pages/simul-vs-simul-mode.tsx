@@ -622,22 +622,41 @@ export default function SimulVsSimulMode() {
         
       case 'simul_bot_turn':
         {
-          const { pairingId, botId, personality, difficulty, fen, moves, moveCount, botColor } = data;
-          console.log(`[SimulBot] Received bot turn notification for pairing ${pairingId}, bot: ${botId}`);
+          const { pairingId, botId, personality, difficulty, fen, moveCount, botColor } = data;
+          const expectedMoveCount = moveCount;
+          console.log(`[SimulBot] Received bot turn notification for pairing ${pairingId}, bot: ${botId}, moveCount: ${moveCount}`);
+          
+          // Check if game is still valid (treat empty/falsy result as ongoing)
+          const isGameOngoing = (result: string | undefined | null): boolean => {
+            return !result || result === 'ongoing' || result === '';
+          };
           
           // Calculate human-like delay:
-          // - First 10 moves (moveCount 0-9): 1 second
-          // - After move 10: 3-5 seconds random
-          // - When clock under 1 minute: 1 second (not applicable in simul turn timer)
+          // - First 10 moves (moveCount 0-9): 1 second (quick opening play)
+          // - After move 10: 2-4 seconds random (middlegame thinking)
+          // Note: Simul uses 30-second per-turn timers. Timer only runs when human
+          // is focused on the board, and bot moves don't consume timer - so time
+          // pressure logic from standard mode doesn't apply here.
           const calculateBotDelay = (mc: number): number => {
-            if (mc < 10) return 1000;
-            return 3000 + Math.random() * 2000;
+            if (mc < 10) return 1000; // Quick opening
+            return 2000 + Math.random() * 2000; // Middlegame thinking (2-4s)
           };
           
           const delay = calculateBotDelay(moveCount);
           
           setTimeout(async () => {
             try {
+              // Verify board state hasn't changed (game still ongoing, moveCount matches)
+              const board = boardsRef.current.find(b => b.pairingId === pairingId);
+              if (!board || !isGameOngoing(board.result)) {
+                console.log(`[SimulBot] Cancelling bot move - game ended or board not found for pairing ${pairingId}`);
+                return;
+              }
+              if (board.moveCount !== expectedMoveCount) {
+                console.log(`[SimulBot] Cancelling bot move - moveCount mismatch (expected ${expectedMoveCount}, got ${board.moveCount})`);
+                return;
+              }
+              
               const botMove = await generateBotMoveClient(
                 fen,
                 personality as BotPersonality,
@@ -647,6 +666,13 @@ export default function SimulVsSimulMode() {
               );
               
               if (botMove && wsRef.current?.readyState === WebSocket.OPEN) {
+                // Final check before sending - game might have ended during calculation
+                const finalBoard = boardsRef.current.find(b => b.pairingId === pairingId);
+                if (!finalBoard || !isGameOngoing(finalBoard.result)) {
+                  console.log(`[SimulBot] Cancelling bot move - game ended during calculation for pairing ${pairingId}`);
+                  return;
+                }
+                
                 console.log(`[SimulBot] Sending bot move result: ${botMove.move}`);
                 const game = new Chess(fen);
                 game.move({ from: botMove.from, to: botMove.to, promotion: botMove.promotion });

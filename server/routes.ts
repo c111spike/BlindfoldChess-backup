@@ -4516,7 +4516,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentFen = pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const moveCount = pairing.moveCount || 0;
       
-      console.log(`[SimulBot] Notifying client to calculate bot move for pairing ${pairingId}`);
+      // Get timer state for the bot's side
+      const timer = simulTimers.get(pairingId);
+      const botTimeRemaining = timer 
+        ? (isWhiteTurn ? timer.whiteTimeRemaining : timer.blackTimeRemaining)
+        : 30;
+      
+      console.log(`[SimulBot] Notifying client to calculate bot move for pairing ${pairingId}, botTime: ${botTimeRemaining}s`);
       
       // Send notification to the human player's client
       const humanWs = userConnections.get(humanPlayerId);
@@ -4532,6 +4538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           moves: pairing.moves || [],
           moveCount,
           botColor: isWhiteTurn ? 'white' : 'black',
+          botTimeRemaining,
         }));
       } else {
         console.error(`[SimulBot] Human player ${humanPlayerId} not connected for pairing ${pairingId}`);
