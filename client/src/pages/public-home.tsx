@@ -80,7 +80,7 @@ export default function PublicHomePage() {
             className="w-full h-full object-cover object-center"
             loading="eager"
             decoding="async"
-            fetchPriority="high"
+            {...({ fetchpriority: "high" } as any)}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
         </div>
