@@ -38,7 +38,7 @@ import {
   BOT_PERSONALITY_ICONS,
   getBotByConfig 
 } from "@shared/botTypes";
-import { generateBotMoveClient, getThinkTime, LastMoveInfo, recordPosition, clearPositionHistory } from "@/lib/botEngine";
+import { generateBotMoveClient, getThinkTime, LastMoveInfo, recordPosition, clearPositionHistory, countBotPieces, detectRecapture } from "@/lib/botEngine";
 import { OTBTutorial, useOTBTutorial } from "@/components/otb-tutorial";
 import { SuspensionBanner } from "@/components/suspension-banner";
 
@@ -58,23 +58,54 @@ function extractLastMoveInfoOTB(move: { from: string; to: string; captured?: str
   };
 }
 
-// Calculate human-like bot move delay based on move number and remaining clock time
-// - First 10 moves: 1 second (opening book / quick development)
-// - Moves 11+: 3-5 seconds random (thinking time)
-// - Clock under 1 minute: 1 second (time pressure)
-function getBotMoveDelay(moveNumber: number, remainingTimeSeconds: number): number {
-  // Time pressure mode - quick moves when low on time
+// Calculate human-like bot move delay based on game state
+// Priority order:
+// 1. Recapture available → 1 second (reflexive move)
+// 2. Clock under 1 minute → 1 second (time pressure)
+// 3. Piece count determines endgame phase
+// 4. Move count determines opening/middlegame phase
+function getBotMoveDelay(
+  moveNumber: number, 
+  remainingTimeSeconds: number,
+  fen: string,
+  botColor: 'white' | 'black',
+  lastMove: LastMoveInfo | undefined
+): number {
+  // 1. Recapture available - quick reflexive move
+  if (detectRecapture(lastMove, fen)) {
+    return 1000;
+  }
+  
+  // 2. Time pressure mode - quick moves when low on time
   if (remainingTimeSeconds < 60) {
-    return 1000; // 1 second
+    return 1000;
   }
   
-  // Opening phase - quick book moves
-  if (moveNumber <= 10) {
-    return 1000; // 1 second
+  // 3. Check piece count for endgame phases
+  const pieceCount = countBotPieces(fen, botColor);
+  
+  if (pieceCount === 1) {
+    // Lone king - no choices, instant move
+    return 1000;
+  } else if (pieceCount >= 2 && pieceCount <= 5) {
+    // Endgame low - simplified calculation
+    return 2000 + Math.random() * 1000; // 2-3s
+  } else if (pieceCount >= 6 && pieceCount <= 11) {
+    // Endgame mid - moderate calculation
+    return 3000 + Math.random() * 1000; // 3-4s
   }
   
-  // Middlegame/endgame - random 3-5 seconds for human-like thinking
-  return 3000 + Math.random() * 2000; // 3000-5000ms
+  // 4. Full board (12-16 pieces) - use move count
+  if (moveNumber <= 5) {
+    // Opening - quick book moves
+    return 1000;
+  } else if (moveNumber <= 11) {
+    // Early development
+    return 2000 + Math.random() * 1000; // 2-3s
+  }
+  
+  // Middlegame - deep thinking
+  return 3000 + Math.random() * 3000; // 3-6s
 }
 
 // Promise-based delay utility
@@ -2055,7 +2086,8 @@ export default function OTBMode() {
     if (assignedColor === "black") {
       // Bot plays white and moves first - use human-like delay
       (async () => {
-        const thinkingDelay = getBotMoveDelay(1, seconds); // Move 1, full time remaining
+        const initialFen = newGame.fen();
+        const thinkingDelay = getBotMoveDelay(1, seconds, initialFen, 'white', undefined); // Move 1, full time remaining, no last move
         console.log('[OTB Bot] Initial move delay:', thinkingDelay, 'ms');
         await delay(thinkingDelay);
         
@@ -2299,7 +2331,7 @@ export default function OTBMode() {
     // Move number is (current moves + 1) since bot is about to make a move
     const botMoveNumber = Math.ceil((moves.length + 1) / 2); // Convert to full move number (each side)
     const botRemainingTime = botColor === 'white' ? whiteTimeRef.current : blackTimeRef.current;
-    const thinkingDelay = getBotMoveDelay(botMoveNumber, botRemainingTime);
+    const thinkingDelay = getBotMoveDelay(botMoveNumber, botRemainingTime, currentFen, botColor, playerLastMoveInfo);
     console.log('[OTB Bot] Thinking delay:', thinkingDelay, 'ms (move', botMoveNumber, ', time:', botRemainingTime, 's)');
     await delay(thinkingDelay);
     

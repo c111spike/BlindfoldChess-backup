@@ -53,7 +53,7 @@ import {
   BOT_PERSONALITY_ICONS,
   getBotByConfig 
 } from "@shared/botTypes";
-import { generateBotMoveClient, getThinkTime, LastMoveInfo, recordPosition, clearPositionHistory } from "@/lib/botEngine";
+import { generateBotMoveClient, getThinkTime, LastMoveInfo, recordPosition, clearPositionHistory, countBotPieces, detectRecapture } from "@/lib/botEngine";
 
 // Piece values for recapture detection (must match botEngine.ts)
 const PIECE_VALUES: Record<string, number> = {
@@ -71,23 +71,54 @@ function extractLastMoveInfo(move: { from: string; to: string; captured?: string
   };
 }
 
-// Calculate human-like bot move delay based on move number and remaining clock time
-// - First 10 moves: 1 second (opening book / quick development)
-// - Moves 11+: 3-5 seconds random (thinking time)
-// - Clock under 1 minute: 1 second (time pressure)
-function getBotMoveDelay(moveNumber: number, remainingTimeSeconds: number): number {
-  // Time pressure mode - quick moves when low on time
+// Calculate human-like bot move delay based on game state
+// Priority order:
+// 1. Recapture available → 1 second (reflexive move)
+// 2. Clock under 1 minute → 1 second (time pressure)
+// 3. Piece count determines endgame phase
+// 4. Move count determines opening/middlegame phase
+function getBotMoveDelay(
+  moveNumber: number, 
+  remainingTimeSeconds: number,
+  fen: string,
+  botColor: 'white' | 'black',
+  lastMove: LastMoveInfo | undefined
+): number {
+  // 1. Recapture available - quick reflexive move
+  if (detectRecapture(lastMove, fen)) {
+    return 1000;
+  }
+  
+  // 2. Time pressure mode - quick moves when low on time
   if (remainingTimeSeconds < 60) {
-    return 1000; // 1 second
+    return 1000;
   }
   
-  // Opening phase - quick book moves
-  if (moveNumber <= 10) {
-    return 1000; // 1 second
+  // 3. Check piece count for endgame phases
+  const pieceCount = countBotPieces(fen, botColor);
+  
+  if (pieceCount === 1) {
+    // Lone king - no choices, instant move
+    return 1000;
+  } else if (pieceCount >= 2 && pieceCount <= 5) {
+    // Endgame low - simplified calculation
+    return 2000 + Math.random() * 1000; // 2-3s
+  } else if (pieceCount >= 6 && pieceCount <= 11) {
+    // Endgame mid - moderate calculation
+    return 3000 + Math.random() * 1000; // 3-4s
   }
   
-  // Middlegame/endgame - random 3-5 seconds for human-like thinking
-  return 3000 + Math.random() * 2000; // 3000-5000ms
+  // 4. Full board (12-16 pieces) - use move count
+  if (moveNumber <= 5) {
+    // Opening - quick book moves
+    return 1000;
+  } else if (moveNumber <= 11) {
+    // Early development
+    return 2000 + Math.random() * 1000; // 2-3s
+  }
+  
+  // Middlegame - deep thinking
+  return 3000 + Math.random() * 3000; // 3-6s
 }
 
 // Promise-based delay utility
@@ -1063,7 +1094,8 @@ export default function StandardMode() {
       
       // Apply human-like delay BEFORE returning the move (keeps botThinking=true during delay)
       const moveNumber = Math.ceil((moveCount + 2) / 2); // +2 because this will be bot's response
-      const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime);
+      const botColor: 'white' | 'black' = playerColor === 'white' ? 'black' : 'white';
+      const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime, currentFen, botColor, lastMoveInfo);
       await delay(thinkDelay);
       
       return result;
