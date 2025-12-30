@@ -58,6 +58,30 @@ function extractLastMoveInfoOTB(move: { from: string; to: string; captured?: str
   };
 }
 
+// Calculate human-like bot move delay based on move number and remaining clock time
+// - First 10 moves: 1 second (opening book / quick development)
+// - Moves 11+: 3-5 seconds random (thinking time)
+// - Clock under 1 minute: 1 second (time pressure)
+function getBotMoveDelay(moveNumber: number, remainingTimeSeconds: number): number {
+  // Time pressure mode - quick moves when low on time
+  if (remainingTimeSeconds < 60) {
+    return 1000; // 1 second
+  }
+  
+  // Opening phase - quick book moves
+  if (moveNumber <= 10) {
+    return 1000; // 1 second
+  }
+  
+  // Middlegame/endgame - random 3-5 seconds for human-like thinking
+  return 3000 + Math.random() * 2000; // 3000-5000ms
+}
+
+// Promise-based delay utility
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 const INITIAL_BOARD = [
   ["r", "n", "b", "q", "k", "b", "n", "r"],
   ["p", "p", "p", "p", "p", "p", "p", "p"],
@@ -2029,7 +2053,12 @@ export default function OTBMode() {
     gameStartTimeRef.current = Date.now(); // Track game start for first move timing
     
     if (assignedColor === "black") {
-      setTimeout(async () => {
+      // Bot plays white and moves first - use human-like delay
+      (async () => {
+        const thinkingDelay = getBotMoveDelay(1, seconds); // Move 1, full time remaining
+        console.log('[OTB Bot] Initial move delay:', thinkingDelay, 'ms');
+        await delay(thinkingDelay);
+        
         const botMove = await requestBotMove(newGame.fen(), bot.id);
         if (botMove) {
           const legalGame = new Chess();
@@ -2076,7 +2105,7 @@ export default function OTBMode() {
         } else {
           setBotThinking(false);
         }
-      }, 500);
+      })();
     }
   };
 
@@ -2265,6 +2294,14 @@ export default function OTBMode() {
     }
     const botMove = await requestBotMove(currentFen, selectedBot.id, moveHistorySAN, playerLastMoveInfo);
     console.log('[OTB Bot] Bot response:', botMove);
+    
+    // Add human-like delay before applying the move
+    // Move number is (current moves + 1) since bot is about to make a move
+    const botMoveNumber = Math.ceil((moves.length + 1) / 2); // Convert to full move number (each side)
+    const botRemainingTime = botColor === 'white' ? whiteTimeRef.current : blackTimeRef.current;
+    const thinkingDelay = getBotMoveDelay(botMoveNumber, botRemainingTime);
+    console.log('[OTB Bot] Thinking delay:', thinkingDelay, 'ms (move', botMoveNumber, ', time:', botRemainingTime, 's)');
+    await delay(thinkingDelay);
     
     if (botMove && botMove.move) {
       console.log('[OTB Bot] Applying bot move:', botMove.move);
