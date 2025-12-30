@@ -4478,15 +4478,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
   
-  // Helper: Make a bot move in a Simul vs Simul pairing
-  async function makeSimulBotMove(pairingId: string) {
+  // Helper: Send notification to human player that it's their bot opponent's turn
+  // The client will calculate the bot move and send it back via simul_bot_move_result
+  async function sendSimulBotTurnNotification(pairingId: string) {
     try {
       const pairing = await storage.getSimulVsSimulPairing(pairingId);
       if (!pairing || pairing.result !== 'ongoing') {
         return; // Game is over
       }
       
-      // Determine which side is the bot (handle null as false)
+      // Determine which side is the bot
       const isWhiteTurn = pairing.activeColor === 'white';
       const isBotTurn = isWhiteTurn ? (pairing.whiteIsBot === true) : (pairing.blackIsBot === true);
       
@@ -4500,31 +4501,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      // Determine bot personality from botId (format: "bot_personality_difficulty")
-      // Personality names can contain underscores (e.g., knight_lover), so extract from ends
-      const botParts = botId.split('_');
-      const difficulty = (botParts[botParts.length - 1] || 'intermediate') as any;
-      // Personality is everything between 'bot' prefix and difficulty suffix
-      const personality = (botParts.length > 2 ? botParts.slice(1, -1).join('_') : 'balanced') as any;
-      
-      console.log(`[SimulBot] Making move for bot ${botId} in pairing ${pairingId}`);
-      
-      // Use current FEN or default starting position if null
-      const currentFen = pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-      
-      // Generate bot move
-      const botMove = await generateBotMove(currentFen, personality, difficulty, pairing.moves || []);
-      if (!botMove) {
-        console.log(`[SimulBot] No valid move for bot in pairing ${pairingId}`);
+      // Find the human opponent who will calculate the bot's move
+      const humanPlayerId = isWhiteTurn ? pairing.blackPlayerId : pairing.whitePlayerId;
+      if (!humanPlayerId) {
+        console.error(`[SimulBot] No human player found for pairing ${pairingId}`);
         return;
       }
       
-      // Apply the move to get new FEN
+      // Parse bot personality and difficulty from botId
+      const botParts = botId.split('_');
+      const difficulty = botParts[botParts.length - 1] || 'intermediate';
+      const personality = botParts.length > 2 ? botParts.slice(1, -1).join('_') : 'balanced';
+      
+      const currentFen = pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      const moveCount = pairing.moveCount || 0;
+      
+      console.log(`[SimulBot] Notifying client to calculate bot move for pairing ${pairingId}`);
+      
+      // Send notification to the human player's client
+      const humanWs = userConnections.get(humanPlayerId);
+      if (humanWs && humanWs.readyState === WebSocket.OPEN) {
+        humanWs.send(JSON.stringify({
+          type: 'simul_bot_turn',
+          pairingId,
+          matchId: pairing.matchId,
+          botId,
+          personality,
+          difficulty,
+          fen: currentFen,
+          moves: pairing.moves || [],
+          moveCount,
+          botColor: isWhiteTurn ? 'white' : 'black',
+        }));
+      } else {
+        console.error(`[SimulBot] Human player ${humanPlayerId} not connected for pairing ${pairingId}`);
+      }
+      
+    } catch (error) {
+      console.error(`[SimulBot] Error sending bot turn notification for pairing ${pairingId}:`, error);
+    }
+  }
+  
+  // Helper: Apply a bot move calculated by the client
+  // Called when we receive simul_bot_move_result from the client
+  async function applySimulBotMove(
+    pairingId: string,
+    botMove: { move: string; from: string; to: string; promotion?: string },
+    calculatedFen: string
+  ) {
+    try {
+      const pairing = await storage.getSimulVsSimulPairing(pairingId);
+      if (!pairing || pairing.result !== 'ongoing') {
+        return; // Game is over
+      }
+      
+      const isWhiteTurn = pairing.activeColor === 'white';
+      
+      // Validate move with chess.js
       const { Chess } = await import('chess.js');
+      const currentFen = pairing.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const game = new Chess(currentFen);
       const result = game.move({ from: botMove.from, to: botMove.to, promotion: botMove.promotion });
+      
       if (!result) {
-        console.error(`[SimulBot] Invalid move ${botMove.move} in pairing ${pairingId}`);
+        console.error(`[SimulBot] Invalid bot move ${botMove.move} in pairing ${pairingId}`);
         return;
       }
       
@@ -4573,7 +4613,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const matchFocus = simulPlayerFocus.get(pairing.matchId);
           const humanFocus = matchFocus?.get(humanPlayerId);
           
-          // Only start timer if opponent has confirmed focus on this board (not pending ack)
           if (humanFocus?.activePairingId === pairingId && !humanFocus?.pendingAck) {
             timer.isPaused = false;
             timer.deadline = Date.now() + (SIMUL_TURN_TIMER_SECONDS * 1000);
@@ -4588,10 +4627,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Broadcast bot move to ALL match participants AND board viewers
-      // This ensures players receive bot moves even when viewing different boards
       const sentTo = new Set<string>();
       
-      // First, send to all match participants (players who might be on other boards)
       const matchRoom = simulMatchRooms.get(pairing.matchId);
       if (matchRoom) {
         matchRoom.forEach((userId) => {
@@ -4619,7 +4656,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pairingRoom = simulPairingRooms.get(pairingId);
       if (pairingRoom) {
         pairingRoom.forEach((userId) => {
-          if (sentTo.has(userId)) return; // Already sent
+          if (sentTo.has(userId)) return;
           const ws = userConnections.get(userId);
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
@@ -4644,7 +4681,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[SimulBot] Game ended: ${gameResult}, winner: ${winner || 'none'}`);
         const gameEndSentTo = new Set<string>();
         
-        // Send to all match participants
         const gameEndMatchRoom = simulMatchRooms.get(pairing.matchId);
         if (gameEndMatchRoom) {
           gameEndMatchRoom.forEach((userId) => {
@@ -4661,11 +4697,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        // Also send to pairing room viewers (spectators not in match room)
         const gameEndPairingRoom = simulPairingRooms.get(pairingId);
         if (gameEndPairingRoom) {
           gameEndPairingRoom.forEach((userId) => {
-            if (gameEndSentTo.has(userId)) return; // Already sent
+            if (gameEndSentTo.has(userId)) return;
             const ws = userConnections.get(userId);
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({
@@ -4690,15 +4725,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             completedAt: new Date(),
           });
           
-          // Calculate and apply Simul ELO changes
           const matchPlayers = await storage.getSimulVsSimulMatchPlayers(matchId);
           const ratingChanges = await calculateSimulEloChanges(matchId, allPairings, matchPlayers);
           await applySimulEloChanges(ratingChanges);
           
-          // Notify all players in match (include their rating change)
-          const matchRoom = simulMatchRooms.get(matchId);
-          if (matchRoom) {
-            matchRoom.forEach((roomUserId) => {
+          const completeMatchRoom = simulMatchRooms.get(matchId);
+          if (completeMatchRoom) {
+            completeMatchRoom.forEach((roomUserId) => {
               const playerWs = userConnections.get(roomUserId);
               if (playerWs && playerWs.readyState === WebSocket.OPEN) {
                 const playerStats = ratingChanges.get(roomUserId);
@@ -4715,22 +4748,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // Clean up match resources
           cleanupSimulMatch(matchId, allPairings.map(p => p.id));
         }
       }
       
-      // If it's still a bot's turn (opponent is also a bot), schedule next bot move
+      // If it's still a bot's turn (opponent is also a bot), notify client again
       if (gameResult === 'ongoing') {
         const nextIsBotTurn = newActiveColor === 'white' ? (pairing.whiteIsBot === true) : (pairing.blackIsBot === true);
         if (nextIsBotTurn) {
-          const thinkTime = calculateBotThinkTime(difficulty);
-          setTimeout(() => makeSimulBotMove(pairingId), thinkTime);
+          // Small delay before next bot notification
+          setTimeout(() => sendSimulBotTurnNotification(pairingId), 100);
         }
       }
       
     } catch (error) {
-      console.error(`[SimulBot] Error making bot move in pairing ${pairingId}:`, error);
+      console.error(`[SimulBot] Error applying bot move in pairing ${pairingId}:`, error);
     }
   }
   
@@ -5693,20 +5725,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`[SimulWS] Sending ${playerGames.length} boards and ${allPlayers.length} players to client`);
             
             // Trigger initial bot moves for games where white is a bot
-            // Only do this once per pairing - use a Set to track which we've started
+            // Notify client to calculate the bot's move (delay happens client-side)
             for (const pairing of playerGames) {
               if (pairing.whiteIsBot === true && (pairing.moveCount || 0) === 0 && pairing.result === 'ongoing') {
                 // Check if we haven't already scheduled this bot move
-                // Use the timer's deadline as a proxy - if it's already set, bot move was scheduled
                 const timer = simulTimers.get(pairing.id);
                 if (timer && timer.whiteTimeRemaining === SIMUL_TURN_TIMER_SECONDS && !timer.deadline) {
-                  const botId = pairing.whiteBotId;
-                  const botParts = (botId || '').split('_');
-                  // Difficulty is always the last segment (handles personalities with underscores like knight_lover)
-                  const difficulty = (botParts[botParts.length - 1] || 'intermediate') as any;
-                  const thinkTime = calculateBotThinkTime(difficulty);
-                  console.log(`[SimulBot] Scheduling initial white bot move in ${thinkTime}ms for pairing ${pairing.id}`);
-                  setTimeout(() => makeSimulBotMove(pairing.id), thinkTime);
+                  console.log(`[SimulBot] Notifying client for initial white bot move in pairing ${pairing.id}`);
+                  // Small delay to ensure client is fully initialized
+                  setTimeout(() => sendSimulBotTurnNotification(pairing.id), 200);
                 }
               }
             }
@@ -5848,22 +5875,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               moveCount: newMoves.length,
             }));
             
-            // Check if it's now a bot's turn - schedule bot move (handle null as false)
+            // Check if it's now a bot's turn - notify client to calculate move
             const nextPlayerIsBot = newActiveColor === 'white' ? (pairing.whiteIsBot === true) : (pairing.blackIsBot === true);
             if (nextPlayerIsBot) {
-              const botId = newActiveColor === 'white' ? pairing.whiteBotId : pairing.blackBotId;
-              const botParts = (botId || '').split('_');
-              // Difficulty is always the last segment (handles personalities with underscores like knight_lover)
-              const difficulty = (botParts[botParts.length - 1] || 'intermediate') as any;
-              const thinkTime = calculateBotThinkTime(difficulty);
-              console.log(`[SimulBot] Scheduling bot move in ${thinkTime}ms for pairing ${pairingId}`);
-              setTimeout(() => makeSimulBotMove(pairingId), thinkTime);
+              console.log(`[SimulBot] Notifying client for bot move in pairing ${pairingId}`);
+              // Immediate notification - delay happens client-side
+              sendSimulBotTurnNotification(pairingId);
             }
             
           } catch (error) {
             console.error('[SimulWS] Error processing simul move:', error);
             ws.send(JSON.stringify({ type: 'error', message: 'Failed to process move' }));
           }
+          
+        } else if (data.type === 'simul_bot_move_result') {
+          // Client has calculated the bot's move - apply it and broadcast
+          const { pairingId, move, from, to, promotion, fen } = data;
+          
+          console.log(`[SimulBot] Received bot move result for pairing ${pairingId}: ${move}`);
+          
+          await applySimulBotMove(pairingId, { move, from, to, promotion }, fen);
           
         } else if (data.type === 'simul_switch_board') {
           const userId = ws.userId;
@@ -5927,16 +5958,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     });
                   }
                   
-                  // Schedule bot moves if it's a bot's turn
+                  // Notify client for bot moves if it's a bot's turn
                   const isWhiteTurn = pairing.activeColor === 'white';
                   const isBotTurn = isWhiteTurn ? (pairing.whiteIsBot === true) : (pairing.blackIsBot === true);
                   if (isBotTurn) {
-                    const botId = isWhiteTurn ? pairing.whiteBotId : pairing.blackBotId;
-                    const botParts = (botId || '').split('_');
-                    const difficulty = (botParts[botParts.length - 1] || 'intermediate') as any;
-                    const thinkTime = calculateBotThinkTime(difficulty);
-                    console.log(`[SimulBot] Scheduling recovered bot move in ${thinkTime}ms for pairing ${pairing.id}`);
-                    setTimeout(() => makeSimulBotMove(pairing.id), thinkTime);
+                    console.log(`[SimulBot] Notifying client for recovered bot move in pairing ${pairing.id}`);
+                    // Small delay to ensure client is fully initialized
+                    setTimeout(() => sendSimulBotTurnNotification(pairing.id), 200);
                   }
                 }
               }
