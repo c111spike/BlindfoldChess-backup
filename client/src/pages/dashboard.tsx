@@ -49,7 +49,7 @@ export default function Dashboard() {
       <div className="p-8 space-y-8">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-32" />
+            <Skeleton key={i} className="min-h-[120px]" />
           ))}
         </div>
       </div>
@@ -76,7 +76,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card>
+        <Card className="min-h-[120px]">
           <CardHeader className="space-y-0 pb-3">
             <CardDescription className="text-xs font-medium">Simul Elo</CardDescription>
             <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-simul">
@@ -91,7 +91,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-h-[120px]">
           <CardHeader className="space-y-0 pb-3">
             <CardDescription className="text-xs font-medium">OTB Blitz</CardDescription>
             <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-otb-blitz">
@@ -106,7 +106,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-h-[120px]">
           <CardHeader className="space-y-0 pb-3">
             <CardDescription className="text-xs font-medium">OTB Rapid</CardDescription>
             <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-otb-rapid">
@@ -121,7 +121,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-h-[120px]">
           <CardHeader className="space-y-0 pb-3">
             <CardDescription className="text-xs font-medium">Elo Blitz</CardDescription>
             <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-blitz">
@@ -136,7 +136,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-h-[120px]">
           <CardHeader className="space-y-0 pb-3">
             <CardDescription className="text-xs font-medium">Elo Rapid</CardDescription>
             <CardTitle className="text-3xl font-mono font-bold" data-testid="text-rating-rapid">

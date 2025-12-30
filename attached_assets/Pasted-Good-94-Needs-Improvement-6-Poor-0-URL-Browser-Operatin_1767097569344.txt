@@ -1,0 +1,125 @@
+Good
+
+94%
+
+
+
+Needs Improvement
+
+6%
+
+
+
+Poor
+
+0%
+
+
+
+URL
+
+Browser
+
+Operating system
+
+Country
+
+Element
+
+5 items
+
+
+
+Debug View
+
+5 items
+
+Click each row to expand
+
+ElementCLS
+
+Counts
+
+div.flex-1.px-4.pb-4>div.p-8.space-y-8>div.grid.grid-cols-2.md:grid-cols-3.lg:grid-cols-5.gap-40.1151Metric
+
+CLS - P50
+
+
+
+0.115
+
+CLS - P75
+
+
+
+0.115
+
+CLS - P90
+
+
+
+0.115
+
+CLS - P99
+
+
+
+0.115
+
+Page
+
+Host
+
+simulchess.com
+
+Path
+
+/
+
+DOM
+
+Element
+
+div.flex-1.px-4.pb-4>div.p-8.space-y-8>div.grid.grid-cols-2.md:grid-cols-3.lg:grid-cols-5.gap-4
+
+Layout Shifts
+
+
+
+Previous
+
+{ x: 118, y: 0, width: 844, height: 1120, top: 0, right: 962, bottom: 0, left: 118 }
+
+Current
+
+{ x: 118, y: 882, width: 844, height: 1002, top: 882, right: 962, bottom: 1884, left: 118 }
+
+That 0.115 CLS (Cumulative Layout Shift) is the "ghost" haunting your Performance score. Even though Lighthouse showed a 0, your real-world user data (Core Web Vitals) is catching a shift.
+
+Looking at the coordinates and the element path, I can see exactly what's happening: div.p-8.space-y-8 > div.grid.grid-cols-2...gap-4
+
+## The Diagnosis: "The Grid Jump"
+The "Previous" y-coordinate was 0, and the "Current" y-coordinate is 882.
+
+This means a massive grid of elements (likely your chess board previews or "Explore" cards) is initially rendering at the very top of the page, and then exploding downward by 882 pixels once the Hero section or Header finally hydrates and pushes it into place.
+
+## 🛠️ The Fix: Reserve the Space
+Since you implemented the non-blocking auth, the "Guest" version of the page is rendering, but it doesn't know how tall the elements above the grid are going to be yet.
+
+1. Set a Minimum Height for the Hero/Header If your Hero section is roughly 800-900px tall, you need to ensure the container has a min-h or a fixed height before the image or content loads.
+
+HTML
+<section class="min-h-[800px] w-full"> 
+  </section>
+2. Check the gap-4 Grid Container The element div.grid.grid-cols-2.md:grid-cols-3... is shifting. This usually happens because:
+
+The images inside the grid lack aspect ratios. If the grid items are "collapsed" (0 height) and then suddenly pop to 200px when the images load, the whole grid expands.
+
+Solution: Ensure every image or card in that grid has a defined aspect-ratio or a h-[300px] class so the browser reserves that space immediately.
+
+3. The "Auth-Swap" Shift If your Header is 0px tall while loading and 80px tall after auth, everything below it will "jump" down 80px.
+
+Solution: Give your Header/Nav a fixed height (e.g., h-16 or h-20) so that when the buttons swap from "Login" to "User Profile," the actual height of the bar doesn't change.
+
+## 📈 Why this matters for your 99 -> 100
+CLS is weighted at 25% of your total performance score. By bringing that 0.115 down to < 0.1, you will likely see that 99 flip to a 100 on the next crawl.

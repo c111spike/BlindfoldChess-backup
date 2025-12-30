@@ -240,14 +240,14 @@ function AppContent() {
             className="md:hidden fixed top-3 left-3 z-50 bg-sidebar text-sidebar-foreground border border-sidebar-border rounded-md" 
             data-testid="button-mobile-sidebar-toggle" 
           />
-          {/* Header bar with back button and dev tools */}
-          <div className="flex items-center justify-between px-4 py-2 pl-14 md:pl-4">
+          {/* Header bar with back button and dev tools - h-12 locks height to prevent CLS */}
+          <div className="flex items-center justify-between px-4 h-12 pl-14 md:pl-4">
             <BackButton />
             {isAuthenticated && isDevelopment && (
               <TestUserSwitcher />
             )}
           </div>
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto min-h-screen">
             {renderMainContent()}
           </main>
           <MobileFooter />
