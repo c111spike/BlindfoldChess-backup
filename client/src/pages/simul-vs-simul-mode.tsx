@@ -741,8 +741,13 @@ export default function SimulVsSimulMode() {
                 
                 console.log(`[SimulBot] Sending bot move result: ${botMove.move}`);
                 
-                // Create new Chess instance and apply the bot move
-                const game = new Chess(fen);
+                // CRITICAL FIX: Create Chess instance by replaying ALL moves from history
+                // This preserves the full game history so chess.history().length is accurate
+                // DO NOT use new Chess(fen) - it creates a "memoryless" instance with no history
+                const game = new Chess();
+                finalBoard.moves.forEach(m => game.move(m));
+                
+                // Now apply the bot's new move
                 const moveResult = game.move({ from: botMove.from, to: botMove.to, promotion: botMove.promotion });
                 if (!moveResult) {
                   console.error(`[SimulBot] Invalid bot move: ${botMove.move}`);
@@ -751,10 +756,9 @@ export default function SimulVsSimulMode() {
                 const newFen = game.fen();
                 const newActiveColor = game.turn() === 'w' ? 'white' : 'black';
                 
-                // CRITICAL: Increment from current board's moveCount, not game.history().length
-                // game.history() only contains 1 move (the new one) since we created a fresh Chess from FEN
-                const newMoveCount = finalBoard.moveCount + 1;
-                const newMoves = [...finalBoard.moves, botMove.move];
+                // Now game.history().length is ACCURATE because we replayed all moves
+                const newMoveCount = game.history().length;
+                const newMoves = game.history();
                 
                 // CRITICAL FIX: Apply bot move to local state FIRST (optimistic update)
                 // This ensures the local moveCount is in sync before the server responds
@@ -774,7 +778,7 @@ export default function SimulVsSimulMode() {
                 boardsRef.current = updatedBoards;
                 setBoards(updatedBoards);
                 
-                console.log(`[SimulBot] Applied bot move locally: moveCount ${finalBoard.moveCount} -> ${newMoveCount}`);
+                console.log(`[SimulBot] Applied bot move locally: moveCount ${finalBoard.moveCount} -> ${newMoveCount}. History Length: ${game.history().length}`);
                 
                 // Now send to server
                 wsRef.current.send(JSON.stringify({
