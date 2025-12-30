@@ -542,9 +542,19 @@ export default function SimulVsSimulMode() {
           const boardIndex = boardsRef.current.findIndex(b => b.pairingId === data.pairingId);
           const boardNumber = boardIndex >= 0 ? boardsRef.current[boardIndex].boardNumber : '?';
           
-          // Update boardsRef immediately to prevent race conditions with simul_bot_turn
-          // (simul_bot_turn can arrive right after and needs current moveCount)
+          // Sequence Guard: Only accept updates if incoming moveCount > local moveCount
+          // This prevents late-arriving WebSocket messages from "time traveling" the board back
+          // to a previous state (out-of-order execution bug)
           if (boardIndex !== -1) {
+            const localMoveCount = boardsRef.current[boardIndex].moveCount;
+            const incomingMoveCount = data.moveCount;
+            
+            if (incomingMoveCount <= localMoveCount) {
+              console.log(`[SimulWS] Ignored stale opponent move for board ${boardNumber}. Local: ${localMoveCount}, Incoming: ${incomingMoveCount}`);
+              break; // Drop the message; we are already ahead or at same position
+            }
+            
+            // Update boardsRef immediately to prevent race conditions with simul_bot_turn
             const chess = new Chess(data.fen);
             const opponentThinkingTime = (Date.now() - boardsRef.current[boardIndex].turnStartTime) / 1000;
             const newThinkingTimes = [...boardsRef.current[boardIndex].thinkingTimes, opponentThinkingTime];
@@ -554,7 +564,7 @@ export default function SimulVsSimulMode() {
               ...boardsRef.current[boardIndex],
               fen: data.fen,
               moves: chess.history(),
-              moveCount: data.moveCount,
+              moveCount: incomingMoveCount,
               activeColor: data.activeColor,
               chess,
               lastMove: data.from && data.to ? { from: data.from, to: data.to } : boardsRef.current[boardIndex].lastMove,
@@ -565,12 +575,12 @@ export default function SimulVsSimulMode() {
             // Update ref immediately, then trigger React state update
             boardsRef.current = updatedBoards;
             setBoards(updatedBoards);
+            
+            toast({
+              title: `Opponent moved on Board ${boardNumber}`,
+              description: data.move,
+            });
           }
-          
-          toast({
-            title: `Opponent moved on Board ${boardNumber}`,
-            description: data.move,
-          });
         }
         break;
         
