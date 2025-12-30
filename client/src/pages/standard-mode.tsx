@@ -1044,7 +1044,7 @@ export default function StandardMode() {
       const personality = parts.slice(2).join('_') as BotPersonality;
       
       // Get bot's remaining time (use opponent's time when playing as white)
-      const botRemainingTime = playerColor === 'white' ? blackTime * 1000 : whiteTime * 1000;
+      const botRemainingTime = playerColor === 'white' ? blackTimeRef.current : whiteTimeRef.current;
       const moveCount = moveHistorySAN?.length || 0;
       
       // Use client-side bot engine with Stockfish + personality
@@ -1052,7 +1052,7 @@ export default function StandardMode() {
         currentFen,
         personality,
         difficulty,
-        botRemainingTime,
+        botRemainingTime * 1000, // Convert to ms for engine
         moveCount,
         lastMoveInfo
       );
@@ -1060,6 +1060,11 @@ export default function StandardMode() {
       if (!result) {
         throw new Error("Bot failed to generate move");
       }
+      
+      // Apply human-like delay BEFORE returning the move (keeps botThinking=true during delay)
+      const moveNumber = Math.ceil((moveCount + 2) / 2); // +2 because this will be bot's response
+      const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime);
+      await delay(thinkDelay);
       
       return result;
     } catch (error) {
@@ -1073,7 +1078,7 @@ export default function StandardMode() {
     } finally {
       setBotThinking(false);
     }
-  }, [toast, playerColor, blackTime, whiteTime]);
+  }, [toast, playerColor]);
 
   const handleStartBotGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     if (!user) return;
@@ -1157,12 +1162,6 @@ export default function StandardMode() {
     if (assignedColor === "black") {
       const botMove = await requestBotMove(newGame.fen(), bot.id);
       if (botMove) {
-        // Apply human-like delay before showing bot move
-        const moveNumber = 1; // First move
-        const botRemainingTime = blackTimeRef.current;
-        const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime);
-        await delay(thinkDelay);
-        
         const moveResult = newGame.move(botMove.move);
         if (moveResult) {
           setLastMove({ from: moveResult.from, to: moveResult.to });
@@ -1436,15 +1435,8 @@ export default function StandardMode() {
       const moveHistorySAN = currentGame.history();
       const currentFen = currentGame.fen();
       
-      requestBotMove(currentFen, selectedBot.id, moveHistorySAN, undefined).then(async (botMove) => {
+      requestBotMove(currentFen, selectedBot.id, moveHistorySAN, undefined).then((botMove) => {
         if (botMove && gameRef.current) {
-          // Apply human-like delay before showing bot move
-          const moveNumber = Math.ceil((movesRef.current.length + 1) / 2);
-          const botColor = playerColor === "white" ? "black" : "white";
-          const botRemainingTime = botColor === "white" ? whiteTimeRef.current : blackTimeRef.current;
-          const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime);
-          await delay(thinkDelay);
-          
           const botMoveResult = gameRef.current.move(botMove.move);
           if (botMoveResult) {
             setLastMove({ from: botMoveResult.from, to: botMoveResult.to });
@@ -1533,14 +1525,7 @@ export default function StandardMode() {
             const lastMoveInfo = extractLastMoveInfo(move);
             const botMove = await requestBotMove(newFen, selectedBot.id, moveHistorySAN, lastMoveInfo);
             if (botMove && game) {
-              // Apply human-like delay before showing bot move
-              const moveNumber = Math.ceil((movesRef.current.length + 1) / 2);
-              const botColor = playerColor === "white" ? "black" : "white";
-              const botRemainingTime = botColor === "white" ? whiteTimeRef.current : blackTimeRef.current;
-              const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime);
-              await delay(thinkDelay);
-              
-              // Record bot's thinking time (includes artificial delay)
+              // Record bot's thinking time (includes artificial delay from requestBotMove)
               const botThinkingTime = (Date.now() - botThinkStartTime) / 1000;
               const botNewThinkingTimes = [...thinkingTimesRef.current, botThinkingTime];
               setThinkingTimes(botNewThinkingTimes);
