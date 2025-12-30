@@ -242,10 +242,18 @@ export function ChessBoard({
     const selectedPiece = getSelectedPiece();
     
     // If clicking on a piece of the same color as currently selected, switch selection
+    // BUT NOT if there's a locked piece (touch-move rule in OTB mode)
     if (piece && selectedPiece && internalSelectedSquare !== square) {
       const selectedIsWhite = isWhitePiece(selectedPiece);
       const clickedIsWhite = isWhitePiece(piece);
       if (selectedIsWhite === clickedIsWhite) {
+        // If a piece is locked (touch-move), don't allow visual selection switching
+        if (lockedPiece) {
+          // Still call onSquareClick so OTB mode can handle the tap
+          // but don't change the visual selection
+          onSquareClick?.(square);
+          return;
+        }
         // Same color - switch selection without trying to move
         setInternalSelectedSquare(square);
         onSquareClick?.(square);
@@ -261,7 +269,8 @@ export function ChessBoard({
         return;
       }
       // Move failed - if clicked square has a piece, select it instead
-      if (piece && externalSelectedSquare === null) {
+      // BUT NOT if there's a locked piece (touch-move rule)
+      if (piece && externalSelectedSquare === null && !lockedPiece) {
         setInternalSelectedSquare(square);
         onSquareClick?.(square);
         return;
@@ -269,10 +278,12 @@ export function ChessBoard({
     }
     
     if (piece) {
-      if (externalSelectedSquare === null) {
+      // Don't switch selection if a piece is locked (touch-move rule)
+      if (externalSelectedSquare === null && !lockedPiece) {
         setInternalSelectedSquare(square);
       }
-    } else if (internalSelectedSquare) {
+    } else if (internalSelectedSquare && !lockedPiece) {
+      // Don't clear selection if piece is locked
       setInternalSelectedSquare(null);
     }
     
