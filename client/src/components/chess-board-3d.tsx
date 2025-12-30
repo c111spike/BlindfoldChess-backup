@@ -49,6 +49,7 @@ interface ChessBoard3DProps {
   legalMoveSquares?: string[];
   lastMoveSquares?: string[];
   selectedSquare?: string | null;
+  lockedPiece?: string | null;
   onSquareClick?: (square: string) => void;
   onMove?: (from: string, to: string) => boolean;
   className?: string;

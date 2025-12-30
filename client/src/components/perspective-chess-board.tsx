@@ -61,6 +61,7 @@ export function PerspectiveChessBoard({
       legalMoveSquares={props.legalMoveSquares}
       lastMoveSquares={lastMoveSquares}
       selectedSquare={props.selectedSquare}
+      lockedPiece={props.lockedPiece}
       onSquareClick={props.onSquareClick}
       onMove={props.onMove}
       className={className}

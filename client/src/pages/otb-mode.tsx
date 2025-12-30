@@ -2415,13 +2415,14 @@ export default function OTBMode() {
   };
   
   // Check if a piece on a given square has any legal moves
+  // Returns true if legalChessGame is unavailable (conservative for touch-move enforcement)
   const pieceHasLegalMoves = (square: string): boolean => {
-    if (!legalChessGame) return false;
+    if (!legalChessGame) return true; // Assume piece has moves to enforce touch-move
     try {
       const moves = legalChessGame.moves({ square: square as any, verbose: true });
       return moves.length > 0;
     } catch {
-      return false;
+      return true; // Assume piece has moves on error
     }
   };
 
