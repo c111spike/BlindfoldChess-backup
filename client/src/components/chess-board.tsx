@@ -229,11 +229,11 @@ export function ChessBoard({
     const isWhitePiece = (p: string) => p === p.toUpperCase();
     const isBlackPiece = (p: string) => p === p.toLowerCase();
     
-    // Get the piece on the currently selected square
+    // Get the piece on the currently selected square (use combined selectedSquare for external control)
     const getSelectedPiece = (): string | null => {
-      if (!internalSelectedSquare) return null;
-      const selectedFile = internalSelectedSquare[0];
-      const selectedRank = internalSelectedSquare[1];
+      if (!selectedSquare) return null;
+      const selectedFile = selectedSquare[0];
+      const selectedRank = selectedSquare[1];
       const boardRank = RANKS.indexOf(selectedRank);
       const boardFile = FILES.indexOf(selectedFile);
       return board[boardRank]?.[boardFile] || null;
@@ -243,7 +243,7 @@ export function ChessBoard({
     
     // If clicking on a piece of the same color as currently selected, switch selection
     // BUT NOT if there's a locked piece (touch-move rule in OTB mode)
-    if (piece && selectedPiece && internalSelectedSquare !== square) {
+    if (piece && selectedPiece && selectedSquare !== square) {
       const selectedIsWhite = isWhitePiece(selectedPiece);
       const clickedIsWhite = isWhitePiece(piece);
       if (selectedIsWhite === clickedIsWhite) {
@@ -261,8 +261,8 @@ export function ChessBoard({
       }
     }
     
-    if (onMove && internalSelectedSquare && internalSelectedSquare !== square) {
-      const fromSquare = internalSelectedSquare;
+    if (onMove && selectedSquare && selectedSquare !== square) {
+      const fromSquare = selectedSquare;
       const moveResult = onMove(fromSquare, square);
       if (moveResult) {
         setInternalSelectedSquare(null);
@@ -282,7 +282,7 @@ export function ChessBoard({
       if (externalSelectedSquare === null && !lockedPiece) {
         setInternalSelectedSquare(square);
       }
-    } else if (internalSelectedSquare && !lockedPiece) {
+    } else if (selectedSquare && !lockedPiece) {
       // Don't clear selection if piece is locked
       setInternalSelectedSquare(null);
     }
