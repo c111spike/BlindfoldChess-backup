@@ -39,6 +39,7 @@ import {
   getBotByConfig 
 } from "@shared/botTypes";
 import { generateBotMoveClient, getThinkTime, LastMoveInfo, recordPosition, clearPositionHistory, countBotPieces, detectRecapture } from "@/lib/botEngine";
+import { clientStockfish } from "@/lib/stockfish";
 import { OTBTutorial, useOTBTutorial } from "@/components/otb-tutorial";
 import { SuspensionBanner } from "@/components/suspension-banner";
 
@@ -200,6 +201,15 @@ export default function OTBMode() {
     setTiltAngle(newTilt);
     saveTiltMutation.mutate(newTilt);
   }, [saveTiltMutation]);
+  
+  // CPU Safety: Stop Stockfish analysis when leaving the game page
+  // Prevents "ghost workers" from consuming CPU after navigation
+  useEffect(() => {
+    return () => {
+      clientStockfish.stopAnalysis();
+    };
+  }, []);
+  
   const [game, setGame] = useState<Chess | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);

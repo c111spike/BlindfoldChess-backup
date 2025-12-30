@@ -2266,6 +2266,10 @@ export async function generateBotMoveClient(
   moveCount?: number,
   lastMoveInfo?: LastMoveInfo
 ): Promise<{ move: string; from: string; to: string; promotion?: string; isFreeCapture?: boolean } | null> {
+  // CPU Safety: Stop any previous search before starting a new one
+  // Prevents "double-search" if user moves quickly or rapid game changes
+  clientStockfish.stopAnalysis();
+  
   const game = new Chess(fen);
   const moves = game.moves({ verbose: true });
   

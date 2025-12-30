@@ -8,6 +8,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { generateBotMoveClient, countBotPieces, detectRecapture, detectFreeCaptures, LastMoveInfo } from "@/lib/botEngine";
+import { clientStockfish } from "@/lib/stockfish";
 import type { BotPersonality, BotDifficulty } from "@shared/botTypes";
 
 // Piece values for recapture detection
@@ -113,6 +114,14 @@ export default function SimulVsSimulMode() {
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const queuePollRef = useRef<NodeJS.Timeout | null>(null);
   const matchIdRef = useRef<string | null>(null);
+  
+  // CPU Safety: Stop Stockfish analysis when leaving the game page
+  // Prevents "ghost workers" from consuming CPU after navigation
+  useEffect(() => {
+    return () => {
+      clientStockfish.stopAnalysis();
+    };
+  }, []);
   
   const { data: userSettings } = useQuery<UserSettings>({
     queryKey: ['/api/settings'],

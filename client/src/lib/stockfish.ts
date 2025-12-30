@@ -33,6 +33,7 @@ function normalizeEvaluation(rawEval: number): number {
 class ClientStockfish {
   private worker: Worker | null = null;
   private isReady: boolean = false;
+  private isSearching: boolean = false;
   private messageHandlers: MessageHandler[] = [];
   private initPromise: Promise<void> | null = null;
   private requestQueue: Promise<any> = Promise.resolve();
@@ -147,6 +148,7 @@ class ClientStockfish {
           else if (options.moveTime) goCommand += ` movetime ${options.moveTime}`;
           else goCommand += ' depth 15';
 
+          this.isSearching = true;
           this.sendCommand(goCommand);
 
           let evaluation: number | undefined;
@@ -166,6 +168,7 @@ class ClientStockfish {
             if (line.startsWith('bestmove')) {
               clearTimeout(timeout);
               this.removeHandler(handler);
+              this.isSearching = false;
 
               const moveMatch = line.match(/bestmove (\S+)/);
               if (moveMatch) {
@@ -183,6 +186,7 @@ class ClientStockfish {
           this.addHandler(handler);
         } catch (error) {
           clearTimeout(timeout);
+          this.isSearching = false;
           reject(error);
         }
       });
@@ -207,6 +211,7 @@ class ClientStockfish {
 
           this.sendCommand('ucinewgame');
           this.sendCommand(`position fen ${fen}`);
+          this.isSearching = true;
           this.sendCommand(`go nodes ${nodes}`);
 
           let evaluation = 0;
@@ -243,6 +248,7 @@ class ClientStockfish {
             if (line.startsWith('bestmove')) {
               clearTimeout(timeout);
               this.removeHandler(handler);
+              this.isSearching = false;
 
               const moveMatch = line.match(/bestmove (\S+)/);
               if (moveMatch) {
@@ -265,6 +271,7 @@ class ClientStockfish {
           this.addHandler(handler);
         } catch (error) {
           clearTimeout(timeout);
+          this.isSearching = false;
           reject(error);
         }
       });
@@ -292,6 +299,7 @@ class ClientStockfish {
           this.sendCommand('ucinewgame');
           this.sendCommand(`setoption name MultiPV value ${numMoves}`);
           this.sendCommand(`position fen ${fen}`);
+          this.isSearching = true;
           this.sendCommand(`go nodes ${nodes}`);
 
           const results: Map<number, TopMoveResult> = new Map();
@@ -336,6 +344,7 @@ class ClientStockfish {
             if (line.startsWith('bestmove')) {
               clearTimeout(timeout);
               this.removeHandler(handler);
+              this.isSearching = false;
               this.sendCommand('setoption name MultiPV value 1');
 
               const topMoves: TopMoveResult[] = [];
@@ -353,6 +362,7 @@ class ClientStockfish {
           this.addHandler(handler);
         } catch (error) {
           clearTimeout(timeout);
+          this.isSearching = false;
           this.sendCommand('setoption name MultiPV value 1');
           reject(error);
         }
@@ -362,6 +372,19 @@ class ClientStockfish {
     const thisRequest = this.requestQueue.then(executeRequest, executeRequest);
     this.requestQueue = thisRequest.catch(() => {});
     return thisRequest;
+  }
+
+  /**
+   * Stop any active search immediately.
+   * Call this before starting a new search or when navigating away from the game.
+   * Keeps WASM module loaded for fast restart, just halts CPU-intensive calculation.
+   */
+  stopAnalysis(): void {
+    if (this.worker && this.isSearching) {
+      this.sendCommand('stop');
+      this.isSearching = false;
+      console.debug('[ClientStockfish] Analysis halted safely.');
+    }
   }
 
   shutdown(): void {

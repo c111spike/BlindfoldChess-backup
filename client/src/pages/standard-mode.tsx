@@ -54,6 +54,7 @@ import {
   getBotByConfig 
 } from "@shared/botTypes";
 import { generateBotMoveClient, getThinkTime, LastMoveInfo, recordPosition, clearPositionHistory, countBotPieces, detectRecapture } from "@/lib/botEngine";
+import { clientStockfish } from "@/lib/stockfish";
 
 // Piece values for recapture detection (must match botEngine.ts)
 const PIECE_VALUES: Record<string, number> = {
@@ -242,6 +243,14 @@ export default function StandardMode() {
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const gameCompletionInProgressRef = useRef(false);
   const botAutoFillInProgressRef = useRef(false);
+
+  // CPU Safety: Stop Stockfish analysis when leaving the game page
+  // Prevents "ghost workers" from consuming CPU after navigation
+  useEffect(() => {
+    return () => {
+      clientStockfish.stopAnalysis();
+    };
+  }, []);
 
   useEffect(() => {
     gameRef.current = game;
