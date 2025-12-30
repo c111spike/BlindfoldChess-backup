@@ -542,32 +542,30 @@ export default function SimulVsSimulMode() {
           const boardIndex = boardsRef.current.findIndex(b => b.pairingId === data.pairingId);
           const boardNumber = boardIndex >= 0 ? boardsRef.current[boardIndex].boardNumber : '?';
           
-          updateBoardsFn(prevBoards => {
-            const idx = prevBoards.findIndex(b => b.pairingId === data.pairingId);
-            if (idx === -1) return prevBoards;
-            
-            const newBoards = [...prevBoards];
+          // Update boardsRef immediately to prevent race conditions with simul_bot_turn
+          // (simul_bot_turn can arrive right after and needs current moveCount)
+          if (boardIndex !== -1) {
             const chess = new Chess(data.fen);
+            const opponentThinkingTime = (Date.now() - boardsRef.current[boardIndex].turnStartTime) / 1000;
+            const newThinkingTimes = [...boardsRef.current[boardIndex].thinkingTimes, opponentThinkingTime];
             
-            // Calculate opponent's thinking time as elapsed time since our last move
-            // This is the time between when we finished our move (turnStartTime) and now (preserve decimal precision)
-            const opponentThinkingTime = (Date.now() - prevBoards[idx].turnStartTime) / 1000;
-            const newThinkingTimes = [...prevBoards[idx].thinkingTimes, opponentThinkingTime];
-            
-            newBoards[idx] = {
-              ...newBoards[idx],
+            const updatedBoards = [...boardsRef.current];
+            updatedBoards[boardIndex] = {
+              ...boardsRef.current[boardIndex],
               fen: data.fen,
               moves: chess.history(),
               moveCount: data.moveCount,
               activeColor: data.activeColor,
               chess,
-              lastMove: data.from && data.to ? { from: data.from, to: data.to } : newBoards[idx].lastMove,
+              lastMove: data.from && data.to ? { from: data.from, to: data.to } : boardsRef.current[boardIndex].lastMove,
               thinkingTimes: newThinkingTimes,
-              turnStartTime: Date.now(), // Reset for player's turn
+              turnStartTime: Date.now(),
             };
             
-            return newBoards;
-          });
+            // Update ref immediately, then trigger React state update
+            boardsRef.current = updatedBoards;
+            setBoards(updatedBoards);
+          }
           
           toast({
             title: `Opponent moved on Board ${boardNumber}`,
