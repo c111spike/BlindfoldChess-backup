@@ -34,7 +34,7 @@ export default function Landing() {
             src={heroImage}
             srcSet={`${heroImageMobile} 768w, ${heroImage} 1280w`}
             sizes="100vw"
-            alt="Chess tournament player in deep concentration"
+            alt="Close-up of chess pieces on a board"
             className="w-full h-full object-cover"
             loading="eager"
             decoding="async"

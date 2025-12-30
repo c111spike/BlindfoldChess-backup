@@ -76,7 +76,7 @@ export default function PublicHomePage() {
             src={heroImage}
             srcSet={`${heroImageMobile} 768w, ${heroImage} 1280w`}
             sizes="100vw"
-            alt="Chess tournament player in deep concentration"
+            alt="Close-up of chess pieces on a board"
             className="w-full h-full object-cover object-center"
             loading="eager"
             decoding="async"
