@@ -750,7 +750,11 @@ export default function SimulVsSimulMode() {
                 }
                 const newFen = game.fen();
                 const newActiveColor = game.turn() === 'w' ? 'white' : 'black';
-                const newMoveCount = game.history().length;
+                
+                // CRITICAL: Increment from current board's moveCount, not game.history().length
+                // game.history() only contains 1 move (the new one) since we created a fresh Chess from FEN
+                const newMoveCount = finalBoard.moveCount + 1;
+                const newMoves = [...finalBoard.moves, botMove.move];
                 
                 // CRITICAL FIX: Apply bot move to local state FIRST (optimistic update)
                 // This ensures the local moveCount is in sync before the server responds
@@ -758,7 +762,7 @@ export default function SimulVsSimulMode() {
                 updatedBoards[boardIndex] = {
                   ...finalBoard,
                   fen: newFen,
-                  moves: game.history(),
+                  moves: newMoves,
                   moveCount: newMoveCount,
                   activeColor: newActiveColor as 'white' | 'black',
                   chess: game,
