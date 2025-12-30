@@ -2420,7 +2420,10 @@ export async function generateBotMoveClient(
     if (config.useStockfish) {
       console.log(`[ClientBot] Using Stockfish with ${effectiveStockfishNodes} nodes, MultiPV ${config.multiPvCount}`);
       
-      const topMoves = await clientStockfish.getTopMoves(fen, config.multiPvCount, effectiveStockfishNodes);
+      // Pass game.turn() to normalize evaluations to White's perspective
+      // This ensures MateVision correctly identifies who is delivering vs receiving mate
+      const botColor = game.turn();
+      const topMoves = await clientStockfish.getTopMoves(fen, config.multiPvCount, effectiveStockfishNodes, botColor);
       
       // Pre-evaluate recaptures: If opponent captured a high-value piece and recapture
       // isn't in topMoves, explicitly evaluate it to prevent queen sacrifice blunders

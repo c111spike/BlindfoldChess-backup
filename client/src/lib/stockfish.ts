@@ -282,7 +282,19 @@ class ClientStockfish {
     return thisRequest;
   }
 
-  async getTopMoves(fen: string, numMoves: number = 3, nodes: number = 1000000): Promise<TopMoveResult[]> {
+  async getTopMoves(
+    fen: string, 
+    numMoves: number = 3, 
+    nodes: number = 1000000,
+    sideToMove?: 'w' | 'b'
+  ): Promise<TopMoveResult[]> {
+    // When sideToMove is provided, normalize evaluations to White's perspective
+    // Stockfish returns evals from side-to-move POV:
+    // - Positive = good for side to move
+    // - Negative = bad for side to move
+    // We want: Positive = good for White, Negative = good for Black
+    const perspectiveMultiplier = sideToMove === undefined ? 1 : (sideToMove === 'w' ? 1 : -1);
+    
     const executeRequest = (): Promise<TopMoveResult[]> => {
       return new Promise(async (resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -322,11 +334,19 @@ class ClientStockfish {
                 let mateIn: number | undefined;
 
                 if (scoreMatch) {
-                  evaluation = parseInt(scoreMatch[1]) / 100;
+                  // Raw centipawn score from Stockfish (side-to-move perspective)
+                  const rawEval = parseInt(scoreMatch[1]) / 100;
+                  // Normalize to White's perspective if sideToMove was provided
+                  evaluation = rawEval * perspectiveMultiplier;
                 }
                 if (mateMatch) {
                   const mateValue = parseInt(mateMatch[1]);
-                  evaluation = mateValue > 0 ? 999 : -999;
+                  // Raw mate value from Stockfish:
+                  // Positive = side to move delivers mate
+                  // Negative = side to move gets mated
+                  // Normalize to White's perspective if sideToMove was provided
+                  const rawMateEval = mateValue > 0 ? 999 : -999;
+                  evaluation = rawMateEval * perspectiveMultiplier;
                   isMate = true;
                   mateIn = Math.abs(mateValue);
                 }
