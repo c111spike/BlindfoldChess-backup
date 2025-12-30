@@ -1356,6 +1356,8 @@ interface DifficultyConfig {
   useTaperedEval: boolean;   // Use tapered evaluation
   // Draw-seeking behavior (survival mode)
   drawSeekThreshold: number; // Evaluation threshold to trigger draw-seeking (negative = losing)
+  // Recapture awareness (0-1, probability of seeing recaptures)
+  recaptureChance: number;   // Probability (0-1) that bot will prioritize recapturing valuable pieces
 }
 
 // ============================================
@@ -1443,28 +1445,31 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // No draw-seeking - fights to the death
   patzer: { 
     elo: 400, timePerMoveMs: 500, maxDepth: 2, multiPvCount: 5, stockfishNodes: 10000, 
-    mistakeProbability: 0.4, useStockfish: false,
+    mistakeProbability: 0.33, useStockfish: false,
     useKillers: false, useHistory: false,
     mobilityWeight: 0, kingSafetyWeight: 0, mopUpWeight: 0, useTaperedEval: false,
-    drawSeekThreshold: -99 // Never seeks draws
+    drawSeekThreshold: -99, // Never seeks draws
+    recaptureChance: 0.25   // 25% chance to see recaptures
   },
   // Novice (600 Elo): Minimal heuristics, slight mobility awareness
   // No draw-seeking - fights to the death
   novice: { 
     elo: 600, timePerMoveMs: 1000, maxDepth: 3, multiPvCount: 5, stockfishNodes: 50000, 
-    mistakeProbability: 0.2, useStockfish: false,
+    mistakeProbability: 0.15, useStockfish: false,
     useKillers: false, useHistory: false,
     mobilityWeight: 20, kingSafetyWeight: 10, mopUpWeight: 0, useTaperedEval: false,
-    drawSeekThreshold: -99 // Never seeks draws
+    drawSeekThreshold: -99, // Never seeks draws
+    recaptureChance: 0.5    // 50% chance to see recaptures
   },
   // Intermediate (900 Elo): Basic search heuristics, growing positional awareness
   // -3.0 threshold: Minor piece down triggers survival mode
   intermediate: { 
     elo: 900, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
-    mistakeProbability: 0.1, useStockfish: true,
+    mistakeProbability: 0.05, useStockfish: true,
     useKillers: true, useHistory: false,
     mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false,
-    drawSeekThreshold: -3.0 // Minor piece down = seek draw
+    drawSeekThreshold: -3.0, // Minor piece down = seek draw
+    recaptureChance: 0.75    // 75% chance to see recaptures
   },
   // Club (1200 Elo): Full search heuristics, decent evaluation
   // -3.0 threshold: Minor piece down triggers survival mode (same as intermediate)
@@ -1473,7 +1478,8 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     mistakeProbability: 0.01, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 60, kingSafetyWeight: 50, mopUpWeight: 50, useTaperedEval: true,
-    drawSeekThreshold: -3.0
+    drawSeekThreshold: -3.0,
+    recaptureChance: 1.0     // 100% chance to see recaptures
   },
   // Advanced (1500 Elo): Strong heuristics, good evaluation
   // -2.5 threshold: 2-pawn deficit triggers draw-seeking
@@ -1482,7 +1488,8 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     mistakeProbability: 0.005, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true,
-    drawSeekThreshold: -2.5
+    drawSeekThreshold: -2.5,
+    recaptureChance: 1.0     // 100% chance to see recaptures
   },
   // Expert (1800 Elo): Full strength heuristics
   // -2.0 threshold: Recognizes 2 pawns down is likely a loss
@@ -1491,7 +1498,8 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     mistakeProbability: 0.001, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 90, kingSafetyWeight: 90, mopUpWeight: 90, useTaperedEval: true,
-    drawSeekThreshold: -2.0
+    drawSeekThreshold: -2.0,
+    recaptureChance: 1.0     // 100% chance to see recaptures
   },
   // Master (2000 Elo): Maximum strength
   // -1.5 threshold: Very sensitive - seeks draws at 1.5 pawn deficit
@@ -1500,7 +1508,8 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     mistakeProbability: 0.00025, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
-    drawSeekThreshold: -1.5
+    drawSeekThreshold: -1.5,
+    recaptureChance: 1.0     // 100% chance to see recaptures
   },
   // Grandmaster (2500 Elo): Uses transposition tables and advanced pawn evaluation
   // -1.0 threshold: Ultra-sensitive - any pawn deficit triggers draw-seeking
@@ -1510,7 +1519,8 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     mistakeProbability: 0.00001, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
-    drawSeekThreshold: -1.0
+    drawSeekThreshold: -1.0,
+    recaptureChance: 1.0     // 100% chance to see recaptures
   },
 };
 
@@ -1680,7 +1690,6 @@ function selectMoveByPersonality(
   }
   
   const config = DIFFICULTY_CONFIG[difficulty];
-  const isHighLevel = difficulty === 'grandmaster' || difficulty === 'master' || difficulty === 'expert';
   const botColor = game.turn();
   
   // ============================================
@@ -1700,7 +1709,7 @@ function selectMoveByPersonality(
   const inSurvivalMode = moveCount !== undefined && 
     shouldSeekDraw(bestEval, difficulty, moveCount, botColor, personality);
   
-  // CRITICAL RECAPTURE LOGIC: For Master/Grandmaster, prioritize recaptures of valuable pieces
+  // CRITICAL RECAPTURE LOGIC: Prioritize recaptures of valuable pieces based on recaptureChance
   // If opponent just captured a piece worth 3+ points (bishop/knight or higher), we MUST recapture
   // unless doing so leads to a significantly worse position (checked via Stockfish eval)
   // 
@@ -1709,7 +1718,12 @@ function selectMoveByPersonality(
   // - If eval AFTER recapture is BELOW draw-seeking threshold → skip recapture, look for draws
   // This ensures: Take their Queen back, see you're only at -0.5, keep crushing them.
   // But if you're still at -3.0 after recapturing, look for perpetual checks instead.
-  if (isHighLevel && lastMoveInfo?.captured && lastMoveInfo.capturedValue && lastMoveInfo.capturedValue >= 300) {
+  // 
+  // Uses recaptureChance: Patzer 25%, Novice 50%, Intermediate 75%, Club+ 100%
+  const recaptureRoll = Math.random();
+  const shouldAttemptRecapture = recaptureRoll < config.recaptureChance;
+  
+  if (shouldAttemptRecapture && lastMoveInfo?.captured && lastMoveInfo.capturedValue && lastMoveInfo.capturedValue >= 300) {
     const recaptureSquare = lastMoveInfo.to;
     const legalMoves = game.moves({ verbose: true });
     
@@ -2226,15 +2240,25 @@ export async function generateBotMoveClient(
       
       // Pre-evaluate recaptures: If opponent captured a high-value piece and recapture
       // isn't in topMoves, explicitly evaluate it to prevent queen sacrifice blunders
-      // ONLY do this for Expert/Master/Grandmaster - lower difficulties don't need this and it's expensive
+      // Uses recaptureChance: Patzer 25%, Novice 50%, Intermediate 75%, Club+ 100%
       let enrichedTopMoves = [...topMoves];
-      const shouldPreEvaluateRecaptures = difficulty === 'expert' || difficulty === 'master' || difficulty === 'grandmaster';
+      const recaptureRoll = Math.random();
+      const shouldPreEvaluateRecaptures = recaptureRoll < config.recaptureChance;
       
       // Use a fixed small node count for quick recapture evaluation (~50-100ms)
       // This is enough to get a reliable +/- eval without causing noticeable delay
       const RECAPTURE_EVAL_NODES = 50000;
       
-      if (shouldPreEvaluateRecaptures && lastMoveInfo?.captured && lastMoveInfo.capturedValue >= 300) {
+      // Log recapture roll result for debugging
+      if (lastMoveInfo?.captured && lastMoveInfo.capturedValue !== undefined && lastMoveInfo.capturedValue >= 300) {
+        if (shouldPreEvaluateRecaptures) {
+          console.log(`[ClientBot] Recapture check passed (${(config.recaptureChance * 100).toFixed(0)}% chance, rolled ${(recaptureRoll * 100).toFixed(0)}%)`);
+        } else {
+          console.log(`[ClientBot] Missed recapture opportunity (${(config.recaptureChance * 100).toFixed(0)}% chance, rolled ${(recaptureRoll * 100).toFixed(0)}%)`);
+        }
+      }
+      
+      if (shouldPreEvaluateRecaptures && lastMoveInfo?.captured && lastMoveInfo.capturedValue !== undefined && lastMoveInfo.capturedValue >= 300) {
         const recaptureSquare = lastMoveInfo.to;
         const legalRecaptures = moves.filter(m => m.to === recaptureSquare && m.captured);
         
