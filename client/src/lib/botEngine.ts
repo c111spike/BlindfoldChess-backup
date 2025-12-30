@@ -11,6 +11,66 @@ export interface LastMoveInfo {
   capturedValue?: number;  // Material value of captured piece
 }
 
+// ============================================
+// BOT DELAY HELPERS
+// ============================================
+
+/**
+ * Count the number of pieces a bot has remaining on the board.
+ * Used to determine game phase for delay calculation.
+ * @param fen - Current board position in FEN notation
+ * @param botColor - The bot's color ('white' or 'black')
+ * @returns Number of pieces the bot has (1-16)
+ */
+export function countBotPieces(fen: string, botColor: 'white' | 'black'): number {
+  // Extract just the position part of FEN (before first space)
+  const position = fen.split(' ')[0];
+  let count = 0;
+  
+  if (botColor === 'white') {
+    // Count uppercase letters (white pieces)
+    for (const char of position) {
+      if (char >= 'A' && char <= 'Z') {
+        count++;
+      }
+    }
+  } else {
+    // Count lowercase letters (black pieces)
+    for (const char of position) {
+      if (char >= 'a' && char <= 'z') {
+        count++;
+      }
+    }
+  }
+  
+  return count;
+}
+
+/**
+ * Detect if a recapture opportunity exists.
+ * Recaptures are quick reflexive moves, so bot should respond fast.
+ * @param lastMove - Info about opponent's last move
+ * @param fen - Current board position in FEN notation
+ * @returns True if bot can recapture on the square where opponent just captured
+ */
+export function detectRecapture(lastMove: LastMoveInfo | undefined, fen: string): boolean {
+  // No last move or opponent didn't capture anything
+  if (!lastMove || !lastMove.captured) {
+    return false;
+  }
+  
+  try {
+    const game = new Chess(fen);
+    const legalMoves = game.moves({ verbose: true });
+    
+    // Check if any legal move captures on the square where opponent just captured
+    const recaptureSquare = lastMove.to;
+    return legalMoves.some(move => move.to === recaptureSquare && move.captured);
+  } catch {
+    return false;
+  }
+}
+
 // Piece values for MVV-LVA ordering (opening/middlegame values)
 const PIECE_VALUES: Record<string, number> = {
   p: 100,
