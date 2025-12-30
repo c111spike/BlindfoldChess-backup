@@ -732,17 +732,47 @@ export default function SimulVsSimulMode() {
               
               if (botMove && wsRef.current?.readyState === WebSocket.OPEN) {
                 // Final check before sending - game might have ended during calculation
-                const finalBoard = boardsRef.current.find(b => b.pairingId === pairingId);
+                const boardIndex = boardsRef.current.findIndex(b => b.pairingId === pairingId);
+                const finalBoard = boardIndex !== -1 ? boardsRef.current[boardIndex] : null;
                 if (!finalBoard || !isGameOngoing(finalBoard.result)) {
                   console.log(`[SimulBot] Cancelling bot move - game ended during calculation for pairing ${pairingId}`);
                   return;
                 }
                 
                 console.log(`[SimulBot] Sending bot move result: ${botMove.move}`);
-                const game = new Chess(fen);
-                game.move({ from: botMove.from, to: botMove.to, promotion: botMove.promotion });
-                const newFen = game.fen();
                 
+                // Create new Chess instance and apply the bot move
+                const game = new Chess(fen);
+                const moveResult = game.move({ from: botMove.from, to: botMove.to, promotion: botMove.promotion });
+                if (!moveResult) {
+                  console.error(`[SimulBot] Invalid bot move: ${botMove.move}`);
+                  return;
+                }
+                const newFen = game.fen();
+                const newActiveColor = game.turn() === 'w' ? 'white' : 'black';
+                const newMoveCount = game.history().length;
+                
+                // CRITICAL FIX: Apply bot move to local state FIRST (optimistic update)
+                // This ensures the local moveCount is in sync before the server responds
+                const updatedBoards = [...boardsRef.current];
+                updatedBoards[boardIndex] = {
+                  ...finalBoard,
+                  fen: newFen,
+                  moves: game.history(),
+                  moveCount: newMoveCount,
+                  activeColor: newActiveColor as 'white' | 'black',
+                  chess: game,
+                  lastMove: { from: botMove.from, to: botMove.to },
+                  turnStartTime: Date.now(),
+                };
+                
+                // Update ref immediately, then trigger React state update
+                boardsRef.current = updatedBoards;
+                setBoards(updatedBoards);
+                
+                console.log(`[SimulBot] Applied bot move locally: moveCount ${finalBoard.moveCount} -> ${newMoveCount}`);
+                
+                // Now send to server
                 wsRef.current.send(JSON.stringify({
                   type: 'simul_bot_move_result',
                   pairingId,
