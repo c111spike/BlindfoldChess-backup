@@ -91,6 +91,23 @@ Provides two tabbed modes for game analysis:
 - **Move Classification System**: Categorizes moves (Genius, Fantastic, Best, Good, Imprecise, Mistake, Blunder) based on centipawn loss and strategic impact.
 - **Tactical Motif Detection**: Client-side engine detects 35+ tactical patterns for personalized coaching and puzzle auto-tagging. Integrates with user motif statistics and provides clickable training links.
 
+#### Move Classification Thresholds
+Current thresholds in `client/src/lib/gameAnalysis.ts`:
+
+| Classification | SimulChess (Current) | Chess.com (Industry) |
+|----------------|----------------------|----------------------|
+| Blunder        | 201+ cp              | 200+ cp (or 300+)    |
+| Mistake        | 91-200 cp            | 100-200 cp (or 150+) |
+| Imprecise      | 41-90 cp             | 50-100 cp            |
+| Good/Best/etc  | 0-40 cp              | 0-50 cp              |
+
+**Known Issue**: Static centipawn thresholds can flag "false blunders" when a player is already crushing. Moving from +10.0 to +7.0 loses 300 cp but win probability remains ~99%.
+
+**Proposed Fix - "Winning Buffer" Rule**:
+- If evaluation stays above ±4.0 (400 cp) with same sign before/after, cap classification at "Good" regardless of cp loss
+- This mimics Chess.com's win-probability-based approach without full Lichess integration
+- Consider raising thresholds: Blunder to 300cp, Mistake to 150cp
+
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.
 - **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles, including optional YouTube video URL support.

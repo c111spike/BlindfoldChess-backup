@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, Brain, Grid3x3, Check, ArrowRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import heroImage from "@assets/stock_images/simulchess-hero-2025.webp";
+// Use public folder hero for stable URL that matches index.html preload
+// This ensures the preload link works correctly for faster LCP
+const heroImage = "/hero-image.webp";
 import heroImageMobile from "@assets/optimized/simulchess-hero-768.webp";
 import otbIcon from "@assets/generated_images/otb_tournament_mode_icon.webp";
 import blindfoldIcon from "@assets/generated_images/blindfold_mode_icon.webp";
