@@ -157,9 +157,39 @@ export default function OTBMode() {
     }
   }, [userSettings?.otbTiltAngle]);
   
+  // Load OTB highlight preferences from saved settings
+  useEffect(() => {
+    if (userSettings) {
+      // Only update if the setting exists (not null/undefined) - otherwise use default (true)
+      if (userSettings.otbHighlightLastMove !== null && userSettings.otbHighlightLastMove !== undefined) {
+        setHighlightLastMove(userSettings.otbHighlightLastMove);
+      }
+      if (userSettings.otbShowLegalMoves !== null && userSettings.otbShowLegalMoves !== undefined) {
+        setShowLegalMoves(userSettings.otbShowLegalMoves);
+      }
+      if (userSettings.otbShowPieceHighlight !== null && userSettings.otbShowPieceHighlight !== undefined) {
+        setShowPieceHighlight(userSettings.otbShowPieceHighlight);
+      }
+    }
+  }, [userSettings]);
+  
   const saveTiltMutation = useMutation({
     mutationFn: async (newTilt: number) => {
       await apiRequest("PATCH", "/api/settings", { otbTiltAngle: newTilt });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+    },
+  });
+  
+  // Mutation to save OTB highlight preferences
+  const saveHighlightPreferencesMutation = useMutation({
+    mutationFn: async (prefs: { 
+      otbHighlightLastMove?: boolean; 
+      otbShowLegalMoves?: boolean; 
+      otbShowPieceHighlight?: boolean; 
+    }) => {
+      await apiRequest("PATCH", "/api/settings", prefs);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
@@ -188,9 +218,9 @@ export default function OTBMode() {
   const [inQueue, setInQueue] = useState(false);
   const [queueType, setQueueType] = useState<string | null>(null);
   const [lastMoveSquares, setLastMoveSquares] = useState<string[]>([]);
-  const [showLegalMoves, setShowLegalMoves] = useState(false);
-  const [highlightLastMove, setHighlightLastMove] = useState(false);
-  const [showPieceHighlight, setShowPieceHighlight] = useState(false);
+  const [showLegalMoves, setShowLegalMoves] = useState(true);
+  const [highlightLastMove, setHighlightLastMove] = useState(true);
+  const [showPieceHighlight, setShowPieceHighlight] = useState(true);
   const [perspective3d, setPerspective3d] = useState(false);
   const [notationPractice, setNotationPractice] = useState(false);
   const [pendingNotation, setPendingNotation] = useState<string | null>(null);
@@ -3421,6 +3451,12 @@ export default function OTBMode() {
                               setHighlightLastMove(checked);
                               setShowLegalMoves(checked);
                               setShowPieceHighlight(checked);
+                              // Save all preferences at once
+                              saveHighlightPreferencesMutation.mutate({
+                                otbHighlightLastMove: checked,
+                                otbShowLegalMoves: checked,
+                                otbShowPieceHighlight: checked,
+                              });
                             }}
                             data-testid="switch-training-wheels"
                           />
@@ -3436,7 +3472,10 @@ export default function OTBMode() {
                                 <Switch
                                   id="highlight-last-move"
                                   checked={highlightLastMove}
-                                  onCheckedChange={setHighlightLastMove}
+                                  onCheckedChange={(checked) => {
+                                    setHighlightLastMove(checked);
+                                    saveHighlightPreferencesMutation.mutate({ otbHighlightLastMove: checked });
+                                  }}
                                   data-testid="switch-highlight-last-move"
                                 />
                               </div>
@@ -3445,7 +3484,10 @@ export default function OTBMode() {
                                 <Switch
                                   id="show-legal-moves"
                                   checked={showLegalMoves}
-                                  onCheckedChange={setShowLegalMoves}
+                                  onCheckedChange={(checked) => {
+                                    setShowLegalMoves(checked);
+                                    saveHighlightPreferencesMutation.mutate({ otbShowLegalMoves: checked });
+                                  }}
                                   data-testid="switch-show-legal-moves"
                                 />
                               </div>
@@ -3454,7 +3496,10 @@ export default function OTBMode() {
                                 <Switch
                                   id="show-piece-highlight"
                                   checked={showPieceHighlight}
-                                  onCheckedChange={setShowPieceHighlight}
+                                  onCheckedChange={(checked) => {
+                                    setShowPieceHighlight(checked);
+                                    saveHighlightPreferencesMutation.mutate({ otbShowPieceHighlight: checked });
+                                  }}
                                   data-testid="switch-show-piece-highlight"
                                 />
                               </div>
