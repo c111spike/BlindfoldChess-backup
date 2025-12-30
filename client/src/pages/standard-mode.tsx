@@ -71,6 +71,30 @@ function extractLastMoveInfo(move: { from: string; to: string; captured?: string
   };
 }
 
+// Calculate human-like bot move delay based on move number and remaining clock time
+// - First 10 moves: 1 second (opening book / quick development)
+// - Moves 11+: 3-5 seconds random (thinking time)
+// - Clock under 1 minute: 1 second (time pressure)
+function getBotMoveDelay(moveNumber: number, remainingTimeSeconds: number): number {
+  // Time pressure mode - quick moves when low on time
+  if (remainingTimeSeconds < 60) {
+    return 1000; // 1 second
+  }
+  
+  // Opening phase - quick book moves
+  if (moveNumber <= 10) {
+    return 1000; // 1 second
+  }
+  
+  // Middlegame/endgame - random 3-5 seconds for human-like thinking
+  return 3000 + Math.random() * 2000; // 3000-5000ms
+}
+
+// Promise-based delay utility
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 const getRatingCategory = (tc: number): 'bullet' | 'blitz' | 'rapid' | 'classical' => {
   if (tc <= 180) return 'bullet';
   if (tc <= 600) return 'blitz';
@@ -1133,6 +1157,12 @@ export default function StandardMode() {
     if (assignedColor === "black") {
       const botMove = await requestBotMove(newGame.fen(), bot.id);
       if (botMove) {
+        // Apply human-like delay before showing bot move
+        const moveNumber = 1; // First move
+        const botRemainingTime = blackTimeRef.current;
+        const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime);
+        await delay(thinkDelay);
+        
         const moveResult = newGame.move(botMove.move);
         if (moveResult) {
           setLastMove({ from: moveResult.from, to: moveResult.to });
@@ -1406,8 +1436,15 @@ export default function StandardMode() {
       const moveHistorySAN = currentGame.history();
       const currentFen = currentGame.fen();
       
-      requestBotMove(currentFen, selectedBot.id, moveHistorySAN, undefined).then((botMove) => {
+      requestBotMove(currentFen, selectedBot.id, moveHistorySAN, undefined).then(async (botMove) => {
         if (botMove && gameRef.current) {
+          // Apply human-like delay before showing bot move
+          const moveNumber = Math.ceil((movesRef.current.length + 1) / 2);
+          const botColor = playerColor === "white" ? "black" : "white";
+          const botRemainingTime = botColor === "white" ? whiteTimeRef.current : blackTimeRef.current;
+          const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime);
+          await delay(thinkDelay);
+          
           const botMoveResult = gameRef.current.move(botMove.move);
           if (botMoveResult) {
             setLastMove({ from: botMoveResult.from, to: botMoveResult.to });
@@ -1496,7 +1533,14 @@ export default function StandardMode() {
             const lastMoveInfo = extractLastMoveInfo(move);
             const botMove = await requestBotMove(newFen, selectedBot.id, moveHistorySAN, lastMoveInfo);
             if (botMove && game) {
-              // Record bot's thinking time
+              // Apply human-like delay before showing bot move
+              const moveNumber = Math.ceil((movesRef.current.length + 1) / 2);
+              const botColor = playerColor === "white" ? "black" : "white";
+              const botRemainingTime = botColor === "white" ? whiteTimeRef.current : blackTimeRef.current;
+              const thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime);
+              await delay(thinkDelay);
+              
+              // Record bot's thinking time (includes artificial delay)
               const botThinkingTime = (Date.now() - botThinkStartTime) / 1000;
               const botNewThinkingTimes = [...thinkingTimesRef.current, botThinkingTime];
               setThinkingTimes(botNewThinkingTimes);
