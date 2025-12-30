@@ -41,6 +41,7 @@ interface ChessBoardProps {
   arrowDrawMode?: boolean;
   highlightColor?: "yellow" | "red";
   customHighlightColors?: HighlightColors;
+  hideSelectionHighlight?: boolean;
 }
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -111,6 +112,7 @@ export function ChessBoard({
   arrowDrawMode = false,
   highlightColor = "yellow",
   customHighlightColors,
+  hideSelectionHighlight = false,
 }: ChessBoardProps) {
   const selectedColor = customHighlightColors?.selectedPiece || (highlightColor === "red" ? "#ef4444" : "#facc15");
   const lastMoveHighlightColor = customHighlightColors?.lastMove || (highlightColor === "red" ? "#f97316" : "#f97316"); // Orange for last move
@@ -517,8 +519,8 @@ export function ChessBoard({
                     hover-elevate
                   `}
                   style={{
-                    ...(isSelected && !isLocked ? { boxShadow: `inset 0 0 0 4px ${selectedColor}` } : {}),
-                    ...(isLocked ? { boxShadow: `inset 0 0 0 4px ${selectedColor}` } : {}),
+                    ...(!hideSelectionHighlight && isSelected && !isLocked ? { boxShadow: `inset 0 0 0 4px ${selectedColor}` } : {}),
+                    ...(!hideSelectionHighlight && isLocked ? { boxShadow: `inset 0 0 0 4px ${selectedColor}` } : {}),
                   }}
                 >
                   {isLastMove && (

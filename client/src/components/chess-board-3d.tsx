@@ -56,6 +56,7 @@ interface ChessBoard3DProps {
   customHighlightColors?: HighlightColors;
   tiltAngle?: number;
   onTiltChange?: (angle: number) => void;
+  hideSelectionHighlight?: boolean;
 }
 
 const SQUARE_SIZE = 1;
@@ -1063,6 +1064,7 @@ export function ChessBoard3D({
   customHighlightColors,
   tiltAngle = 45,
   onTiltChange,
+  hideSelectionHighlight = false,
 }: ChessBoard3DProps) {
   const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
   const [localTilt, setLocalTilt] = useState(tiltAngle);
@@ -1122,6 +1124,7 @@ export function ChessBoard3D({
         className={className}
         noCard={true}
         customHighlightColors={customHighlightColors}
+        hideSelectionHighlight={hideSelectionHighlight}
       />
     );
   }
@@ -1146,7 +1149,7 @@ export function ChessBoard3D({
           highlightedSquares={highlightedSquares}
           legalMoveSquares={legalMoveSquares}
           lastMoveSquares={lastMoveSquares}
-          selectedSquare={selectedSquare}
+          selectedSquare={hideSelectionHighlight ? null : selectedSquare}
           onSquareClick={handleSquareClick}
           tiltAngle={localTilt}
         />

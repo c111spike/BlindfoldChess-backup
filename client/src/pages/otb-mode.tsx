@@ -4157,6 +4157,7 @@ export default function OTBMode() {
                   customHighlightColors={highlightColors}
                   tiltAngle={tiltAngle}
                   onTiltChange={perspective3d ? handleTiltChange : undefined}
+                  hideSelectionHighlight={!showPieceHighlight}
                 />
                 
                 {/* OTB Control Column - 2 tiles wide, 8 tiles tall */}

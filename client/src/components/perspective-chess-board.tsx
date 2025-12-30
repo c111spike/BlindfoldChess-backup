@@ -32,6 +32,7 @@ interface PerspectiveBoardProps {
   customHighlightColors?: HighlightColors;
   tiltAngle?: number;
   onTiltChange?: (angle: number) => void;
+  hideSelectionHighlight?: boolean;
 }
 
 export function PerspectiveChessBoard({
@@ -68,6 +69,7 @@ export function PerspectiveChessBoard({
       customHighlightColors={customHighlightColors}
       tiltAngle={tiltAngle}
       onTiltChange={onTiltChange}
+      hideSelectionHighlight={props.hideSelectionHighlight}
     />
   );
 }
