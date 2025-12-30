@@ -7,8 +7,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useHighlightColors } from "@/hooks/useHighlightColors";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { generateBotMoveClient } from "@/lib/botEngine";
+import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo } from "@/lib/botEngine";
 import type { BotPersonality, BotDifficulty } from "@shared/botTypes";
+
+// Piece values for recapture detection
+const PIECE_VALUES_SIMUL: Record<string, number> = {
+  p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000
+};
 import { Label } from "@/components/ui/label";
 import { ChessBoard } from "@/components/chess-board";
 import { Card, CardContent } from "@/components/ui/card";
@@ -622,7 +627,7 @@ export default function SimulVsSimulMode() {
         
       case 'simul_bot_turn':
         {
-          const { pairingId, botId, personality, difficulty, fen, moveCount, botColor } = data;
+          const { pairingId, botId, personality, difficulty, fen, moveCount, botColor, moves } = data;
           const expectedMoveCount = moveCount;
           console.log(`[SimulBot] Received bot turn notification for pairing ${pairingId}, bot: ${botId}, moveCount: ${moveCount}`);
           
@@ -631,18 +636,70 @@ export default function SimulVsSimulMode() {
             return !result || result === 'ongoing' || result === '';
           };
           
-          // Calculate human-like delay:
-          // - First 10 moves (moveCount 0-9): 1 second (quick opening play)
-          // - After move 10: 2-4 seconds random (middlegame thinking)
-          // Note: Simul uses 30-second per-turn timers. Timer only runs when human
-          // is focused on the board, and bot moves don't consume timer - so time
-          // pressure logic from standard mode doesn't apply here.
-          const calculateBotDelay = (mc: number): number => {
-            if (mc < 10) return 1000; // Quick opening
-            return 2000 + Math.random() * 2000; // Middlegame thinking (2-4s)
+          // Build lastMove info for recapture detection
+          const buildLastMoveInfo = (): LastMoveInfo | undefined => {
+            if (!moves || moves.length === 0) return undefined;
+            try {
+              // Replay moves to get the last move details
+              const tempGame = new Chess();
+              for (const m of moves) {
+                tempGame.move(m);
+              }
+              const history = tempGame.history({ verbose: true });
+              if (history.length === 0) return undefined;
+              const lastMove = history[history.length - 1];
+              return {
+                from: lastMove.from,
+                to: lastMove.to,
+                captured: lastMove.captured,
+                capturedValue: lastMove.captured ? PIECE_VALUES_SIMUL[lastMove.captured] : undefined
+              };
+            } catch {
+              return undefined;
+            }
           };
           
-          const delay = calculateBotDelay(moveCount);
+          const lastMoveInfo = buildLastMoveInfo();
+          
+          // Calculate human-like delay for simul mode (30-second per-turn timer)
+          // Priority order:
+          // 1. Recapture available → 1 second
+          // 2. Piece count determines endgame (longer delays since 30s timer)
+          // 3. Move count determines opening/middlegame
+          const calculateBotDelay = (mc: number, fenStr: string, bColor: 'white' | 'black', lm: LastMoveInfo | undefined): number => {
+            // 1. Recapture - quick reflexive move
+            if (detectRecapture(lm, fenStr)) {
+              return 1000;
+            }
+            
+            // 2. Check piece count for endgame phases
+            const pieceCount = countBotPieces(fenStr, bColor);
+            
+            if (pieceCount === 1) {
+              // Lone king - no choices, instant move
+              return 1000;
+            } else if (pieceCount >= 2 && pieceCount <= 5) {
+              // Endgame low - simplified calculation
+              return 3000 + Math.random() * 2000; // 3-5s
+            } else if (pieceCount >= 6 && pieceCount <= 10) {
+              // Endgame mid - moderate calculation
+              return 3000 + Math.random() * 4000; // 3-7s
+            }
+            
+            // 3. Full board (11-16 pieces) - use move count
+            if (mc <= 5) {
+              // Opening - quick book moves
+              return 1000;
+            } else if (mc <= 10) {
+              // Early development
+              return 2000 + Math.random() * 2000; // 2-4s
+            }
+            
+            // Middlegame - deep thinking
+            return 3000 + Math.random() * 7000; // 3-10s
+          };
+          
+          const delay = calculateBotDelay(moveCount, fen, botColor as 'white' | 'black', lastMoveInfo);
           
           setTimeout(async () => {
             try {
