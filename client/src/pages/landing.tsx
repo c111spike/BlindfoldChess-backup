@@ -31,7 +31,7 @@ export default function Landing() {
       </header>
 
       <section className="relative w-full overflow-hidden">
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 top-14 md:top-0 pointer-events-none">
           <img
             src={heroImage}
             srcSet={`${heroImageMobile} 768w, ${heroImage} 1280w`}
@@ -42,9 +42,9 @@ export default function Landing() {
             decoding="async"
             {...({ fetchpriority: "high" } as any)}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70 pointer-events-none" />
         </div>
-        <div className="relative container max-w-7xl mx-auto px-4 py-32 md:py-48">
+        <div className="relative container max-w-7xl mx-auto px-4 pt-20 pb-32 md:py-48">
           <div className="max-w-3xl space-y-8">
             <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight">
               Master OTB. Strengthen Memory. Dominate Simuls.

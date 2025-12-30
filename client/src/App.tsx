@@ -237,7 +237,7 @@ function AppContent() {
         <div className="flex flex-col flex-1 overflow-hidden relative">
           {/* Mobile-only floating hamburger button */}
           <SidebarTrigger 
-            className="md:hidden fixed top-3 left-3 z-50 bg-sidebar text-sidebar-foreground border border-sidebar-border rounded-md" 
+            className="md:hidden fixed top-3 left-3 z-[100] bg-sidebar text-sidebar-foreground border border-sidebar-border rounded-md" 
             data-testid="button-mobile-sidebar-toggle" 
           />
           {/* Header bar with back button and dev tools - h-12 locks height to prevent CLS */}

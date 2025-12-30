@@ -70,8 +70,8 @@ export default function PublicHomePage() {
         <meta property="og:image" content="https://simulchess.com/og-home.png" />
         <link rel="canonical" href="https://simulchess.com/" />
       </Helmet>
-      <section className="hero-container relative z-0 w-full min-h-[80vh] overflow-hidden pt-12">
-        <div className="absolute inset-0">
+      <section className="hero-container relative z-0 w-full min-h-[80vh] overflow-hidden pt-16">
+        <div className="absolute inset-0 pointer-events-none">
           <img
             src={heroImage}
             srcSet={`${heroImageMobile} 768w, ${heroImage} 1280w`}
