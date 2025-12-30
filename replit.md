@@ -43,6 +43,36 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 ### Bot Engine
 A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM, and custom minimax with personality-aware move selection. Supports 8 Elo levels (400-2500) and 7 distinct personalities. Features tiered checkmate vision and draw-seeking behavior (survival mode) based on difficulty.
 
+### Bot Move Delay System
+Human-like thinking time simulation with priority-based delay logic:
+
+**Priority Order (Standard/OTB):**
+1. Recapture available → 1 second (reflexive move)
+2. Clock pressure (<60s) → 1 second (time trouble)
+3. Piece count (endgame detection):
+   - Lone king (1 piece) → 1s
+   - 2-5 pieces → 2-3s
+   - 6-11 pieces → 3-4s
+4. Move count (opening/middlegame):
+   - Moves 1-5 → 1s (opening book)
+   - Moves 6-11 → 2-3s (development)
+   - Moves 12+ → 3-6s (middlegame thinking)
+
+**Simul Mode (30-second turn timer, no clock pressure):**
+1. Recapture available → 1 second
+2. Piece count:
+   - Lone king → 1s
+   - 2-5 pieces → 3-5s
+   - 6-10 pieces → 3-7s
+3. Move count:
+   - Moves 1-5 → 1s
+   - Moves 6-10 → 2-4s
+   - Moves 11+ → 3-10s
+
+Helper functions in `botEngine.ts`:
+- `countBotPieces(fen, botColor)`: Counts bot's pieces from FEN
+- `detectRecapture(lastMove, fen)`: Detects recapture opportunities
+
 ### Standardized Difficulty Naming
 All game modes use consistent difficulty naming:
 - **Patzer** (~400 Elo): Beginner level, basic evaluation
