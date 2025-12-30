@@ -25,6 +25,8 @@
       .hero-subtitle{color:rgba(255,255,255,0.9);font-size:1.125rem;line-height:1.75}
       @media(min-width:768px){.hero-title{font-size:3rem}.hero-subtitle{font-size:1.25rem}}
     </style>
+    <!-- Preload hero image for instant LCP -->
+    <link rel="preload" as="image" href="/assets/simulchess-hero-2025-DdEqaYNQ.webp" fetchpriority="high">
     <!-- Preload only Inter font (JetBrains Mono deferred to not compete with hero) -->
     <link rel="preload" href="/fonts/inter-subset.woff2" as="font" type="font/woff2" crossorigin="anonymous">
     <!-- Theme initialization (must run before render to prevent flash) -->
