@@ -66,17 +66,29 @@ function PageLoader() {
   );
 }
 
+// Non-blocking home route - renders PublicHomePage immediately, swaps to Dashboard when auth confirms
+function HomeRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // Render public home immediately while auth loads (non-blocking LCP)
+  if (isLoading || !isAuthenticated) {
+    return <PublicHomePage />;
+  }
+  
+  // Only show Dashboard after auth confirms user is logged in
+  return <Dashboard />;
+}
+
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
-    return null;
-  }
+  // Don't block initial render - let public routes render while auth loads
+  // Only block for auth-required routes
 
   return (
     <Suspense fallback={<PageLoader />}>
       <Switch>
-        <Route path="/" component={isAuthenticated ? Dashboard : PublicHomePage} />
+        <Route path="/" component={HomeRoute} />
         <Route path="/otb" component={OTBMode} />
         <Route path="/standard" component={StandardMode} />
         <Route path="/simul-vs-simul" component={SimulVsSimulMode} />
@@ -173,6 +185,17 @@ function AppContent() {
 
   // Determine what content to show in the main area
   const renderMainContent = () => {
+    // Non-blocking render for home page and public landing pages
+    // These render immediately while auth loads in background (LCP optimization)
+    if (isHomePage || isPublicLandingPage) {
+      return (
+        <div className="flex-1 px-4 pb-4">
+          <Router />
+        </div>
+      );
+    }
+
+    // For protected routes, show spinner while auth loads
     if (isLoading) {
       return (
         <div className="flex-1 flex items-center justify-center">
@@ -183,7 +206,7 @@ function AppContent() {
 
     // For non-authenticated users on non-public pages, render NotFound (stealth mode)
     // This shows the fun 404 Board Spin page instead of revealing protected routes exist
-    if (!isAuthenticated && !isUsingTestUser && !isHomePage && !isPublicLandingPage) {
+    if (!isAuthenticated && !isUsingTestUser) {
       return (
         <div className="flex-1 px-4 pb-4">
           <NotFound />
