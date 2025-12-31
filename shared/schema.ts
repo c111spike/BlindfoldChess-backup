@@ -209,7 +209,7 @@ export const ratings = pgTable("ratings", {
   otbRapid: integer("otb_rapid").default(1200),
   otbClassical: integer("otb_classical").default(1200),
   blindfold: integer("blindfold").default(1200),
-  simul: integer("simul").default(1000),
+  simul: integer("simul").default(1200),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

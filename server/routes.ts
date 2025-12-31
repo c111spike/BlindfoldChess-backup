@@ -757,7 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await withMatchmakingLock(boardCount, async () => {
         // Get user's simul rating
         const rating = await storage.getOrCreateRating(userId);
-        const simulRating = rating.simul || 1000;
+        const simulRating = rating.simul || 1200;
 
         // Re-check queue status under lock (another request may have already created a match)
         const currentQueueStatus = await storage.getSimulVsSimulQueueStatus(userId);
@@ -906,7 +906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const rating = await storage.getRating(odId);
         humanPlayerInfo[odId] = {
           username: user?.username || user?.firstName || 'Player',
-          simulElo: rating?.simul || 1000,
+          simulElo: rating?.simul || 1200,
         };
       }
 
@@ -1081,7 +1081,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const rating = await storage.getRating(odId);
         humanPlayerInfo[odId] = {
           username: humanUser?.username || humanUser?.firstName || 'Player',
-          simulElo: rating?.simul || 1000,
+          simulElo: rating?.simul || 1200,
         };
       }
 
@@ -4396,7 +4396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get player's current simul rating
       const playerRating = await storage.getOrCreateRating(playerId);
-      const playerSimulRating = playerRating.simul || 1000;
+      const playerSimulRating = playerRating.simul || 1200;
       
       // Find all games this player participated in
       const playerGames = allPairings.filter(p => 
@@ -4418,7 +4418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Get opponent's rating
         const opponentRating = await storage.getOrCreateRating(opponentId);
-        const opponentSimulRating = opponentRating.simul || 1000;
+        const opponentSimulRating = opponentRating.simul || 1200;
         
         // Determine score (1 = win, 0.5 = draw, 0 = loss)
         let score: number;
@@ -4480,7 +4480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const playerRating = await storage.getOrCreateRating(playerId);
-      const currentSimulRating = playerRating.simul || 1000;
+      const currentSimulRating = playerRating.simul || 1200;
       const newSimulRating = Math.max(100, currentSimulRating + changes.ratingChange); // Min rating 100
       
       await storage.updateRating(playerId, { simul: newSimulRating });
@@ -5749,7 +5749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const rating = await storage.getRating(odId);
               humanPlayerInfo[odId] = {
                 username: user?.username || user?.firstName || 'Player',
-                simulElo: rating?.simul || 1000,
+                simulElo: rating?.simul || 1200,
               };
             }
             

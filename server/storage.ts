@@ -1443,7 +1443,7 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
       
       if (playerRating.length === 0) {
-        // Create initial ratings record with default simul rating of 1000
+        // Create initial ratings record with default simul rating of 1200
         const [newRating] = await tx
           .insert(ratings)
           .values({
@@ -1453,13 +1453,13 @@ export class DatabaseStorage implements IStorage {
             rapid: 1200,
             classical: 1200,
             blindfold: 1200,
-            simul: 1000,
+            simul: 1200,
           })
           .returning();
         playerRating = [newRating];
       }
       
-      const currentRating = playerRating[0]?.simul || 1000;
+      const currentRating = playerRating[0]?.simul || 1200;
       
       // Calculate wins, draws, losses
       let wins = 0;
@@ -1490,8 +1490,8 @@ export class DatabaseStorage implements IStorage {
             .where(eq(ratings.userId, opponentId))
             .limit(1);
           
-          // Default to 1000 if opponent has no simul rating
-          const opponentCurrentRating = opponentRating?.simul || 1000;
+          // Default to 1200 if opponent has no simul rating
+          const opponentCurrentRating = opponentRating?.simul || 1200;
           
           // Calculate expected score for this board
           const expectedScore = 1 / (1 + Math.pow(10, (opponentCurrentRating - currentRating) / 400));
