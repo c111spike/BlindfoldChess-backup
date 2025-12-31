@@ -286,6 +286,33 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <ThemeToggle variant="sidebar" />
             </SidebarMenuItem>
+            {isAuthenticated ? (
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => {
+                    import("@/lib/auth-client").then(({ signOut }) => {
+                      signOut().then(() => {
+                        window.location.href = "/";
+                      });
+                    });
+                  }} 
+                  tooltip="Log Out"
+                  data-testid="button-logout-sidebar"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Log Out</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ) : (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Log In">
+                  <a href="/login" data-testid="button-login-footer">
+                    <LogIn className="h-4 w-4" />
+                    <span>Log In</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Privacy Policy">
                 <Link href="/privacy" data-testid="link-privacy">
