@@ -73,6 +73,38 @@ The Positional personality implements Petrosian-style strategic play - patient, 
 
 **Philosophy**: Patient accumulation of small advantages, prophylactic defense, and structural superiority over tactical chaos.
 
+### Bot Personality: Bishop Specialist (Hypermodern Sniper)
+The Bishop Lover personality implements a long-range diagonal strategy - opening lines, preserving the bishop pair, and avoiding self-inflicted blocks:
+
+**Core Mechanics:**
+1. **Bishop Love**: +60 for bishop moves, +40 for long diagonal placement (a1-h8, a8-h1)
+2. **Long Diagonals**: Bonus for bishops on the main diagonals (breathing fire across the board)
+3. **Anti-Knight Trade**: +30 for capturing knights (not trading bishops for knights)
+4. **Fianchetto Setup**: +35 for b3/g3 or b6/g6 pawn moves (prepares bishop deployment)
+
+**Hypermodern Enhancements:**
+1. **Side-Pawn Lead**: +25 for a4/h4/a5/h5 pawn advances (Alekhine/Grunfeld-style flank attacks open diagonals)
+2. **Bishop Pair Multiplier**: +40 global bonus when we have 2 bishops vs opponent's 0-1, plus -60 penalty for trading a bishop (fights to keep the pair into the endgame)
+3. **Anti-Blockade Logic**: -20 penalty for pawns landing on same-color squares as our bishop (avoids creating "bad bishop")
+
+**Philosophy**: Open positions, diagonal batteries, and long-range pressure. Willing to bait "Big Center" pawns just to demolish them from the flanks.
+
+### Bot Personality: Knight Specialist (The Octopus)
+The Knight Lover personality implements suffocation strategy - outposts, permanent anchors, and tactical geometry:
+
+**Core Mechanics:**
+1. **Knight Love**: +60 for knight moves, +15 for quiet knight repositioning
+2. **Outpost Seeking**: +50 for knights on c4-f5 central outpost squares
+3. **Anti-Bishop Trade**: +30 for capturing bishops (keeping our knights)
+4. **Closed Position Preference**: -25 for pawn exchanges, -20 for central pawn advances past 4th rank
+
+**Octopus Enhancements:**
+1. **6th Rank Octopus**: +100 for knights on c6/d6/e6/f6 (or c3/d3/e3/f3 for black) - a knight here is worth more than a rook
+2. **Anchor Pawn Logic**: +30 for knights on outposts with pawn support from behind (permanent, can't be kicked away)
+3. **Fork Vision**: +30 bonus when enemy Q/K are on same-color squares (fork geometry favorable), +200 for actual royal forks, +40 for threatening one royal piece
+
+**Philosophy**: Freeze the position, squeeze space, create permanent outposts. When facing the Bishop Lover in Simul vs Simul, tries to lock the center and suffocate.
+
 ### Bot Move Delay System
 Human-like thinking time simulation with priority-based delay logic:
 

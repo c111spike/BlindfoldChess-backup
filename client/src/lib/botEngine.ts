@@ -2419,56 +2419,215 @@ function selectMoveByPersonality(
         break;
         
       case 'bishop_lover':
-        if (move.piece === 'b') score += 60 * personalityInfluence;
-        // Long diagonals
-        const longDiagonals = ['a1', 'b2', 'c3', 'd4', 'e5', 'f6', 'g7', 'h8', 'a8', 'b7', 'c6', 'd5', 'e4', 'f3', 'g2', 'h1'];
-        if (move.piece === 'b' && longDiagonals.includes(move.to)) score += 40 * personalityInfluence;
-        // Prefer trading knights for bishops
-        if (move.captured === 'n' && move.piece !== 'n') score += 30 * personalityInfluence;
-        
-        // PAWN STORMS OPEN DIAGONALS: Bishop lover likes pawn advances that clear diagonals
-        if (move.piece === 'p') {
-          const toFile = move.to[0];
-          // Central pawn advances open diagonals for bishops
-          if (['d', 'e'].includes(toFile)) {
-            score += 25 * personalityInfluence; // Central pawn pushes open bishop lines
+        {
+          const board = game.board();
+          const myColor = game.turn();
+          const enemyColor = myColor === 'w' ? 'b' : 'w';
+          
+          if (move.piece === 'b') score += 60 * personalityInfluence;
+          // Long diagonals
+          const longDiagonals = ['a1', 'b2', 'c3', 'd4', 'e5', 'f6', 'g7', 'h8', 'a8', 'b7', 'c6', 'd5', 'e4', 'f3', 'g2', 'h1'];
+          if (move.piece === 'b' && longDiagonals.includes(move.to)) score += 40 * personalityInfluence;
+          // Prefer trading knights for bishops
+          if (move.captured === 'n' && move.piece !== 'n') score += 30 * personalityInfluence;
+          
+          // PAWN STORMS OPEN DIAGONALS: Bishop lover likes pawn advances that clear diagonals
+          if (move.piece === 'p') {
+            const toFile = move.to[0];
+            // Central pawn advances open diagonals for bishops
+            if (['d', 'e'].includes(toFile)) {
+              score += 25 * personalityInfluence; // Central pawn pushes open bishop lines
+            }
+            // Fianchetto-supporting moves (b3/g3 or b6/g6)
+            const fianchettoSquares = myColor === 'w' ? ['b3', 'g3'] : ['b6', 'g6'];
+            if (fianchettoSquares.includes(move.to)) {
+              score += 35 * personalityInfluence; // Love fianchetto setups
+            }
           }
-          // Fianchetto-supporting moves (b3/g3 or b6/g6)
-          const fianchettoSquares = game.turn() === 'w' ? ['b3', 'g3'] : ['b6', 'g6'];
-          if (fianchettoSquares.includes(move.to)) {
-            score += 35 * personalityInfluence; // Love fianchetto setups
+          
+          // 1. SIDE-PAWN LEAD BONUS (Hypermodern Flank Attacks)
+          // a4/h4 or a5/h5 pawns create Alekhine/Grunfeld-style flank pressure
+          if (move.piece === 'p') {
+            const flankPawnSquares = myColor === 'w' 
+              ? ['a4', 'h4', 'a5', 'h5'] 
+              : ['a5', 'h5', 'a4', 'h4'];
+            if (flankPawnSquares.includes(move.to)) {
+              score += 25 * personalityInfluence; // Side-pawn leads open diagonals
+            }
+          }
+          
+          // 2. BISHOP PAIR MULTIPLIER (+40 global bonus)
+          // Having two bishops vs opponent's one or zero is a huge advantage
+          {
+            let myBishops = 0;
+            let enemyBishops = 0;
+            for (let r = 0; r < 8; r++) {
+              for (let c = 0; c < 8; c++) {
+                const piece = board[r]?.[c];
+                if (piece && piece.type === 'b') {
+                  if (piece.color === myColor) myBishops++;
+                  else enemyBishops++;
+                }
+              }
+            }
+            // If we have the bishop pair advantage, boost ALL moves
+            if (myBishops === 2 && enemyBishops <= 1) {
+              score += 40 * personalityInfluence; // Global bonus for bishop pair
+              // ANTI-TRADE: Strongly penalize trading one of our bishops
+              if (move.piece === 'b' && move.captured) {
+                score -= 60 * personalityInfluence; // Fight to keep the pair!
+              }
+            }
+          }
+          
+          // 3. ANTI-BLOCKADE LOGIC
+          // Penalty for pawns on same color squares as our bishop (blocking diagonals)
+          if (move.piece === 'p') {
+            // Find our bishops and check if this pawn move blocks them
+            for (let r = 0; r < 8; r++) {
+              for (let c = 0; c < 8; c++) {
+                const piece = board[r]?.[c];
+                if (piece && piece.type === 'b' && piece.color === myColor) {
+                  const bishopOnLight = (r + c) % 2 === 0;
+                  const toCol = move.to.charCodeAt(0) - 97;
+                  const toRow = 8 - parseInt(move.to[1]);
+                  const pawnOnLight = (toRow + toCol) % 2 === 0;
+                  
+                  // Penalty if pawn lands on same color as our bishop
+                  if (pawnOnLight === bishopOnLight) {
+                    score -= 20 * personalityInfluence; // Blocking our own bishop!
+                  }
+                }
+              }
+            }
           }
         }
         break;
         
       case 'knight_lover':
-        if (move.piece === 'n') score += 60 * personalityInfluence;
-        // Outpost squares
-        const outposts = ['c5', 'd5', 'e5', 'f5', 'c4', 'd4', 'e4', 'f4'];
-        if (move.piece === 'n' && outposts.includes(move.to)) score += 50 * personalityInfluence;
-        // Prefer trading bishops for knights
-        if (move.captured === 'b' && move.piece !== 'b') score += 30 * personalityInfluence;
-        
-        // CLOSED POSITIONS FAVOR KNIGHTS: Dislikes pawn advances that open the position
-        if (move.piece === 'p') {
-          // Penalty for pawn exchanges (opens the position, bad for knights)
-          if (move.captured === 'p') {
-            score -= 25 * personalityInfluence; // Dislikes opening pawn structures
-          }
-          // Central pawn pushes past 4th rank open the game too much
-          const toFile = move.to[0];
-          const toRank = parseInt(move.to[1]);
-          if (['d', 'e'].includes(toFile)) {
-            const advancedRank = game.turn() === 'w' ? 5 : 4;
-            if ((game.turn() === 'w' && toRank >= advancedRank) || 
-                (game.turn() === 'b' && toRank <= advancedRank)) {
-              score -= 20 * personalityInfluence; // Prefers blocked center for knight maneuvers
+        {
+          const board = game.board();
+          const myColor = game.turn();
+          const enemyColor = myColor === 'w' ? 'b' : 'w';
+          
+          if (move.piece === 'n') score += 60 * personalityInfluence;
+          // Outpost squares (5th rank)
+          const outposts5 = ['c5', 'd5', 'e5', 'f5'];
+          const outposts4 = ['c4', 'd4', 'e4', 'f4'];
+          if (move.piece === 'n' && outposts5.includes(move.to)) score += 50 * personalityInfluence;
+          if (move.piece === 'n' && outposts4.includes(move.to)) score += 50 * personalityInfluence;
+          // Prefer trading bishops for knights
+          if (move.captured === 'b' && move.piece !== 'b') score += 30 * personalityInfluence;
+          
+          // CLOSED POSITIONS FAVOR KNIGHTS: Dislikes pawn advances that open the position
+          if (move.piece === 'p') {
+            // Penalty for pawn exchanges (opens the position, bad for knights)
+            if (move.captured === 'p') {
+              score -= 25 * personalityInfluence; // Dislikes opening pawn structures
+            }
+            // Central pawn pushes past 4th rank open the game too much
+            const toFile = move.to[0];
+            const toRank = parseInt(move.to[1]);
+            if (['d', 'e'].includes(toFile)) {
+              const advancedRank = myColor === 'w' ? 5 : 4;
+              if ((myColor === 'w' && toRank >= advancedRank) || 
+                  (myColor === 'b' && toRank <= advancedRank)) {
+                score -= 20 * personalityInfluence; // Prefers blocked center for knight maneuvers
+              }
             }
           }
-        }
-        // Knights love maneuvering in closed positions - bonus for knight repositioning
-        if (move.piece === 'n' && !move.captured) {
-          score += 15 * personalityInfluence; // Values quiet knight moves
+          // Knights love maneuvering in closed positions - bonus for knight repositioning
+          if (move.piece === 'n' && !move.captured) {
+            score += 15 * personalityInfluence; // Values quiet knight moves
+          }
+          
+          // 1. THE "OCTOPUS" KNIGHT (6th Rank = Devastating)
+          // A Knight on the 6th rank is often worth more than a Rook
+          if (move.piece === 'n') {
+            const sixthRankSquares = myColor === 'w' 
+              ? ['c6', 'd6', 'e6', 'f6']  // White's 6th rank
+              : ['c3', 'd3', 'e3', 'f3']; // Black's 6th rank (3rd from black's view)
+            if (sixthRankSquares.includes(move.to)) {
+              score += 100 * personalityInfluence; // Double outpost bonus! The "Octopus"
+            }
+          }
+          
+          // 2. ANCHOR PAWN LOGIC
+          // An outpost is only good if it's permanent (supported by pawn)
+          if (move.piece === 'n') {
+            const allOutposts = ['c4', 'c5', 'd4', 'd5', 'e4', 'e5', 'f4', 'f5'];
+            if (allOutposts.includes(move.to)) {
+              // Check if we have a pawn supporting this square
+              const toCol = move.to.charCodeAt(0) - 97;
+              const toRow = 8 - parseInt(move.to[1]);
+              
+              // Pawns that could support this square (diagonally behind)
+              const supportRow = myColor === 'w' ? toRow + 1 : toRow - 1;
+              const leftPawn = board[supportRow]?.[toCol - 1];
+              const rightPawn = board[supportRow]?.[toCol + 1];
+              
+              const hasAnchor = (leftPawn && leftPawn.type === 'p' && leftPawn.color === myColor) ||
+                               (rightPawn && rightPawn.type === 'p' && rightPawn.color === myColor);
+              
+              if (hasAnchor) {
+                score += 30 * personalityInfluence; // Permanent outpost with anchor pawn!
+              }
+            }
+          }
+          
+          // 3. FORK VISION (Tactical Geometry)
+          // Knights are the kings of forks - bonus when Q/K are on same-color squares
+          if (move.piece === 'n') {
+            // Find enemy queen and king positions
+            let enemyQueenPos: {row: number, col: number} | null = null;
+            let enemyKingPos: {row: number, col: number} | null = null;
+            
+            for (let r = 0; r < 8; r++) {
+              for (let c = 0; c < 8; c++) {
+                const piece = board[r]?.[c];
+                if (piece && piece.color === enemyColor) {
+                  if (piece.type === 'q') enemyQueenPos = {row: r, col: c};
+                  if (piece.type === 'k') enemyKingPos = {row: r, col: c};
+                }
+              }
+            }
+            
+            if (enemyQueenPos && enemyKingPos) {
+              // Check if Q and K are on same color squares (fork geometry favorable)
+              const queenOnLight = (enemyQueenPos.row + enemyQueenPos.col) % 2 === 0;
+              const kingOnLight = (enemyKingPos.row + enemyKingPos.col) % 2 === 0;
+              
+              if (queenOnLight === kingOnLight) {
+                // Same color = fork-prone geometry! Apply 1.5x multiplier to knight moves
+                score += 30 * personalityInfluence; // Fork vision bonus
+                
+                // Extra bonus if our knight move threatens both (actual fork check)
+                const toCol = move.to.charCodeAt(0) - 97;
+                const toRow = 8 - parseInt(move.to[1]);
+                
+                const knightOffsets = [
+                  [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+                  [1, -2], [1, 2], [2, -1], [2, 1]
+                ];
+                
+                let threatsQueen = false;
+                let threatsKing = false;
+                
+                for (const [dr, dc] of knightOffsets) {
+                  const tr = toRow + dr;
+                  const tc = toCol + dc;
+                  if (tr === enemyQueenPos.row && tc === enemyQueenPos.col) threatsQueen = true;
+                  if (tr === enemyKingPos.row && tc === enemyKingPos.col) threatsKing = true;
+                }
+                
+                if (threatsQueen && threatsKing) {
+                  score += 200 * personalityInfluence; // Actual royal fork!
+                } else if (threatsQueen || threatsKing) {
+                  score += 40 * personalityInfluence; // Threatening one royal piece
+                }
+              }
+            }
+          }
         }
         break;
         
