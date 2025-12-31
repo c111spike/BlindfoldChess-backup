@@ -509,9 +509,11 @@ interface MissedTactic {
 function PuzzlePatternInsights({ 
   game, 
   moves,
+  playerColor,
 }: { 
   game: Game;
   moves: MoveAnalysis[];
+  playerColor: string;
 }) {
   const [missedTactics, setMissedTactics] = useState<MissedTactic[]>([]);
   const [analyzing, setAnalyzing] = useState(true);
@@ -528,8 +530,6 @@ function PuzzlePatternInsights({
   const { data: motifStats } = useQuery<UserMotifStats[]>({
     queryKey: ['/api/user/motif-stats'],
   });
-  
-  const playerColor = game.playerColor;
   
   useEffect(() => {
     const analyzeMissedTactics = async () => {
@@ -1178,6 +1178,7 @@ function ReviewTab({
       <PuzzlePatternInsights 
         game={game} 
         moves={moves}
+        playerColor={playerColor || 'white'}
       />
       
       {/* VSS Interactive Training Dialog */}
