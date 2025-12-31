@@ -13,6 +13,7 @@ import { TestUserSwitcher } from "@/components/TestUserSwitcher";
 import { MobileFooter } from "@/components/mobile-footer";
 import { BackButton } from "@/components/back-button";
 import { useAuth } from "@/hooks/useAuth";
+import { usePresence } from "@/hooks/usePresence";
 import { isDevelopment, getTestUserId } from "@/lib/devMode";
 
 // Eagerly loaded pages (lightweight, critical path)
@@ -133,6 +134,9 @@ function Router() {
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
+  
+  // Track user presence for online players count
+  usePresence();
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",

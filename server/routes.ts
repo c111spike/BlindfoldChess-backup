@@ -4994,6 +4994,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const data = JSON.parse(message.toString());
         console.log('Received WebSocket message:', data);
         
+        // Handle ping/pong for presence heartbeat
+        if (data.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong' }));
+          return;
+        }
+        
         if (data.type === 'auth') {
           const userId = data.userId;
           if (!userId || typeof userId !== 'string') {
