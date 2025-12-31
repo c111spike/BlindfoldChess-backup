@@ -2271,6 +2271,151 @@ function selectMoveByPersonality(
         if (move.san === 'O-O' || move.san === 'O-O-O') {
           score += 30 * personalityInfluence; // Castling is positionally important
         }
+        
+        // ========== PETROSIAN ENHANCEMENTS ==========
+        
+        // 1. EXCHANGE SACRIFICE AWARENESS (The Petrosian Special)
+        // R for N/B is normally -2 material, but if it removes attackers or improves structure, it's worth it
+        // +70 bonus (enough to override ~0.5 eval gap in MultiPV scenarios)
+        if (move.piece === 'r' && (move.captured === 'n' || move.captured === 'b')) {
+          const myKing = findKingPosition(game, game.turn());
+          if (myKing) {
+            // Check if the captured piece was near our king (removing an attacker)
+            const capturedCol = move.to.charCodeAt(0) - 97;
+            const capturedRow = 8 - parseInt(move.to[1]);
+            const distToKing = Math.max(Math.abs(capturedCol - myKing.col), Math.abs(capturedRow - myKing.row));
+            
+            if (distToKing <= 3) {
+              // Captured piece was threatening our king - exchange sacrifice is justified!
+              score += 70 * personalityInfluence; // Strong enough to override 0.5 eval difference
+            } else if (centralSquares.includes(move.to)) {
+              // Captured piece was controlling center - structural improvement
+              score += 50 * personalityInfluence;
+            }
+          }
+        }
+        
+        // 2. BAD BISHOP TAX (The "Tall Pawn" Penalty)
+        // Bishops blocked by own pawns on same color are nearly useless
+        {
+          const board = game.board();
+          const myColor = game.turn();
+          
+          // Find our bishops and check if they're "bad"
+          for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+              const piece = board[row][col];
+              if (piece && piece.type === 'b' && piece.color === myColor) {
+                // Determine bishop's color (light or dark square)
+                const isLightSquare = (row + col) % 2 === 0;
+                
+                // Count our pawns on the same color squares
+                let blockedPawns = 0;
+                for (let pr = 0; pr < 8; pr++) {
+                  for (let pc = 0; pc < 8; pc++) {
+                    const pawn = board[pr][pc];
+                    if (pawn && pawn.type === 'p' && pawn.color === myColor) {
+                      const pawnOnLight = (pr + pc) % 2 === 0;
+                      if (pawnOnLight === isLightSquare) {
+                        blockedPawns++;
+                      }
+                    }
+                  }
+                }
+                
+                // If 4+ pawns block this bishop, it's a "bad bishop"
+                // Penalty scales with blocked pawns: 4 pawns = -20, 5 = -30, 6+ = -40
+                if (blockedPawns >= 4) {
+                  const penalty = Math.min(40, (blockedPawns - 3) * 10);
+                  score -= penalty * personalityInfluence * 0.5; // Applied per move evaluation
+                }
+              }
+            }
+          }
+        }
+        
+        // 3. OVER-PROTECTION BONUS (The Nimzowitsch Logic)
+        // Bonus for adding defenders to already-defended central pawns
+        // This creates rock-solid structures that suffocate the opponent
+        {
+          const board = game.board();
+          const myColor = game.turn();
+          const enemyColor = myColor === 'w' ? 'b' : 'w';
+          const centralPawnSquares = ['d4', 'd5', 'e4', 'e5', 'c4', 'c5', 'f4', 'f5'];
+          
+          // Check if move adds defense to a central pawn (only for piece moves, not captures)
+          if (!move.captured && (move.piece === 'n' || move.piece === 'b' || move.piece === 'r' || move.piece === 'q')) {
+            // Check if our destination square defends any central pawn
+            const toCol = move.to.charCodeAt(0) - 97;
+            const toRow = 8 - parseInt(move.to[1]);
+            
+            for (const sq of centralPawnSquares) {
+              const pawnCol = sq.charCodeAt(0) - 97;
+              const pawnRow = 8 - parseInt(sq[1]);
+              const piece = board[pawnRow]?.[pawnCol];
+              
+              // If we have a pawn on this central square
+              if (piece && piece.type === 'p' && piece.color === myColor) {
+                // Check if our piece can defend this pawn from the destination square
+                const colDiff = Math.abs(toCol - pawnCol);
+                const rowDiff = Math.abs(toRow - pawnRow);
+                
+                let defends = false;
+                if (move.piece === 'n') {
+                  // Knight defends if L-shape away (no ray-tracing needed)
+                  defends = (colDiff === 1 && rowDiff === 2) || (colDiff === 2 && rowDiff === 1);
+                } else if (move.piece === 'b' || move.piece === 'r' || move.piece === 'q') {
+                  // For sliding pieces, check geometry first then ray-trace for blockers
+                  const isDiagonal = colDiff === rowDiff && colDiff > 0;
+                  const isStraight = (colDiff === 0 || rowDiff === 0) && (colDiff + rowDiff > 0);
+                  
+                  if ((move.piece === 'b' && isDiagonal) ||
+                      (move.piece === 'r' && isStraight) ||
+                      (move.piece === 'q' && (isDiagonal || isStraight))) {
+                    // Ray-trace to check for blockers between destination and pawn
+                    const stepCol = pawnCol === toCol ? 0 : (pawnCol > toCol ? 1 : -1);
+                    const stepRow = pawnRow === toRow ? 0 : (pawnRow > toRow ? 1 : -1);
+                    let blocked = false;
+                    let checkCol = toCol + stepCol;
+                    let checkRow = toRow + stepRow;
+                    while (checkCol !== pawnCol || checkRow !== pawnRow) {
+                      const blocker = board[checkRow]?.[checkCol];
+                      if (blocker) {
+                        blocked = true;
+                        break;
+                      }
+                      checkCol += stepCol;
+                      checkRow += stepRow;
+                    }
+                    defends = !blocked;
+                  }
+                }
+                
+                if (defends) {
+                  // Count existing defenders using temporary board swap
+                  // Replace our pawn with enemy pawn, count our captures on that square
+                  const testGame = new Chess(game.fen());
+                  testGame.remove(sq as any);
+                  testGame.put({ type: 'p', color: enemyColor }, sq as any);
+                  
+                  // Count how many of our pieces can capture this "enemy pawn"
+                  const captureMoves = testGame.moves({ verbose: true });
+                  let existingDefenders = 0;
+                  for (const m of captureMoves) {
+                    if (m.to === sq && m.captured && m.from !== move.from) {
+                      existingDefenders++;
+                    }
+                  }
+                  
+                  // If pawn already has defenders, this is over-protection!
+                  if (existingDefenders >= 1) {
+                    score += 10 * personalityInfluence; // +10 for over-protecting
+                  }
+                }
+              }
+            }
+          }
+        }
         break;
         
       case 'bishop_lover':

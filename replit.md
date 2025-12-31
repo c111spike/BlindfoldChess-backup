@@ -57,6 +57,22 @@ The Defensive personality implements a "Fortress" philosophy - actively trading 
 
 **Priority Ladder**: Capture infiltrator > Attack infiltrator > Ignore (full penalty applies)
 
+### Bot Personality: Positional Grandmaster (Iron Tigran)
+The Positional personality implements Petrosian-style strategic play - patient, prophylactic, and focused on long-term advantages:
+
+**Core Mechanics:**
+1. **Center Control**: +50 bonus for pieces on c3-f6 central squares
+2. **Structure Preservation**: +30 for quiet pawn moves, -25 for doubled pawn creation
+3. **Pawn Shield Awareness**: -30 penalty for weakening pawns near own king
+4. **Development**: +40 for moving N/B off back rank, +30 for castling
+
+**Petrosian Enhancements:**
+1. **Exchange Sacrifice Awareness**: +70 for R-for-minor trades that remove attackers near king (≤3 squares), +50 for capturing central pieces. Strong enough to override 0.5 eval gap in MultiPV.
+2. **Bad Bishop Tax**: Penalty (up to -40) when own pawns block bishop on same color squares (4+ pawns = "tall pawn")
+3. **Over-Protection (Nimzowitsch)**: +10 per extra defender on already-defended central pawns. Creates rock-solid structures.
+
+**Philosophy**: Patient accumulation of small advantages, prophylactic defense, and structural superiority over tactical chaos.
+
 ### Bot Move Delay System
 Human-like thinking time simulation with priority-based delay logic:
 
