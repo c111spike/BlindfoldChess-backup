@@ -57,19 +57,24 @@ export interface GameAnalysisResult {
 const MAX_EVAL = 10;
 const MAX_CENTIPAWN_LOSS = 500;
 
-// Refined thresholds based on modern engine standards
-// Tighter ranges make analysis feel more "Master-level"
+// Refined thresholds based on Chess.com industry standards
+// Adjusted to reduce false positives in winning positions
 const CLASSIFICATION_THRESHOLDS = {
-  good: 40,       // 1-40 cp: solid move, near-optimal
-  imprecise: 90,  // 41-90 cp: slight inaccuracy
-  mistake: 200,   // 91-200 cp: clear error, ~1 pawn loss
-  blunder: 200,   // 201+ cp: serious blunder, 2+ pawns or piece
+  good: 50,       // 1-50 cp: solid move, near-optimal
+  imprecise: 80,  // 51-80 cp: slight inaccuracy
+  mistake: 150,   // 81-150 cp: clear error
+  blunder: 300,   // 151-300 cp: bigger mistake, 301+ cp: serious blunder
 };
 
 // Position is "crushing" when one side is completely winning
 // Don't award Genius/Fantastic for finding obvious moves in won positions
 // Use 5.0 since normalized eval is clamped to ±10 (equivalent to ~5 pawns advantage)
 const CRUSHING_EVAL_THRESHOLD = 5.0;
+
+// "Winning Buffer" threshold - if you're still crushing after the move,
+// losing centipawns shouldn't be flagged as a blunder
+// 4.0 pawns = 400 centipawns - still completely winning
+const WINNING_BUFFER_THRESHOLD = 4.0;
 
 const PIECE_VALUES: Record<string, number> = {
   'p': 1,
@@ -166,14 +171,28 @@ function classifyMove(ctx: ClassificationContext): MoveClassification {
     return 'best';
   }
 
+  // "Winning Buffer" rule: If you're still crushing after the move (same sign, above threshold),
+  // losing centipawns shouldn't be flagged as a blunder/mistake
+  // Going from +10 to +7 is still completely winning - that's not a real blunder
+  const sameSign = Math.sign(ctx.evalBefore) === Math.sign(ctx.evalAfter);
+  const stillCrushing = Math.abs(ctx.evalAfter) >= WINNING_BUFFER_THRESHOLD;
+  if (sameSign && stillCrushing) {
+    // Cap classification at 'good' when still crushing - don't penalize for "wasting" advantage
+    if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.good) return 'good';
+    if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.imprecise) return 'imprecise';
+    // Even if cp loss is high, cap at 'imprecise' since you're still completely winning
+    return 'good';
+  }
+
   if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.good) return 'good';
   if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.imprecise) return 'imprecise';
   if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.mistake) return 'mistake';
+  if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.blunder) return 'mistake';
   return 'blunder';
 }
 
-// Accuracy weights based on move classification (refined thresholds)
-// Genius/Fantastic/Best/Forced = 100%, Good = 90-95%, Imprecise = 60-75%, Mistake = 30-45%, Blunder = 0-10%
+// Accuracy weights based on move classification (aligned with Chess.com thresholds)
+// Genius/Fantastic/Best/Forced = 100%, Good = 85-95%, Imprecise = 70-85%, Mistake = 30-55%, Blunder = 0-15%
 // Using weighted mean - importance factor reduces impact of outliers (bad moves don't tank score unfairly)
 function getClassificationWeight(classification: MoveClassification, cpLoss: number): { weight: number; importance: number } {
   switch (classification) {
@@ -185,21 +204,22 @@ function getClassificationWeight(classification: MoveClassification, cpLoss: num
       // Perfect moves get 100%
       return { weight: 100, importance: 1.0 };
     case 'good':
-      // Good moves: 75-85% based on CP loss (1-40 cp loss)
+      // Good moves: 85-95% based on CP loss (1-50 cp loss)
       // This creates meaningful separation from "Best" moves
-      const goodWeight = Math.max(75, 85 - (cpLoss / 4));
+      const goodWeight = Math.max(85, 95 - (cpLoss / 5));
       return { weight: goodWeight, importance: 1.0 };
     case 'imprecise':
-      // Imprecise: 60-75% based on CP loss (41-90 cp loss)
-      const impreciseWeight = Math.max(60, 75 - ((cpLoss - 40) / 50) * 15);
+      // Imprecise: 70-85% based on CP loss (51-80 cp loss)
+      const impreciseWeight = Math.max(70, 85 - ((cpLoss - 50) / 30) * 15);
       return { weight: impreciseWeight, importance: 1.0 };
     case 'mistake':
-      // Mistake: 30-45% based on CP loss (91-200 cp loss)
-      const mistakeWeight = Math.max(30, 45 - ((cpLoss - 90) / 110) * 15);
+      // Mistake: 30-55% based on CP loss (81-300 cp loss)
+      // Extended range: 81-150 = small mistake, 151-300 = bigger mistake
+      const mistakeWeight = Math.max(30, 55 - ((cpLoss - 80) / 220) * 25);
       return { weight: mistakeWeight, importance: 1.0 };
     case 'blunder':
-      // Blunder: 0-10% based on severity (201+ cp loss)
-      const blunderWeight = Math.max(0, 10 - ((cpLoss - 200) / 100) * 10);
+      // Blunder: 0-15% based on severity (301+ cp loss)
+      const blunderWeight = Math.max(0, 15 - ((cpLoss - 300) / 200) * 15);
       return { weight: blunderWeight, importance: 1.0 };
     default:
       return { weight: 100, importance: 1.0 };
