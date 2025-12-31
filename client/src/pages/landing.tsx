@@ -3,9 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, Brain, Grid3x3, Check, ArrowRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-// Use public folder hero for stable URL that matches index.html preload
-// This ensures the preload link works correctly for faster LCP
-const heroImage = "/hero-image.webp";
+import heroImage from "@assets/stock_images/simulchess-hero-2025.webp";
 import heroImageMobile from "@assets/optimized/simulchess-hero-768.webp";
 import otbIcon from "@assets/generated_images/otb_tournament_mode_icon.webp";
 import blindfoldIcon from "@assets/generated_images/blindfold_mode_icon.webp";
@@ -31,7 +29,7 @@ export default function Landing() {
       </header>
 
       <section className="relative w-full overflow-hidden">
-        <div className="absolute inset-0 top-14 md:top-0 pointer-events-none">
+        <div className="absolute inset-0">
           <img
             src={heroImage}
             srcSet={`${heroImageMobile} 768w, ${heroImage} 1280w`}
@@ -42,9 +40,9 @@ export default function Landing() {
             decoding="async"
             {...({ fetchpriority: "high" } as any)}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
         </div>
-        <div className="relative container max-w-7xl mx-auto px-4 pt-20 pb-32 md:py-48">
+        <div className="relative container max-w-7xl mx-auto px-4 py-32 md:py-48">
           <div className="max-w-3xl space-y-8">
             <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight">
               Master OTB. Strengthen Memory. Dominate Simuls.

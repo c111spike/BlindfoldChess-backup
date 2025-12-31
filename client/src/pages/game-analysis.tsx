@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,7 +20,6 @@ import { MiniGameOverlay, MiniGameType } from '@/components/minigames/MiniGameOv
 import {
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   Share2,
@@ -652,105 +650,91 @@ function PuzzlePatternInsights({
   }
   
   return (
-    <Collapsible defaultOpen={false}>
-      <Card data-testid="puzzle-pattern-insights">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Target className="w-4 h-4" />
-              Tactical Pattern Insights
-            </div>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1" data-testid="toggle-tactical-insights">
-                <Badge variant="secondary" className="text-xs">
-                  {missedTactics.length} patterns
-                </Badge>
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-            </CollapsibleTrigger>
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Missed tactics cross-referenced with your puzzle training history
-          </p>
-        </CardHeader>
-        <CollapsibleContent>
-          <CardContent>
-            <div className="space-y-3">
-              {missedTactics.map((tactic, i) => (
-                <div 
-                  key={i}
-                  className="p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
-                  onClick={() => onNavigateToMove?.(tactic.ply)}
-                  data-testid={`missed-tactic-${tactic.ply}`}
+    <Card data-testid="puzzle-pattern-insights">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Target className="w-4 h-4" />
+          Tactical Pattern Insights
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground mb-3">
+          Missed tactics cross-referenced with your puzzle training history
+        </p>
+        <div className="space-y-3">
+          {missedTactics.map((tactic, i) => (
+            <div 
+              key={i}
+              className="p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
+              onClick={() => onNavigateToMove?.(tactic.ply)}
+              data-testid={`missed-tactic-${tactic.ply}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">
+                  Move {tactic.moveNumber}
+                </span>
+                <Badge 
+                  className={tactic.classification === 'blunder' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">
-                      Move {tactic.moveNumber}
-                    </span>
-                    <Badge 
-                      className={tactic.classification === 'blunder' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}
-                    >
-                      {tactic.classification === 'blunder' ? 'Blunder' : 'Mistake'}
-                    </Badge>
-                  </div>
+                  {tactic.classification === 'blunder' ? 'Blunder' : 'Mistake'}
+                </Badge>
+              </div>
+              
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {tactic.motifs.map((motif, j) => (
+                  <Badge key={j} variant="outline" className="text-xs">
+                    {getMotifDisplayName(motif)}
+                  </Badge>
+                ))}
+              </div>
+              
+              <div className="space-y-1 text-sm">
+                {tactic.motifs.slice(0, 3).map((motif, j) => {
+                  const stat = getMotifStat(motif);
+                  const accuracyData = getAccuracyText(stat);
                   
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {tactic.motifs.map((motif, j) => (
-                      <Badge key={j} variant="outline" className="text-xs">
-                        {getMotifDisplayName(motif)}
-                      </Badge>
-                    ))}
-                  </div>
-                  
-                  <div className="space-y-1 text-sm">
-                    {tactic.motifs.slice(0, 3).map((motif, j) => {
-                      const stat = getMotifStat(motif);
-                      const accuracyData = getAccuracyText(stat);
-                      
-                      return (
-                        <div key={j} className="text-muted-foreground">
-                          {accuracyData ? (
-                            parseInt(accuracyData.accuracy) >= 70 ? (
-                              <span className="text-yellow-600 dark:text-yellow-400">
-                                You've solved {accuracyData.solved} similar {getMotifDisplayName(motif)} puzzles with {accuracyData.accuracy}% accuracy — this pattern should be in your toolkit
-                              </span>
-                            ) : (
-                              <span className="text-primary">
-                                {getMotifDisplayName(motif)} puzzles: {accuracyData.accuracy}% accuracy ({accuracyData.solved}/{accuracyData.total}) —{' '}
-                                <Link 
-                                  href={`/puzzles?motif=${motif}`}
-                                  className="underline hover:text-primary/80"
-                                  onClick={(e) => e.stopPropagation()}
-                                  data-testid={`link-practice-${motif}`}
-                                >
-                                  practice more
-                                </Link>
-                              </span>
-                            )
-                          ) : (
-                            <span>
-                              No puzzle practice data for {getMotifDisplayName(motif)} patterns —{' '}
-                              <Link 
-                                href={`/puzzles?motif=${motif}`}
-                                className="text-primary underline hover:text-primary/80"
-                                onClick={(e) => e.stopPropagation()}
-                                data-testid={`link-add-training-${motif}`}
-                              >
-                                add to training
-                              </Link>
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+                  return (
+                    <div key={j} className="text-muted-foreground">
+                      {accuracyData ? (
+                        parseInt(accuracyData.accuracy) >= 70 ? (
+                          <span className="text-yellow-600 dark:text-yellow-400">
+                            You've solved {accuracyData.solved} similar {getMotifDisplayName(motif)} puzzles with {accuracyData.accuracy}% accuracy — this pattern should be in your toolkit
+                          </span>
+                        ) : (
+                          <span className="text-primary">
+                            {getMotifDisplayName(motif)} puzzles: {accuracyData.accuracy}% accuracy ({accuracyData.solved}/{accuracyData.total}) —{' '}
+                            <Link 
+                              href={`/puzzles?motif=${motif}`}
+                              className="underline hover:text-primary/80"
+                              onClick={(e) => e.stopPropagation()}
+                              data-testid={`link-practice-${motif}`}
+                            >
+                              practice more
+                            </Link>
+                          </span>
+                        )
+                      ) : (
+                        <span>
+                          No puzzle practice data for {getMotifDisplayName(motif)} patterns —{' '}
+                          <Link 
+                            href={`/puzzles?motif=${motif}`}
+                            className="text-primary underline hover:text-primary/80"
+                            onClick={(e) => e.stopPropagation()}
+                            data-testid={`link-add-training-${motif}`}
+                          >
+                            add to training
+                          </Link>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1035,71 +1019,57 @@ function ReviewTab({
       </div>
       
       {vssMismatches.length > 0 && (
-        <Collapsible defaultOpen={false}>
-          <Card data-testid="vss-mismatch">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Brain className="w-4 h-4" />
-                  <strong>VSS Mismatch</strong> Alerts
-                </div>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1" data-testid="toggle-vss-mismatch">
-                    <Badge variant="secondary" className="text-xs">
-                      {vssMismatches.length} alerts
-                    </Badge>
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </CollapsibleTrigger>
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Positions where you may have misjudged the evaluation
-              </p>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent>
-                {hasTimeRemaining && (
-                  <p className="text-sm text-primary mb-3">
-                    Click a move to practice finding the best move!
-                  </p>
-                )}
-                <div className="space-y-2">
-                  {vssMismatches.map((plyIndex, i) => {
-                    const moveTime = thinkingTimes[plyIndex];
-                    const moveNumber = Math.floor(plyIndex / 2) + 1;
-                    const isBlackMove = plyIndex % 2 === 1;
-                    return (
-                      <div 
-                        key={i}
-                        className={`flex items-center justify-between p-2 rounded-lg bg-muted/50 cursor-pointer hover-elevate`}
-                        onClick={() => handleVSSMismatchClick(plyIndex)}
-                        data-testid={`vss-move-${plyIndex}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">
-                            Move {moveNumber}{isBlackMove ? '...' : ''}
-                          </span>
-                          {hasTimeRemaining && (
-                            <Badge variant="outline" className="text-xs">
-                              <Play className="w-3 h-3 mr-1" />
-                              Practice
-                            </Badge>
-                          )}
-                        </div>
-                        {moveTime != null && (
-                          <span className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatTime(moveTime)} spent
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+        <Card data-testid="vss-mismatch">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Brain className="w-4 h-4" />
+              <strong>VSS Mismatch</strong> Alerts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              Positions where you may have misjudged the evaluation
+              {hasTimeRemaining && (
+                <span className="block mt-1 text-primary">
+                  Click a move to practice finding the best move!
+                </span>
+              )}
+            </p>
+            <div className="space-y-2">
+              {vssMismatches.map((plyIndex, i) => {
+                const moveTime = thinkingTimes[plyIndex];
+                const moveNumber = Math.floor(plyIndex / 2) + 1;
+                const isBlackMove = plyIndex % 2 === 1;
+                return (
+                  <div 
+                    key={i}
+                    className={`flex items-center justify-between p-2 rounded-lg bg-muted/50 cursor-pointer hover-elevate`}
+                    onClick={() => handleVSSMismatchClick(plyIndex)}
+                    data-testid={`vss-move-${plyIndex}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">
+                        Move {moveNumber}{isBlackMove ? '...' : ''}
+                      </span>
+                      {hasTimeRemaining && (
+                        <Badge variant="outline" className="text-xs">
+                          <Play className="w-3 h-3 mr-1" />
+                          Practice
+                        </Badge>
+                      )}
+                    </div>
+                    {moveTime != null && (
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatTime(moveTime)} spent
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
       
       {analysis.improvementSuggestions && (analysis.improvementSuggestions as string[]).length > 0 && (

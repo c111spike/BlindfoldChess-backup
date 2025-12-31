@@ -232,14 +232,14 @@ function AppContent() {
   // Always render the sidebar layout shell to prevent CLS from footer appearing/disappearing
   return (
     <SidebarProvider style={sidebarStyle as React.CSSProperties}>
-      {/* Mobile-only floating hamburger button - placed outside overflow-hidden container to avoid stacking context issues */}
-      <SidebarTrigger 
-        className="md:hidden fixed top-3 left-3 z-[100] bg-sidebar text-sidebar-foreground border border-sidebar-border rounded-md" 
-        data-testid="button-mobile-sidebar-toggle" 
-      />
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden relative">
+          {/* Mobile-only floating hamburger button */}
+          <SidebarTrigger 
+            className="md:hidden fixed top-3 left-3 z-50 bg-sidebar text-sidebar-foreground border border-sidebar-border rounded-md" 
+            data-testid="button-mobile-sidebar-toggle" 
+          />
           {/* Header bar with back button and dev tools - h-12 locks height to prevent CLS */}
           <div className="flex items-center justify-between px-4 h-12 pl-14 md:pl-4">
             <BackButton />
