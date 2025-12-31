@@ -31,7 +31,7 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 
 ### Game Mechanics
 - **Time Controls**: Various options.
-- **Rating System**: Separate rating pools for various modes, with new users starting at 1200 (Simul/OTB at 1000). Matchmaking is FIFO within ±300 Elo.
+- **Rating System**: Separate rating pools for various modes, with new users starting at 1200 (all modes including Simul/OTB). Matchmaking is FIFO within ±300 Elo.
 - **Disconnect Handling**: 30-second grace period for all game modes; auto-abort or auto-resign thereafter.
 
 ### Training Modes
@@ -42,6 +42,20 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 
 ### Bot Engine
 A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM, and custom minimax with personality-aware move selection. Supports 8 Elo levels (400-2500) and 7 distinct personalities. Features tiered checkmate vision and draw-seeking behavior (survival mode) based on difficulty.
+
+### Bot Personality: Fortress Defender
+The Defensive personality implements a "Fortress" philosophy - actively trading down, coordinating pieces around the king, and punishing overextension:
+
+**Core Mechanics:**
+1. **Trade-Seeking**: +35 bonus for equal trades, extra bonus for Q/R trades (removes attacking potential)
+2. **Zone Defense**: King-proximity bonus for N/B within 2-3 squares of king (+40/+20), penalty for distant pieces
+3. **Infiltration Detection**: Scans for enemy N/R/Q on 3rd/4th rank with threat scoring (Q=60, R=40, N=30, scaled by king proximity)
+4. **Urgency System**: All moves penalized when infiltrators exist (creates urgency to deal with threats)
+5. **Counter-Punch**: Capturing infiltrator = +80 bonus + full penalty removal; Attacking infiltrator = +35 + partial relief
+6. **Iron Fortress**: 2x pawn shield protection penalty (never weaken king cover)
+7. **Rook Coordination**: Bonus for rooks on back ranks (defensive positioning)
+
+**Priority Ladder**: Capture infiltrator > Attack infiltrator > Ignore (full penalty applies)
 
 ### Bot Move Delay System
 Human-like thinking time simulation with priority-based delay logic:
