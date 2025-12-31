@@ -70,8 +70,8 @@ export default function PublicHomePage() {
         <meta property="og:image" content="https://simulchess.com/og-home.png" />
         <link rel="canonical" href="https://simulchess.com/" />
       </Helmet>
-      <section className="hero-container relative w-full min-h-[80vh] overflow-hidden pt-12">
-        <div className="absolute inset-0 z-[-1] pointer-events-none overflow-hidden">
+      <section className="hero-container relative w-full min-h-[80vh] overflow-hidden pt-12 pointer-events-none">
+        <div className="absolute inset-0 z-0 overflow-hidden">
           <img
             src={heroImage}
             srcSet={`${heroImageMobile} 768w, ${heroImage} 1280w`}
@@ -82,10 +82,10 @@ export default function PublicHomePage() {
             decoding="async"
             {...({ fetchpriority: "high" } as any)}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
         </div>
-        <div className="relative h-full flex items-center px-8 py-8 md:py-24">
-          <div className="max-w-2xl space-y-6">
+        <div className="relative z-10 h-full flex items-center px-8 py-8 md:py-24">
+          <div className="max-w-2xl space-y-6 pointer-events-auto">
             <h1 className="hero-title text-4xl md:text-5xl font-bold text-white leading-tight" data-testid="text-hero-title">
               SimulChess: Professional OTB & Blindfold Chess Training Platform
             </h1>
