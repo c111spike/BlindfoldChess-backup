@@ -70,7 +70,7 @@ export default function PublicHomePage() {
         <meta property="og:image" content="https://simulchess.com/og-home.png" />
         <link rel="canonical" href="https://simulchess.com/" />
       </Helmet>
-      <div className="relative w-full h-[60vh] md:h-[80vh] overflow-hidden bg-black">
+      <div className="relative w-full h-[60vh] md:h-[80vh] overflow-hidden bg-black mt-16 md:mt-0">
         {/* Hero Image (in DOM flow) */}
         <img
           src={heroImage}
