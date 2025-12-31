@@ -509,15 +509,14 @@ interface MissedTactic {
 function PuzzlePatternInsights({ 
   game, 
   moves,
-  onNavigateToMove 
 }: { 
   game: Game;
   moves: MoveAnalysis[];
-  onNavigateToMove?: (moveIndex: number) => void;
 }) {
   const [missedTactics, setMissedTactics] = useState<MissedTactic[]>([]);
   const [analyzing, setAnalyzing] = useState(true);
   const [selectedTacticDropdown, setSelectedTacticDropdown] = useState<string>('');
+  const [positionViewerOpen, setPositionViewerOpen] = useState(false);
   
   // Auto-select first tactic when data loads
   useEffect(() => {
@@ -746,7 +745,7 @@ function PuzzlePatternInsights({
               <Button 
                 size="sm"
                 variant="outline"
-                onClick={() => onNavigateToMove?.(selectedTactic.ply)}
+                onClick={() => setPositionViewerOpen(true)}
                 data-testid={`button-view-tactic-${selectedTactic.ply}`}
               >
                 <Eye className="w-4 h-4 mr-2" />
@@ -763,6 +762,20 @@ function PuzzlePatternInsights({
               </Link>
             </div>
           </div>
+        )}
+        
+        {/* Position Viewer Modal */}
+        {selectedTactic && (
+          <PositionViewerDialog
+            open={positionViewerOpen}
+            onOpenChange={setPositionViewerOpen}
+            fen={selectedTactic.fen}
+            moveNumber={selectedTactic.moveNumber}
+            classification={selectedTactic.classification}
+            motifs={selectedTactic.motifs}
+            bestMove={selectedTactic.bestMove}
+            playerColor={playerColor}
+          />
         )}
       </CardContent>
     </Card>
@@ -1165,7 +1178,6 @@ function ReviewTab({
       <PuzzlePatternInsights 
         game={game} 
         moves={moves}
-        onNavigateToMove={onNavigateToMove}
       />
       
       {/* VSS Interactive Training Dialog */}
@@ -2095,6 +2107,154 @@ function InteractiveTrainerBoard({
         )}
       </div>
     </div>
+  );
+}
+
+// Static board display for position viewing (no interaction)
+function StaticPositionBoard({ 
+  fen, 
+  flipped = false,
+  bestMove,
+}: { 
+  fen: string; 
+  flipped?: boolean;
+  bestMove?: string;
+}) {
+  const chess = useMemo(() => new Chess(fen), [fen]);
+  const board = chess.board();
+  
+  // Parse best move to highlight squares
+  const highlightSquares = useMemo(() => {
+    if (!bestMove) return [];
+    // Best move is in format like "e2e4" or "Nf3" - try to extract from/to squares
+    if (bestMove.length >= 4) {
+      const from = bestMove.substring(0, 2);
+      const to = bestMove.substring(2, 4);
+      return [from, to];
+    }
+    return [];
+  }, [bestMove]);
+  
+  const pieceSymbols: Record<string, string> = {
+    'k': '\u265A', 'q': '\u265B', 'r': '\u265C', 'b': '\u265D', 'n': '\u265E', 'p': '\u265F',
+    'K': '\u2654', 'Q': '\u2655', 'R': '\u2656', 'B': '\u2657', 'N': '\u2658', 'P': '\u2659',
+  };
+
+  const getSquareColor = (displayRow: number, displayCol: number) => {
+    const actualRow = flipped ? 7 - displayRow : displayRow;
+    const actualCol = flipped ? 7 - displayCol : displayCol;
+    const isLight = (actualRow + actualCol) % 2 === 0;
+    const file = String.fromCharCode(97 + actualCol);
+    const rank = 8 - actualRow;
+    const square = `${file}${rank}`;
+    
+    if (highlightSquares.includes(square)) {
+      return isLight ? 'bg-green-200' : 'bg-green-500';
+    }
+    
+    return isLight ? 'bg-amber-100' : 'bg-amber-700';
+  };
+
+  const getSquareContent = (displayRow: number, displayCol: number) => {
+    const actualRow = flipped ? 7 - displayRow : displayRow;
+    const actualCol = flipped ? 7 - displayCol : displayCol;
+    return board[actualRow][actualCol];
+  };
+
+  return (
+    <div className="aspect-square w-full max-w-sm mx-auto" data-testid="static-chessboard">
+      <div className="grid grid-cols-8 grid-rows-8 w-full h-full border-2 border-foreground/20 rounded overflow-hidden">
+        {Array.from({ length: 8 }).map((_, rowIndex) =>
+          Array.from({ length: 8 }).map((_, colIndex) => {
+            const square = getSquareContent(rowIndex, colIndex);
+            return (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className={`flex items-center justify-center aspect-square ${getSquareColor(rowIndex, colIndex)}`}
+              >
+                {square && (
+                  <span className={`text-2xl md:text-3xl ${square.color === 'w' ? 'text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]' : 'text-gray-900'}`}>
+                    {pieceSymbols[square.color === 'w' ? square.type.toUpperCase() : square.type]}
+                  </span>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Position Viewer Dialog - Simple modal for viewing tactical positions
+function PositionViewerDialog({
+  open,
+  onOpenChange,
+  fen,
+  moveNumber,
+  classification,
+  motifs,
+  bestMove,
+  playerColor,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  fen: string;
+  moveNumber: number;
+  classification: MoveClassification;
+  motifs: TacticalMotif[];
+  bestMove?: string;
+  playerColor: string;
+}) {
+  const flipped = playerColor === 'black';
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg" data-testid="position-viewer-dialog">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Move {moveNumber} - Tactical Position
+          </DialogTitle>
+          <DialogDescription>
+            {classification === 'blunder' ? 'Blunder' : 'Mistake'}: {motifs.slice(0, 2).map(m => getMotifDisplayName(m)).join(', ')}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Board */}
+          <StaticPositionBoard
+            fen={fen}
+            flipped={flipped}
+            bestMove={bestMove}
+          />
+          
+          {/* Best move info */}
+          {bestMove && (
+            <div className="p-3 rounded-lg bg-muted text-center">
+              <p className="text-sm text-muted-foreground">
+                Best move was: <span className="font-mono font-bold text-foreground">{bestMove}</span>
+              </p>
+            </div>
+          )}
+          
+          {/* Motifs */}
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {motifs.map((motif, j) => (
+              <Badge key={j} variant="outline" className="text-xs">
+                {getMotifDisplayName(motif)}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} data-testid="button-close-position-viewer">
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
