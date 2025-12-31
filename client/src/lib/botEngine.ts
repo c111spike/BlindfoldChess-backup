@@ -1644,7 +1644,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // -1.0 threshold: Ultra-sensitive - any pawn deficit triggers draw-seeking
   // "Cynical Chess" - prefers 0.0 draw over grinding -1.1 loss
   grandmaster: { 
-    elo: 2500, timePerMoveMs: 5000, maxDepth: 12, multiPvCount: 3, stockfishNodes: 3000000, 
+    elo: 2500, timePerMoveMs: 5000, maxDepth: 11, multiPvCount: 2, stockfishNodes: 3000000, 
     mistakeProbability: 0.00001, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,

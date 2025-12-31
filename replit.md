@@ -81,8 +81,8 @@ All game modes use consistent difficulty naming:
 - **Club Player** (~1200 Elo): Full heuristics, decent evaluation
 - **Advanced** (~1500 Elo): Strong heuristics
 - **Expert** (~1800 Elo): Full strength
-- **Master** (~2000 Elo): Near-perfect play
-- **Grandmaster** (~2500 Elo): Maximum difficulty
+- **Master** (~2000 Elo): Near-perfect play, 10 depth, 2M nodes
+- **Grandmaster** (~2500 Elo): Maximum difficulty, 11 depth, 3M nodes, MultiPV=2 for reliable depth with personality
 
 ### Post-Game Analysis System
 Provides two tabbed modes for game analysis:
