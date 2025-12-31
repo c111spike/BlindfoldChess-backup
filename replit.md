@@ -31,8 +31,8 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 
 ### Game Mechanics
 - **Time Controls**: Various options.
-- **Rating System**: Separate rating pools for various modes, with new users starting at 1200 (all modes including Simul/OTB). Matchmaking is FIFO within ±300 Elo.
-- **Disconnect Handling**: 30-second grace period for all game modes; auto-abort or auto-resign thereafter.
+- **Rating System**: Separate rating pools for various modes, with new users starting at 1200. Matchmaking is FIFO within ±300 Elo.
+- **Disconnect Handling**: 30-second grace period; auto-abort or auto-resign thereafter.
 
 ### Training Modes
 - **Standard Mode**: Traditional multiplayer chess.
@@ -41,124 +41,33 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **Simul Mode**: Multi-board management training for simultaneous exhibitions.
 
 ### Bot Engine
-A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM, and custom minimax with personality-aware move selection. Supports 8 Elo levels (400-2500) and 7 distinct personalities. Features tiered checkmate vision and draw-seeking behavior (survival mode) based on difficulty.
+A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM, and custom minimax with personality-aware move selection. Supports 8 Elo levels (400-2500) and 7 distinct personalities (Fortress Defender, Positional Grandmaster, Bishop Specialist, Knight Specialist, Tal Attacker, Tactician, Balanced). Features tiered checkmate vision and draw-seeking behavior. Includes a human-like move delay system.
 
-### Bot Personality: Fortress Defender
-The Defensive personality implements a "Fortress" philosophy - actively trading down, coordinating pieces around the king, and punishing overextension:
-
-**Core Mechanics:**
-1. **Trade-Seeking**: +35 bonus for equal trades, extra bonus for Q/R trades (removes attacking potential)
-2. **Zone Defense**: King-proximity bonus for N/B within 2-3 squares of king (+40/+20), penalty for distant pieces
-3. **Infiltration Detection**: Scans for enemy N/R/Q on 3rd/4th rank with threat scoring (Q=60, R=40, N=30, scaled by king proximity)
-4. **Urgency System**: All moves penalized when infiltrators exist (creates urgency to deal with threats)
-5. **Counter-Punch**: Capturing infiltrator = +80 bonus + full penalty removal; Attacking infiltrator = +35 + partial relief
-6. **Iron Fortress**: 2x pawn shield protection penalty (never weaken king cover)
-7. **Rook Coordination**: Bonus for rooks on back ranks (defensive positioning)
-
-**Priority Ladder**: Capture infiltrator > Attack infiltrator > Ignore (full penalty applies)
-
-### Bot Personality: Positional Grandmaster (Iron Tigran)
-The Positional personality implements Petrosian-style strategic play - patient, prophylactic, and focused on long-term advantages:
+### Bot Personality: Tal Attacker (Aggressive)
+The Aggressive personality implements Mikhail Tal's philosophy - calculated sacrifices, coordinated attacks, and sensing when the position is "ripe" for assault:
 
 **Core Mechanics:**
-1. **Center Control**: +50 bonus for pieces on c3-f6 central squares
-2. **Structure Preservation**: +30 for quiet pawn moves, -25 for doubled pawn creation
-3. **Pawn Shield Awareness**: -30 penalty for weakening pawns near own king
-4. **Development**: +40 for moving N/B off back rank, +30 for castling
+1. **Capture Bonus**: +80 for captures, +100 for checks
+2. **Forward March**: +40 for moves toward enemy king's side of the board
+3. **Pawn Storm**: 3x bonus for pawn advances on enemy king's flank
 
-**Petrosian Enhancements:**
-1. **Exchange Sacrifice Awareness**: +70 for R-for-minor trades that remove attackers near king (≤3 squares), +50 for capturing central pieces. Strong enough to override 0.5 eval gap in MultiPV.
-2. **Bad Bishop Tax**: Penalty (up to -40) when own pawns block bishop on same color squares (4+ pawns = "tall pawn")
-3. **Over-Protection (Nimzowitsch)**: +10 per extra defender on already-defended central pawns. Creates rock-solid structures.
+**Tal Enhancements:**
+1. **Attack Unit Density ("Sense of Ripeness")**: Count attacking units within 3 squares of enemy king (Q=4, R=3, Minor=2, P=1). When attack units ≥8, enter "Tal Moment" with extra bonuses (+50 for checks, +30 for captures).
+2. **Initiative Multiplier (Sacrifice Logic)**: Flat bonuses for justified sacrifices (capped at 120): +80 for checking sacrifices, +100 during Tal Moment, +60 for sacrifices landing within 2 squares of king.
+3. **Coordination ("Reload" Mechanic)**: Tiered bonuses for moves landing near enemy king when pieces are converging: +25 at 4+ attack units, +35 at 6+ units, +50 during Tal Moment.
+4. **King in Center Hunting**: If enemy king hasn't castled by move 12 (still on d8/e8 or d1/e1), activate "Kill Mode" with +90 for center pawn breaks (d4, e4, d5, e5) and +30 for any central piece activity.
 
-**Philosophy**: Patient accumulation of small advantages, prophylactic defense, and structural superiority over tactical chaos.
-
-### Bot Personality: Bishop Specialist (Hypermodern Sniper)
-The Bishop Lover personality implements a long-range diagonal strategy - opening lines, preserving the bishop pair, and avoiding self-inflicted blocks:
-
-**Core Mechanics:**
-1. **Bishop Love**: +60 for bishop moves, +40 for long diagonal placement (a1-h8, a8-h1)
-2. **Long Diagonals**: Bonus for bishops on the main diagonals (breathing fire across the board)
-3. **Anti-Knight Trade**: +30 for capturing knights (not trading bishops for knights)
-4. **Fianchetto Setup**: +35 for b3/g3 or b6/g6 pawn moves (prepares bishop deployment)
-
-**Hypermodern Enhancements:**
-1. **Side-Pawn Lead**: +25 for a4/h4/a5/h5 pawn advances (Alekhine/Grunfeld-style flank attacks open diagonals)
-2. **Bishop Pair Multiplier**: +40 global bonus when we have 2 bishops vs opponent's 0-1, plus -60 penalty for trading a bishop (fights to keep the pair into the endgame)
-3. **Anti-Blockade Logic**: -20 penalty for pawns landing on same-color squares as our bishop (avoids creating "bad bishop")
-
-**Philosophy**: Open positions, diagonal batteries, and long-range pressure. Willing to bait "Big Center" pawns just to demolish them from the flanks.
-
-### Bot Personality: Knight Specialist (The Octopus)
-The Knight Lover personality implements suffocation strategy - outposts, permanent anchors, and tactical geometry:
-
-**Core Mechanics:**
-1. **Knight Love**: +60 for knight moves, +15 for quiet knight repositioning
-2. **Outpost Seeking**: +50 for knights on c4-f5 central outpost squares
-3. **Anti-Bishop Trade**: +30 for capturing bishops (keeping our knights)
-4. **Closed Position Preference**: -25 for pawn exchanges, -20 for central pawn advances past 4th rank
-
-**Octopus Enhancements:**
-1. **6th Rank Octopus**: +100 for knights on c6/d6/e6/f6 (or c3/d3/e3/f3 for black) - a knight here is worth more than a rook
-2. **Anchor Pawn Logic**: +30 for knights on outposts with pawn support from behind (permanent, can't be kicked away)
-3. **Fork Vision**: +30 bonus when enemy Q/K are on same-color squares (fork geometry favorable), +200 for actual royal forks, +40 for threatening one royal piece
-
-**Philosophy**: Freeze the position, squeeze space, create permanent outposts. When facing the Bishop Lover in Simul vs Simul, tries to lock the center and suffocate.
-
-### Bot Move Delay System
-Human-like thinking time simulation with priority-based delay logic:
-
-**Priority Order (Standard/OTB):**
-1. Recapture available → 1 second (reflexive move)
-2. Clock pressure (<60s) → 1 second (time trouble)
-3. Piece count (endgame detection):
-   - Lone king (1 piece) → 1s
-   - 2-5 pieces → 2-3s
-   - 6-11 pieces → 3-4s
-4. Move count (opening/middlegame):
-   - Moves 1-5 → 1s (opening book)
-   - Moves 6-11 → 2-3s (development)
-   - Moves 12+ → 3-6s (middlegame thinking)
-
-**Simul Mode (30-second turn timer, no clock pressure):**
-1. Recapture available → 1 second
-2. Piece count:
-   - Lone king → 1s
-   - 2-5 pieces → 3-5s
-   - 6-10 pieces → 3-7s
-3. Move count:
-   - Moves 1-5 → 1s
-   - Moves 6-10 → 2-4s
-   - Moves 11+ → 3-10s
-
-Helper functions in `botEngine.ts`:
-- `countBotPieces(fen, botColor)`: Counts bot's pieces from FEN
-- `detectRecapture(lastMove, fen)`: Detects recapture opportunities
-
-### Standardized Difficulty Naming
-All game modes use consistent difficulty naming:
-- **Patzer** (~400 Elo): Beginner level, basic evaluation
-- **Novice** (~600 Elo): Minimal heuristics, slight awareness
-- **Intermediate** (~900 Elo): Basic search heuristics
-- **Club Player** (~1200 Elo): Full heuristics, decent evaluation
-- **Advanced** (~1500 Elo): Strong heuristics
-- **Expert** (~1800 Elo): Full strength
-- **Master** (~2000 Elo): Near-perfect play, 10 depth, 2M nodes
-- **Grandmaster** (~2500 Elo): Maximum difficulty, 11 depth, 3M nodes, MultiPV=2 for reliable depth with personality
+**Philosophy**: "A sacrifice is best refuted by accepting it" - but Tal made them accept and crushed them anyway. Values tempo and attack over material.
 
 ### Post-Game Analysis System
-Provides two tabbed modes for game analysis:
-- **Analyze Tab**: Stockfish-powered engine analysis with interactive board, evaluation, move classification, and accuracy scores.
-- **Review Tab**: Psychology-focused coaching analysis with diagnostic markers like Focus Check, Efficiency Factor, Time Trouble detection, and VSS Mismatch alerts.
-- **Move Classification System**: Categorizes moves (Genius, Fantastic, Best, Good, Imprecise, Mistake, Blunder) based on centipawn loss and strategic impact.
-- **Tactical Motif Detection**: Client-side engine detects 35+ tactical patterns for personalized coaching and puzzle auto-tagging. Integrates with user motif statistics and provides clickable training links.
+Provides two tabbed modes: Stockfish-powered engine analysis (`Analyze Tab`) and psychology-focused coaching analysis (`Review Tab`). Features interactive board, evaluation, move classification (Genius, Fantastic, Best, Good, Imprecise, Mistake, Blunder), accuracy scores, and tactical motif detection for personalized coaching.
 
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.
-- **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles, including optional YouTube video URL support.
+- **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles.
 
 ### Anti-Cheat & Report System
-- **Cheat Reports**: User-submitted reports with reason selection, details, and screenshot evidence. Screenshots are compressed and uploaded to Replit Object Storage.
+- **Cheat Reports**: User-submitted reports with reason, details, and screenshot evidence (uploaded to Replit Object Storage).
 - **Admin Moderation**: Interface for managing reports, suspending/banning users, and issuing rating refunds.
 
 ### Infrastructure
@@ -167,7 +76,7 @@ Provides two tabbed modes for game analysis:
 - **Stockfish Scaling**: Primarily client-side via WebAssembly.
 
 ### In-Memory Caching System
-A TTL-based cache (`server/memoryCache.ts`) for frequently accessed data (platform stats, leaderboards, puzzle counts) with centralized invalidation helpers to ensure consistency.
+A TTL-based cache (`server/memoryCache.ts`) for frequently accessed data with centralized invalidation helpers.
 
 ### Design System
 - **Typography**: Defined scale, monospace for notation.
@@ -176,26 +85,7 @@ A TTL-based cache (`server/memoryCache.ts`) for frequently accessed data (platfo
 - **Responsive Design**: Mobile-first approach.
 
 ### Position Cache Architecture
-The engine layer uses FEN-only caching for "Pure Engine Truth":
-- **positionCache**: Stores Stockfish analysis results keyed by FEN hash (SHA-256). Contains evaluation, depth, bestMove, hitCount, and expiration.
-- **syzygyCache**: Stores endgame tablebase results keyed by FEN hash. Contains DTZ (distance to zeroing), WDL (win/draw/loss), and optimal moves.
-
-This design is intentional—the best move doesn't change based on who's playing; only the player's ability to find it varies by skill level.
-
-### Future Enhancement: Human Performance Analytics
-When the player base diversifies beyond the starting 1200 Elo, a `humanPerformance` table can be added to track behavioral data without polluting the engine cache:
-
-| Column | What it stores | Why it matters |
-|--------|----------------|----------------|
-| `fenHash` | Links to positionCache | Connects "Truth" to "Behavior" |
-| `eloRange` | Elo bucket (e.g., 1000-1200) | Identify which skill levels reach this position |
-| `blunderRate` | % who missed the bestMove | Training module gold mine |
-| `commonMistake` | Most frequent wrong move | Valuable for targeted coaching |
-| `sampleSize` | Number of games analyzed | Statistical confidence |
-
-**Buyout Value**: A database showing "Players at 1100 Elo have a 70% fail rate on this Rook endgame" is premium analytics data.
-
-**Implementation Note**: Not built yet—all players currently start at 1200 Elo, so meaningful Elo-stratified data requires time for the player base to spread across rating ranges.
+The engine layer uses FEN-only caching for "Pure Engine Truth" in `positionCache` (Stockfish analysis) and `syzygyCache` (endgame tablebase results).
 
 ## External Dependencies
 - **Neon Database**: Serverless PostgreSQL.

@@ -1998,32 +1998,175 @@ function selectMoveByPersonality(
     // Apply personality bonuses
     switch (personality) {
       case 'aggressive':
-        if (move.captured) score += 80 * personalityInfluence;
-        if (move.san.includes('+')) score += 100 * personalityInfluence;
-        // Prefer moves toward enemy king side
-        if (game.turn() === 'w' && parseInt(move.to[1]) >= 5) score += 40 * personalityInfluence;
-        if (game.turn() === 'b' && parseInt(move.to[1]) <= 4) score += 40 * personalityInfluence;
-        
-        // PAWN STORM BONUS (3x multiplier for Aggressor)
-        // Bonus for advancing pawns on the enemy king's flank
-        if (move.piece === 'p') {
-          const toRank = parseInt(move.to[1]);
-          const toFile = move.to[0];
-          // Get enemy king position to determine attack direction
-          const enemyKing = findKingPosition(game, game.turn() === 'w' ? 'b' : 'w');
+        {
+          // ========== TAL ATTACKER PHILOSOPHY ==========
+          // "A sacrifice is best refuted by accepting it" - Wilhelm Steinitz
+          // But Tal made them accept... and then crushed them anyway.
+          // This bot is a calculated aggressor that senses when the position is "ripe"
+          
+          const board = game.board();
+          const myColor = game.turn();
+          const enemyColor = myColor === 'w' ? 'b' : 'w';
+          const enemyKing = findKingPosition(game, enemyColor);
+          // Get move number from history length (ply / 2 + 1)
+          const ply = game.history().length;
+          const moveNumber = Math.floor(ply / 2) + 1;
+          
+          // Basic aggressive bonuses (unchanged)
+          if (move.captured) score += 80 * personalityInfluence;
+          if (move.san.includes('+')) score += 100 * personalityInfluence;
+          // Prefer moves toward enemy king side
+          if (myColor === 'w' && parseInt(move.to[1]) >= 5) score += 40 * personalityInfluence;
+          if (myColor === 'b' && parseInt(move.to[1]) <= 4) score += 40 * personalityInfluence;
+          
+          // ============================================
+          // 1. ATTACK UNIT DENSITY - "SENSE OF RIPENESS"
+          // ============================================
+          // Count attacking units within 3 squares of enemy king
+          // Queen=4, Rook=3, Minor=2, Pawn=1 (attack units)
+          let attackUnits = 0;
           if (enemyKing) {
-            const enemyKingFile = String.fromCharCode(97 + enemyKing.col);
-            const adjacentFiles = [
-              String.fromCharCode(enemyKingFile.charCodeAt(0) - 1),
-              enemyKingFile,
-              String.fromCharCode(enemyKingFile.charCodeAt(0) + 1)
-            ];
-            // Pawn advancing on enemy king's flank
-            if (adjacentFiles.includes(toFile)) {
-              // 3x storm bonus for Aggressor
-              const stormBonus = (game.turn() === 'w' ? toRank - 2 : 9 - toRank) * 30 * personalityInfluence;
-              score += stormBonus * 3;
+            for (let r = 0; r < 8; r++) {
+              for (let c = 0; c < 8; c++) {
+                const piece = board[r]?.[c];
+                if (piece && piece.color === myColor && piece.type !== 'k') {
+                  const distance = Math.max(Math.abs(r - enemyKing.row), Math.abs(c - enemyKing.col));
+                  if (distance <= 3) {
+                    if (piece.type === 'q') attackUnits += 4;
+                    else if (piece.type === 'r') attackUnits += 3;
+                    else if (piece.type === 'n' || piece.type === 'b') attackUnits += 2;
+                    else if (piece.type === 'p') attackUnits += 1;
+                  }
+                }
+              }
             }
+          }
+          
+          // The "Tal Moment" - enough firepower gathered!
+          const isTalMoment = attackUnits >= 8;
+          
+          // ============================================
+          // 2. INITIATIVE MULTIPLIER (SACRIFICE LOGIC)
+          // ============================================
+          // Real attackers don't mind losing material for tempo/attack
+          // Give a flat bonus (not percentage-based) for "justified" sacrifices
+          
+          if (move.captured) {
+            const pieceValues: Record<string, number> = { 'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9 };
+            const capturedValue = pieceValues[move.captured] || 0;
+            const movingPieceValue = pieceValues[move.piece] || 0;
+            
+            // Sacrifice detection: we're giving up more than we take
+            if (movingPieceValue > capturedValue) {
+              // Check if this sacrifice is "justified" by any of these conditions:
+              let initiativeBonus = 0;
+              
+              // Check gives tempo - most valuable
+              if (move.san.includes('+')) {
+                initiativeBonus += 80; // Tempo bonus for checking sacrifices
+              }
+              
+              // Tal Moment - position is ripe, sacrifice with confidence
+              if (isTalMoment) {
+                initiativeBonus += 100; // "The position is ripe!"
+              }
+              
+              // Opens line toward enemy king (move to square closer to enemy king)
+              if (enemyKing && !move.san.includes('+') && !isTalMoment) {
+                const toCol = move.to.charCodeAt(0) - 97;
+                const toRow = 8 - parseInt(move.to[1]);
+                const distToKing = Math.max(Math.abs(toRow - enemyKing.row), Math.abs(toCol - enemyKing.col));
+                
+                // Only count as line-opening if we're getting very close to the king
+                if (distToKing <= 2) {
+                  initiativeBonus += 60; // Sacrifice near the king
+                }
+              }
+              
+              // Apply bonus only if any justification condition was met
+              // Cap at 120 to prevent runaway scores
+              if (initiativeBonus > 0) {
+                score += Math.min(initiativeBonus, 120) * personalityInfluence;
+              }
+            }
+          }
+          
+          // ============================================
+          // 3. COORDINATION: THE "RELOAD" MECHANIC
+          // ============================================
+          // Bonus for having multiple pieces near the enemy king
+          // Simplified: count pieces within 3 squares, bonus for density
+          if (enemyKing) {
+            const toCol = move.to.charCodeAt(0) - 97;
+            const toRow = 8 - parseInt(move.to[1]);
+            const distToKing = Math.max(Math.abs(toRow - enemyKing.row), Math.abs(toCol - enemyKing.col));
+            
+            // If this move lands near the enemy king (within 2 squares)
+            if (distToKing <= 2) {
+              // Reward for joining the attack - higher attack units = more coordination
+              if (attackUnits >= 4) {
+                score += 25 * personalityInfluence; // "Pieces are converging!"
+              }
+              if (attackUnits >= 6) {
+                score += 35 * personalityInfluence; // "Battery building!"
+              }
+              if (isTalMoment) {
+                score += 50 * personalityInfluence; // "All-out assault!"
+              }
+            }
+          }
+          
+          // ============================================
+          // 4. KING IN CENTER HUNTING
+          // ============================================
+          // If enemy king hasn't castled by move 12, go into "Kill Mode"
+          // Triple bonus for center pawn breaks (d4, e4, d5, e5)
+          if (enemyKing && moveNumber >= 12) {
+            // Check if enemy king is still in center (e8/d8 for black, e1/d1 for white)
+            const kingIsInCenter = 
+              (enemyColor === 'b' && enemyKing.row === 0 && (enemyKing.col === 3 || enemyKing.col === 4)) ||
+              (enemyColor === 'w' && enemyKing.row === 7 && (enemyKing.col === 3 || enemyKing.col === 4));
+            
+            if (kingIsInCenter) {
+              // "KILL MODE" - center pawn breaks get 3x bonus
+              const centerBreaks = ['d4', 'e4', 'd5', 'e5'];
+              if (move.piece === 'p' && centerBreaks.includes(move.to)) {
+                score += 90 * personalityInfluence; // 3x normal pawn break bonus!
+              }
+              
+              // Any central piece activity gets bonus
+              const centralSquares = ['c3', 'c4', 'c5', 'c6', 'd3', 'd4', 'd5', 'd6', 
+                                     'e3', 'e4', 'e5', 'e6', 'f3', 'f4', 'f5', 'f6'];
+              if (centralSquares.includes(move.to)) {
+                score += 30 * personalityInfluence; // Hunt that king!
+              }
+            }
+          }
+          
+          // PAWN STORM BONUS (3x multiplier for Aggressor) - original logic
+          if (move.piece === 'p') {
+            const toRank = parseInt(move.to[1]);
+            const toFile = move.to[0];
+            if (enemyKing) {
+              const enemyKingFile = String.fromCharCode(97 + enemyKing.col);
+              const adjacentFiles = [
+                String.fromCharCode(enemyKingFile.charCodeAt(0) - 1),
+                enemyKingFile,
+                String.fromCharCode(enemyKingFile.charCodeAt(0) + 1)
+              ];
+              // Pawn advancing on enemy king's flank
+              if (adjacentFiles.includes(toFile)) {
+                // 3x storm bonus for Aggressor
+                const stormBonus = (myColor === 'w' ? toRank - 2 : 9 - toRank) * 30 * personalityInfluence;
+                score += stormBonus * 3;
+              }
+            }
+          }
+          
+          // Extra bonus during Tal Moment for any aggressive move
+          if (isTalMoment) {
+            if (move.san.includes('+')) score += 50 * personalityInfluence; // Checks are gold
+            if (move.captured) score += 30 * personalityInfluence; // Keep attacking!
           }
         }
         break;
