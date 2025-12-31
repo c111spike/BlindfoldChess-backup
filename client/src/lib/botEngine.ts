@@ -615,6 +615,68 @@ function manhattanDistance(r1: number, c1: number, r2: number, c2: number): numb
   return Math.abs(r1 - r2) + Math.abs(c1 - c2);
 }
 
+// Get squares attacked by a piece from a given position
+// Used by Tactician for fork detection
+function getAttackedSquares(
+  pieceType: string,
+  row: number,
+  col: number,
+  board: ReturnType<Chess['board']>,
+  _myColor: 'w' | 'b' // Unused but kept for potential future pawn attack direction
+): { row: number; col: number }[] {
+  const squares: { row: number; col: number }[] = [];
+  
+  if (pieceType === 'n') {
+    // Knight moves in L-shape
+    const knightOffsets = [
+      [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+      [1, -2], [1, 2], [2, -1], [2, 1]
+    ];
+    for (const [dr, dc] of knightOffsets) {
+      const r = row + dr;
+      const c = col + dc;
+      if (r >= 0 && r <= 7 && c >= 0 && c <= 7) {
+        squares.push({ row: r, col: c });
+      }
+    }
+  } else if (pieceType === 'b' || pieceType === 'r' || pieceType === 'q') {
+    // Sliding pieces
+    const directions = pieceType === 'r'
+      ? [[0, 1], [0, -1], [1, 0], [-1, 0]]
+      : pieceType === 'b'
+      ? [[1, 1], [1, -1], [-1, 1], [-1, -1]]
+      : [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    
+    for (const [dr, dc] of directions) {
+      for (let i = 1; i < 8; i++) {
+        const r = row + dr * i;
+        const c = col + dc * i;
+        if (r < 0 || r > 7 || c < 0 || c > 7) break;
+        
+        squares.push({ row: r, col: c });
+        
+        // Stop at first piece (can attack it but not beyond)
+        if (board[r]?.[c]) break;
+      }
+    }
+  } else if (pieceType === 'k') {
+    // King attacks adjacent squares
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r >= 0 && r <= 7 && c >= 0 && c <= 7) {
+          squares.push({ row: r, col: c });
+        }
+      }
+    }
+  }
+  // Pawns handled separately in fork logic since they only attack diagonally
+  
+  return squares;
+}
+
 // Distance from edge (0 = edge, 3 = center)
 function distanceFromEdge(row: number, col: number): number {
   const rowDist = Math.min(row, 7 - row);
@@ -2172,36 +2234,304 @@ function selectMoveByPersonality(
         break;
         
       case 'tactician':
-        if (move.captured) score += PIECE_VALUES[move.captured] * 0.2 * personalityInfluence;
-        if (move.san.includes('+')) score += 60 * personalityInfluence;
-        if (move.san.includes('#')) score += 1000;
-        // Love sacrifices (giving up material for attack)
-        if (move.captured && move.piece !== 'p') score += 50 * personalityInfluence;
-        
-        // PAWN STORM FOR TACTICS: Storms open files for rooks/queens
-        // Tactician loves when pawn advances create attacking opportunities
-        if (move.piece === 'p') {
-          const toRank = parseInt(move.to[1]);
-          const toFile = move.to[0];
-          const enemyKing = findKingPosition(game, game.turn() === 'w' ? 'b' : 'w');
-          if (enemyKing) {
-            const enemyKingFile = String.fromCharCode(97 + enemyKing.col);
-            const adjacentFiles = [
-              String.fromCharCode(enemyKingFile.charCodeAt(0) - 1),
-              enemyKingFile,
-              String.fromCharCode(enemyKingFile.charCodeAt(0) + 1)
-            ];
-            // Bonus for pawn storms that will open files for heavy pieces
-            if (adjacentFiles.includes(toFile)) {
-              // 1.5x storm bonus - loves opening files for tactics
-              const stormBonus = (game.turn() === 'w' ? toRank - 2 : 9 - toRank) * 25 * personalityInfluence;
-              score += stormBonus * 1.5;
+        {
+          // ========== TACTICIAN: PATTERN RECOGNITION ENGINE ==========
+          // Instead of searching deeper (causes node starvation), we give the engine
+          // "Value Multipliers" for specific tactical geometries.
+          
+          const board = game.board();
+          const myColor = game.turn();
+          const enemyColor = myColor === 'w' ? 'b' : 'w';
+          const pieceValues: Record<string, number> = { 'p': 100, 'n': 300, 'b': 300, 'r': 500, 'q': 900, 'k': 0 };
+          
+          // Basic tactical bonuses (kept from original)
+          if (move.captured) score += PIECE_VALUES[move.captured] * 0.2 * personalityInfluence;
+          if (move.san.includes('+')) score += 60 * personalityInfluence;
+          if (move.san.includes('#')) score += 1000;
+          
+          // Get move destination info
+          const toCol = move.to.charCodeAt(0) - 97;
+          const toRow = 8 - parseInt(move.to[1]);
+          const fromCol = move.from.charCodeAt(0) - 97;
+          const fromRow = 8 - parseInt(move.from[1]);
+          
+          // ============================================
+          // 1. FORK FINDER (+40)
+          // ============================================
+          // Bonus when this move attacks 2+ pieces of higher value simultaneously
+          {
+            const movingPieceValue = pieceValues[move.piece] || 0;
+            let higherValueTargets = 0;
+            
+            // Get squares this piece attacks after the move
+            let attackedSquares: { row: number; col: number }[] = [];
+            
+            if (move.piece === 'p') {
+              // Pawns attack diagonally (critical for pawn forks!)
+              const pawnDir = myColor === 'w' ? -1 : 1;
+              const attackSquares = [
+                { row: toRow + pawnDir, col: toCol - 1 },
+                { row: toRow + pawnDir, col: toCol + 1 }
+              ];
+              attackedSquares = attackSquares.filter(sq => 
+                sq.row >= 0 && sq.row <= 7 && sq.col >= 0 && sq.col <= 7
+              );
+            } else {
+              attackedSquares = getAttackedSquares(move.piece, toRow, toCol, board, myColor);
+            }
+            
+            for (const sq of attackedSquares) {
+              const targetPiece = board[sq.row]?.[sq.col];
+              if (targetPiece && targetPiece.color === enemyColor) {
+                const targetValue = pieceValues[targetPiece.type] || 0;
+                if (targetValue > movingPieceValue || targetPiece.type === 'k') {
+                  higherValueTargets++;
+                }
+              }
+            }
+            
+            if (higherValueTargets >= 2) {
+              score += 40 * personalityInfluence; // Fork detected!
             }
           }
-        }
-        // Lever positions are tactical gold - pawn exchanges open lines
-        if (move.piece === 'p' && move.captured === 'p') {
-          score += 40 * personalityInfluence; // Pawn exchanges create open files
+          
+          // ============================================
+          // 2. PIN/SKEWER BONUS (+30)
+          // ============================================
+          // Bonus for X-ray attacks through lower-value to higher-value piece
+          if (move.piece === 'b' || move.piece === 'r' || move.piece === 'q') {
+            const directions = move.piece === 'r' 
+              ? [[0, 1], [0, -1], [1, 0], [-1, 0]]
+              : move.piece === 'b'
+              ? [[1, 1], [1, -1], [-1, 1], [-1, -1]]
+              : [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+            
+            for (const [dr, dc] of directions) {
+              let firstPiece: { type: string; value: number } | null = null;
+              let secondPiece: { type: string; value: number } | null = null;
+              
+              for (let i = 1; i < 8; i++) {
+                const r = toRow + dr * i;
+                const c = toCol + dc * i;
+                if (r < 0 || r > 7 || c < 0 || c > 7) break;
+                
+                const piece = board[r]?.[c];
+                if (piece) {
+                  if (piece.color === enemyColor) {
+                    if (!firstPiece) {
+                      firstPiece = { type: piece.type, value: pieceValues[piece.type] || 0 };
+                    } else {
+                      secondPiece = { type: piece.type, value: pieceValues[piece.type] || 0 };
+                      break;
+                    }
+                  } else {
+                    break; // Blocked by own piece
+                  }
+                }
+              }
+              
+              // Pin/Skewer: first piece is lower value than second (or second is king)
+              if (firstPiece && secondPiece) {
+                if (secondPiece.value > firstPiece.value || secondPiece.type === 'k') {
+                  score += 30 * personalityInfluence; // Pin or skewer detected!
+                  break;
+                }
+              }
+            }
+          }
+          
+          // ============================================
+          // 3. DISCOVERY THREAT (+50)
+          // ============================================
+          // Bonus for moving a piece that unveils an attack from a sliding piece behind
+          // Only applies if unveiled piece attacks king, queen, higher-value, OR undefended target
+          {
+            // Check if there's a sliding piece behind our from-square
+            const directions = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+            
+            for (const [dr, dc] of directions) {
+              // Look behind the from-square for our sliding piece
+              let behindRow = fromRow + dr;
+              let behindCol = fromCol + dc;
+              
+              // Skip if we moved in this direction (not a discovery)
+              if (behindRow === toRow && behindCol === toCol) continue;
+              
+              while (behindRow >= 0 && behindRow <= 7 && behindCol >= 0 && behindCol <= 7) {
+                const piece = board[behindRow]?.[behindCol];
+                if (piece) {
+                  if (piece.color === myColor) {
+                    // Check if this is a sliding piece that can attack through our old square
+                    const canSlide = 
+                      (piece.type === 'r' && (dr === 0 || dc === 0)) ||
+                      (piece.type === 'b' && (dr !== 0 && dc !== 0)) ||
+                      (piece.type === 'q');
+                    
+                    if (canSlide) {
+                      // Look in the opposite direction for targets
+                      let targetRow = fromRow - dr;
+                      let targetCol = fromCol - dc;
+                      
+                      while (targetRow >= 0 && targetRow <= 7 && targetCol >= 0 && targetCol <= 7) {
+                        const target = board[targetRow]?.[targetCol];
+                        if (target) {
+                          if (target.color === enemyColor) {
+                            const targetValue = pieceValues[target.type] || 0;
+                            const attackerValue = pieceValues[piece.type] || 0;
+                            
+                            // Check if target is undefended by simulating the position
+                            let isUndefended = false;
+                            try {
+                              const testGame = new Chess(game.fen());
+                              testGame.move(move.san);
+                              // Target square in algebraic notation
+                              const targetSq = String.fromCharCode(97 + targetCol) + (8 - targetRow);
+                              // Check if any enemy piece can recapture on target square
+                              const opponentMoves = testGame.moves({ verbose: true });
+                              const defenders = opponentMoves.filter(m => m.to === targetSq);
+                              isUndefended = defenders.length === 0;
+                            } catch {
+                              // Move failed, assume defended
+                            }
+                            
+                            // Bonus if target is king, queen, higher value, OR undefended
+                            if (target.type === 'k' || target.type === 'q' || 
+                                targetValue >= attackerValue || isUndefended) {
+                              score += 50 * personalityInfluence; // Discovery threat!
+                            }
+                          }
+                          break;
+                        }
+                        targetRow -= dr;
+                        targetCol -= dc;
+                      }
+                    }
+                  }
+                  break; // Something in the way
+                }
+                behindRow += dr;
+                behindCol += dc;
+              }
+            }
+          }
+          
+          // ============================================
+          // 4. KING SAFETY GHOST BONUS (+60)
+          // ============================================
+          // If enemy king has <2 pawn protectors, all attacking moves get bonus
+          // Safety valve: only if move doesn't lose >100cp (1 pawn) - check if landing square is attacked
+          {
+            const enemyKing = findKingPosition(game, enemyColor);
+            if (enemyKing) {
+              // Count pawn protectors (pawns adjacent to enemy king)
+              let pawnProtectors = 0;
+              for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                  if (dr === 0 && dc === 0) continue;
+                  const r = enemyKing.row + dr;
+                  const c = enemyKing.col + dc;
+                  const piece = board[r]?.[c];
+                  if (piece && piece.type === 'p' && piece.color === enemyColor) {
+                    pawnProtectors++;
+                  }
+                }
+              }
+              
+              if (pawnProtectors < 2) {
+                // Check if this is an "attacking" move (toward enemy king or a capture)
+                const distToKing = Math.max(Math.abs(toRow - enemyKing.row), Math.abs(toCol - enemyKing.col));
+                const isAttackingMove = distToKing <= 3 || move.captured || move.san.includes('+');
+                
+                // Safety valve: Simulate the move and check if piece can be recaptured
+                // isSafe = true means the move doesn't lose more than ~1 pawn
+                let isSafe = true;
+                const movingValue = pieceValues[move.piece] || 0;
+                const capturedValue = move.captured ? (pieceValues[move.captured] || 0) : 0;
+                
+                try {
+                  const testGame = new Chess(game.fen());
+                  testGame.move(move.san);
+                  
+                  // Check if opponent can capture on our landing square
+                  const opponentMoves = testGame.moves({ verbose: true });
+                  const recaptures = opponentMoves.filter(m => m.to === move.to);
+                  
+                  if (recaptures.length > 0) {
+                    // We can be captured - calculate net material exchange
+                    // Net loss = (our piece we lose) - (what we captured)
+                    // If we captured something and lose the same piece type, it's even
+                    const netLoss = movingValue - capturedValue;
+                    
+                    // Move is safe if:
+                    // 1. We captured something of equal/greater value (netLoss <= 0), OR
+                    // 2. We only lose up to 1 pawn worth of material (netLoss <= 100)
+                    isSafe = netLoss <= 100;
+                  }
+                  // If no recaptures possible, the move is completely safe
+                } catch {
+                  // Move failed, assume safe
+                }
+                
+                if (isAttackingMove && isSafe) {
+                  score += 60 * personalityInfluence; // Ghost bonus for weak king!
+                }
+              }
+            }
+          }
+          
+          // ============================================
+          // 5. COMPLEXITY WEIGHT / CHAOS MULTIPLIER (+20)
+          // ============================================
+          // Favor positions with more possible captures (high tension)
+          // Tacticians win by making the game complicated
+          {
+            // Make the move temporarily to count captures in resulting position
+            const testGame = new Chess(game.fen());
+            try {
+              testGame.move(move.san);
+              const positionMoves = testGame.moves({ verbose: true });
+              
+              // Count captures available for both sides
+              let captureCount = 0;
+              for (const m of positionMoves) {
+                if (m.captured) captureCount++;
+              }
+              
+              // Bonus for maintaining tension (more captures = more tactical)
+              if (captureCount >= 4) {
+                score += 20 * personalityInfluence; // "Keep the tension!"
+              }
+              if (captureCount >= 6) {
+                score += 15 * personalityInfluence; // Extra chaos bonus
+              }
+            } catch {
+              // Move failed, skip complexity check
+            }
+          }
+          
+          // Original pawn storm logic (kept)
+          if (move.piece === 'p') {
+            const toRank = parseInt(move.to[1]);
+            const toFile = move.to[0];
+            const enemyKing = findKingPosition(game, enemyColor);
+            if (enemyKing) {
+              const enemyKingFile = String.fromCharCode(97 + enemyKing.col);
+              const adjacentFiles = [
+                String.fromCharCode(enemyKingFile.charCodeAt(0) - 1),
+                enemyKingFile,
+                String.fromCharCode(enemyKingFile.charCodeAt(0) + 1)
+              ];
+              if (adjacentFiles.includes(toFile)) {
+                const stormBonus = (myColor === 'w' ? toRank - 2 : 9 - toRank) * 25 * personalityInfluence;
+                score += stormBonus * 1.5;
+              }
+            }
+          }
+          
+          // Lever positions are tactical gold - pawn exchanges open lines
+          if (move.piece === 'p' && move.captured === 'p') {
+            score += 40 * personalityInfluence;
+          }
         }
         break;
         
@@ -2913,18 +3243,10 @@ export async function generateBotMoveClient(
     }
   }
   
-  // Tactician depth/nodes bonus: Tactics require seeing 1-2 moves further to "land"
-  // Lower difficulties get +2 depth, higher get +1 (they already have high depth)
-  // For Stockfish: 50% more nodes to find deeper tactical lines
-  const isTactician = personality === 'tactician';
-  const tacticianDepthBonus = isTactician ? (config.maxDepth <= 4 ? 2 : 1) : 0;
-  const tacticianNodeMultiplier = isTactician ? 1.5 : 1.0;
-  const effectiveMaxDepth = config.maxDepth + tacticianDepthBonus;
-  const effectiveStockfishNodes = Math.floor(config.stockfishNodes * tacticianNodeMultiplier);
-  
-  if (isTactician) {
-    console.log(`[ClientBot] Tactician bonus: depth +${tacticianDepthBonus} (${config.maxDepth} → ${effectiveMaxDepth}), nodes x1.5 (${config.stockfishNodes} → ${effectiveStockfishNodes})`);
-  }
+  // Tactician: No longer uses depth/node bonuses (causes node starvation at high depths)
+  // Instead uses pattern recognition heuristics to prioritize tactical branches
+  const effectiveMaxDepth = config.maxDepth;
+  const effectiveStockfishNodes = config.stockfishNodes;
   
   // Calculate time budget
   let timeBudget = config.timePerMoveMs;

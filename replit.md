@@ -59,6 +59,32 @@ The Aggressive personality implements Mikhail Tal's philosophy - calculated sacr
 
 **Philosophy**: "A sacrifice is best refuted by accepting it" - but Tal made them accept and crushed them anyway. Values tempo and attack over material.
 
+### Bot Personality: Tactician (Pattern Recognition Engine)
+The Tactician uses pattern recognition heuristics instead of extra search depth (which causes node starvation). It "sees" tactical geometries and prioritizes moves that create them:
+
+**Core Mechanics:**
+1. **Check Love**: +60 for checks, +1000 for checkmate
+2. **Capture Bonus**: +20% of captured piece value
+3. **Pawn Storm**: 1.5x bonus for pawn advances toward enemy king
+4. **Lever Play**: +40 for pawn exchanges (opens files)
+
+**Pattern Recognition (Heuristic Sniper):**
+1. **Fork Finder (+40)**: Bonus when move attacks 2+ pieces of higher value simultaneously (uses `getAttackedSquares` helper)
+2. **Pin/Skewer Bonus (+30)**: X-ray attack through lower-value piece to higher-value piece (or king). Detects both pins and skewers.
+3. **Discovery Threat (+50)**: Moving a piece that unveils a rook/bishop attack behind it. Only applies if target is king, queen, or value ≥ attacker.
+
+**Aggression Engine:**
+4. **King Safety Ghost Bonus (+60)**: When enemy king has <2 pawn protectors, attacking moves get bonus. Safety valve: only if move doesn't lose >100cp (1 pawn).
+
+**Chaos Multiplier:**
+5. **Complexity Weight (+20/+35)**: Favor positions with more possible captures (4+ captures = +20, 6+ = +35). Keeps tension high, forces human opponents into tactical minefields.
+
+**Engine Bonuses (Retained):**
+- +1 checkmate vision depth, +25% probability for deeper mates
+- Fights harder: enters survival mode at -3.0 eval instead of -1.0
+
+**Philosophy**: "Tactics flow from a superior position" - Capablanca. But the Tactician creates that position by recognizing patterns and maintaining maximum tension.
+
 ### Post-Game Analysis System
 Provides two tabbed modes: Stockfish-powered engine analysis (`Analyze Tab`) and psychology-focused coaching analysis (`Review Tab`). Features interactive board, evaluation, move classification (Genius, Fantastic, Best, Good, Imprecise, Mistake, Blunder), accuracy scores, and tactical motif detection for personalized coaching.
 
