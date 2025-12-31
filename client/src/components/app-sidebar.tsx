@@ -345,33 +345,6 @@ export function AppSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {isAuthenticated ? (
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => {
-                    import("@/lib/auth-client").then(({ signOut }) => {
-                      signOut().then(() => {
-                        window.location.href = "/";
-                      });
-                    });
-                  }} 
-                  tooltip="Log Out"
-                  data-testid="button-logout-sidebar"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Log Out</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ) : (
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Log In">
-                  <a href="/login" data-testid="button-login-footer">
-                    <LogIn className="h-4 w-4" />
-                    <span>Log In</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
           </SidebarMenu>
           {!isCollapsed && (
             <div className="px-3 py-2 text-xs text-muted-foreground" data-testid="text-stockfish-credit">
