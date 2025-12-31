@@ -500,6 +500,7 @@ interface MissedTactic {
   ply: number;
   fen: string;
   bestMove?: string;
+  playedMove?: string;
   classification: MoveClassification;
   motifs: TacticalMotif[];
   evalBefore?: number | null;
@@ -593,6 +594,7 @@ function PuzzlePatternInsights({
                     ply: plyIndex,
                     fen: fenBefore,
                     bestMove: moveAnalysis.bestMove,
+                    playedMove: gameMoves[plyIndex],
                     classification: moveAnalysis.classification,
                     motifs: result.motifs,
                     evalBefore: moveAnalysis.evalBefore,
@@ -774,6 +776,7 @@ function PuzzlePatternInsights({
             classification={selectedTactic.classification}
             motifs={selectedTactic.motifs}
             bestMove={selectedTactic.bestMove}
+            playedMove={selectedTactic.playedMove}
             playerColor={playerColor}
           />
         )}
@@ -2115,26 +2118,41 @@ function InteractiveTrainerBoard({
 function StaticPositionBoard({ 
   fen, 
   flipped = false,
-  bestMove,
+  highlightMove,
+  highlightColor = 'green',
 }: { 
   fen: string; 
   flipped?: boolean;
-  bestMove?: string;
+  highlightMove?: string;
+  highlightColor?: 'green' | 'orange';
 }) {
   const chess = useMemo(() => new Chess(fen), [fen]);
   const board = chess.board();
   
-  // Parse best move to highlight squares
+  // Parse move to highlight squares - supports both UCI (e2e4) and SAN (Nf3) formats
   const highlightSquares = useMemo(() => {
-    if (!bestMove) return [];
-    // Best move is in format like "e2e4" or "Nf3" - try to extract from/to squares
-    if (bestMove.length >= 4) {
-      const from = bestMove.substring(0, 2);
-      const to = bestMove.substring(2, 4);
+    if (!highlightMove) return [];
+    
+    // Try UCI format first (e2e4)
+    if (highlightMove.length >= 4 && /^[a-h][1-8][a-h][1-8]/.test(highlightMove)) {
+      const from = highlightMove.substring(0, 2);
+      const to = highlightMove.substring(2, 4);
       return [from, to];
     }
+    
+    // Try to parse SAN format using chess.js
+    try {
+      const tempChess = new Chess(fen);
+      const move = tempChess.move(highlightMove);
+      if (move) {
+        return [move.from, move.to];
+      }
+    } catch {
+      // Couldn't parse move
+    }
+    
     return [];
-  }, [bestMove]);
+  }, [highlightMove, fen]);
   
   const pieceSymbols: Record<string, string> = {
     'k': '\u265A', 'q': '\u265B', 'r': '\u265C', 'b': '\u265D', 'n': '\u265E', 'p': '\u265F',
@@ -2150,6 +2168,9 @@ function StaticPositionBoard({
     const square = `${file}${rank}`;
     
     if (highlightSquares.includes(square)) {
+      if (highlightColor === 'orange') {
+        return isLight ? 'bg-orange-200' : 'bg-orange-500';
+      }
       return isLight ? 'bg-green-200' : 'bg-green-500';
     }
     
@@ -2196,6 +2217,7 @@ function PositionViewerDialog({
   classification,
   motifs,
   bestMove,
+  playedMove,
   playerColor,
 }: {
   open: boolean;
@@ -2205,9 +2227,15 @@ function PositionViewerDialog({
   classification: MoveClassification;
   motifs: TacticalMotif[];
   bestMove?: string;
+  playedMove?: string;
   playerColor: string;
 }) {
   const flipped = playerColor === 'black';
+  const [showingPlayedMove, setShowingPlayedMove] = useState(false);
+  
+  // Determine which move to show and its color
+  const displayedMove = showingPlayedMove ? playedMove : bestMove;
+  const highlightColor = showingPlayedMove ? 'orange' : 'green';
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -2227,17 +2255,43 @@ function PositionViewerDialog({
           <StaticPositionBoard
             fen={fen}
             flipped={flipped}
-            bestMove={bestMove}
+            highlightMove={displayedMove}
+            highlightColor={highlightColor}
           />
           
-          {/* Best move info */}
-          {bestMove && (
-            <div className="p-3 rounded-lg bg-muted text-center">
-              <p className="text-sm text-muted-foreground">
-                Best move was: <span className="font-mono font-bold text-foreground">{bestMove}</span>
-              </p>
+          {/* Move info with press-and-hold button */}
+          <div className="p-3 rounded-lg bg-muted">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-center flex-1">
+                {showingPlayedMove ? (
+                  <p className="text-sm text-muted-foreground">
+                    You played: <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{playedMove || '?'}</span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Best move was: <span className="font-mono font-bold text-green-600 dark:text-green-400">{bestMove || '?'}</span>
+                  </p>
+                )}
+              </div>
+              
+              {playedMove && (
+                <Button
+                  size="sm"
+                  variant={showingPlayedMove ? "default" : "outline"}
+                  className="shrink-0 select-none"
+                  onMouseDown={() => setShowingPlayedMove(true)}
+                  onMouseUp={() => setShowingPlayedMove(false)}
+                  onMouseLeave={() => setShowingPlayedMove(false)}
+                  onTouchStart={() => setShowingPlayedMove(true)}
+                  onTouchEnd={() => setShowingPlayedMove(false)}
+                  data-testid="button-show-my-move"
+                >
+                  <Eye className="w-4 h-4 mr-1" />
+                  Show My Move
+                </Button>
+              )}
             </div>
-          )}
+          </div>
           
           {/* Motifs */}
           <div className="flex flex-wrap justify-center gap-1.5">
