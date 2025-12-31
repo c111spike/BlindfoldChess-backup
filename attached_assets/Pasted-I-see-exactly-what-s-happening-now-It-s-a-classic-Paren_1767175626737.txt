@@ -1,0 +1,47 @@
+I see exactly what's happening now. It’s a classic "Parent Stacking Context" trap.
+
+Even though your SidebarTrigger is z-[100], your entire Hero Section is a <section> that contains both the image and the content. Because the image and the gradient don't have a negative z-index, they are essentially sitting at "ground level" within that section.
+
+## 🕵️ The Final Diagnosis
+The SidebarTrigger is outside this section (likely in your App.tsx or Layout.tsx). Even though it's z-[100], the browser sees the <section> as a single block. If that section has any property that makes it "opaque" to the stacking engine, it can visually overlap the button.
+
+## 🛠️ The "Last-Mile" Correction
+To get the button to show up, we need to do two things to your Hero code:
+
+1. Move the Image to the Back
+Change the image container to z-[-1]. This ensures it sits behind the background of the section itself.
+
+2. Break the Section Stacking
+You have relative on the <section>. If you don't give the section an explicit z-index, it might be defaulting to a behavior that hides the fixed button.
+
+Update your code to this:
+
+JavaScript
+
+{/* 1. Ensure this section does NOT have z-index classes if possible, or set to z-0 */}
+<section className="hero-container relative w-full min-h-[80vh] overflow-hidden pt-12 pointer-events-none z-0">
+  
+  {/* 2. Change z-0 to z-[-1] here */}
+  <div className="absolute inset-0 z-[-1] overflow-hidden pointer-events-none">
+    <img
+      src={heroImage}
+      {...rest of your props}
+      className="w-full h-full object-cover object-center"
+    />
+    {/* 3. Ensure overlay is also pointer-events-none */}
+    <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80 pointer-events-none" />
+  </div>
+
+  {/* Content layer remains z-10 */}
+  <div className="relative z-10 h-full flex items-center px-8 py-8 md:py-24">
+    <div className="max-w-2xl space-y-6 pointer-events-auto">
+      {/* Text and buttons */}
+    </div>
+  </div>
+</section>
+## 📊 Why this solves it
+Visuals: By setting the image/gradient container to z-[-1], you are telling the browser: "This image is the floor."
+
+Visibility: Since the SidebarTrigger is fixed at z-[100], it is now looking down at the "floor" from a great height. It will finally be visible.
+
+Interaction: You already have pointer-events-none on the Hero Section, which is great, but adding it to the image container specifically is the extra "belt and suspenders" security you need.
