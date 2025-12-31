@@ -255,7 +255,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className={`py-2 border-t border-sidebar-border pr-2 ${isCollapsed ? 'pl-0' : 'pl-2'}`}>
+        <div className={`py-2 border-t border-sidebar-border pr-2 max-h-[180px] overflow-y-auto md:max-h-none md:overflow-visible ${isCollapsed ? 'pl-0' : 'pl-2'}`}>
           <SidebarMenu>
             {isAuthenticated && (
               <>
