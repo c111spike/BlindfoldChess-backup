@@ -245,7 +245,7 @@ export interface IStorage {
   getOldestSimulVsSimulQueueEntry(boardCount: number): Promise<SimulVsSimulQueue | undefined>;
   getSimulVsSimulQueueAverageRating(boardCount: number): Promise<number>;
   createSimulVsSimulMatch(boardCount: number): Promise<SimulVsSimulMatch>;
-  addPlayerToSimulVsSimulMatch(matchId: string, userId: string | null, seat: number, isBot?: boolean, botId?: string, botPersonality?: string): Promise<SimulVsSimulPlayer>;
+  addPlayerToSimulVsSimulMatch(matchId: string, userId: string | null, seat: number, isBot?: boolean, botId?: string, botPersonality?: string, botDifficulty?: string, botElo?: number): Promise<SimulVsSimulPlayer>;
   createSimulVsSimulPairing(pairing: InsertSimulVsSimulPairing): Promise<SimulVsSimulPairing>;
   getSimulVsSimulMatch(matchId: string): Promise<SimulVsSimulMatch | undefined>;
   getSimulVsSimulMatchPlayers(matchId: string): Promise<SimulVsSimulPlayer[]>;
@@ -2489,7 +2489,9 @@ export class DatabaseStorage implements IStorage {
     seat: number,
     isBot: boolean = false,
     botId?: string,
-    botPersonality?: string
+    botPersonality?: string,
+    botDifficulty?: string,
+    botElo?: number
   ): Promise<SimulVsSimulPlayer> {
     const [player] = await db
       .insert(simulVsSimulPlayers)
@@ -2500,6 +2502,8 @@ export class DatabaseStorage implements IStorage {
         isBot,
         botId,
         botPersonality,
+        botDifficulty,
+        botElo,
       })
       .returning();
     return player;

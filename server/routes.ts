@@ -671,7 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const botPersonalities = getShuffledPersonalities(botsNeeded);
           
-          const playersForMatch: Array<{ odId: string; isBot: boolean; rating: number; botId?: string; botPersonality?: string }> = [];
+          const playersForMatch: Array<{ odId: string; isBot: boolean; rating: number; botId?: string; botPersonality?: string; botDifficulty?: string; botElo?: number }> = [];
           
           // Add human players
           for (const player of queuePlayers) {
@@ -692,6 +692,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               rating: botElo,
               botId,
               botPersonality: personality,
+              botDifficulty: difficulty,
+              botElo: botElo,
             });
           }
           
@@ -896,6 +898,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const players = await storage.getSimulVsSimulMatchPlayers(matchId);
       const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, userId);
 
+      // Pre-fetch user info and ratings for all human players
+      const humanPlayerIds = players.filter(p => !p.isBot && p.odId).map(p => p.odId!);
+      const humanPlayerInfo: Record<string, { username: string; simulElo: number }> = {};
+      for (const odId of humanPlayerIds) {
+        const user = await storage.getUser(odId);
+        const rating = await storage.getRating(odId);
+        humanPlayerInfo[odId] = {
+          username: user?.username || user?.firstName || 'Player',
+          simulElo: rating?.simul || 1000,
+        };
+      }
+
       // Get player's board assignments
       const boards = playerGames.map(pairing => {
         const isWhite = pairing.whitePlayerId === userId || (pairing.whiteIsBot && !pairing.blackIsBot);
@@ -915,14 +929,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
 
+        // Format opponent name: bots show "Difficulty Personality (Elo)", humans show "Username (Elo)"
+        let opponentName = 'Opponent';
+        if (opponentPlayer?.isBot) {
+          const difficulty = opponentPlayer.botDifficulty || 'Bot';
+          const personality = opponentPlayer.botPersonality || 'balanced';
+          const elo = opponentPlayer.botElo || 1200;
+          const formattedPersonality = personality.charAt(0).toUpperCase() + personality.slice(1).replace('_', ' ');
+          opponentName = `${difficulty} ${formattedPersonality} (${elo})`;
+        } else if (opponentPlayer?.odId && humanPlayerInfo[opponentPlayer.odId]) {
+          const info = humanPlayerInfo[opponentPlayer.odId];
+          opponentName = `${info.username} (${info.simulElo})`;
+        }
+
         return {
           pairingId: pairing.id,
           boardNumber: isWhite ? pairing.boardNumberWhite : pairing.boardNumberBlack,
           color: isWhite ? 'white' : 'black',
-          opponentName: opponentPlayer?.isBot 
-            ? `Bot (${opponentPlayer.botPersonality})` 
-            : 'Opponent',
+          opponentName,
           opponentId: isWhite ? pairing.blackPlayerId : pairing.whitePlayerId,
+          opponentBotId: isWhite ? pairing.blackBotId : pairing.whiteBotId,
           isOpponentBot: isWhite ? pairing.blackIsBot : pairing.whiteIsBot,
           fen: pairing.fen,
           moves: pairing.moves,
@@ -1047,6 +1073,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const playerGames = await storage.getSimulVsSimulPlayerGames(matchId, userId);
       const user = await storage.getUser(userId);
 
+      // Pre-fetch user info and ratings for all human players
+      const humanPlayerIds = players.filter(p => !p.isBot && p.odId).map(p => p.odId!);
+      const humanPlayerInfo: Record<string, { username: string; simulElo: number }> = {};
+      for (const odId of humanPlayerIds) {
+        const humanUser = await storage.getUser(odId);
+        const rating = await storage.getRating(odId);
+        humanPlayerInfo[odId] = {
+          username: humanUser?.username || humanUser?.firstName || 'Player',
+          simulElo: rating?.simul || 1000,
+        };
+      }
+
       // Get player's board assignments with all data needed for review
       const boards = playerGames.map(pairing => {
         // User is white if they are the whitePlayerId, or if black is a bot and white is not
@@ -1067,15 +1105,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
 
+        // Format opponent name: bots show "Difficulty Personality (Elo)", humans show "Username (Elo)"
+        let opponentName = 'Opponent';
+        if (opponentPlayer?.isBot) {
+          const difficulty = opponentPlayer.botDifficulty || 'Bot';
+          const personality = opponentPlayer.botPersonality || 'balanced';
+          const elo = opponentPlayer.botElo || 1200;
+          const formattedPersonality = personality.charAt(0).toUpperCase() + personality.slice(1).replace('_', ' ');
+          opponentName = `${difficulty} ${formattedPersonality} (${elo})`;
+        } else if (opponentPlayer?.odId && humanPlayerInfo[opponentPlayer.odId]) {
+          const info = humanPlayerInfo[opponentPlayer.odId];
+          opponentName = `${info.username} (${info.simulElo})`;
+        }
+
         return {
           pairingId: pairing.id,
           gameId: pairing.gameId,
           boardNumber: isWhite ? pairing.boardNumberWhite : pairing.boardNumberBlack,
           color: isWhite ? 'white' : 'black',
-          opponentName: opponentPlayer?.isBot 
-            ? `Bot (${opponentPlayer.botPersonality})` 
-            : 'Opponent',
+          opponentName,
           opponentId: isWhite ? pairing.blackPlayerId : pairing.whitePlayerId,
+          opponentBotId: isWhite ? pairing.blackBotId : pairing.whiteBotId,
           isOpponentBot: isWhite ? pairing.blackIsBot : pairing.whiteIsBot,
           fen: pairing.fen,
           moves: pairing.moves,
@@ -1134,7 +1184,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         i + 1, // seat 1-6+
         isBot,
         qp.botId,
-        qp.botPersonality
+        qp.botPersonality,
+        qp.botDifficulty,
+        qp.botElo
       );
       players.push({ 
         ...player, 
@@ -1142,6 +1194,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isBot: isBot,
         botId: qp.botId,
         botPersonality: qp.botPersonality,
+        botDifficulty: qp.botDifficulty,
+        botElo: qp.botElo,
       });
     }
 
@@ -5687,6 +5741,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Get all players info for the match
             const allPlayers = await storage.getSimulVsSimulMatchPlayers(matchId);
             
+            // Pre-fetch user info and ratings for all human players
+            const humanPlayerIds = allPlayers.filter(p => !p.isBot && p.odId).map(p => p.odId!);
+            const humanPlayerInfo: Record<string, { username: string; simulElo: number }> = {};
+            for (const odId of humanPlayerIds) {
+              const user = await storage.getUser(odId);
+              const rating = await storage.getRating(odId);
+              humanPlayerInfo[odId] = {
+                username: user?.username || user?.firstName || 'Player',
+                simulElo: rating?.simul || 1000,
+              };
+            }
+            
             console.log(`[SimulWS] All players in match:`, allPlayers.map(p => ({
               odId: p.odId,
               isBot: p.isBot,
@@ -5700,18 +5766,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
               matchId,
               boards: playerGames.map(p => {
                 const isWhite = p.whitePlayerId === userId;
-                const opponentId = isWhite ? p.blackPlayerId : p.whitePlayerId;
-                const opponentPlayer = allPlayers.find(pl => pl.odId === opponentId);
+                // Find opponent: for bots check botId, for humans check odId
+                // Bug fix: avoid null === null matching first bot when opponent is a bot
+                const opponentPlayer = allPlayers.find(pl => {
+                  if (isWhite) {
+                    // Looking for black player (opponent)
+                    return p.blackIsBot 
+                      ? (pl.isBot && pl.botId === p.blackBotId)
+                      : (pl.odId === p.blackPlayerId);
+                  } else {
+                    // Looking for white player (opponent)
+                    return p.whiteIsBot 
+                      ? (pl.isBot && pl.botId === p.whiteBotId)
+                      : (pl.odId === p.whitePlayerId);
+                  }
+                });
+                
+                // Format opponent name: bots show "Difficulty Personality (Elo)", humans show "Username (Elo)"
+                let opponentName = 'Opponent';
+                if (opponentPlayer?.isBot) {
+                  const difficulty = opponentPlayer.botDifficulty || 'Bot';
+                  const personality = opponentPlayer.botPersonality || 'balanced';
+                  const elo = opponentPlayer.botElo || 1200;
+                  // Capitalize first letter of personality
+                  const formattedPersonality = personality.charAt(0).toUpperCase() + personality.slice(1).replace('_', ' ');
+                  opponentName = `${difficulty} ${formattedPersonality} (${elo})`;
+                } else if (opponentPlayer?.odId && humanPlayerInfo[opponentPlayer.odId]) {
+                  const info = humanPlayerInfo[opponentPlayer.odId];
+                  opponentName = `${info.username} (${info.simulElo})`;
+                }
                 
                 return {
                   pairingId: p.id,
                   boardNumber: isWhite ? p.boardNumberWhite : p.boardNumberBlack,
                   color: isWhite ? 'white' : 'black',
-                  opponentId,
-                  opponentName: opponentPlayer?.isBot 
-                    ? `Bot (${opponentPlayer.botPersonality})` 
-                    : 'Opponent',
+                  opponentId: isWhite ? p.blackPlayerId : p.whitePlayerId,
+                  opponentName,
                   isOpponentBot: isWhite ? (p.blackIsBot === true) : (p.whiteIsBot === true),
+                  opponentBotId: isWhite ? p.blackBotId : p.whiteBotId,
                   fen: p.fen,
                   moves: p.moves,
                   moveCount: p.moveCount,

@@ -918,6 +918,8 @@ export const simulVsSimulPlayers = pgTable("simul_vs_simul_players", {
   isBot: boolean("is_bot").default(false),
   botId: varchar("bot_id"), // If isBot, the bot identifier
   botPersonality: varchar("bot_personality"), // Random personality type
+  botDifficulty: varchar("bot_difficulty"), // Bot difficulty level (e.g., "Grandmaster", "Expert")
+  botElo: integer("bot_elo"), // Bot's Elo rating
   focusedBoardNumber: integer("focused_board_number").default(1), // Current board being viewed
   totalScore: real("total_score").default(0), // Win=1, Draw=0.5, Loss=0
   joinedAt: timestamp("joined_at").defaultNow(),
