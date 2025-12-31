@@ -519,6 +519,13 @@ function PuzzlePatternInsights({
   const [analyzing, setAnalyzing] = useState(true);
   const [selectedTacticDropdown, setSelectedTacticDropdown] = useState<string>('');
   
+  // Auto-select first tactic when data loads
+  useEffect(() => {
+    if (missedTactics.length > 0 && selectedTacticDropdown === '') {
+      setSelectedTacticDropdown('0');
+    }
+  }, [missedTactics, selectedTacticDropdown]);
+  
   const { data: motifStats } = useQuery<UserMotifStats[]>({
     queryKey: ['/api/user/motif-stats'],
   });
@@ -784,6 +791,8 @@ function ReviewTab({
   const [selectedVssDropdown, setSelectedVssDropdown] = useState<string>('');
   
   const thinkingTimes = (game.thinkingTimes as number[] | null) || [];
+  
+  // We'll auto-select in the render section after vssMismatches is computed
   const playerColor = game.playerColor;
   const remainingTime = playerColor === 'white' ? game.whiteTime : game.blackTime;
   const initialTime = game.timeControl;
@@ -841,6 +850,13 @@ function ReviewTab({
     (playerColor === 'white' && plyIndex % 2 === 0) || (playerColor === 'black' && plyIndex % 2 === 1)
   );
   const hadMismatchesWithTimeLeft = hasTimeRemaining && vssMismatches.length > 0;
+  
+  // Auto-select first VSS mismatch when data loads
+  useEffect(() => {
+    if (vssMismatches.length > 0 && selectedVssDropdown === '') {
+      setSelectedVssDropdown(String(vssMismatches[0]));
+    }
+  }, [vssMismatches, selectedVssDropdown]);
   
   const formatTime = (seconds: number, showDecimals = true) => {
     const mins = Math.floor(seconds / 60);
