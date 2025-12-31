@@ -64,7 +64,7 @@ export const BOT_PERSONALITY_DESCRIPTIONS: Record<BotPersonality, string> = {
   tactician: "Loves combinations and sacrifices, always looking for tricks",
   positional: "Focuses on piece placement, pawn structure, and long-term plans",
   aggressive: "Attacks relentlessly, often sacrificing material for initiative",
-  defensive: "Prioritizes solid defense and waits for opponent mistakes",
+  defensive: "Fortress Defender - trades down, coordinates pieces, and punishes overextension",
   bishop_lover: "Prefers bishops over knights and loves open positions",
   knight_lover: "Prefers knights, especially in closed positions with outposts",
 };

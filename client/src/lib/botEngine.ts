@@ -2063,18 +2063,130 @@ function selectMoveByPersonality(
         break;
         
       case 'defensive':
-        // Prefer non-capturing, consolidating moves
-        if (!move.captured) score += 30 * personalityInfluence;
-        // Love castling
-        if (move.san === 'O-O' || move.san === 'O-O-O') score += 100 * personalityInfluence;
-        // Prefer moving toward own back rank
-        const backRank = game.turn() === 'w' ? '1' : '8';
-        if (move.to.includes(backRank) || move.to.includes(game.turn() === 'w' ? '2' : '7')) {
-          score += 25 * personalityInfluence;
+        // ========== FORTRESS DEFENDER PHILOSOPHY ==========
+        // "The best defense is removing the opponent's attacking pieces"
+        // This bot is a Simplification Machine that trades down, coordinates pieces
+        // around the king, and punishes overextension with surgical counter-attacks.
+        
+        // 1. TRADE-SEEKING LOGIC: Actively seek equal trades to simplify
+        // Remove attacking potential by trading pieces (especially heavy pieces)
+        if (move.captured) {
+          const pieceValues: Record<string, number> = { 'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9 };
+          const capturedValue = pieceValues[move.captured] || 0;
+          const movingPieceValue = pieceValues[move.piece] || 0;
+          
+          // Equal trades are GOLD for the Fortress - removes attacking potential
+          if (Math.abs(capturedValue - movingPieceValue) <= 1) {
+            score += 35 * personalityInfluence; // Love equal trades
+            // Extra bonus for trading heavy pieces (Q, R) - biggest threat removal
+            if (move.captured === 'q') score += 50 * personalityInfluence;
+            if (move.captured === 'r') score += 25 * personalityInfluence;
+          }
+          // Winning trades are also good
+          if (capturedValue > movingPieceValue) {
+            score += 20 * personalityInfluence;
+          }
         }
         
-        // PAWN SHIELD BONUS (2x multiplier for Defender)
-        // "Iron Fortress" - heavily penalize moving shield pawns (f,g,h for kingside or a,b,c for queenside)
+        // 2. CASTLING: Still love castling - King safety is paramount
+        if (move.san === 'O-O' || move.san === 'O-O-O') score += 100 * personalityInfluence;
+        
+        // 3. ZONE DEFENSE: King-proximity bonus for minor pieces
+        // Knights and Bishops get bonus for staying within 2-3 squares of own King
+        if (move.piece === 'n' || move.piece === 'b') {
+          const myKing = findKingPosition(game, game.turn());
+          if (myKing) {
+            const toCol = move.to.charCodeAt(0) - 97;
+            const toRow = 8 - parseInt(move.to[1]);
+            const distance = Math.max(Math.abs(toCol - myKing.col), Math.abs(toRow - myKing.row));
+            
+            // Bonus for pieces within 2-3 squares of king (bodyguard formation)
+            if (distance <= 2) {
+              score += 40 * personalityInfluence; // Close protection
+            } else if (distance <= 3) {
+              score += 20 * personalityInfluence; // Support range
+            }
+            // Penalty for pieces straying too far from king
+            if (distance >= 5) {
+              score -= 15 * personalityInfluence; // Too far from defensive duties
+            }
+          }
+        }
+        
+        // 4. INFILTRATION DETECTION & RESPONSE: Enemy pieces in our territory are URGENT
+        // If enemy pieces are on our 3rd/4th rank, we need to deal with them NOW
+        {
+          const board = game.board();
+          const myColor = game.turn();
+          const enemyColor = myColor === 'w' ? 'b' : 'w';
+          const myKing = findKingPosition(game, myColor);
+          
+          // Define territory ranks (3rd and 4th for white, 5th and 6th for black)
+          const territoryRanks = myColor === 'w' ? [5, 4] : [2, 3]; // 0-indexed rows
+          
+          // Count infiltrators (enemy N, R, Q in our territory) with proximity to king
+          let infiltratorSquares: string[] = [];
+          let infiltrationThreat = 0;
+          const pieceThreats: Record<string, number> = { 'n': 30, 'r': 40, 'q': 60 };
+          
+          for (const rank of territoryRanks) {
+            for (let col = 0; col < 8; col++) {
+              const piece = board[rank][col];
+              if (piece && piece.color === enemyColor && 
+                  (piece.type === 'n' || piece.type === 'r' || piece.type === 'q')) {
+                const square = String.fromCharCode(97 + col) + (8 - rank);
+                infiltratorSquares.push(square);
+                
+                // Calculate threat based on piece type and proximity to king
+                let threat = pieceThreats[piece.type] || 30;
+                if (myKing) {
+                  const dist = Math.max(Math.abs(col - myKing.col), Math.abs(rank - myKing.row));
+                  // Closer to king = more dangerous
+                  if (dist <= 2) threat *= 1.5;
+                  else if (dist <= 3) threat *= 1.25;
+                }
+                infiltrationThreat += threat;
+              }
+            }
+          }
+          
+          // INFILTRATION PENALTY: Apply negative weight when infiltrators exist
+          // This makes ALL moves worse when enemies are in our territory,
+          // UNLESS the move deals with the infiltration
+          if (infiltratorSquares.length > 0) {
+            // Base penalty for having infiltrators (creates urgency)
+            score -= infiltrationThreat * personalityInfluence * 0.3;
+          }
+          
+          // EVICTION BONUS: Capturing an infiltrator is HIGHEST priority
+          if (move.captured && infiltratorSquares.includes(move.to)) {
+            // Full counter-punch bonus + remove the penalty for this move
+            score += 80 * personalityInfluence; // Strong eviction bonus
+            score += infiltrationThreat * personalityInfluence * 0.3; // Restore penalty
+          }
+          
+          // ATTACK INFILTRATOR BONUS: Moving to attack infiltrator squares
+          // Check if our move threatens any infiltrator (piece can capture next turn)
+          if (infiltratorSquares.length > 0) {
+            const testGame = new Chess(game.fen());
+            testGame.move(move.san);
+            // Get all our legal moves after this move
+            const followupMoves = testGame.moves({ verbose: true });
+            let threateningInfiltrator = false;
+            for (const followup of followupMoves) {
+              if (infiltratorSquares.includes(followup.to)) {
+                threateningInfiltrator = true;
+                break;
+              }
+            }
+            if (threateningInfiltrator) {
+              score += 35 * personalityInfluence; // Threatening eviction
+              score += infiltrationThreat * personalityInfluence * 0.15; // Partial penalty relief
+            }
+          }
+        }
+        
+        // 5. IRON FORTRESS: Pawn shield protection (kept from original, 2x multiplier)
         if (move.piece === 'p') {
           const myKing = findKingPosition(game, game.turn());
           if (myKing) {
@@ -2087,9 +2199,17 @@ function selectMoveByPersonality(
             const fromFile = move.from[0];
             // Penalize moving pawns in front of our own king (breaks shield)
             if (shieldFiles.includes(fromFile)) {
-              // Negative bonus = penalty (2x for Defender)
-              score -= 60 * personalityInfluence * 2;
+              score -= 60 * personalityInfluence * 2; // 2x penalty for Fortress
             }
+          }
+        }
+        
+        // 6. ROOK COORDINATION: Rooks should stay connected and on back ranks
+        if (move.piece === 'r') {
+          const toRank = parseInt(move.to[1]);
+          const homeRanks = game.turn() === 'w' ? [1, 2] : [7, 8];
+          if (homeRanks.includes(toRank)) {
+            score += 20 * personalityInfluence; // Rooks defend from back ranks
           }
         }
         break;
