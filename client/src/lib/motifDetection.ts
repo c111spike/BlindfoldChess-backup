@@ -365,7 +365,7 @@ function detectMatePattern(chess: Chess): TacticalMotif | null {
 
 function detectSacrifice(
   chessBefore: Chess,
-  move: { from: Square; to: Square; piece: string; captured?: string },
+  move: { from: Square; to: Square; piece: string; captured?: string; promotion?: string },
   evalBefore: number,
   evalAfter: number
 ): TacticalMotif | null {
@@ -375,13 +375,56 @@ function detectSacrifice(
   const capturedValue = move.captured ? PIECE_VALUES[move.captured.toLowerCase()] || 0 : 0;
   const movingValue = PIECE_VALUES[move.piece.toLowerCase()] || 0;
   
+  // A sacrifice requires giving up more material than what was captured
   const materialGiven = movingValue - capturedValue;
-  
   if (materialGiven < 2) return null;
+  
+  // Check if the piece that moved can actually be captured (making it a real sacrifice)
+  // Create position after the move to check if piece is en prise
+  try {
+    const chessAfter = new Chess(chessBefore.fen());
+    
+    // Make the move with proper promotion handling
+    const moveObj: { from: Square; to: Square; promotion?: string } = { 
+      from: move.from, 
+      to: move.to 
+    };
+    if (move.promotion) {
+      moveObj.promotion = move.promotion;
+    }
+    chessAfter.move(moveObj);
+    
+    // Get all opponent's legal moves that can capture the piece we just moved
+    const opponentMoves = chessAfter.moves({ verbose: true });
+    const capturesOnDestination = opponentMoves.filter(m => m.to === move.to && m.captured);
+    
+    // If the piece cannot be captured, it's not a sacrifice - just a normal move
+    if (capturesOnDestination.length === 0) return null;
+    
+    // The piece CAN be captured - this could be a sacrifice
+    // Check if we're giving up more material than we'd win back
+    // Find the lowest value attacker that could capture
+    let lowestAttackerValue = 100;
+    for (const capture of capturesOnDestination) {
+      const attackerValue = PIECE_VALUES[capture.piece.toLowerCase()] || 0;
+      if (attackerValue < lowestAttackerValue) {
+        lowestAttackerValue = attackerValue;
+      }
+    }
+    
+    // If the attacker is worth more than our piece, we're not really sacrificing
+    // (they wouldn't want to capture)
+    if (lowestAttackerValue > movingValue) return null;
+    
+  } catch {
+    // If we can't analyze the position, be conservative and don't flag as sacrifice
+    return null;
+  }
   
   const playerPerspective = movingPiece.color === 'w' ? 1 : -1;
   const evalImprovement = (evalAfter - evalBefore) * playerPerspective;
   
+  // Only label as sacrifice if the eval doesn't tank (it's a good sacrifice)
   if (evalImprovement > -1.0) {
     switch (move.piece.toLowerCase()) {
       case 'q': return 'queen_sacrifice';
