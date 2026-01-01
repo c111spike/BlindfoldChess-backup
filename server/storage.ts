@@ -835,6 +835,14 @@ export class DatabaseStorage implements IStorage {
 
   async createPuzzleAttempt(attemptData: InsertPuzzleAttempt): Promise<PuzzleAttempt> {
     const [attempt] = await db.insert(puzzleAttempts).values(attemptData).returning();
+    
+    // Increment solve count on the puzzle when solved successfully
+    if (attemptData.solved) {
+      await db.update(puzzles)
+        .set({ solveCount: sql`COALESCE(${puzzles.solveCount}, 0) + 1` })
+        .where(eq(puzzles.id, attemptData.puzzleId));
+    }
+    
     return attempt;
   }
 
