@@ -952,7 +952,9 @@ function ReviewTab({
                       if (score >= 65) return 'C+';
                       if (score >= 60) return 'C';
                       if (score >= 55) return 'C-';
+                      if (score >= 50) return 'D+';
                       if (score >= 45) return 'D';
+                      if (score >= 40) return 'D-';
                       return 'F';
                     })()})
                   </span>
@@ -997,7 +999,9 @@ function ReviewTab({
                       if (score >= 65) return 'C+';
                       if (score >= 60) return 'C';
                       if (score >= 55) return 'C-';
+                      if (score >= 50) return 'D+';
                       if (score >= 45) return 'D';
+                      if (score >= 40) return 'D-';
                       return 'F';
                     })()})
                   </span>
@@ -3115,15 +3119,45 @@ export default function GameAnalysisPage() {
   
   // Calculate Efficiency Factor (time vs quality correlation)
   // Returns 0-100 scale where 50 = neutral, 100 = excellent, 0 = poor
+  // Now includes accuracy-based floor to prevent misleading low scores for high-accuracy games
   const calculateEfficiencyFactor = (): number | null => {
     if (!clientAnalysis.result) return null;
     
+    const playerColor = game.playerColor;
+    
+    // Get player's accuracy for the floor calculation
+    const playerAccuracy = playerColor === 'white' 
+      ? clientAnalysis.result.whiteAccuracy 
+      : clientAnalysis.result.blackAccuracy;
+    
+    // Calculate accuracy-based efficiency floor
+    // High accuracy = you're being efficient by definition, regardless of time correlation
+    const getAccuracyFloor = (acc: number): number => {
+      if (acc >= 98) return 95;  // A+
+      if (acc >= 93) return 90;  // A
+      if (acc >= 90) return 85;  // A-
+      if (acc >= 87) return 80;  // B+
+      if (acc >= 83) return 75;  // B
+      if (acc >= 80) return 70;  // B-
+      if (acc >= 77) return 65;  // C+
+      if (acc >= 73) return 60;  // C
+      if (acc >= 70) return 55;  // C-
+      if (acc >= 67) return 50;  // D+
+      if (acc >= 63) return 45;  // D
+      if (acc >= 60) return 40;  // D-
+      return 0;  // No floor for <60% accuracy
+    };
+    
+    const accuracyFloor = getAccuracyFloor(playerAccuracy);
+    
     // Check if we have thinking time data from the game
     const thinkingTimes = game.thinkingTimes as number[] | null;
-    if (!thinkingTimes || thinkingTimes.length === 0) return null;
+    if (!thinkingTimes || thinkingTimes.length === 0) {
+      // No timing data - use accuracy floor as the score
+      return accuracyFloor > 0 ? accuracyFloor : null;
+    }
     
     const clientMoves = clientAnalysis.result.moves;
-    const playerColor = game.playerColor;
     
     // Get player's moves with their thinking times
     const playerData: { time: number; loss: number }[] = [];
@@ -3138,7 +3172,10 @@ export default function GameAnalysisPage() {
       }
     });
     
-    if (playerData.length < 5) return null; // Need enough data points
+    if (playerData.length < 5) {
+      // Not enough data points - use accuracy floor
+      return accuracyFloor > 0 ? accuracyFloor : null;
+    }
     
     // Calculate Pearson correlation between time and inverse of loss
     const n = playerData.length;
@@ -3157,12 +3194,19 @@ export default function GameAnalysisPage() {
       denomLoss += lossDiff * lossDiff;
     }
     
-    if (denomTime === 0 || denomLoss === 0) return null;
+    // Handle low variance cases (correlation undefined/unstable)
+    if (denomTime === 0 || denomLoss === 0) {
+      // Low variance in losses means consistent play - use accuracy floor
+      return accuracyFloor > 0 ? accuracyFloor : null;
+    }
     
     // Correlation: -1 to +1 where negative = more time leads to less loss (good)
     const correlation = numerator / Math.sqrt(denomTime * denomLoss);
     // Convert to 0-100 scale: correlation=-1 -> 100%, 0 -> 50%, +1 -> 0%
-    const efficiencyScore = Math.max(0, Math.min(100, 50 - (correlation * 50)));
+    const calculatedScore = Math.max(0, Math.min(100, 50 - (correlation * 50)));
+    
+    // Apply accuracy floor - efficiency can never be lower than what accuracy deserves
+    const efficiencyScore = Math.max(calculatedScore, accuracyFloor);
     return efficiencyScore;
   };
   
@@ -3178,7 +3222,9 @@ export default function GameAnalysisPage() {
     if (score >= 65) return 'C+';
     if (score >= 60) return 'C';
     if (score >= 55) return 'C-';
+    if (score >= 50) return 'D+';
     if (score >= 45) return 'D';
+    if (score >= 40) return 'D-';
     return 'F';
   };
   
