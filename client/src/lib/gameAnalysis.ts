@@ -172,16 +172,18 @@ function classifyMove(ctx: ClassificationContext): MoveClassification {
   }
 
   // "Winning Buffer" rule: If you're still crushing after the move (same sign, above threshold),
-  // losing centipawns shouldn't be flagged as a blunder/mistake
-  // Going from +10 to +7 is still completely winning - that's not a real blunder
+  // reduce severity slightly but still penalize sloppy play
+  // Going from +10 to +7 is still winning, but losing 300cp should still hurt your accuracy
   const sameSign = Math.sign(ctx.evalBefore) === Math.sign(ctx.evalAfter);
   const stillCrushing = Math.abs(ctx.evalAfter) >= WINNING_BUFFER_THRESHOLD;
   if (sameSign && stillCrushing) {
-    // Cap classification at 'good' when still crushing - don't penalize for "wasting" advantage
+    // Still penalize sloppy moves, but cap at 'mistake' instead of 'blunder'
+    // This prevents +10 to +4 from being called a blunder, but it's still graded as a mistake
     if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.good) return 'good';
     if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.imprecise) return 'imprecise';
-    // Even if cp loss is high, cap at 'imprecise' since you're still completely winning
-    return 'good';
+    if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.mistake) return 'mistake';
+    // Cap at 'mistake' when still crushing - don't call it a blunder
+    return 'mistake';
   }
 
   if (ctx.normalizedCentipawnLoss <= CLASSIFICATION_THRESHOLDS.good) return 'good';
@@ -191,46 +193,54 @@ function classifyMove(ctx: ClassificationContext): MoveClassification {
   return 'blunder';
 }
 
-// Accuracy weights based on move classification (aligned with Chess.com thresholds)
-// Genius = 110%, Fantastic = 105%, Best/Forced = 95-100%, Good = 70-75%, Imprecise = 50-65%, Mistake = 30-55%, Blunder = 0-15%
-// Using weighted mean - importance factor reduces impact of outliers (bad moves don't tank score unfairly)
+// Accuracy weights based on move classification (recalibrated to match Chess.com)
+// Chess.com uses a logistic curve that's harsher than typical implementations
+// Weights: Genius ~100, Fantastic ~98, Best 90-92, Good 55-65, Imprecise 35-50, Mistake 15-35, Blunder 0-10
+// Importance: CPL-proportional weighting so errors drag down the score more than good moves help
 function getClassificationWeight(classification: MoveClassification, cpLoss: number): { weight: number; importance: number } {
+  // CPL-proportional importance: errors count more heavily
+  // Good moves: importance = 1.0
+  // Bad moves: importance increases with cpLoss (max ~4x for 300+ cp blunders)
+  const baseImportance = 1.0;
+  const errorImportance = classification === 'imprecise' || classification === 'mistake' || classification === 'blunder'
+    ? baseImportance + (cpLoss / 100)  // 150cp = 2.5x importance, 300cp = 4x importance
+    : baseImportance;
+
   switch (classification) {
     case 'genius':
-      // Exceptional moves get bonus: 110%
-      return { weight: 110, importance: 1.0 };
+      // Exceptional moves: 100% (no inflation - clamped anyway)
+      return { weight: 100, importance: baseImportance };
     case 'fantastic':
-      // Great moves get bonus: 105%
-      return { weight: 105, importance: 1.0 };
+      // Great moves: 98%
+      return { weight: 98, importance: baseImportance };
     case 'best':
     case 'forced':
     case 'book':
-      // Best/forced moves: 95-100% based on CP loss (0-10 cp loss range)
-      // At 0cp = 100%, at 10cp = 95%
-      const bestWeight = Math.max(95, 100 - (cpLoss / 10) * 5);
-      return { weight: bestWeight, importance: 1.0 };
+      // Best/forced moves: 90-92% based on CP loss (0-10 cp loss range)
+      // At 0cp = 92%, at 10cp = 90%
+      const bestWeight = Math.max(90, 92 - (cpLoss / 10) * 2);
+      return { weight: bestWeight, importance: baseImportance };
     case 'good':
-      // Good moves: 70-75% based on CP loss (1-50 cp loss)
-      // 5% range - narrower to bring down accuracy scores
-      // At 1cp = 75%, at 50cp = 70%
-      const goodWeight = Math.max(70, 75 - (cpLoss / 50) * 5);
-      return { weight: goodWeight, importance: 1.0 };
+      // Good moves: 55-65% based on CP loss (1-50 cp loss)
+      // At 1cp = 65%, at 50cp = 55%
+      const goodWeight = Math.max(55, 65 - (cpLoss / 50) * 10);
+      return { weight: goodWeight, importance: baseImportance };
     case 'imprecise':
-      // Imprecise: 50-65% based on CP loss (51-80 cp loss)
-      // At 51cp = 65%, at 80cp = 50%
-      const impreciseWeight = Math.max(50, 65 - ((cpLoss - 50) / 30) * 15);
-      return { weight: impreciseWeight, importance: 1.0 };
+      // Imprecise: 35-50% based on CP loss (51-80 cp loss)
+      // At 51cp = 50%, at 80cp = 35%
+      const impreciseWeight = Math.max(35, 50 - ((cpLoss - 50) / 30) * 15);
+      return { weight: impreciseWeight, importance: errorImportance };
     case 'mistake':
-      // Mistake: 30-55% based on CP loss (81-300 cp loss)
-      // Extended range: 81-150 = small mistake, 151-300 = bigger mistake
-      const mistakeWeight = Math.max(30, 55 - ((cpLoss - 80) / 220) * 25);
-      return { weight: mistakeWeight, importance: 1.0 };
+      // Mistake: 15-35% based on CP loss (81-300 cp loss)
+      // At 81cp = 35%, at 300cp = 15%
+      const mistakeWeight = Math.max(15, 35 - ((cpLoss - 80) / 220) * 20);
+      return { weight: mistakeWeight, importance: errorImportance };
     case 'blunder':
-      // Blunder: 0-15% based on severity (301+ cp loss)
-      const blunderWeight = Math.max(0, 15 - ((cpLoss - 300) / 200) * 15);
-      return { weight: blunderWeight, importance: 1.0 };
+      // Blunder: 0-10% based on severity (301+ cp loss)
+      const blunderWeight = Math.max(0, 10 - ((cpLoss - 300) / 200) * 10);
+      return { weight: blunderWeight, importance: errorImportance };
     default:
-      return { weight: 100, importance: 1.0 };
+      return { weight: 92, importance: baseImportance };
   }
 }
 
