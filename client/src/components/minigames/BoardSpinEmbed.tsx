@@ -409,7 +409,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   const NudgeableBoardWrapper = ({ children }: { children: React.ReactNode }) => (
     <div
       ref={nudgeContainerRef}
-      className="relative touch-none"
+      className="relative touch-none w-full max-w-[320px]"
       onTouchStart={(e) => handleNudgeStart(e.touches[0].clientX)}
       onTouchEnd={handleNudgeEnd}
       onTouchCancel={handleNudgeEnd}
