@@ -190,7 +190,7 @@ function MiniChessboard({ fen, size = 120 }: { fen: string; size?: number }) {
   );
 }
 
-function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick, onAnonymousClick, browseFilters }: { puzzle: Puzzle & { userVote?: string | null; creatorUsername?: string | null }; onVote: (type: string) => void; onReport: (puzzleId: string) => void; onCreatorClick?: (creatorId: string, creatorUsername: string) => void; onAnonymousClick?: () => void; browseFilters?: { type?: string; difficulty?: string; motif?: string; sortBy?: string } }) {
+function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick, onAnonymousClick, browseFilters, isSolved }: { puzzle: Puzzle & { userVote?: string | null; creatorUsername?: string | null }; onVote: (type: string) => void; onReport: (puzzleId: string) => void; onCreatorClick?: (creatorId: string, creatorUsername: string) => void; onAnonymousClick?: () => void; browseFilters?: { type?: string; difficulty?: string; motif?: string; sortBy?: string }; isSolved?: boolean }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -253,6 +253,11 @@ function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick, onAnonymousClick
               {!puzzle.isVerified && (
                 <Badge variant="secondary" className="text-xs">
                   <AlertCircle className="h-3 w-3 mr-1" /> Unverified
+                </Badge>
+              )}
+              {isSolved && (
+                <Badge className="bg-green-500/20 text-green-600 dark:text-green-400">
+                  <CheckCircle className="h-3 w-3 mr-1" /> Solved
                 </Badge>
               )}
             </div>
@@ -1087,9 +1092,14 @@ function BrowseTab({ initialMotif }: { initialMotif?: string }) {
   const [difficulty, setDifficulty] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [motifFilter, setMotifFilter] = useState(initialMotif || "all");
+  const [solvedStatus, setSolvedStatus] = useState("all");
   const [creatorSearch, setCreatorSearch] = useState("");
   const [activeCreatorFilter, setActiveCreatorFilter] = useState<{id?: string; username?: string; isAnonymous?: boolean} | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  
+  const { data: solvedPuzzleIds = [] } = useQuery<string[]>({
+    queryKey: ["/api/user/solved-puzzles"],
+  });
   const [reportPuzzleId, setReportPuzzleId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
@@ -1252,6 +1262,17 @@ function BrowseTab({ initialMotif }: { initialMotif?: string }) {
             </SelectContent>
           </Select>
           
+          <Select value={solvedStatus} onValueChange={setSolvedStatus}>
+            <SelectTrigger className="w-[150px]" data-testid="select-solved-status">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Puzzles</SelectItem>
+              <SelectItem value="solved">Solved</SelectItem>
+              <SelectItem value="unsolved">Not Solved</SelectItem>
+            </SelectContent>
+          </Select>
+          
           <div className="flex items-center gap-2">
             <div className="relative">
               <Input
@@ -1328,7 +1349,13 @@ function BrowseTab({ initialMotif }: { initialMotif?: string }) {
           </div>
         ) : puzzles && puzzles.length > 0 ? (
           <div className="space-y-4">
-            {puzzles.map((puzzle) => (
+            {puzzles
+              .filter((puzzle) => {
+                if (solvedStatus === "all") return true;
+                const isSolved = solvedPuzzleIds.includes(puzzle.id);
+                return solvedStatus === "solved" ? isSolved : !isSolved;
+              })
+              .map((puzzle) => (
               <PuzzleCard
                 key={puzzle.id}
                 puzzle={puzzle as Puzzle & { userVote?: string | null; creatorUsername?: string | null }}
@@ -1337,6 +1364,7 @@ function BrowseTab({ initialMotif }: { initialMotif?: string }) {
                 onCreatorClick={handleCreatorClick}
                 onAnonymousClick={handleAnonymousClick}
                 browseFilters={{ type: puzzleType, difficulty, motif: motifFilter, sortBy }}
+                isSolved={solvedPuzzleIds.includes(puzzle.id)}
               />
             ))}
           </div>

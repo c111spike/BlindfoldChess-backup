@@ -138,6 +138,7 @@ export interface IStorage {
   getFirstPuzzle(): Promise<Puzzle | undefined>;
   createPuzzleAttempt(attempt: InsertPuzzleAttempt): Promise<PuzzleAttempt>;
   getUserPuzzleStats(userId: string): Promise<{ solvedToday: number; totalSolved: number; successRate: number }>;
+  getUserSolvedPuzzleIds(userId: string): Promise<string[]>;
   
   getPuzzleSessionProgress(userId: string): Promise<PuzzleSessionProgress | undefined>;
   markPuzzleSeen(userId: string, puzzleId: string): Promise<PuzzleSessionProgress>;
@@ -863,6 +864,18 @@ export class DatabaseStorage implements IStorage {
     const successRate = totalAttempts > 0 ? Math.round((totalSolved / totalAttempts) * 100) : 0;
     
     return { solvedToday, totalSolved, successRate };
+  }
+
+  async getUserSolvedPuzzleIds(userId: string): Promise<string[]> {
+    const solvedAttempts = await db.selectDistinct({
+      puzzleId: puzzleAttempts.puzzleId
+    }).from(puzzleAttempts)
+      .where(and(
+        eq(puzzleAttempts.userId, userId),
+        eq(puzzleAttempts.solved, true)
+      ));
+    
+    return solvedAttempts.map(a => a.puzzleId);
   }
 
   async getPuzzleSessionProgress(userId: string): Promise<PuzzleSessionProgress | undefined> {
