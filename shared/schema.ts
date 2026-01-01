@@ -4,6 +4,7 @@ import {
   varchar,
   text,
   integer,
+  serial,
   timestamp,
   boolean,
   jsonb,
@@ -247,6 +248,7 @@ export const puzzleSourceTypeEnum = pgEnum("puzzle_source_type", [
 
 export const puzzles = pgTable("puzzles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  puzzleNumber: serial("puzzle_number").notNull().unique(),
   fen: text("fen").notNull(),
   moves: jsonb("moves").$type<string[]>().notNull(),
   rating: integer("rating").notNull(),
@@ -280,6 +282,7 @@ export const puzzles = pgTable("puzzles", {
   typeIdx: index("puzzles_type_idx").on(table.puzzleType),
   verifiedIdx: index("puzzles_verified_idx").on(table.isVerified),
   featuredIdx: index("puzzles_featured_idx").on(table.isFeatured),
+  puzzleNumberIdx: index("puzzles_number_idx").on(table.puzzleNumber),
 }));
 
 export const puzzleVotes = pgTable("puzzle_votes", {
