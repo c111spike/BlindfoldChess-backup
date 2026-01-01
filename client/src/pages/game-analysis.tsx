@@ -2649,12 +2649,18 @@ export default function GameAnalysisPage() {
   });
 
   // Fetch accuracy stats for the same mode and time control
-  const accuracyStatsUrl = data?.game?.mode 
-    ? `/api/games/accuracy-stats?mode=${data.game.mode}${data.game.timeControl != null ? `&timeControl=${data.game.timeControl}` : ''}`
-    : null;
   const { data: accuracyStats } = useQuery<{ average: number | null; highest: number | null; gameCount: number }>({
-    queryKey: [accuracyStatsUrl],
-    enabled: !isSharedView && !!accuracyStatsUrl,
+    queryKey: ['/api/games/accuracy-stats', data?.game?.mode ?? '', data?.game?.timeControl ?? 'any'],
+    queryFn: async () => {
+      const params = new URLSearchParams({ mode: data!.game!.mode });
+      if (data?.game?.timeControl != null) {
+        params.append('timeControl', String(data.game.timeControl));
+      }
+      const res = await fetch(`/api/games/accuracy-stats?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch accuracy stats');
+      return res.json();
+    },
+    enabled: !isSharedView && !!data?.game?.mode,
   });
 
   // Use raw game moves for navigation - always available even before analysis completes
