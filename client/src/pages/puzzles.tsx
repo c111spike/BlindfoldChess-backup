@@ -239,6 +239,9 @@ function PuzzleCard({ puzzle, onVote, onReport, onCreatorClick, onAnonymousClick
           
           <div className="flex-1 min-w-0" onClick={() => setLocation(buildPuzzleUrl(puzzle.id))}>
             <div className="flex items-center gap-2 flex-wrap mb-2">
+              <span className="font-mono text-sm font-bold text-muted-foreground" data-testid={`puzzle-number-${puzzle.id}`}>
+                #{puzzle.puzzleNumber}
+              </span>
               <Badge className={getDifficultyColor(puzzle.difficulty)} data-testid={`badge-difficulty-${puzzle.id}`}>
                 {puzzle.difficulty || "Unknown"}
               </Badge>

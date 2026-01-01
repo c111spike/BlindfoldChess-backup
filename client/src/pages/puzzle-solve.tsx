@@ -645,7 +645,10 @@ export default function PuzzleSolve() {
           <div className="space-y-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Puzzle Info</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <span className="font-mono text-primary" data-testid="puzzle-number">#{puzzle.puzzleNumber}</span>
+                  Puzzle Info
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-2">

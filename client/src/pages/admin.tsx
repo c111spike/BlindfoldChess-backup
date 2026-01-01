@@ -502,7 +502,10 @@ export default function AdminPage() {
   const filteredPuzzles = allPuzzles?.filter(p => {
     if (!puzzleSearchQuery) return true;
     const searchLower = puzzleSearchQuery.toLowerCase();
+    const searchNum = parseInt(puzzleSearchQuery.replace('#', ''), 10);
+    const isValidNumber = !Number.isNaN(searchNum);
     return (
+      (isValidNumber && p.puzzleNumber && p.puzzleNumber === searchNum) ||
       p.puzzleType?.toLowerCase().includes(searchLower) ||
       p.id.toLowerCase().includes(searchLower) ||
       p.sourceName?.toLowerCase().includes(searchLower)
@@ -1842,7 +1845,7 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Input
-                  placeholder="Search puzzles..."
+                  placeholder="Search by #number, type, or source..."
                   value={puzzleSearchQuery}
                   onChange={(e) => setPuzzleSearchQuery(e.target.value)}
                   data-testid="input-puzzle-search"
@@ -1862,7 +1865,10 @@ export default function AdminPage() {
                         onClick={() => selectPuzzleForReview(puzzle)}
                         data-testid={`puzzle-item-${puzzle.id}`}
                       >
-                        <p className="font-medium text-sm truncate">{puzzle.puzzleType || 'Puzzle'} - {puzzle.difficulty || 'Unknown'}</p>
+                        <p className="font-medium text-sm truncate">
+                          <span className="font-mono text-primary">#{puzzle.puzzleNumber}</span>
+                          {' '}{puzzle.puzzleType || 'Puzzle'} - {puzzle.difficulty || 'Unknown'}
+                        </p>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary" className="text-xs">{puzzle.puzzleType}</Badge>
                           {puzzle.isFlagged && <Badge variant="destructive" className="text-xs">Flagged</Badge>}
