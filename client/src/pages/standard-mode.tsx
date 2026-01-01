@@ -930,9 +930,9 @@ export default function StandardMode() {
   });
 
   const blindfoldDifficultyOptions = [
-    { value: "easy", label: "Easy", description: "Unlimited peeks" },
-    { value: "medium", label: "Medium", description: "20 peeks" },
-    { value: "hard", label: "Hard", description: "10 peeks" },
+    { value: "easy", label: "Patzer", description: "Unlimited peeks" },
+    { value: "medium", label: "Novice", description: "20 peeks" },
+    { value: "hard", label: "Club Player", description: "10 peeks" },
     { value: "expert", label: "Expert", description: "5 peeks" },
     { value: "master", label: "Master", description: "2 peeks" },
     { value: "grandmaster", label: "Grandmaster", description: "0 peeks (pure blindfold)" },
