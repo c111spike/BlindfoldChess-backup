@@ -2592,6 +2592,8 @@ export default function GameAnalysisPage() {
   const { toast } = useToast();
   const [currentMoveIndex, setCurrentMoveIndex] = useState(-1);
   const [copied, setCopied] = useState(false);
+  const [pgnCopied, setPgnCopied] = useState(false);
+  const [showPgnDialog, setShowPgnDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("analyze");
   
   const simulMatchId = useMemo(() => {
@@ -3367,28 +3369,49 @@ export default function GameAnalysisPage() {
       headers.push(`[TimeControl "${game.timeControl}"]`);
     }
     
-    // Get the PGN moves from chess.js
-    const pgnMoves = chess.pgn({ maxWidth: 80 }).split('\n').filter(line => !line.startsWith('[')).join('\n').trim();
+    // Get the PGN moves from chess.js (already includes result marker if game is complete)
+    const fullPgn = chess.pgn({ maxWidth: 80 });
+    const pgnMoves = fullPgn.split('\n').filter(line => !line.startsWith('[')).join('\n').trim();
     
-    // Get the final position FEN
-    const finalFen = chess.fen();
+    // Check if the moves already end with a result marker
+    const hasResultMarker = pgnMoves.endsWith('1-0') || pgnMoves.endsWith('0-1') || pgnMoves.endsWith('1/2-1/2') || pgnMoves.endsWith('*');
     
-    return headers.join('\n') + '\n\n' + pgnMoves + '\n\n{ Final position FEN: ' + finalFen + ' }';
+    // Only add result marker if not already present
+    if (hasResultMarker) {
+      return headers.join('\n') + '\n\n' + pgnMoves;
+    }
+    
+    // Add result marker if missing
+    const resultMarker = game.result === 'white_win' ? '1-0' : game.result === 'black_win' ? '0-1' : game.result === 'draw' ? '1/2-1/2' : '*';
+    return headers.join('\n') + '\n\n' + pgnMoves + ' ' + resultMarker;
   };
 
   const handleDownloadPGN = () => {
     const pgn = generatePGN();
-    const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+    // Use .txt extension so mobile phones can open it natively
+    const blob = new Blob([pgn], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     const dateStr = game.createdAt ? new Date(game.createdAt).toISOString().split('T')[0] : 'game';
-    a.download = `simulchess_${game.mode || 'game'}_${dateStr}.pgn`;
+    a.download = `simulchess_${game.mode || 'game'}_${dateStr}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast({ title: 'PGN Downloaded', description: 'Game exported successfully.' });
+    toast({ title: 'PGN Downloaded', description: 'Game exported as text file. You can open this on any device.' });
+  };
+
+  const handleCopyPGN = async () => {
+    const pgn = generatePGN();
+    try {
+      await navigator.clipboard.writeText(pgn);
+      setPgnCopied(true);
+      toast({ title: 'Copied!', description: 'PGN copied to clipboard.' });
+      setTimeout(() => setPgnCopied(false), 2000);
+    } catch (err) {
+      toast({ title: 'Copy failed', description: 'Please select and copy manually.', variant: 'destructive' });
+    }
   };
 
   return (
@@ -3429,11 +3452,11 @@ export default function GameAnalysisPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={handleDownloadPGN}
-            data-testid="button-download-pgn"
+            onClick={() => setShowPgnDialog(true)}
+            data-testid="button-export-pgn"
           >
             <Download className="w-4 h-4 mr-2" />
-            Download PGN
+            Export PGN
           </Button>
           {!isSharedView && (analysis.status === 'completed' || clientAnalysis.result) && (
             <Button
@@ -3747,6 +3770,44 @@ export default function GameAnalysisPage() {
         }}
         initialGame={initialMiniGame}
       />
+      
+      <Dialog open={showPgnDialog} onOpenChange={setShowPgnDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Export Game (PGN Format)</DialogTitle>
+            <DialogDescription>
+              Copy the game notation or download as a text file that any device can open.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[40vh] border rounded-md p-3 bg-muted/30">
+            <pre className="text-sm font-mono whitespace-pre-wrap break-words" data-testid="pgn-content">
+              {generatePGN()}
+            </pre>
+          </ScrollArea>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCopyPGN}
+              className="w-full sm:w-auto"
+              data-testid="button-copy-pgn"
+            >
+              {pgnCopied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+              {pgnCopied ? 'Copied!' : 'Copy to Clipboard'}
+            </Button>
+            <Button
+              onClick={() => {
+                handleDownloadPGN();
+                setShowPgnDialog(false);
+              }}
+              className="w-full sm:w-auto"
+              data-testid="button-download-pgn"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download as Text File
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
