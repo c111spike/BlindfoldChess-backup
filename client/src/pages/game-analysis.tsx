@@ -791,13 +791,16 @@ function ReviewTab({
   moves,
   onNavigateToMove,
   useClientValidation = false,
+  accuracyStats,
 }: { 
   analysis: GameAnalysis; 
   game: Game;
   moves: MoveAnalysis[];
   onNavigateToMove?: (moveIndex: number) => void;
   useClientValidation?: boolean;
+  accuracyStats?: { average: number | null; highest: number | null; gameCount: number };
 }) {
+  const playerAccuracy = game.playerColor === 'white' ? analysis.whiteAccuracy : analysis.blackAccuracy;
   const [trainerOpen, setTrainerOpen] = useState(false);
   const [selectedMismatch, setSelectedMismatch] = useState<{
     plyIndex: number;
@@ -975,50 +978,56 @@ function ReviewTab({
           </CardContent>
         </Card>
         
-        <Card data-testid="efficiency-factor">
+        <Card data-testid="game-accuracy-stats">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              Efficiency Factor
+              <Target className="w-4 h-4" />
+              Game Accuracy
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold flex items-baseline gap-2">
-              {analysis.efficiencyFactor != null ? (
+            <div className="text-3xl font-bold flex items-baseline gap-2">
+              {playerAccuracy != null ? (
                 <>
-                  <span>{analysis.efficiencyFactor.toFixed(0)}%</span>
-                  <span className="text-lg text-muted-foreground">
-                    ({(() => {
-                      const score = analysis.efficiencyFactor;
-                      if (score >= 95) return 'A+';
-                      if (score >= 90) return 'A';
-                      if (score >= 85) return 'A-';
-                      if (score >= 80) return 'B+';
-                      if (score >= 75) return 'B';
-                      if (score >= 70) return 'B-';
-                      if (score >= 65) return 'C+';
-                      if (score >= 60) return 'C';
-                      if (score >= 55) return 'C-';
-                      if (score >= 50) return 'D+';
-                      if (score >= 45) return 'D';
-                      if (score >= 40) return 'D-';
-                      return 'F';
-                    })()})
-                  </span>
+                  <span>{playerAccuracy.toFixed(1)}%</span>
+                  {accuracyStats?.highest != null && playerAccuracy >= accuracyStats.highest && accuracyStats.gameCount > 0 && (
+                    <Badge variant="outline" className="ml-2 text-yellow-500 border-yellow-500">
+                      <Crown className="w-3 h-3 mr-1" />
+                      New Best!
+                    </Badge>
+                  )}
                 </>
               ) : '--'}
             </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              {analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 70
-                ? "Your thinking time is being used productively - longer thinks lead to better moves."
-                : analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 55
-                  ? "You're finding your rhythm - some good ideas, some lapses."
-                  : analysis.efficiencyFactor != null && analysis.efficiencyFactor >= 45
-                    ? "Focus was sporadic - work on allocating time to critical moments."
-                    : analysis.efficiencyFactor != null
-                      ? "Major gaps in time efficiency - rushing critical positions or overthinking easy ones."
-                      : "Time spent vs. move quality correlation"}
-            </p>
+            <div className="mt-3 space-y-1">
+              {accuracyStats?.average != null ? (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Your Average</span>
+                    <span className="font-medium">{accuracyStats.average.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Your Best</span>
+                    <span className="font-medium">
+                      {playerAccuracy != null && playerAccuracy > (accuracyStats.highest ?? 0) 
+                        ? playerAccuracy.toFixed(1) 
+                        : accuracyStats.highest?.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                    Based on {accuracyStats.gameCount} analyzed {game.mode} game{accuracyStats.gameCount !== 1 ? 's' : ''} 
+                    {game.timeControl ? ` at ${Math.floor(game.timeControl / 60)}+${game.increment || 0}` : ''}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  First analyzed {game.mode} game{game.timeControl ? ` at ${Math.floor(game.timeControl / 60)}+${game.increment || 0}` : ''}!
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground italic">
+                Scores are based on analyzed games only
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -2639,6 +2648,15 @@ export default function GameAnalysisPage() {
     },
   });
 
+  // Fetch accuracy stats for the same mode and time control
+  const accuracyStatsUrl = data?.game?.mode 
+    ? `/api/games/accuracy-stats?mode=${data.game.mode}${data.game.timeControl != null ? `&timeControl=${data.game.timeControl}` : ''}`
+    : null;
+  const { data: accuracyStats } = useQuery<{ average: number | null; highest: number | null; gameCount: number }>({
+    queryKey: [accuracyStatsUrl],
+    enabled: !isSharedView && !!accuracyStatsUrl,
+  });
+
   // Use raw game moves for navigation - always available even before analysis completes
   const gameMoves: string[] = useMemo(() => {
     if (!data?.game?.moves) return [];
@@ -3646,7 +3664,7 @@ export default function GameAnalysisPage() {
             
             <TabsContent value="review">
               {analysis.status === 'completed' ? (
-                <ReviewTab analysis={analysis} game={game} moves={moves} onNavigateToMove={handleNavigateToMove} useClientValidation={hasClientResult} />
+                <ReviewTab analysis={analysis} game={game} moves={moves} onNavigateToMove={handleNavigateToMove} useClientValidation={hasClientResult} accuracyStats={accuracyStats} />
               ) : (
                 <Card>
                   <CardContent className="p-8 text-center">

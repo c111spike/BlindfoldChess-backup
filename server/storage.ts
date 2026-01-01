@@ -125,6 +125,7 @@ export interface IStorage {
   getGameStatistics(): Promise<{ mode: string; count: number }[]>;
   getBlindfoldGameCount(): Promise<number>;
   getTrainingChallengesCounts(): Promise<{ boardSpin: number; nPiece: number; knightsTour: number }>;
+  getAccuracyStats(userId: string, mode: string, timeControl: number | null): Promise<{ average: number | null; highest: number | null; gameCount: number }>;
   
   getRating(userId: string): Promise<Rating | undefined>;
   createRating(rating: InsertRating): Promise<Rating>;
@@ -536,6 +537,78 @@ export class DatabaseStorage implements IStorage {
       boardSpin: boardSpinResult?.count || 0,
       nPiece: nPieceResult?.count || 0,
       knightsTour: knightsTourResult?.count || 0,
+    };
+  }
+
+  async getAccuracyStats(userId: string, mode: string, timeControl: number | null): Promise<{ average: number | null; highest: number | null; gameCount: number }> {
+    // Get all analyzed games for the user with matching mode and time control
+    const conditions = [
+      or(
+        eq(games.userId, userId),
+        eq(games.whitePlayerId, userId),
+        eq(games.blackPlayerId, userId)
+      ),
+      eq(games.mode, mode as any),
+      eq(games.status, 'completed'),
+      // Only include games that have been analyzed (have accuracy values)
+      or(
+        sql`${games.whiteAccuracy} IS NOT NULL`,
+        sql`${games.blackAccuracy} IS NOT NULL`
+      )
+    ];
+    
+    // Add time control filter if provided
+    if (timeControl !== null) {
+      conditions.push(eq(games.timeControl, timeControl));
+    }
+    
+    const userGames = await db
+      .select({
+        whitePlayerId: games.whitePlayerId,
+        blackPlayerId: games.blackPlayerId,
+        userId: games.userId,
+        playerColor: games.playerColor,
+        whiteAccuracy: games.whiteAccuracy,
+        blackAccuracy: games.blackAccuracy,
+      })
+      .from(games)
+      .where(and(...conditions));
+    
+    if (userGames.length === 0) {
+      return { average: null, highest: null, gameCount: 0 };
+    }
+    
+    // Calculate player's accuracy for each game
+    const accuracies: number[] = [];
+    for (const game of userGames) {
+      let playerAccuracy: number | null = null;
+      
+      // Determine if user was white or black
+      if (game.whitePlayerId === userId) {
+        playerAccuracy = game.whiteAccuracy;
+      } else if (game.blackPlayerId === userId) {
+        playerAccuracy = game.blackAccuracy;
+      } else if (game.userId === userId) {
+        // For bot games, use playerColor
+        playerAccuracy = game.playerColor === 'white' ? game.whiteAccuracy : game.blackAccuracy;
+      }
+      
+      if (playerAccuracy !== null) {
+        accuracies.push(playerAccuracy);
+      }
+    }
+    
+    if (accuracies.length === 0) {
+      return { average: null, highest: null, gameCount: 0 };
+    }
+    
+    const average = accuracies.reduce((a, b) => a + b, 0) / accuracies.length;
+    const highest = Math.max(...accuracies);
+    
+    return {
+      average: Math.round(average * 10) / 10,
+      highest: Math.round(highest * 10) / 10,
+      gameCount: accuracies.length
     };
   }
 

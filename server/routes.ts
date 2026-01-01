@@ -228,6 +228,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/games/accuracy-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const mode = req.query.mode as string;
+      const timeControl = req.query.timeControl ? parseInt(req.query.timeControl as string, 10) : null;
+      
+      if (!mode) {
+        return res.status(400).json({ message: "Mode is required" });
+      }
+      
+      const stats = await storage.getAccuracyStats(userId, mode, timeControl);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching accuracy stats:", error);
+      res.status(500).json({ message: "Failed to fetch accuracy stats" });
+    }
+  });
+
   // Track authenticated online players
   const authenticatedUsers = new Set<string>();
   
