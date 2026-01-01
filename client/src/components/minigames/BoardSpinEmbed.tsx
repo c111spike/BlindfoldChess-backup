@@ -348,11 +348,13 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     }
     
     return (
-      <div 
-        className="grid grid-cols-8 grid-rows-8 w-full max-w-[320px] aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
-        style={{ transform: `rotate(${rotation}deg)` }}
-      >
-        {squares}
+      <div className="scale-[0.95] sm:scale-100 origin-center">
+        <div 
+          className="grid grid-cols-8 grid-rows-8 w-full max-w-[320px] aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
+          style={{ transform: `rotate(${rotation}deg)` }}
+        >
+          {squares}
+        </div>
       </div>
     );
   };
