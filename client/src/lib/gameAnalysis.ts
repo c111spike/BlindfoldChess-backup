@@ -192,7 +192,7 @@ function classifyMove(ctx: ClassificationContext): MoveClassification {
 }
 
 // Accuracy weights based on move classification (aligned with Chess.com thresholds)
-// Genius/Fantastic/Best/Forced = 100%, Good = 85-95%, Imprecise = 70-85%, Mistake = 30-55%, Blunder = 0-15%
+// Genius/Fantastic/Best/Forced = 100%, Good = 70-85%, Imprecise = 50-65%, Mistake = 30-55%, Blunder = 0-15%
 // Using weighted mean - importance factor reduces impact of outliers (bad moves don't tank score unfairly)
 function getClassificationWeight(classification: MoveClassification, cpLoss: number): { weight: number; importance: number } {
   switch (classification) {
@@ -204,13 +204,15 @@ function getClassificationWeight(classification: MoveClassification, cpLoss: num
       // Perfect moves get 100%
       return { weight: 100, importance: 1.0 };
     case 'good':
-      // Good moves: 85-95% based on CP loss (1-50 cp loss)
-      // This creates meaningful separation from "Best" moves
-      const goodWeight = Math.max(85, 95 - (cpLoss / 5));
+      // Good moves: 70-85% based on CP loss (1-50 cp loss)
+      // 15% range matching other classifications for consistency
+      // At 1cp = 85%, at 50cp = 70%
+      const goodWeight = Math.max(70, 85 - (cpLoss / 50) * 15);
       return { weight: goodWeight, importance: 1.0 };
     case 'imprecise':
-      // Imprecise: 70-85% based on CP loss (51-80 cp loss)
-      const impreciseWeight = Math.max(70, 85 - ((cpLoss - 50) / 30) * 15);
+      // Imprecise: 50-65% based on CP loss (51-80 cp loss)
+      // At 51cp = 65%, at 80cp = 50%
+      const impreciseWeight = Math.max(50, 65 - ((cpLoss - 50) / 30) * 15);
       return { weight: impreciseWeight, importance: 1.0 };
     case 'mistake':
       // Mistake: 30-55% based on CP loss (81-300 cp loss)
