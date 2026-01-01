@@ -192,22 +192,28 @@ function classifyMove(ctx: ClassificationContext): MoveClassification {
 }
 
 // Accuracy weights based on move classification (aligned with Chess.com thresholds)
-// Genius/Fantastic/Best/Forced = 100%, Good = 70-85%, Imprecise = 50-65%, Mistake = 30-55%, Blunder = 0-15%
+// Genius = 110%, Fantastic = 105%, Best/Forced = 95-100%, Good = 70-75%, Imprecise = 50-65%, Mistake = 30-55%, Blunder = 0-15%
 // Using weighted mean - importance factor reduces impact of outliers (bad moves don't tank score unfairly)
 function getClassificationWeight(classification: MoveClassification, cpLoss: number): { weight: number; importance: number } {
   switch (classification) {
     case 'genius':
+      // Exceptional moves get bonus: 110%
+      return { weight: 110, importance: 1.0 };
     case 'fantastic':
+      // Great moves get bonus: 105%
+      return { weight: 105, importance: 1.0 };
     case 'best':
     case 'forced':
     case 'book':
-      // Perfect moves get 100%
-      return { weight: 100, importance: 1.0 };
+      // Best/forced moves: 95-100% based on CP loss (0-10 cp loss range)
+      // At 0cp = 100%, at 10cp = 95%
+      const bestWeight = Math.max(95, 100 - (cpLoss / 10) * 5);
+      return { weight: bestWeight, importance: 1.0 };
     case 'good':
-      // Good moves: 70-85% based on CP loss (1-50 cp loss)
-      // 15% range matching other classifications for consistency
-      // At 1cp = 85%, at 50cp = 70%
-      const goodWeight = Math.max(70, 85 - (cpLoss / 50) * 15);
+      // Good moves: 70-75% based on CP loss (1-50 cp loss)
+      // 5% range - narrower to bring down accuracy scores
+      // At 1cp = 75%, at 50cp = 70%
+      const goodWeight = Math.max(70, 75 - (cpLoss / 50) * 5);
       return { weight: goodWeight, importance: 1.0 };
     case 'imprecise':
       // Imprecise: 50-65% based on CP loss (51-80 cp loss)
@@ -243,7 +249,9 @@ function calculateAccuracyFromClassifications(moves: MoveAnalysisResult[]): numb
   if (importanceSum === 0) return 100;
   
   const accuracy = weightedSum / importanceSum;
-  return Math.round(accuracy * 10) / 10;
+  // Clamp to 0-100 range (genius/fantastic bonuses can push it over 100 before clamping)
+  const clampedAccuracy = Math.max(0, Math.min(100, accuracy));
+  return Math.round(clampedAccuracy * 10) / 10;
 }
 
 // Legacy function kept for backwards compatibility

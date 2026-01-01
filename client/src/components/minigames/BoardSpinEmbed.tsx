@@ -78,6 +78,52 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   const [showingAnswer, setShowingAnswer] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recreationStartTime = useRef<number>(0);
+  
+  // Mobile nudge system for revealing clipped board corners
+  const [nudgeOffset, setNudgeOffset] = useState(0);
+  const nudgeContainerRef = useRef<HTMLDivElement>(null);
+  const nudgeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const NUDGE_AMOUNT = 30; // pixels to nudge per interval
+  const NUDGE_EDGE_ZONE = 60; // pixels from edge to trigger nudge
+  
+  const handleNudgeStart = useCallback((clientX: number) => {
+    if (!nudgeContainerRef.current) return;
+    
+    const rect = nudgeContainerRef.current.getBoundingClientRect();
+    const relativeX = clientX - rect.left;
+    
+    // Check if touch is in left or right edge zone
+    if (relativeX < NUDGE_EDGE_ZONE) {
+      // Left edge - nudge right (show left side)
+      nudgeIntervalRef.current = setInterval(() => {
+        setNudgeOffset(prev => Math.min(prev + NUDGE_AMOUNT, 50));
+      }, 100);
+    } else if (relativeX > rect.width - NUDGE_EDGE_ZONE) {
+      // Right edge - nudge left (show right side)
+      nudgeIntervalRef.current = setInterval(() => {
+        setNudgeOffset(prev => Math.max(prev - NUDGE_AMOUNT, -50));
+      }, 100);
+    }
+  }, []);
+  
+  const handleNudgeEnd = useCallback(() => {
+    if (nudgeIntervalRef.current) {
+      clearInterval(nudgeIntervalRef.current);
+      nudgeIntervalRef.current = null;
+    }
+    // Snap back to center
+    setNudgeOffset(0);
+  }, []);
+  
+  // Cleanup nudge interval on unmount
+  useEffect(() => {
+    return () => {
+      if (nudgeIntervalRef.current) {
+        clearInterval(nudgeIntervalRef.current);
+      }
+    };
+  }, []);
 
   const difficulties = [
     { value: 'patzer', label: 'Patzer (3-4 pieces)', multiplier: '1.0x' },
@@ -308,10 +354,10 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
             {/* Ghost icon showing correct pieces - only visible when holding the "show answer" button */}
             {hidePieces && correctPiece && (
               <span 
-                className={`absolute text-xl sm:text-2xl leading-none select-none pointer-events-none text-white opacity-90 ${
+                className={`absolute text-xl sm:text-2xl leading-none select-none pointer-events-none ${
                   correctPiece === correctPiece.toUpperCase() 
-                    ? 'drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' 
-                    : 'drop-shadow-[0_0_3px_rgba(0,0,0,1)] [text-shadow:_0_0_2px_rgb(0_0_0),_0_0_4px_rgb(0_0_0)]'
+                    ? 'text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' 
+                    : 'text-gray-900 drop-shadow-[0_0_1px_rgba(255,255,255,0.5)]'
                 }`}
                 style={{ transform: `rotate(${-rotation}deg)` }}
               >
@@ -347,7 +393,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
       }
     }
     
-    return (
+    const boardElement = (
       <div 
         className="grid grid-cols-8 grid-rows-8 w-full max-w-[320px] aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
         style={{ transform: `rotate(${rotation}deg)` }}
@@ -355,7 +401,46 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
         {squares}
       </div>
     );
+    
+    return boardElement;
   };
+  
+  // Wrapper component for mobile nudge functionality
+  const NudgeableBoardWrapper = ({ children }: { children: React.ReactNode }) => (
+    <div
+      ref={nudgeContainerRef}
+      className="relative touch-none"
+      onTouchStart={(e) => handleNudgeStart(e.touches[0].clientX)}
+      onTouchEnd={handleNudgeEnd}
+      onTouchCancel={handleNudgeEnd}
+      onPointerDown={(e) => {
+        if (e.pointerType === 'touch') {
+          handleNudgeStart(e.clientX);
+        }
+      }}
+      onPointerUp={(e) => {
+        if (e.pointerType === 'touch') {
+          handleNudgeEnd();
+        }
+      }}
+      onPointerCancel={handleNudgeEnd}
+      onPointerLeave={handleNudgeEnd}
+    >
+      <div 
+        className="transition-transform duration-150 ease-out"
+        style={{ transform: `translateX(${nudgeOffset}px)` }}
+      >
+        {children}
+      </div>
+      {/* Visual hint for nudge zones on mobile */}
+      {nudgeOffset === 0 && (
+        <div className="absolute inset-0 pointer-events-none flex justify-between opacity-0 sm:hidden">
+          <div className="w-8 bg-gradient-to-r from-blue-500/20 to-transparent" />
+          <div className="w-8 bg-gradient-to-l from-blue-500/20 to-transparent" />
+        </div>
+      )}
+    </div>
+  );
 
   if (phase === 'select') {
     return (
@@ -406,7 +491,9 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
           </p>
         </div>
         
-        {position && renderBoard(position.board)}
+        <NudgeableBoardWrapper>
+          {position && renderBoard(position.board)}
+        </NudgeableBoardWrapper>
         
         <Button onClick={startSpin} className="mt-4" size="lg">
           <RotateCw className="h-4 w-4 mr-2" />
@@ -448,7 +535,9 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
           </Badge>
         </div>
         
-        {renderBoard(playerBoard, finalRotation, true)}
+        <NudgeableBoardWrapper>
+          {renderBoard(playerBoard, finalRotation, true)}
+        </NudgeableBoardWrapper>
         
         <div className="flex flex-wrap gap-1 mt-3 justify-center max-w-xs">
           {AVAILABLE_PIECES.map((piece) => (
@@ -478,7 +567,9 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
         <p className="text-xs font-medium mb-2 text-muted-foreground">
           {showingAnswer ? 'Correct Pieces' : 'Your Recreation'}
         </p>
-        {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard), showingAnswer)}
+        <NudgeableBoardWrapper>
+          {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard), showingAnswer)}
+        </NudgeableBoardWrapper>
         
         {/* Heatmap legend */}
         {accuracy < 100 && (
