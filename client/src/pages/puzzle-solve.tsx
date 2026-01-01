@@ -122,6 +122,12 @@ export default function PuzzleSolve() {
     enabled: !!puzzleId,
   });
   
+  const { data: solvedPuzzleIds = [] } = useQuery<string[]>({
+    queryKey: ["/api/user/solved-puzzles"],
+  });
+  
+  const previouslySolved = puzzleId ? solvedPuzzleIds.includes(puzzleId) : false;
+  
   // Helper to normalize moves (handle both string and array formats, strip move numbers)
   const normalizeMoves = (moves: string | string[] | null | undefined): string[] => {
     if (!moves) return [];
@@ -656,6 +662,11 @@ export default function PuzzleSolve() {
                   ) : (
                     <Badge variant="secondary">
                       <AlertCircle className="h-3 w-3 mr-1" /> Unverified
+                    </Badge>
+                  )}
+                  {previouslySolved && (
+                    <Badge className="bg-green-500/20 text-green-600 dark:text-green-400">
+                      <CheckCircle className="h-3 w-3 mr-1" /> Previously Solved
                     </Badge>
                   )}
                 </div>
