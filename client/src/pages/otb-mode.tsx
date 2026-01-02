@@ -2747,8 +2747,90 @@ export default function OTBMode() {
         console.log('[OTB] Legal king capture - ending game immediately');
         setGameResult(checkmateWinner === "white" ? "white_win" : "black_win");
         handleGameEnd(checkmateWinner === "white" ? "white_win" : "black_win");
+      } else if (isBotGame) {
+        // Bot game: Bot immediately calls out the illegal king capture
+        console.log('[OTB Bot] Illegal king capture detected - bot calling arbiter immediately');
+        setArbiterPending(true);
+        setBotThinking(false); // Clear bot thinking state
+        
+        const newIllegalCount = myViolations.illegal + 1;
+        
+        if (newIllegalCount >= 2) {
+          // Second illegal move - player forfeits
+          const forfeitReason = "You lost due to a forced forfeit by the arbiter for making illegal moves.";
+          toast({
+            title: "Game Over - Forfeit",
+            description: forfeitReason,
+            variant: "destructive",
+          });
+          setGameOverReason(forfeitReason);
+          setArbiterPending(false); // Clear arbiter pending before game end
+          handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
+          return; // Exit early - game is over
+        }
+        
+        // First illegal move - warning, +2 min to bot, revert move
+        setMyViolations(prev => ({ ...prev, illegal: newIllegalCount }));
+        toast({
+          title: "Illegal Move!",
+          description: "You cannot capture the king illegally. Arbiter awarded 2 minutes to opponent.",
+          variant: "destructive",
+        });
+        setArbiterResult({ type: "illegal", message: "Illegal king capture - move reverted, +2 min to opponent." });
+        
+        // Revert the board state (matches executeBotTurn rollback pattern)
+        setBoardState(prev => {
+          const newBoard = prev.map(row => [...row]);
+          newBoard[fromRank][fromFile] = originalPiece;
+          newBoard[toRank][toFile] = captured || null;
+          return newBoard;
+        });
+        
+        // legalChessGame stays unchanged - for bot games it's not modified in completeMove
+        // (setLegalChessGame only runs when matchId is truthy, which is false for bot games)
+        
+        // Remove the illegal move from history
+        setMoves(prev => {
+          const newMoves = prev.slice(0, -1);
+          if (newMoves.length === 0) {
+            setLastMoveBy(null);
+          } else {
+            const lastRemainingMove = newMoves[newMoves.length - 1];
+            setLastMoveBy(lastRemainingMove.moverColor);
+          }
+          return newMoves;
+        });
+        // Only slice confirmedMoves if the move was already confirmed (no pending notation)
+        if (!pendingNotationRef.current) {
+          setConfirmedMoves(prev => prev.slice(0, -1));
+        }
+        setPendingNotation(null);
+        setPendingPlayerNotation(null);
+        // Note: notationQueue is NOT rolled back because illegal king capture is detected
+        // before the player presses the clock, so no entry was enqueued for this move
+        setLastMoveSquares([]);
+        
+        // Give bot +2 minutes
+        const botColor = playerColor === "white" ? "black" : "white";
+        if (botColor === "white") {
+          setWhiteTime(prev => prev + 120);
+        } else {
+          setBlackTime(prev => prev + 120);
+        }
+        
+        // Return control to player
+        setActiveColor(playerColor);
+        setClockTurn(playerColor);
+        setHasMadeMove(false);
+        
+        setTimeout(() => {
+          setArbiterResult(null);
+          setArbiterPending(false);
+        }, 3000);
+        
+        return; // Exit early - don't continue with saveGameState
       } else {
-        // Illegal move leading to checkmate - give opponent 30 seconds to call arbiter
+        // Human opponent: give them 30 seconds to call arbiter
         console.log('[OTB] Illegal king capture - 30 second arbiter window');
         setPendingCheckmate({
           winner: checkmateWinner,
