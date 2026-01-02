@@ -104,6 +104,7 @@ export default function BoardSpin() {
   );
   const [validBonusMoves, setValidBonusMoves] = useState<string[]>([]);
   const [showingAnswer, setShowingAnswer] = useState(false);
+  const [bonusSubmitting, setBonusSubmitting] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recreationStartTime = useRef<number>(0);
 
@@ -295,7 +296,9 @@ export default function BoardSpin() {
   };
 
   const handleBonusSubmit = async () => {
-    if (!bestMove || optimalMoves.length === 0) return;
+    if (!bestMove || optimalMoves.length === 0 || bonusSubmitting) return;
+    
+    setBonusSubmitting(true);
     
     const normalizedPlayerMove = playerMove.toLowerCase().replace(/[^a-h1-8]/g, '');
     
@@ -321,6 +324,8 @@ export default function BoardSpin() {
   };
   
   const skipBonus = async () => {
+    if (bonusSubmitting) return;
+    setBonusSubmitting(true);
     // Save score without bonus
     await saveScore(score, accuracy, false);
     setPhase('results');
@@ -472,6 +477,7 @@ export default function BoardSpin() {
     setIsAlternativeOptimal(false);
     setFinalRotation(0);
     setScoreSaved(false);
+    setBonusSubmitting(false);
     setTimeSpent(0);
     setBonusSelectedSquare(null);
     setBonusBoard(Array(8).fill(null).map(() => Array(8).fill(null)));
