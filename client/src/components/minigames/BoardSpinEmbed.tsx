@@ -406,34 +406,33 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   };
   
   // Wrapper component for mobile nudge functionality
-  const NudgeableBoardWrapper = ({ children }: { children: React.ReactNode }) => (
-    <div
-      ref={nudgeContainerRef}
-      className="relative touch-none flex justify-center w-full"
-      onTouchStart={(e) => handleNudgeStart(e.touches[0].clientX)}
-      onTouchEnd={handleNudgeEnd}
-      onTouchCancel={handleNudgeEnd}
-      onPointerDown={(e) => {
-        if (e.pointerType === 'touch') {
-          handleNudgeStart(e.clientX);
-        }
-      }}
-      onPointerUp={(e) => {
-        if (e.pointerType === 'touch') {
-          handleNudgeEnd();
-        }
-      }}
-      onPointerCancel={handleNudgeEnd}
-      onPointerLeave={handleNudgeEnd}
-    >
-      <div 
-        className="transition-transform duration-150 ease-out"
-        style={{ transform: `translateX(${nudgeOffset}px)` }}
+  // Use only touch events for reliability on mobile - pointer events can conflict
+  const NudgeableBoardWrapper = ({ children }: { children: React.ReactNode }) => {
+    const handleTouchStart = (e: React.TouchEvent) => {
+      handleNudgeStart(e.touches[0].clientX);
+    };
+    
+    const handleTouchEnd = () => {
+      handleNudgeEnd();
+    };
+    
+    return (
+      <div
+        ref={nudgeContainerRef}
+        className="relative flex justify-center w-full"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
-        {children}
+        <div 
+          className="transition-transform duration-150 ease-out"
+          style={{ transform: `translateX(${nudgeOffset}px)` }}
+        >
+          {children}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (phase === 'select') {
     return (
