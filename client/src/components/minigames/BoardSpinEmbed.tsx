@@ -395,7 +395,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     
     const boardElement = (
       <div 
-        className="grid grid-cols-8 grid-rows-8 w-full max-w-[320px] aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
+        className="grid grid-cols-8 grid-rows-8 w-[280px] sm:w-[320px] aspect-square border-2 border-amber-900 dark:border-amber-700 rounded overflow-hidden"
         style={{ transform: `rotate(${rotation}deg)` }}
       >
         {squares}
@@ -409,7 +409,7 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   const NudgeableBoardWrapper = ({ children }: { children: React.ReactNode }) => (
     <div
       ref={nudgeContainerRef}
-      className="relative touch-none w-full max-w-[320px] mx-auto"
+      className="relative touch-none flex justify-center w-full"
       onTouchStart={(e) => handleNudgeStart(e.touches[0].clientX)}
       onTouchEnd={handleNudgeEnd}
       onTouchCancel={handleNudgeEnd}
@@ -427,18 +427,11 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
       onPointerLeave={handleNudgeEnd}
     >
       <div 
-        className="transition-transform duration-150 ease-out flex justify-center"
+        className="transition-transform duration-150 ease-out"
         style={{ transform: `translateX(${nudgeOffset}px)` }}
       >
         {children}
       </div>
-      {/* Visual hint for nudge zones on mobile */}
-      {nudgeOffset === 0 && (
-        <div className="absolute inset-0 pointer-events-none flex justify-between opacity-0 sm:hidden">
-          <div className="w-8 bg-gradient-to-r from-blue-500/20 to-transparent" />
-          <div className="w-8 bg-gradient-to-l from-blue-500/20 to-transparent" />
-        </div>
-      )}
     </div>
   );
 
