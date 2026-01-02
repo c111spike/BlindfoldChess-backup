@@ -78,52 +78,6 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
   const [showingAnswer, setShowingAnswer] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recreationStartTime = useRef<number>(0);
-  
-  // Mobile nudge system for revealing clipped board corners
-  const [nudgeOffset, setNudgeOffset] = useState(0);
-  const nudgeContainerRef = useRef<HTMLDivElement>(null);
-  const nudgeIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const NUDGE_AMOUNT = 30; // pixels to nudge per interval
-  const NUDGE_EDGE_ZONE = 60; // pixels from edge to trigger nudge
-  
-  const handleNudgeStart = useCallback((clientX: number) => {
-    if (!nudgeContainerRef.current) return;
-    
-    const rect = nudgeContainerRef.current.getBoundingClientRect();
-    const relativeX = clientX - rect.left;
-    
-    // Check if touch is in left or right edge zone
-    if (relativeX < NUDGE_EDGE_ZONE) {
-      // Left edge - nudge right (show left side)
-      nudgeIntervalRef.current = setInterval(() => {
-        setNudgeOffset(prev => Math.min(prev + NUDGE_AMOUNT, 50));
-      }, 100);
-    } else if (relativeX > rect.width - NUDGE_EDGE_ZONE) {
-      // Right edge - nudge left (show right side)
-      nudgeIntervalRef.current = setInterval(() => {
-        setNudgeOffset(prev => Math.max(prev - NUDGE_AMOUNT, -50));
-      }, 100);
-    }
-  }, []);
-  
-  const handleNudgeEnd = useCallback(() => {
-    if (nudgeIntervalRef.current) {
-      clearInterval(nudgeIntervalRef.current);
-      nudgeIntervalRef.current = null;
-    }
-    // Snap back to center
-    setNudgeOffset(0);
-  }, []);
-  
-  // Cleanup nudge interval on unmount
-  useEffect(() => {
-    return () => {
-      if (nudgeIntervalRef.current) {
-        clearInterval(nudgeIntervalRef.current);
-      }
-    };
-  }, []);
 
   const difficulties = [
     { value: 'patzer', label: 'Patzer (3-4 pieces)', multiplier: '1.0x' },
@@ -405,34 +359,12 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
     return boardElement;
   };
   
-  // Wrapper component for mobile nudge functionality
-  // Use only touch events for reliability on mobile - pointer events can conflict
-  const NudgeableBoardWrapper = ({ children }: { children: React.ReactNode }) => {
-    const handleTouchStart = (e: React.TouchEvent) => {
-      handleNudgeStart(e.touches[0].clientX);
-    };
-    
-    const handleTouchEnd = () => {
-      handleNudgeEnd();
-    };
-    
-    return (
-      <div
-        ref={nudgeContainerRef}
-        className="relative flex justify-center w-full"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-      >
-        <div 
-          className="transition-transform duration-150 ease-out"
-          style={{ transform: `translateX(${nudgeOffset}px)` }}
-        >
-          {children}
-        </div>
-      </div>
-    );
-  };
+  // Simple centered container for the board
+  const CenteredBoardWrapper = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex justify-center w-full">
+      {children}
+    </div>
+  );
 
   if (phase === 'select') {
     return (
@@ -483,9 +415,9 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
           </p>
         </div>
         
-        <NudgeableBoardWrapper>
+        <CenteredBoardWrapper>
           {position && renderBoard(position.board)}
-        </NudgeableBoardWrapper>
+        </CenteredBoardWrapper>
         
         <Button onClick={startSpin} className="mt-4" size="lg">
           <RotateCw className="h-4 w-4 mr-2" />
@@ -527,9 +459,9 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
           </Badge>
         </div>
         
-        <NudgeableBoardWrapper>
+        <CenteredBoardWrapper>
           {renderBoard(playerBoard, finalRotation, true)}
-        </NudgeableBoardWrapper>
+        </CenteredBoardWrapper>
         
         <div className="flex flex-wrap gap-1 mt-3 justify-center max-w-xs">
           {AVAILABLE_PIECES.map((piece) => (
@@ -559,9 +491,9 @@ export function BoardSpinEmbed({ onClose, onGameComplete }: BoardSpinEmbedProps)
         <p className="text-xs font-medium mb-2 text-muted-foreground">
           {showingAnswer ? 'Correct Pieces' : 'Your Recreation'}
         </p>
-        <NudgeableBoardWrapper>
+        <CenteredBoardWrapper>
           {position && renderBoard(playerBoard, finalRotation, false, true, computeHeatmap(position.board, playerBoard), showingAnswer)}
-        </NudgeableBoardWrapper>
+        </CenteredBoardWrapper>
         
         {/* Heatmap legend */}
         {accuracy < 100 && (
