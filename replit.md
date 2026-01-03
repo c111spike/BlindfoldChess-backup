@@ -101,9 +101,12 @@ Provides two tabbed modes: Stockfish-powered engine analysis (`Analyze Tab`) and
 - **PostgreSQL Scaling Optimizations**: Database indexes, connection pooling, and in-memory caching.
 - **Stockfish Scaling**: Primarily client-side via WebAssembly.
 - **Redis Integration**: Upstash Redis for horizontal scaling via Replit autoscaling:
-  - `server/redis.ts`: Redis client wrapper with health checks and connection pooling
+  - `server/redis.ts`: Redis client wrapper with health checks, connection pooling, and session store
   - `server/redisPubSub.ts`: Pub/sub messaging for cross-instance WebSocket synchronization
   - `server/wsManager.ts`: WebSocket manager for distributed state across multiple server instances
+  - `server/queueManager.ts`: Matchmaking queue using Redis sorted sets with local fallback
+  - **Session Storage**: Redis-backed express sessions (~1-5ms vs 50-100ms PostgreSQL), frees DB connections
+  - **Simul Sessions**: Redis-backed with local fallback for graceful degradation
   - Supports 5,000-10,000 concurrent users with autoscaling (vs 50-80 on single instance)
 
 ### In-Memory Caching System

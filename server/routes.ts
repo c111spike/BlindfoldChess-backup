@@ -1719,22 +1719,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // Try Redis first, fall back to local
-      let simulSession = await getSimulSession(id).catch(() => null);
-      if (!simulSession) {
-        const localSession = simulSessionsLocal.get(id);
-        if (localSession) {
-          simulSession = { ...localSession, createdAt: localSession.createdAt.getTime() };
-        }
-      }
-      if (!simulSession) {
+      let redisSession = await getSimulSession(id).catch(() => null);
+      const localSession = simulSessionsLocal.get(id);
+      
+      if (!redisSession && !localSession) {
         return res.status(404).json({ message: "Simul not found" });
       }
       
-      if (simulSession.opponents.length >= simulSession.maxOpponents) {
+      // Use Redis data if available, otherwise use local
+      const sourceSession = redisSession || localSession;
+      
+      if (sourceSession.opponents.length >= sourceSession.maxOpponents) {
         return res.status(409).json({ message: "Simul is full" });
       }
       
-      simulSession.opponents.push(userId);
+      // Mutate directly to preserve references
+      sourceSession.opponents.push(userId);
       
       const gameData = insertGameSchema.parse({
         mode: 'simul',
@@ -1749,21 +1749,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const game = await storage.createGame(gameData);
-      simulSession.games.push(game.id);
+      sourceSession.games.push(game.id);
       
       const simulGame = await storage.createSimulGame({
         simulId: id,
         userId,
         gameId: game.id,
-        boardOrder: simulSession.games.length,
+        boardOrder: sourceSession.games.length,
       });
       
-      // Save updated session back to Redis
+      // Try to save to Redis, always update local as backup
       try {
-        await setSimulSession(id, simulSession);
+        const redisData = {
+          ...sourceSession,
+          createdAt: sourceSession.createdAt instanceof Date 
+            ? sourceSession.createdAt.getTime() 
+            : sourceSession.createdAt,
+        };
+        await setSimulSession(id, redisData);
       } catch (err) {
         console.error('[Simul] Redis update failed:', err);
       }
+      
+      // Always keep local map updated for fallback resilience
+      if (!localSession) {
+        simulSessionsLocal.set(id, {
+          ...sourceSession,
+          createdAt: sourceSession.createdAt instanceof Date 
+            ? sourceSession.createdAt 
+            : new Date(sourceSession.createdAt),
+        });
+      }
+      // If localSession exists, it was already mutated in place
       
       res.json({ game, simulGame });
     } catch (error) {

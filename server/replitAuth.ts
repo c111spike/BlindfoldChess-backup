@@ -5,8 +5,8 @@ import passport from "passport";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
-import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { RedisSessionStore } from "./redis";
 
 const getOidcConfig = memoize(
   async () => {
@@ -19,14 +19,14 @@ const getOidcConfig = memoize(
 );
 
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000;
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+  const sessionTtlMs = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+  const sessionTtlSec = Math.floor(sessionTtlMs / 1000); // 7 days in seconds
+  
+  // Use Redis for sessions: ~1-5ms latency vs 50-100ms PostgreSQL
+  // Frees up all 20 Neon DB connections for actual game data
+  const sessionStore = new RedisSessionStore({ ttl: sessionTtlSec });
+  console.log('[Auth] Using Redis session store for horizontal scaling');
+  
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -35,7 +35,7 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: true,
-      maxAge: sessionTtl,
+      maxAge: sessionTtlMs,
     },
   });
 }

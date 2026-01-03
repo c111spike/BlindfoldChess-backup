@@ -315,4 +315,134 @@ export async function deleteSimulSession(simulId: string): Promise<void> {
   await redis.del(`${SIMUL_SESSION_KEY}${simulId}`);
 }
 
+// Redis session store for express-session with memory fallback
+// ~1-5ms latency vs 50-100ms for PostgreSQL, frees up DB connections
+import session from "express-session";
+
+const SESSION_KEY_PREFIX = 'sess:';
+
+export class RedisSessionStore extends session.Store {
+  private ttl: number;
+  private memoryFallback: Map<string, { data: session.SessionData; expires: number }>;
+  private useMemoryFallback: boolean;
+
+  constructor(options: { ttl?: number } = {}) {
+    super();
+    this.ttl = options.ttl || 7 * 24 * 60 * 60; // 7 days in seconds
+    this.memoryFallback = new Map();
+    this.useMemoryFallback = false;
+  }
+
+  private cleanExpiredMemory(): void {
+    const now = Date.now();
+    for (const [sid, entry] of this.memoryFallback) {
+      if (entry.expires < now) {
+        this.memoryFallback.delete(sid);
+      }
+    }
+  }
+
+  async get(sid: string, callback: (err: any, session?: session.SessionData | null) => void): Promise<void> {
+    try {
+      if (this.useMemoryFallback) {
+        const entry = this.memoryFallback.get(sid);
+        if (!entry || entry.expires < Date.now()) {
+          return callback(null, null);
+        }
+        return callback(null, entry.data);
+      }
+      
+      const data = await redis.get(`${SESSION_KEY_PREFIX}${sid}`);
+      if (!data) {
+        return callback(null, null);
+      }
+      const sess = typeof data === 'string' ? JSON.parse(data) : data;
+      callback(null, sess);
+    } catch (err) {
+      console.warn('[SessionStore] Redis get failed, using memory fallback:', err);
+      this.useMemoryFallback = true;
+      const entry = this.memoryFallback.get(sid);
+      callback(null, entry?.data || null);
+    }
+  }
+
+  async set(sid: string, sess: session.SessionData, callback?: (err?: any) => void): Promise<void> {
+    try {
+      const ttl = this.getTTL(sess);
+      
+      // Always store in memory as backup
+      this.memoryFallback.set(sid, {
+        data: sess,
+        expires: Date.now() + (ttl * 1000),
+      });
+      
+      if (!this.useMemoryFallback) {
+        await redis.set(`${SESSION_KEY_PREFIX}${sid}`, JSON.stringify(sess), { ex: ttl });
+      }
+      callback?.();
+    } catch (err) {
+      console.warn('[SessionStore] Redis set failed, using memory fallback:', err);
+      this.useMemoryFallback = true;
+      callback?.(); // Still succeed with memory fallback
+    }
+  }
+
+  async destroy(sid: string, callback?: (err?: any) => void): Promise<void> {
+    try {
+      this.memoryFallback.delete(sid);
+      
+      if (!this.useMemoryFallback) {
+        await redis.del(`${SESSION_KEY_PREFIX}${sid}`);
+      }
+      callback?.();
+    } catch (err) {
+      console.warn('[SessionStore] Redis destroy failed:', err);
+      this.useMemoryFallback = true;
+      callback?.();
+    }
+  }
+
+  async touch(sid: string, sess: session.SessionData, callback?: (err?: any) => void): Promise<void> {
+    try {
+      const ttl = this.getTTL(sess);
+      
+      // Update memory expiry
+      const entry = this.memoryFallback.get(sid);
+      if (entry) {
+        entry.expires = Date.now() + (ttl * 1000);
+      }
+      
+      if (!this.useMemoryFallback) {
+        await redis.expire(`${SESSION_KEY_PREFIX}${sid}`, ttl);
+      }
+      callback?.();
+    } catch (err) {
+      console.warn('[SessionStore] Redis touch failed:', err);
+      this.useMemoryFallback = true;
+      callback?.();
+    }
+  }
+
+  private getTTL(sess: session.SessionData): number {
+    if (sess.cookie?.maxAge) {
+      return Math.ceil(sess.cookie.maxAge / 1000);
+    }
+    return this.ttl;
+  }
+  
+  // Periodically try to recover Redis connection
+  async tryRecoverRedis(): Promise<void> {
+    if (!this.useMemoryFallback) return;
+    
+    try {
+      await redis.ping();
+      console.log('[SessionStore] Redis recovered, switching back from memory fallback');
+      this.useMemoryFallback = false;
+      this.cleanExpiredMemory();
+    } catch {
+      // Still down, stay in fallback mode
+    }
+  }
+}
+
 export { redis };
