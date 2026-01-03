@@ -4,11 +4,35 @@ type MessageHandler = (channel: string, message: string) => void;
 
 const subscriptions = new Map<string, Set<MessageHandler>>();
 
-// Relaxed poll interval - 5 seconds saves ~95% of Redis commands
-// vs 100ms while still feeling responsive for chess matchmaking
-const POLL_INTERVAL = 5000;
-let pollInterval: NodeJS.Timeout | null = null;
+// Adaptive polling: "Racing" during games, "Parking" when idle
+// Racing (1s): Real-time move delivery during active games
+// Parking (5s): Queue/matchmaking checks when no games active
+// This saves ~95% of Redis commands vs constant 100ms polling
+const RACING_INTERVAL = 1000;  // 1 second during active games
+const PARKING_INTERVAL = 5000; // 5 seconds when idle
+let pollTimeout: NodeJS.Timeout | null = null;
+let isRacing = false;
 const messageQueues = new Map<string, string[]>();
+
+// Track active game channels (match: and simul: prefixed)
+function hasActiveGames(): boolean {
+  const channels = Array.from(subscriptions.keys());
+  for (const channel of channels) {
+    if (channel.includes('channel:match:') || channel.includes('channel:simul:')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getCurrentInterval(): number {
+  const racing = hasActiveGames();
+  if (racing !== isRacing) {
+    isRacing = racing;
+    console.log(`[RedisPubSub] Mode: ${racing ? 'RACING (1s)' : 'PARKING (5s)'}`);
+  }
+  return racing ? RACING_INTERVAL : PARKING_INTERVAL;
+}
 
 export function subscribeToMatch(matchId: string, handler: MessageHandler): () => void {
   const channel = REDIS_KEYS.pubsubChannel(matchId);
@@ -80,19 +104,29 @@ async function pollMessages() {
       console.error('[RedisPubSub] Poll error for channel:', channel, err);
     }
   }
+  
+  // Schedule next poll with adaptive interval
+  if (subscriptions.size > 0) {
+    pollTimeout = setTimeout(pollLoop, getCurrentInterval());
+  }
+}
+
+function pollLoop() {
+  pollMessages();
 }
 
 function startPollingIfNeeded() {
-  if (pollInterval === null && subscriptions.size > 0) {
-    pollInterval = setInterval(pollMessages, POLL_INTERVAL);
-    console.log('[RedisPubSub] Started polling');
+  if (pollTimeout === null && subscriptions.size > 0) {
+    pollTimeout = setTimeout(pollLoop, getCurrentInterval());
+    console.log('[RedisPubSub] Started adaptive polling');
   }
 }
 
 function stopPollingIfEmpty() {
-  if (subscriptions.size === 0 && pollInterval !== null) {
-    clearInterval(pollInterval);
-    pollInterval = null;
+  if (subscriptions.size === 0 && pollTimeout !== null) {
+    clearTimeout(pollTimeout);
+    pollTimeout = null;
+    isRacing = false;
     console.log('[RedisPubSub] Stopped polling');
   }
 }
@@ -115,9 +149,10 @@ export async function publishSimulEvent(matchId: string, event: object): Promise
 
 export function cleanupSubscriptions() {
   subscriptions.clear();
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
+  if (pollTimeout) {
+    clearTimeout(pollTimeout);
+    pollTimeout = null;
   }
+  isRacing = false;
   console.log('[RedisPubSub] Cleaned up all subscriptions');
 }
