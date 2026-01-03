@@ -40,7 +40,12 @@ export default function Dashboard() {
     };
   }>({
     queryKey: ["/api/stats/platform"],
-    refetchInterval: 30000, // Refresh every 30 seconds
+    // Only refresh when tab is visible - saves API calls when user is away
+    refetchInterval: () => document.visibilityState === 'visible' ? 120000 : false,
+    // Refresh immediately when user returns to tab - feels instant
+    refetchOnWindowFocus: true,
+    // Keep previous data while refreshing - no loading spinners
+    placeholderData: (previousData) => previousData,
   });
 
 
