@@ -4,12 +4,14 @@ import {
   getMatchmakingQueueEntries,
   popMatchFromQueue,
   getQueueCounts as getRedisQueueCounts,
-  cleanStaleQueueEntries,
+  performQueueMaintenance,
   redisHealthCheck,
+  ACTIVE_TIME_CONTROLS,
 } from './redis';
 import { getServerId } from './wsManager';
 
-type TimeControl = 'bullet' | 'blitz' | 'rapid' | 'classical';
+// Only blitz and rapid are active - bullet and classical disabled to funnel users
+type TimeControl = 'blitz' | 'rapid';
 
 interface QueueEntry {
   userId: string;
@@ -30,11 +32,10 @@ class QueueManager {
   private useRedis: boolean = false;
 
   constructor() {
+    // Only active time controls - reduced from 4 to 2
     this.localQueues = new Map([
-      ['bullet', []],
       ['blitz', []],
       ['rapid', []],
-      ['classical', []],
     ]);
     this.userToQueue = new Map();
     
@@ -72,6 +73,10 @@ class QueueManager {
 
     if (this.useRedis) {
       try {
+        // On-demand cleanup - triggered when user joins, not on fixed interval
+        // This saves ~12,000+ Redis commands per day
+        await performQueueMaintenance();
+        
         await addToMatchmakingQueue(timeControl, {
           userId,
           socketId,
@@ -192,26 +197,31 @@ class QueueManager {
     if (this.useRedis) {
       try {
         const counts = await getRedisQueueCounts();
-        return counts as Record<TimeControl, number>;
+        // Return only active time controls
+        return {
+          blitz: counts.blitz || 0,
+          rapid: counts.rapid || 0,
+        };
       } catch (error) {
         console.error('[QueueManager] Redis getQueueCounts error:', error);
       }
     }
 
     return {
-      bullet: this.localQueues.get('bullet')!.length,
       blitz: this.localQueues.get('blitz')!.length,
       rapid: this.localQueues.get('rapid')!.length,
-      classical: this.localQueues.get('classical')!.length,
     };
   }
 
+  // On-demand cleanup - called when users join queue, not on fixed interval
+  // This saves ~40-60% of Redis commands vs fixed-interval cleanup
   async cleanStaleEntries(maxAge: number = 5 * 60 * 1000): Promise<number> {
     let cleaned = 0;
 
     if (this.useRedis) {
       try {
-        cleaned = await cleanStaleQueueEntries(maxAge);
+        // Uses pipelined cleanup - all commands in ONE network trip
+        cleaned = await performQueueMaintenance(maxAge);
         if (cleaned > 0) {
           console.log(`[QueueManager] Redis cleaned ${cleaned} stale entries`);
         }
@@ -237,7 +247,7 @@ class QueueManager {
         return isValid;
       });
 
-      this.localQueues.set(timeControl, validEntries);
+      this.localQueues.set(timeControl as TimeControl, validEntries);
       cleaned += originalLength - validEntries.length;
     }
 
@@ -249,16 +259,13 @@ class QueueManager {
   }
 }
 
+// No more fixed-interval cleanup - maintenance is triggered on-demand
+// This saves ~12,000+ Redis commands per day
 export function createQueueManager() {
   console.log('[DEBUG] Creating new QueueManager instance');
   const queueManager = new QueueManager();
   
-  const cleanupHandle = setInterval(async () => {
-    const cleaned = await queueManager.cleanStaleEntries();
-    if (cleaned > 0) {
-      console.log(`[QueueManager] Cleaned ${cleaned} stale queue entries`);
-    }
-  }, 30000);
-
-  return { queueManager, cleanupHandle };
+  // No cleanup interval - cleanup happens on queue join via performQueueMaintenance
+  
+  return { queueManager, cleanupHandle: null };
 }

@@ -5,6 +5,11 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
+// Active time controls - only blitz and rapid are enabled
+// This reduces Redis commands by 50% vs having all 4 modes
+export const ACTIVE_TIME_CONTROLS = ['blitz', 'rapid'] as const;
+export type ActiveTimeControl = typeof ACTIVE_TIME_CONTROLS[number];
+
 export const REDIS_KEYS = {
   userConnection: (userId: string) => `ws:user:${userId}`,
   matchRoom: (matchId: string) => `ws:match:${matchId}`,
@@ -261,30 +266,50 @@ export async function popMatchFromQueue(
 }
 
 export async function getQueueCounts(): Promise<Record<string, number>> {
-  const timeControls = ['bullet', 'blitz', 'rapid', 'classical'];
-  const counts: Record<string, number> = {};
+  const counts: Record<string, number> = {
+    bullet: 0,
+    blitz: 0,
+    rapid: 0,
+    classical: 0,
+  };
   
-  for (const tc of timeControls) {
-    const count = await redis.zcard(`${QUEUE_KEY_PREFIX}${tc}`);
-    counts[tc] = count;
+  // Use pipeline for batched network request - only active queues
+  const pipeline = redis.pipeline();
+  for (const tc of ACTIVE_TIME_CONTROLS) {
+    pipeline.zcard(`${QUEUE_KEY_PREFIX}${tc}`);
   }
+  
+  const results = await pipeline.exec();
+  ACTIVE_TIME_CONTROLS.forEach((tc, i) => {
+    counts[tc] = (results[i] as number) || 0;
+  });
   
   return counts;
 }
 
-export async function cleanStaleQueueEntries(maxAgeMs: number = 300000): Promise<number> {
-  const timeControls = ['bullet', 'blitz', 'rapid', 'classical'];
+// Pipelined maintenance - batches all cleanup into ONE network request
+// Called on-demand when users join queue, not on fixed interval
+export async function performQueueMaintenance(maxAgeMs: number = 300000): Promise<number> {
   const cutoff = Date.now() - maxAgeMs;
-  let cleaned = 0;
   
-  for (const tc of timeControls) {
-    const key = `${QUEUE_KEY_PREFIX}${tc}`;
-    // Remove entries with score (timestamp) less than cutoff
-    const removed = await redis.zremrangebyscore(key, 0, cutoff);
-    cleaned += removed;
+  // Use pipeline - all commands in ONE network trip
+  const pipeline = redis.pipeline();
+  for (const tc of ACTIVE_TIME_CONTROLS) {
+    pipeline.zremrangebyscore(`${QUEUE_KEY_PREFIX}${tc}`, 0, cutoff);
   }
   
+  const results = await pipeline.exec();
+  let cleaned = 0;
+  results.forEach((result) => {
+    cleaned += (result as number) || 0;
+  });
+  
   return cleaned;
+}
+
+// Legacy function - now calls pipelined version
+export async function cleanStaleQueueEntries(maxAgeMs: number = 300000): Promise<number> {
+  return performQueueMaintenance(maxAgeMs);
 }
 
 // Simul session storage
