@@ -16,7 +16,7 @@ import { analysisQueueManager } from "./analysisQueueManager";
 import { memoryCache, CACHE_KEYS, CACHE_TTL, invalidateCaches } from "./memoryCache";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import * as wsManager from "./wsManager";
-import { redisHealthCheck, getOnlineUserCount } from "./redis";
+import { redisHealthCheck, getOnlineUserCount, setSimulSession, getSimulSession } from "./redis";
 
 const { queueManager } = createQueueManager();
 
@@ -1672,7 +1672,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const simulSessions = new Map<string, any>();
+  // Local fallback for simul sessions (Redis is primary)
+  const simulSessionsLocal = new Map<string, any>();
 
   app.post('/api/simul', isAuthenticated, async (req: any, res) => {
     try {
@@ -1695,7 +1696,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         maxOpponents: req.body.maxOpponents || 5,
       };
       
-      simulSessions.set(simulId, simulSession);
+      // Store in Redis (primary) with local fallback
+      try {
+        await setSimulSession(simulId, {
+          ...simulSession,
+          createdAt: simulSession.createdAt.getTime(),
+        });
+      } catch (err) {
+        console.error('[Simul] Redis store failed, using local:', err);
+        simulSessionsLocal.set(simulId, simulSession);
+      }
       res.json(simulSession);
     } catch (error) {
       console.error("Error creating simul:", error);
@@ -1708,7 +1718,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const userId = req.user.claims.sub;
       
-      const simulSession = simulSessions.get(id);
+      // Try Redis first, fall back to local
+      let simulSession = await getSimulSession(id).catch(() => null);
+      if (!simulSession) {
+        const localSession = simulSessionsLocal.get(id);
+        if (localSession) {
+          simulSession = { ...localSession, createdAt: localSession.createdAt.getTime() };
+        }
+      }
       if (!simulSession) {
         return res.status(404).json({ message: "Simul not found" });
       }
@@ -1741,6 +1758,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         boardOrder: simulSession.games.length,
       });
       
+      // Save updated session back to Redis
+      try {
+        await setSimulSession(id, simulSession);
+      } catch (err) {
+        console.error('[Simul] Redis update failed:', err);
+      }
+      
       res.json({ game, simulGame });
     } catch (error) {
       console.error("Error joining simul:", error);
@@ -1752,13 +1776,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       
-      const simulSession = simulSessions.get(id);
+      // Try Redis first, fall back to local
+      let simulSession = await getSimulSession(id).catch(() => null);
+      if (!simulSession) {
+        const localSession = simulSessionsLocal.get(id);
+        if (localSession) {
+          simulSession = { ...localSession, createdAt: localSession.createdAt.getTime() };
+        }
+      }
       if (!simulSession) {
         return res.status(404).json({ message: "Simul not found" });
       }
       
       const simulGames = await storage.getSimulGames(id);
-      res.json({ ...simulSession, simulGames });
+      res.json({ ...simulSession, createdAt: new Date(simulSession.createdAt), simulGames });
     } catch (error) {
       console.error("Error fetching simul:", error);
       res.status(500).json({ message: "Failed to fetch simul" });

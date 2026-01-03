@@ -287,4 +287,32 @@ export async function cleanStaleQueueEntries(maxAgeMs: number = 300000): Promise
   return cleaned;
 }
 
+// Simul session storage
+const SIMUL_SESSION_KEY = 'simul:session:';
+
+interface SimulSessionData {
+  id: string;
+  hostId: string;
+  hostRating: number;
+  opponents: string[];
+  games: string[];
+  status: string;
+  createdAt: number;
+  maxOpponents: number;
+}
+
+export async function setSimulSession(simulId: string, session: SimulSessionData): Promise<void> {
+  await redis.set(`${SIMUL_SESSION_KEY}${simulId}`, JSON.stringify(session), { ex: 3600 }); // 1 hour TTL
+}
+
+export async function getSimulSession(simulId: string): Promise<SimulSessionData | null> {
+  const data = await redis.get(`${SIMUL_SESSION_KEY}${simulId}`);
+  if (!data) return null;
+  return typeof data === 'string' ? JSON.parse(data) : data as SimulSessionData;
+}
+
+export async function deleteSimulSession(simulId: string): Promise<void> {
+  await redis.del(`${SIMUL_SESSION_KEY}${simulId}`);
+}
+
 export { redis };
