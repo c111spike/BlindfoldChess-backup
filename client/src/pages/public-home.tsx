@@ -15,13 +15,13 @@ const landingPages = [
   },
   {
     title: "OTB Tournament Simulator",
-    description: "Practice real over-the-board tournament conditions. Manual clock pressing, touch-move rules, and arbiter warnings.",
+    description: "Practice real over-the-board tournament conditions. Manual clock pressing, touch-move rules, pieces move freely, arbiter rulings, optional 3D board, and optional notation writing!",
     url: "/otb-tournament-simulator",
     icon: Clock,
   },
   {
     title: "Simul Chess Training",
-    description: "Manage up to 12 boards simultaneously using our First-In-First-Out (FIFO) queue, specifically designed to help simul givers maintain a steady rhythm and avoid time pressure blunders.",
+    description: "Manage 5 boards simultaneously using our First-In-First-Out (FIFO) queue, specifically designed to help simul givers maintain a steady rhythm and avoid time pressure blunders.",
     url: "/simul-chess-training",
     icon: Users,
   },
