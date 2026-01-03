@@ -4,7 +4,9 @@ type MessageHandler = (channel: string, message: string) => void;
 
 const subscriptions = new Map<string, Set<MessageHandler>>();
 
-const POLL_INTERVAL = 100;
+// Relaxed poll interval - 5 seconds saves ~95% of Redis commands
+// vs 100ms while still feeling responsive for chess matchmaking
+const POLL_INTERVAL = 5000;
 let pollInterval: NodeJS.Timeout | null = null;
 const messageQueues = new Map<string, string[]>();
 
