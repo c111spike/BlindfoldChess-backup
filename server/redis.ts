@@ -183,4 +183,108 @@ export async function publishSimulEvent(matchId: string, event: object): Promise
   await redis.publish(REDIS_KEYS.simulPubsubChannel(matchId), JSON.stringify(event));
 }
 
+// Matchmaking Queue functions using Redis sorted sets
+const QUEUE_KEY_PREFIX = 'queue:matchmaking:';
+
+interface QueueEntryData {
+  userId: string;
+  socketId: string;
+  rating: number;
+  serverId: string;
+  enqueuedAt: number;
+}
+
+export async function addToMatchmakingQueue(
+  timeControl: string,
+  entry: QueueEntryData
+): Promise<void> {
+  const key = `${QUEUE_KEY_PREFIX}${timeControl}`;
+  // Use enqueued timestamp as score for FIFO ordering
+  await redis.zadd(key, { score: entry.enqueuedAt, member: JSON.stringify(entry) });
+  // Set TTL on queue key to auto-cleanup stale queues
+  await redis.expire(key, 600); // 10 minutes
+}
+
+export async function removeFromMatchmakingQueue(
+  timeControl: string,
+  userId: string
+): Promise<boolean> {
+  const key = `${QUEUE_KEY_PREFIX}${timeControl}`;
+  const entries = await redis.zrange(key, 0, -1);
+  
+  for (const entry of entries) {
+    const data: QueueEntryData = typeof entry === 'string' ? JSON.parse(entry) : entry;
+    if (data.userId === userId) {
+      await redis.zrem(key, typeof entry === 'string' ? entry : JSON.stringify(entry));
+      return true;
+    }
+  }
+  return false;
+}
+
+export async function getMatchmakingQueueEntries(
+  timeControl: string
+): Promise<QueueEntryData[]> {
+  const key = `${QUEUE_KEY_PREFIX}${timeControl}`;
+  const entries = await redis.zrange(key, 0, -1);
+  return entries.map(e => typeof e === 'string' ? JSON.parse(e) : e);
+}
+
+export async function popMatchFromQueue(
+  timeControl: string,
+  ratingRange: number = 300
+): Promise<{ player1: QueueEntryData; player2: QueueEntryData } | null> {
+  const key = `${QUEUE_KEY_PREFIX}${timeControl}`;
+  const entries = await redis.zrange(key, 0, -1);
+  
+  if (entries.length < 2) return null;
+  
+  const parsed: QueueEntryData[] = entries.map(e => 
+    typeof e === 'string' ? JSON.parse(e) : e
+  );
+  
+  // Find first valid match within rating range (FIFO)
+  for (let i = 0; i < parsed.length; i++) {
+    for (let j = i + 1; j < parsed.length; j++) {
+      const ratingDiff = Math.abs(parsed[i].rating - parsed[j].rating);
+      if (ratingDiff <= ratingRange) {
+        // Remove both from queue atomically
+        const entry1Str = typeof entries[i] === 'string' ? entries[i] : JSON.stringify(entries[i]);
+        const entry2Str = typeof entries[j] === 'string' ? entries[j] : JSON.stringify(entries[j]);
+        await redis.zrem(key, entry1Str, entry2Str);
+        return { player1: parsed[i], player2: parsed[j] };
+      }
+    }
+  }
+  
+  return null;
+}
+
+export async function getQueueCounts(): Promise<Record<string, number>> {
+  const timeControls = ['bullet', 'blitz', 'rapid', 'classical'];
+  const counts: Record<string, number> = {};
+  
+  for (const tc of timeControls) {
+    const count = await redis.zcard(`${QUEUE_KEY_PREFIX}${tc}`);
+    counts[tc] = count;
+  }
+  
+  return counts;
+}
+
+export async function cleanStaleQueueEntries(maxAgeMs: number = 300000): Promise<number> {
+  const timeControls = ['bullet', 'blitz', 'rapid', 'classical'];
+  const cutoff = Date.now() - maxAgeMs;
+  let cleaned = 0;
+  
+  for (const tc of timeControls) {
+    const key = `${QUEUE_KEY_PREFIX}${tc}`;
+    // Remove entries with score (timestamp) less than cutoff
+    const removed = await redis.zremrangebyscore(key, 0, cutoff);
+    cleaned += removed;
+  }
+  
+  return cleaned;
+}
+
 export { redis };

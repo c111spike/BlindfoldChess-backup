@@ -1606,8 +1606,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // to receive rematch offers. Room cleanup happens when:
       // 1. Rematch is declined (in respond_rematch handler)
       // 2. Players disconnect (in WebSocket close handler)
-      queueManager.leave(match.player1Id);
-      queueManager.leave(match.player2Id);
+      await queueManager.leave(match.player1Id);
+      await queueManager.leave(match.player2Id);
 
       res.json({ match: completedMatch, games: completedGames, alreadyCompleted: !!alreadyCompleted });
     } catch (error) {
@@ -5103,7 +5103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const socketId = Math.random().toString(36).substring(7);
           (ws as any).socketId = socketId;
 
-          const match = queueManager.join(userId, socketId, timeControl, playerRating);
+          const match = await queueManager.join(userId, socketId, timeControl, playerRating);
 
           if (!match) {
             ws.send(JSON.stringify({ type: 'queue_joined', timeControl }));
@@ -5223,7 +5223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (data.type === 'leave_queue') {
           const userId = ws.userId;
           if (userId) {
-            queueManager.leave(userId);
+            await queueManager.leave(userId);
             ws.send(JSON.stringify({ type: 'queue_left' }));
           }
         } else if (data.type === 'join_match') {
@@ -6827,8 +6827,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             
               // Remove both players from queue manager to allow re-queueing
-              queueManager.leave(player1Id);
-              queueManager.leave(player2Id);
+              await queueManager.leave(player1Id);
+              await queueManager.leave(player2Id);
             
               // Notify both players of the decline
               // Note: Don't send game_end event - the game already ended from resignation
@@ -7279,7 +7279,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const socketId = (ws as any).socketId;
         if (socketId) {
-          queueManager.removeBySocketId(socketId);
+          queueManager.removeBySocketId(socketId).catch(err => {
+            console.error('[QueueManager] Failed to remove by socketId:', err);
+          });
         }
         
         // Check if user has an active game
