@@ -15,6 +15,8 @@ import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
 import { analysisQueueManager } from "./analysisQueueManager";
 import { memoryCache, CACHE_KEYS, CACHE_TTL, invalidateCaches } from "./memoryCache";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import * as wsManager from "./wsManager";
+import { redisHealthCheck, getOnlineUserCount } from "./redis";
 
 const { queueManager } = createQueueManager();
 
@@ -285,8 +287,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         CACHE_TTL.STATISTICS
       );
       
+      // Use Redis for cross-instance online count, fallback to local
+      let onlineCount = authenticatedUsers.size;
+      try {
+        const redisCount = await getOnlineUserCount();
+        onlineCount = Math.max(onlineCount, redisCount);
+      } catch (err) {
+        // Redis unavailable, use local count
+      }
+      
       res.json({
-        onlinePlayers: authenticatedUsers.size,
+        onlinePlayers: onlineCount,
         ...cachedStats,
       });
     } catch (error) {
@@ -5040,6 +5051,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userConnections.set(userId, ws);
           authenticatedUsers.add(userId);
           
+          // Register with Redis for cross-instance tracking
+          wsManager.registerConnection(userId, ws).catch(err => {
+            console.error('[Redis] Failed to register connection:', err);
+          });
+          
           // Cancel any pending disconnect timer if user reconnects
           const existingTimer = disconnectTimers.get(userId);
           if (existingTimer) {
@@ -5223,11 +5239,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[Reconnect] disconnectTimers has entry for ${userId}: ${disconnectTimers.has(userId)}`);
           ws.matchId = matchId;
           
-          // Add to match room first
+          // Add to match room first (local + Redis)
           if (!matchRooms.has(matchId)) {
             matchRooms.set(matchId, new Set());
           }
           matchRooms.get(matchId)!.add(userId);
+          
+          // Register with Redis for cross-instance room tracking
+          wsManager.joinMatchRoom(matchId, userId, ws).catch(err => {
+            console.error('[Redis] Failed to join match room:', err);
+          });
+          
           console.log(`[Reconnect] Added user ${userId} to match room ${matchId}`);
           
           // Cancel any pending disconnect timer (player reconnected)
@@ -7249,6 +7271,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         userConnections.delete(userId);
         authenticatedUsers.delete(userId);
+        
+        // Unregister from Redis for cross-instance tracking
+        wsManager.unregisterConnection(userId).catch(err => {
+          console.error('[Redis] Failed to unregister connection:', err);
+        });
         
         const socketId = (ws as any).socketId;
         if (socketId) {
