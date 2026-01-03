@@ -40,7 +40,7 @@ export default function Help() {
                         </p>
                         <Button asChild variant="outline" size="sm" data-testid="link-discord">
                           <a 
-                            href="https://discord.com/channels/1441838870588293203/1441838871221375100" 
+                            href="https://discord.gg/avUEdKWYXs" 
                             target="_blank" 
                             rel="noopener noreferrer"
                           >
