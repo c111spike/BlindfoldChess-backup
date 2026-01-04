@@ -635,6 +635,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUserBlindfoldStats(userId: string): Promise<{
     gamesPlayed: number;
+    perfectGames: number;
     lastPeekTime: number | null;
     avgPeekTime: number;
     wins: number;
@@ -660,29 +661,37 @@ export class DatabaseStorage implements IStorage {
 
     const gamesPlayed = blindfoldGames.length;
     
-    // Calculate wins/losses/draws
-    let wins = 0, losses = 0, draws = 0;
+    // Calculate wins/losses/draws and perfect games (no peeks + win/draw)
+    let wins = 0, losses = 0, draws = 0, perfectGames = 0;
     for (const game of blindfoldGames) {
       const isWhite = game.whitePlayerId === userId;
       const isBlack = game.blackPlayerId === userId;
+      const noPeeks = (game.peeksUsed || 0) === 0;
+      
       if (game.result === 'draw') {
         draws++;
+        if (noPeeks) perfectGames++;
       } else if ((game.result === 'white_win' && isWhite) || (game.result === 'black_win' && isBlack)) {
         wins++;
+        if (noPeeks) perfectGames++;
       } else if ((game.result === 'white_win' && isBlack) || (game.result === 'black_win' && isWhite)) {
         losses++;
       }
     }
 
-    // Get last game's peek time (already stored in seconds)
-    const lastPeekTime = blindfoldGames.length > 0 ? (blindfoldGames[0].totalPeekTime || 0) : null;
+    // Filter to games where user actually peeked for peek time stats
+    const gamesWithPeeks = blindfoldGames.filter(g => (g.peeksUsed || 0) > 0);
+    
+    // Get last game's peek time (only from games where user peeked)
+    const lastPeekTime = gamesWithPeeks.length > 0 ? (gamesWithPeeks[0].totalPeekTime || 0) : null;
 
-    // Calculate average peek time (already stored in seconds)
-    const totalPeekTimeSum = blindfoldGames.reduce((sum, g) => sum + (g.totalPeekTime || 0), 0);
-    const avgPeekTime = gamesPlayed > 0 ? totalPeekTimeSum / gamesPlayed : 0;
+    // Calculate average peek time (only from games where user peeked)
+    const totalPeekTimeSum = gamesWithPeeks.reduce((sum, g) => sum + (g.totalPeekTime || 0), 0);
+    const avgPeekTime = gamesWithPeeks.length > 0 ? totalPeekTimeSum / gamesWithPeeks.length : 0;
 
     return {
       gamesPlayed,
+      perfectGames,
       lastPeekTime,
       avgPeekTime,
       wins,

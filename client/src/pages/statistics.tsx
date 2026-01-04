@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface SpecialModeStats {
   blindfold: {
     gamesPlayed: number;
+    perfectGames: number;
     lastPeekTime: number | null;
     avgPeekTime: number;
     wins: number;
@@ -564,10 +565,14 @@ export default function StatisticsPage() {
               <CardDescription>Track your visualization and memory training progress</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-4 gap-6">
                 <div className="text-center p-4 rounded-lg bg-muted/50">
                   <p className="text-3xl font-bold">{specialModeStats?.blindfold.gamesPlayed || 0}</p>
                   <p className="text-sm text-muted-foreground">Games Played</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{specialModeStats?.blindfold.perfectGames || 0}</p>
+                  <p className="text-sm text-muted-foreground">Perfect Games</p>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-muted/50">
                   <p className="text-3xl font-bold">
