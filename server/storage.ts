@@ -664,8 +664,10 @@ export class DatabaseStorage implements IStorage {
     // Calculate wins/losses/draws and perfect games (no peeks + win/draw)
     let wins = 0, losses = 0, draws = 0, perfectGames = 0;
     for (const game of blindfoldGames) {
-      const isWhite = game.whitePlayerId === userId;
-      const isBlack = game.blackPlayerId === userId;
+      // For bot games (userId set but no whitePlayerId/blackPlayerId), check playerColor field
+      const isBotGame = game.userId === userId && !game.whitePlayerId && !game.blackPlayerId;
+      const isWhite = game.whitePlayerId === userId || (isBotGame && game.playerColor === 'white');
+      const isBlack = game.blackPlayerId === userId || (isBotGame && game.playerColor === 'black');
       const noPeeks = (game.peeksUsed || 0) === 0;
       
       if (game.result === 'draw') {
