@@ -1676,7 +1676,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // -2.5 threshold: 2-pawn deficit triggers draw-seeking
   advanced: { 
     elo: 1500, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
-    mistakeProbability: 0.005, useStockfish: true,
+    mistakeProbability: 0.01, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true,
     drawSeekThreshold: -2.5,
