@@ -1,0 +1,72 @@
+my average peek time should not be 0 on my statistics page.
+
+
+
+my game review does give me the average
+
+Based on the code analysis, there are two reasons why your statistics page shows "0" for the average peek time, while your game review shows the correct average.
+
+The Problem: Unit Mismatch
+The Game Review page (client-side) correctly treats the peek time as seconds. However, the Statistics page (server-side) assumes the database stores it in milliseconds and divides it by 1000.
+
+Example: If your average peek time is 5 seconds.
+
+Game Review: Reads 5. Displays 5s. (Correct)
+
+Statistics Page: Reads 5. Divides by 1000 → 0.005. Rounds to 0. (Incorrect)
+
+The Fix
+You need to modify server/storage.ts to stop dividing by 1000. I also recommend applying the query fix we discussed earlier to ensure "Perfect Games" (0 peeks) are counted in the average.
+
+In server/storage.ts (lines 463-490):
+
+TypeScript
+  async getUserBlindfoldStats(userId: string): Promise<{
+    gamesPlayed: number;
+    lastPeekTime: number | null;
+    avgPeekTime: number;
+    wins: number;
+    losses: number;
+    draws: number;
+  }> {
+    const blindfoldGames = await db
+      .select()
+      .from(games)
+      .where(and(
+        or(
+          eq(games.userId, userId),
+          eq(games.whitePlayerId, userId),
+          eq(games.blackPlayerId, userId)
+        ),
+        // FIX 1: Add check for game mode to include "Perfect Games" (0 peeks)
+        or(
+          eq(games.blindfoldEnabled, true),
+          eq(games.mode, 'blindfold'), // <--- Added this
+          sql`${games.peeksUsed} > 0`
+        ),
+        eq(games.status, 'completed')
+      ))
+      .orderBy(desc(games.createdAt));
+
+    // ... (lines 480-498 remain the same) ...
+
+    // Get last game's peek time
+    // FIX 2: Remove "/ 1000" because DB stores Seconds, not Milliseconds
+    const lastPeekTimeMs = blindfoldGames.length > 0 ? (blindfoldGames[0].totalPeekTime || 0) : null;
+    const lastPeekTime = lastPeekTimeMs !== null ? lastPeekTimeMs : null; // Removed / 1000
+
+    // Calculate average peek time
+    // FIX 3: Remove "/ 1000" here too
+    const totalPeekTimeSum = blindfoldGames.reduce((sum, g) => sum + (g.totalPeekTime || 0), 0);
+    const avgPeekTime = gamesPlayed > 0 ? (totalPeekTimeSum / gamesPlayed) : 0; // Removed / 1000
+
+    return {
+      gamesPlayed,
+      lastPeekTime,
+      avgPeekTime,
+      wins,
+      losses,
+      draws,
+    };
+  }
+Applying these changes will align your Statistics page with the Game Review page and correctly display your average peek time in seconds.
