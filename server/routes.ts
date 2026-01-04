@@ -4726,10 +4726,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let winner = null;
       
       if (game.isCheckmate()) {
-        gameResult = 'checkmate';
+        // The player who just moved (isWhiteTurn) delivered checkmate, so they win
         winner = isWhiteTurn ? 'white' : 'black';
+        gameResult = winner === 'white' ? 'white_win' : 'black_win';
       } else if (game.isStalemate()) {
-        gameResult = 'stalemate';
+        gameResult = 'draw';
       } else if (game.isDraw()) {
         gameResult = 'draw';
       }
