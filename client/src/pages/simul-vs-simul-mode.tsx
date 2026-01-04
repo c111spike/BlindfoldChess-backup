@@ -551,16 +551,34 @@ export default function SimulVsSimulMode() {
           const boardIndex = boardsRef.current.findIndex(b => b.pairingId === data.pairingId);
           const boardNumber = boardIndex >= 0 ? boardsRef.current[boardIndex].boardNumber : '?';
           
-          // Sequence Guard: Only accept updates if incoming moveCount > local moveCount
+          // Sequence Guard: Only accept updates if incoming moveCount >= local moveCount
           // This prevents late-arriving WebSocket messages from "time traveling" the board back
           // to a previous state (out-of-order execution bug)
           if (boardIndex !== -1) {
             const localMoveCount = boardsRef.current[boardIndex].moveCount;
             const incomingMoveCount = data.moveCount;
             
-            if (incomingMoveCount <= localMoveCount) {
+            if (incomingMoveCount < localMoveCount) {
               console.log(`[SimulWS] Ignored stale opponent move for board ${boardNumber}. Local: ${localMoveCount}, Incoming: ${incomingMoveCount}`);
-              break; // Drop the message; we are already ahead or at same position
+              break; // Drop the message; we are behind
+            }
+            
+            // When moveCount is equal, this is an acknowledgement of a move we already applied locally
+            // (e.g., bot move). We still need to update metadata (activeColor, turn) without re-applying.
+            const isAcknowledgement = incomingMoveCount === localMoveCount;
+            
+            if (isAcknowledgement) {
+              console.log(`[SimulWS] Acknowledging opponent move for board ${boardNumber}. Updating turn metadata.`);
+              // Update only the turn metadata, not the position
+              const updatedBoards = [...boardsRef.current];
+              updatedBoards[boardIndex] = {
+                ...boardsRef.current[boardIndex],
+                activeColor: data.activeColor,
+                turnStartTime: Date.now(),
+              };
+              boardsRef.current = updatedBoards;
+              setBoards(updatedBoards);
+              break;
             }
             
             // Update boardsRef immediately to prevent race conditions with simul_bot_turn

@@ -63,7 +63,8 @@ export default function History() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Modes</SelectItem>
-            <SelectItem value="otb_bullet">OTB Bullet</SelectItem>
+            <SelectItem value="standard_blitz">Standard Blitz</SelectItem>
+            <SelectItem value="standard_rapid">Standard Rapid</SelectItem>
             <SelectItem value="otb_blitz">OTB Blitz</SelectItem>
             <SelectItem value="otb_rapid">OTB Rapid</SelectItem>
             <SelectItem value="blindfold">Blindfold</SelectItem>

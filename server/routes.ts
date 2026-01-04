@@ -208,9 +208,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const mode = req.query.mode as string;
       
-      const games = mode && mode !== 'all'
-        ? await storage.getGamesByMode(userId, mode)
-        : await storage.getRecentGames(userId, 50);
+      let games;
+      if (!mode || mode === 'all') {
+        games = await storage.getRecentGames(userId, 50);
+      } else if (mode === 'blindfold') {
+        games = await storage.getBlindfoldGames(userId, 50);
+      } else if (mode === 'simul') {
+        const simulPairings = await storage.getSimulVsSimulHistoryForUser(userId);
+        games = simulPairings.map(p => ({
+          id: p.id,
+          odId: p.odId,
+          odColor: p.odColor,
+          challengerId: p.challengerId,
+          challengerColor: p.challengerColor,
+          result: p.result,
+          createdAt: p.createdAt,
+          completedAt: p.completedAt,
+          mode: 'simul' as const,
+          opponentName: p.opponentName || 'Bot',
+          playerColor: p.playerColor,
+          timeControl: 30,
+          increment: 0,
+          isSimul: true,
+        }));
+        res.json(games);
+        return;
+      } else {
+        games = await storage.getGamesByMode(userId, mode);
+      }
       
       res.json(games);
     } catch (error) {

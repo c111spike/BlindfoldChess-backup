@@ -260,6 +260,7 @@ export interface IStorage {
   getAllSimulVsSimulPairings(matchId: string): Promise<SimulVsSimulPairing[]>;
   clearSimulVsSimulQueue(boardCount: number, userIds: string[]): Promise<void>;
   getCompletedSimulVsSimulPairingCount(): Promise<number>;
+  getSimulVsSimulHistoryForUser(userId: string): Promise<(SimulVsSimulPairing & { opponentName?: string; playerColor: string })[]>;
   
   // Anti-Cheat System
   createCheatReport(report: InsertCheatReport): Promise<CheatReport>;
@@ -2732,6 +2733,33 @@ export class DatabaseStorage implements IStorage {
       .from(simulVsSimulPairings)
       .where(sql`${simulVsSimulPairings.result} != 'ongoing'`);
     return result?.count || 0;
+  }
+
+  async getSimulVsSimulHistoryForUser(userId: string): Promise<(SimulVsSimulPairing & { opponentName?: string; playerColor: string })[]> {
+    const pairings = await db
+      .select()
+      .from(simulVsSimulPairings)
+      .where(
+        and(
+          or(
+            eq(simulVsSimulPairings.whitePlayerId, userId),
+            eq(simulVsSimulPairings.blackPlayerId, userId)
+          ),
+          sql`${simulVsSimulPairings.result} != 'ongoing'`
+        )
+      )
+      .orderBy(desc(simulVsSimulPairings.createdAt))
+      .limit(50);
+    
+    return pairings.map(p => {
+      const isWhite = p.whitePlayerId === userId;
+      const opponentId = isWhite ? p.blackPlayerId : p.whitePlayerId;
+      return {
+        ...p,
+        playerColor: isWhite ? 'white' : 'black',
+        opponentName: opponentId?.startsWith('bot_') ? 'Bot' : 'Opponent',
+      };
+    });
   }
 
   // Anti-Cheat System
