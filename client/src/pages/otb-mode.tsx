@@ -2967,6 +2967,16 @@ export default function OTBMode() {
                 setTouchedPiece(null);
                 setLastMoveSquares([selectedSquare, kingToSquare, square, rookToSquare]);
                 
+                // Notation practice: store notation to add to queue after clock press (Move → Clock → Write flow)
+                if (notationPractice) {
+                  setPendingPlayerNotation(castlingNotation);
+                  // Auto-confirm the move - the notation queue handles the writing requirement
+                  setConfirmedMoves(prev => [...prev, newMove]);
+                } else {
+                  // If not practicing notation, auto-confirm the move
+                  setConfirmedMoves(prev => [...prev, newMove]);
+                }
+                
                 if (matchId || isBotGame) {
                   setHasMadeMove(true);
                   // Track who made this move for arbiter bonus calculation
