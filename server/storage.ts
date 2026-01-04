@@ -674,13 +674,12 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Get last game's peek time (convert from milliseconds to seconds)
-    const lastPeekTimeMs = blindfoldGames.length > 0 ? (blindfoldGames[0].totalPeekTime || 0) : null;
-    const lastPeekTime = lastPeekTimeMs !== null ? lastPeekTimeMs / 1000 : null;
+    // Get last game's peek time (already stored in seconds)
+    const lastPeekTime = blindfoldGames.length > 0 ? (blindfoldGames[0].totalPeekTime || 0) : null;
 
-    // Calculate average peek time (convert from milliseconds to seconds)
+    // Calculate average peek time (already stored in seconds)
     const totalPeekTimeSum = blindfoldGames.reduce((sum, g) => sum + (g.totalPeekTime || 0), 0);
-    const avgPeekTime = gamesPlayed > 0 ? (totalPeekTimeSum / gamesPlayed) / 1000 : 0;
+    const avgPeekTime = gamesPlayed > 0 ? totalPeekTimeSum / gamesPlayed : 0;
 
     return {
       gamesPlayed,
