@@ -1,0 +1,77 @@
+Based on the code provided, there is a critical bug in how Blindfold statistics are tracked. Your "perfect" games (where you don't peek at the board) are likely not being counted in your statistics.
+
+The Logic Error
+In server/storage.ts, the getUserBlindfoldStats function uses this logic to find your games:
+
+TypeScript
+
+// Current Code in server/storage.ts
+const blindfoldGames = await db.select().from(games).where(and(
+  // ... user checks ...
+  or(
+    eq(games.blindfoldEnabled, true),  // Condition A
+    sql`${games.peeksUsed} > 0`        // Condition B
+  ),
+  eq(games.status, 'completed')
+));
+The issue arises because when a Blindfold game is created (via matchmaking or the dedicated endpoint), the blindfoldEnabled flag is not being set to true by default; it defaults to false.
+
+Game Creation: In server/routes.ts (inside POST /api/blindfold and POST /api/queue/findMatch), the code creates a game with mode: 'blindfold', but it forgets to explicitly set blindfoldEnabled: true.
+
+The Result: * If you peek: peeksUsed > 0 becomes true, so the game is counted.
+
+If you don't peek (Perfect Game): blindfoldEnabled is false (default) AND peeksUsed is 0. The game is excluded from your stats.
+
+Impact on Statistics
+Games Played: Will be lower than reality (missing all your best games).
+
+Avg Peek Time: Will be artificially higher (worse) because it only averages games where you actually used a peek. The games with 0.0s peek time are ignored.
+
+Win Rate: Likely skewed, as players often play better in games where they don't need to peek.
+
+Recommended Fixes
+You need to apply fixes in two places: server/routes.ts to ensure future games are tracked, and server/storage.ts to pick up existing "lost" games.
+
+1. Fix server/storage.ts Update the query to also check if the game mode is 'blindfold'. This will instantly recover your missing stats.
+
+TypeScript
+
+// server/storage.ts inside getUserBlindfoldStats
+const blindfoldGames = await db.select().from(games).where(and(
+  or(
+    eq(games.userId, userId),
+    eq(games.whitePlayerId, userId),
+    eq(games.blackPlayerId, userId)
+  ),
+  or(
+    eq(games.blindfoldEnabled, true),
+    eq(games.mode, 'blindfold'), // <--- ADD THIS LINE
+    sql`${games.peeksUsed} > 0`
+  ),
+  eq(games.status, 'completed')
+));
+2. Fix server/routes.ts (Prevent Future Issues) Update the game creation logic to explicitly enable the flag.
+
+TypeScript
+
+// server/routes.ts inside app.post('/api/blindfold', ...)
+const gameData = insertGameSchema.parse({
+  mode: 'blindfold',
+  userId,
+  // ... other fields ...
+  blindfoldEnabled: true, // <--- ADD THIS
+  peeksRemaining: 3,
+});
+And similarly in the matchmaking logic (/api/queue/findMatch):
+
+TypeScript
+
+// server/routes.ts inside app.post('/api/queue/findMatch', ...)
+if (queueType === 'blindfold') {
+  player1GameTemplates.push({
+    mode: 'blindfold',
+    blindfoldEnabled: true, // <--- ADD THIS
+    // ...
+  });
+  // Do the same for player2GameTemplates
+}
