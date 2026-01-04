@@ -1635,6 +1635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         moves: req.body.moves || [],
         whiteTime: req.body.timeControl ? (req.body.timeControl * 60) : 300,
         blackTime: req.body.timeControl ? (req.body.timeControl * 60) : 300,
+        blindfoldEnabled: true,
         peeksRemaining: 3,
       });
       
