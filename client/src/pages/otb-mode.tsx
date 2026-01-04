@@ -464,8 +464,8 @@ export default function OTBMode() {
     return tc === "15" ? 30 : 0;
   };
 
-  // Check if notation practice is allowed for current time control
-  const isNotationAllowed = timeControl !== "5";
+  // Notation practice is now allowed for all time controls
+  const isNotationAllowed = true;
 
   const handleOpponentMove = useCallback((data: { matchId: string; move: string; fen: string; whiteTime: number; blackTime: number; from?: string; to?: string; piece?: string; captured?: string; promotion?: string }) => {
     // Use ref to get the latest matchId value and avoid stale closure issues
