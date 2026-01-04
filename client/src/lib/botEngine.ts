@@ -1666,7 +1666,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // -3.0 threshold: Minor piece down triggers survival mode (same as intermediate)
   club: { 
     elo: 1200, timePerMoveMs: 2000, maxDepth: 5, multiPvCount: 4, stockfishNodes: 200000, 
-    mistakeProbability: 0.01, useStockfish: true,
+    mistakeProbability: 0.03, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 60, kingSafetyWeight: 50, mopUpWeight: 50, useTaperedEval: true,
     drawSeekThreshold: -3.0,
