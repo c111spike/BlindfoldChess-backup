@@ -23,6 +23,14 @@ export default function Signup() {
   const handleGuestSignIn = async () => {
     setIsGuestLoading(true);
     try {
+      // Check for existing session first to avoid Better-Auth error
+      const session = await authClient.getSession();
+      if (session?.data?.user) {
+        // Already signed in (guest or regular user), redirect to home
+        setLocation('/');
+        return;
+      }
+      
       const result = await authClient.signIn.anonymous();
       if (result?.error) {
         if (result.error.message?.includes('ANONYMOUS_USERS_CANNOT_SIGN_IN')) {
