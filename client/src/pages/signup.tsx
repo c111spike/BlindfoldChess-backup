@@ -126,7 +126,6 @@ export default function Signup() {
         <CardContent>
           <Button
             type="button"
-            variant="outline"
             className="w-full mb-6"
             onClick={handleGuestSignIn}
             disabled={isGuestLoading}
