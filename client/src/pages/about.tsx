@@ -158,7 +158,7 @@ export default function About() {
                 <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-cta-description">
                   SimulChess is more than a game; it's a high-performance gym for your chess brain. We are constantly evolving, adding features like YouTube-linked puzzles and Psychology Analysis to give you the edge you need to succeed in the tournament hall.
                 </p>
-                <Link href="/standard">
+                <Link href="/signup">
                   <Button data-testid="button-start-playing">
                     Start Training
                     <ArrowRight className="h-4 w-4 ml-2" />
