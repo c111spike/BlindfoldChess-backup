@@ -1,0 +1,48 @@
+Since your project already uses Better-Auth, utilizing its Anonymous Plugin is the most professional way to handle Guest Mode. It allows users to play immediately while giving you a "persistent" way to track their data even before they sign up.
+
+1. Server-Side Setup
+You will need to update your auth.ts configuration to include the anonymous plugin. This adds an isAnonymous field to your database user table.
+
+TypeScript
+
+// auth.ts
+import { betterAuth } from "better-auth";
+import { anonymous } from "better-auth/plugins";
+
+export const auth = betterAuth({
+    // ... your existing config
+    plugins: [
+        anonymous({
+            onLinkAccount: async ({ anonymousUser, newUser }) => {
+                // MOVE GUEST DATA TO REAL ACCOUNT
+                // Example: Move 'peeks' or game history from anon userId to new userId
+                console.log(`Linking ${anonymousUser.id} to ${newUser.id}`);
+            }
+        })
+    ]
+});
+2. Client-Side Setup
+Update your auth-client.ts to include the anonymous client plugin.
+
+TypeScript
+
+// auth-client.ts
+import { createAuthClient } from "better-auth/client";
+import { anonymousClient } from "better-auth/client/plugins";
+
+export const authClient = createAuthClient({
+    plugins: [
+        anonymousClient()
+    ]
+});
+3. Implementation Logic
+The "Play as Guest" Button: Call await authClient.signIn.anonymous() when the button is clicked. This creates a "shadow user" in your database and sets a session cookie.
+
+Persistence: Better-Auth handles the session for you. If the user leaves and comes back on the same browser, they will still be the same "Anonymous" user until the session expires.
+
+The "Save Progress" Hook: When the user eventually signs up (using signUp.email), Better-Auth triggers the onLinkAccount callback. This is where you write the logic to transfer their "Peek Times" and game history from the anonymous user ID to their new permanent ID.
+
+🛡️ One Critical Warning
+The anonymous plugin does not allow an anonymous user to sign in anonymously again if they already have an active session. If you try to call signIn.anonymous() while a session exists, it will throw an error. Your "Play as Guest" button should first check if a session already exists to avoid this.
+
+Would you like me to help you write the database query for the onLinkAccount callback to move your "Peek Time" data from the guest to the new user?
