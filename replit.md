@@ -91,6 +91,12 @@ Provides two tabbed modes: Stockfish-powered engine analysis (`Analyze Tab`) and
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.
 - **User-Created Puzzles**: Community-driven system for creating, sharing, solving, and moderating chess puzzles.
+- **Guest Mode**: Anonymous play without signup friction using Better Auth's anonymous plugin:
+  - "Play as Guest" button on landing page creates anonymous session
+  - Guest users can play games, solve puzzles, and build statistics
+  - Post-game prompt (GuestSignupPrompt) encourages conversion after first game
+  - Data migration on signup: games, ratings, puzzle attempts, statistics, settings transfer atomically
+  - Safe migration: uses NOT EXISTS guards to preserve existing user data
 
 ### Anti-Cheat & Report System
 - **Cheat Reports**: User-submitted reports with reason, details, and screenshot evidence (uploaded to Replit Object Storage).
