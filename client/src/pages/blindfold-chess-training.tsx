@@ -127,7 +127,7 @@ export default function BlindfoldChessTraining() {
           <p>
             Without visual cues, your brain learns to recognize positions through their essential characteristics 
             rather than their appearance. You begin to "feel" when a piece is misplaced or when a{" "}
-            <Link href="/puzzles" className="text-primary hover:underline">tactical pattern</Link>{" "}
+            <Link href="/chess-puzzles-trainer" className="text-primary hover:underline">tactical pattern</Link>{" "}
             exists, even before consciously identifying it. This intuitive pattern recognition is what separates 
             masters from amateurs and develops most efficiently through blindfold practice.
           </p>
