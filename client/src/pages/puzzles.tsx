@@ -5,6 +5,7 @@ import { Link, useLocation, useSearch } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ChessBoard } from "@/components/chess-board";
 import { useHighlightColors } from "@/hooks/useHighlightColors";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chess } from "chess.js";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { GuestSignupPrompt } from "@/components/guest-signup-prompt";
 import { 
   Brain, 
   CheckCircle2, 
@@ -416,6 +418,7 @@ function PuzzleOfTheDay() {
 
 function TrainTab() {
   const { toast } = useToast();
+  const { isAnonymous } = useAuth();
   const highlightColors = useHighlightColors();
   const [solved, setSolved] = useState<boolean | null>(null);
   const [currentFen, setCurrentFen] = useState<string | null>(null);
@@ -429,6 +432,8 @@ function TrainTab() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [afterPuzzleId, setAfterPuzzleId] = useState<string | undefined>(undefined);
+  const [showGuestSignupPrompt, setShowGuestSignupPrompt] = useState(false);
+  const guestPromptShownRef = useRef(false);
   
   // Fetch user's puzzle stats
   const { data: puzzleStats } = useQuery<{ solvedToday: number; totalSolved: number; successRate: number }>({
@@ -534,6 +539,17 @@ function TrainTab() {
       setAnimationIndex(0);
     }
   }, [puzzle?.id, puzzle?.fen]);
+
+  // Show guest signup prompt after puzzle attempt for anonymous users (once per session)
+  useEffect(() => {
+    if (solved !== null && isAnonymous && !guestPromptShownRef.current) {
+      guestPromptShownRef.current = true;
+      const timer = setTimeout(() => {
+        setShowGuestSignupPrompt(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [solved, isAnonymous]);
 
   // Helper to normalize moves (handle both string and array formats, including comma-separated)
   const normalizeMoves = (moves: string | string[] | null | undefined): string[] => {
@@ -1084,6 +1100,11 @@ function TrainTab() {
           </CardContent>
         </Card>
       </div>
+
+      <GuestSignupPrompt
+        open={showGuestSignupPrompt}
+        onOpenChange={setShowGuestSignupPrompt}
+      />
     </div>
   );
 }

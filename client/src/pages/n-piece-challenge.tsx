@@ -27,7 +27,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { GuestSignupPrompt } from "@/components/guest-signup-prompt";
 import {
   Play,
   RotateCcw,
@@ -69,7 +71,10 @@ const PIECE_TYPES: PieceType[] = ["rook", "knight", "bishop", "queen", "king"];
 
 export default function NPieceChallenge() {
   const { toast } = useNotifications();
+  const { isAnonymous } = useAuth();
   const [, setLocation] = useLocation();
+  const [showGuestSignupPrompt, setShowGuestSignupPrompt] = useState(false);
+  const guestPromptShownRef = useRef(false);
   
   // Game configuration
   const [pieceType, setPieceType] = useState<PieceType>("queen");
@@ -177,6 +182,17 @@ export default function NPieceChallenge() {
       });
     }
   }, [pieces, gameStarted, isSolved, pieceType, boardSize, startTime]);
+
+  // Show guest signup prompt after solving for anonymous users (once per session)
+  useEffect(() => {
+    if (isSolved && isAnonymous && !guestPromptShownRef.current) {
+      guestPromptShownRef.current = true;
+      const timer = setTimeout(() => {
+        setShowGuestSignupPrompt(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSolved, isAnonymous]);
   
   // Start game
   const handleStartGame = () => {
@@ -873,6 +889,11 @@ export default function NPieceChallenge() {
           </div>
         </div>
       )}
+
+      <GuestSignupPrompt
+        open={showGuestSignupPrompt}
+        onOpenChange={setShowGuestSignupPrompt}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,9 +11,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Clock, RotateCcw, Undo2, Trophy, Target, ArrowLeft, Play, Settings, Home, TrendingUp } from "lucide-react";
 import { useLocation } from "wouter";
+import { GuestSignupPrompt } from "@/components/guest-signup-prompt";
 
 type BoardSize = 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -70,7 +72,10 @@ interface KnightsTourProgress {
 
 export default function KnightsTour() {
   const { toast } = useNotifications();
+  const { isAnonymous } = useAuth();
   const [, setLocation] = useLocation();
+  const [showGuestSignupPrompt, setShowGuestSignupPrompt] = useState(false);
+  const guestPromptShownRef = useRef(false);
   
   // Game configuration
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
@@ -171,6 +176,17 @@ export default function KnightsTour() {
       });
     }
   }, [moveCount, totalSquares, validMoves.length, gameStarted, knightPosition, isComplete, isStuck]);
+
+  // Show guest signup prompt after game ends for anonymous users (once per session)
+  useEffect(() => {
+    if ((isComplete || isStuck) && isAnonymous && !guestPromptShownRef.current) {
+      guestPromptShownRef.current = true;
+      const timer = setTimeout(() => {
+        setShowGuestSignupPrompt(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isComplete, isStuck, isAnonymous]);
   
   // Start game
   const handleStartGame = () => {
@@ -640,6 +656,11 @@ export default function KnightsTour() {
           </div>
         </div>
       </div>
+
+      <GuestSignupPrompt
+        open={showGuestSignupPrompt}
+        onOpenChange={setShowGuestSignupPrompt}
+      />
     </div>
   );
 }

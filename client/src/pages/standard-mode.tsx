@@ -41,6 +41,7 @@ import { voiceRecognition, speak, moveToSpeech } from "@/lib/voice";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
 import { SuspensionBanner } from "@/components/suspension-banner";
+import { GuestSignupPrompt } from "@/components/guest-signup-prompt";
 import type { Game, Rating } from "@shared/schema";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
 import { 
@@ -144,7 +145,7 @@ const BLINDFOLD_CONFIG = {
 };
 
 export default function StandardMode() {
-  const { user } = useAuth();
+  const { user, isAnonymous } = useAuth();
   const { toast } = useNotifications();
   const [, setLocation] = useLocation();
   const highlightColors = useHighlightColors();
@@ -188,6 +189,8 @@ export default function StandardMode() {
   const [showRematchDialog, setShowRematchDialog] = useState(false);
   const [showGameEndDialog, setShowGameEndDialog] = useState(false);
   const [gameResult, setGameResult] = useState<"white_win" | "black_win" | "draw" | null>(null);
+  const [showGuestSignupPrompt, setShowGuestSignupPrompt] = useState(false);
+  const guestPromptShownRef = useRef(false);
   const [waitingForDrawResponse, setWaitingForDrawResponse] = useState(false);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
   const [rematchDenied, setRematchDenied] = useState(false);
@@ -801,6 +804,17 @@ export default function StandardMode() {
       setRatingChange(change);
     }
   }, [gameResult, isBotGame, playerRatings, initialPlayerRating, timeControl]);
+
+  // Show guest signup prompt after game ends for anonymous users (once per session)
+  useEffect(() => {
+    if (gameResult && isAnonymous && !guestPromptShownRef.current) {
+      guestPromptShownRef.current = true;
+      const timer = setTimeout(() => {
+        setShowGuestSignupPrompt(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameResult, isAnonymous]);
 
   // Record positions for bot draw-seeking behavior (threefold repetition detection)
   useEffect(() => {
@@ -2822,6 +2836,11 @@ export default function StandardMode() {
         open={!!pendingPromotion}
         color={playerColor}
         onSelect={handlePromotionSelect}
+      />
+
+      <GuestSignupPrompt
+        open={showGuestSignupPrompt}
+        onOpenChange={setShowGuestSignupPrompt}
       />
     </div>
   );

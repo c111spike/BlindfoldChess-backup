@@ -35,6 +35,7 @@ import { speak, moveToSpeech, voiceRecognition } from "@/lib/voice";
 import { ReportPlayerDialog } from "@/components/ReportPlayerDialog";
 import type { UserSettings } from "@shared/schema";
 import { SuspensionBanner } from "@/components/suspension-banner";
+import { GuestSignupPrompt } from "@/components/guest-signup-prompt";
 
 interface SimulVsSimulBoard {
   pairingId: string;
@@ -70,10 +71,12 @@ interface MatchPlayer {
 }
 
 export default function SimulVsSimulMode() {
-  const { user } = useAuth();
+  const { user, isAnonymous } = useAuth();
   const { toast } = useNotifications();
   const [, setLocation] = useLocation();
   const highlightColors = useHighlightColors();
+  const [showGuestSignupPrompt, setShowGuestSignupPrompt] = useState(false);
+  const guestPromptShownRef = useRef(false);
   
   const [gameStarted, setGameStarted] = useState(false);
   const [boardCount, setBoardCount] = useState("5");
@@ -199,6 +202,17 @@ export default function SimulVsSimulMode() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [gameStarted, matchComplete, boards, matchId, toast]);
+
+  // Show guest signup prompt after match ends for anonymous users (once per session)
+  useEffect(() => {
+    if (matchComplete && isAnonymous && !guestPromptShownRef.current) {
+      guestPromptShownRef.current = true;
+      const timer = setTimeout(() => {
+        setShowGuestSignupPrompt(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [matchComplete, isAnonymous]);
   
   useEffect(() => {
     return () => {
@@ -2124,6 +2138,11 @@ export default function SimulVsSimulMode() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <GuestSignupPrompt
+        open={showGuestSignupPrompt}
+        onOpenChange={setShowGuestSignupPrompt}
+      />
     </div>
   );
 }

@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
+import { GuestSignupPrompt } from "@/components/guest-signup-prompt";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCw, Clock, Target, Trophy, Play, Sparkles, Home, Eye } from "lucide-react";
 import { generatePositionClient, getOptimalMovesClient, calculateScoreClient, OptimalMove, wouldPawnCreateCrossing, wouldPawnCreateInvalidDoubling } from "@/lib/boardSpinClient";
@@ -78,6 +80,9 @@ type GamePhase = 'select' | 'memorize' | 'spinning' | 'recreate' | 'bonus' | 're
 export default function BoardSpin() {
   const [, navigate] = useLocation();
   const { toast } = useNotifications();
+  const { isAnonymous } = useAuth();
+  const [showGuestSignupPrompt, setShowGuestSignupPrompt] = useState(false);
+  const guestPromptShownRef = useRef(false);
   const [phase, setPhase] = useState<GamePhase>('select');
   const [difficulty, setDifficulty] = useState<string>('patzer');
   const [position, setPosition] = useState<GeneratedPosition | null>(null);
@@ -493,6 +498,17 @@ export default function BoardSpin() {
       }
     };
   }, []);
+
+  // Show guest signup prompt when reaching results phase for anonymous users (once per session)
+  useEffect(() => {
+    if (phase === 'results' && isAnonymous && !guestPromptShownRef.current) {
+      guestPromptShownRef.current = true;
+      const timer = setTimeout(() => {
+        setShowGuestSignupPrompt(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, isAnonymous]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -1228,6 +1244,11 @@ export default function BoardSpin() {
           </Card>
         </div>
       )}
+
+      <GuestSignupPrompt
+        open={showGuestSignupPrompt}
+        onOpenChange={setShowGuestSignupPrompt}
+      />
     </div>
   );
 }
