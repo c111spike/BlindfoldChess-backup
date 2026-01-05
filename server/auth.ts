@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { fromNodeHeaders } from "better-auth/node";
+import { anonymous } from "better-auth/plugins";
 import type { RequestHandler } from "express";
 import { db } from "./db";
 import { storage } from "./storage";
@@ -25,6 +26,60 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL 
     || (process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : "http://localhost:5000"),
   secret: process.env.BETTER_AUTH_SECRET,
+  plugins: [
+    anonymous({
+      onLinkAccount: async ({ anonymousUser, newUser }) => {
+        const anonId = anonymousUser.user.id;
+        const realId = newUser.user.id;
+        console.log(`Linking anonymous user ${anonId} to new user ${realId}`);
+        try {
+          // Use Drizzle transaction for atomicity - ensures all statements share same connection
+          await db.transaction(async (tx) => {
+            // Transfer games - handle both user_id and white_user_id/black_user_id columns
+            await tx.execute(sql`
+              UPDATE games SET user_id = ${realId} WHERE user_id = ${anonId}
+            `);
+            await tx.execute(sql`
+              UPDATE games SET white_user_id = ${realId} WHERE white_user_id = ${anonId}
+            `);
+            await tx.execute(sql`
+              UPDATE games SET black_user_id = ${realId} WHERE black_user_id = ${anonId}
+            `);
+            
+            // Transfer ratings only if real user doesn't already have ratings
+            // (new user shouldn't have ratings, but be safe)
+            await tx.execute(sql`
+              UPDATE ratings SET user_id = ${realId} 
+              WHERE user_id = ${anonId}
+              AND NOT EXISTS (SELECT 1 FROM ratings WHERE user_id = ${realId})
+            `);
+            
+            // Transfer puzzle attempts from anonymous user to new user
+            await tx.execute(sql`
+              UPDATE puzzle_attempts SET user_id = ${realId} WHERE user_id = ${anonId}
+            `);
+            
+            // Transfer statistics only if real user doesn't already have statistics
+            await tx.execute(sql`
+              UPDATE statistics SET user_id = ${realId}
+              WHERE user_id = ${anonId}
+              AND NOT EXISTS (SELECT 1 FROM statistics WHERE user_id = ${realId})
+            `);
+            
+            // Transfer user settings only if real user doesn't already have settings
+            await tx.execute(sql`
+              UPDATE user_settings SET user_id = ${realId}
+              WHERE user_id = ${anonId}
+              AND NOT EXISTS (SELECT 1 FROM user_settings WHERE user_id = ${realId})
+            `);
+          });
+          console.log(`Successfully migrated data from anonymous user ${anonId} to ${realId}`);
+        } catch (error) {
+          console.error(`Failed to migrate anonymous user data:`, error);
+        }
+      },
+    }),
+  ],
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,

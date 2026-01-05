@@ -33,6 +33,11 @@ export function useAuth() {
 
   const isSuspended = user?.suspendedUntil ? new Date(user.suspendedUntil) > new Date() : false;
   const suspendedUntil = user?.suspendedUntil ? new Date(user.suspendedUntil) : null;
+  
+  // Check if user is anonymous (guest) - Better Auth anonymous plugin adds isAnonymous field
+  // The field can be on user object directly or nested in session data
+  const sessionUser = sessionData?.user as { isAnonymous?: boolean } | undefined;
+  const isAnonymous = sessionUser?.isAnonymous === true;
 
   // isLoading: Only wait for session to resolve. This allows the app shell to render immediately.
   // isUserLoading: Additional flag for components that need user profile data (suspension, etc.)
@@ -44,6 +49,7 @@ export function useAuth() {
     isLoading,
     isUserLoading: isUserLoading && !isError,
     isAuthenticated: !!sessionData?.user,
+    isAnonymous,
     isSuspended,
     suspendedUntil,
   };

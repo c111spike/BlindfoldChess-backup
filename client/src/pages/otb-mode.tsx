@@ -42,6 +42,7 @@ import { generateBotMoveClient, getThinkTime, LastMoveInfo, recordPosition, clea
 import { clientStockfish } from "@/lib/stockfish";
 import { OTBTutorial, useOTBTutorial } from "@/components/otb-tutorial";
 import { SuspensionBanner } from "@/components/suspension-banner";
+import { GuestSignupPrompt } from "@/components/guest-signup-prompt";
 
 // Piece values for recapture detection (must match botEngine.ts)
 const PIECE_VALUES_OTB: Record<string, number> = {
@@ -140,9 +141,11 @@ interface MoveRecord {
 }
 
 export default function OTBMode() {
-  const { user } = useAuth();
+  const { user, isAnonymous } = useAuth();
   const { toast } = useNotifications();
   const [, setLocation] = useLocation();
+  const [showGuestSignupPrompt, setShowGuestSignupPrompt] = useState(false);
+  const guestPromptShownRef = useRef(false); // Prevent multiple modal openings
   const highlightColors = useHighlightColors();
   const { showTutorial, setShowTutorial, triggerTutorial, hasSeenTutorial, markComplete } = useOTBTutorial();
   
@@ -363,6 +366,18 @@ export default function OTBMode() {
       setMobileScoreSheetOpen(false);
     }
   }, [gameResult]);
+
+  // Show guest signup prompt after game ends for anonymous users (once per session)
+  useEffect(() => {
+    if (gameResult && isAnonymous && !guestPromptShownRef.current) {
+      guestPromptShownRef.current = true; // Prevent re-opening on rematches
+      // Delay slightly to let the game result display first
+      const timer = setTimeout(() => {
+        setShowGuestSignupPrompt(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameResult, isAnonymous]);
 
   // Automatically clear waitingForNotation when notation queue empties
   useEffect(() => {
@@ -4825,6 +4840,12 @@ export default function OTBMode() {
         open={showTutorial}
         onOpenChange={setShowTutorial}
         onComplete={markComplete}
+      />
+
+      <GuestSignupPrompt
+        open={showGuestSignupPrompt}
+        onOpenChange={setShowGuestSignupPrompt}
+        gamesPlayed={1}
       />
     </div>
   );

@@ -1,8 +1,10 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Eye, Clock, Brain, Navigation, Crown, Puzzle, RotateCw, Book, Users } from "lucide-react";
+import { ArrowRight, Eye, Clock, Brain, Navigation, Crown, Puzzle, RotateCw, Book, Users, UserCircle } from "lucide-react";
+import { authClient, getSession } from "@/lib/auth-client";
 import heroImage from "@assets/stock_images/simulchess-hero-2025.webp";
 import heroImageMobile from "@assets/optimized/simulchess-hero-768.webp";
 
@@ -58,6 +60,39 @@ const landingPages = [
 ];
 
 export default function PublicHomePage() {
+  const [, setLocation] = useLocation();
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
+
+  const handleGuestSignIn = async () => {
+    setIsGuestLoading(true);
+    try {
+      // Check if user already has a session
+      const sessionResult = await getSession();
+      // Check error first before trusting data
+      if (!sessionResult?.error && sessionResult?.data?.user) {
+        // Already logged in (as guest or member), redirect to dashboard
+        setLocation('/');
+        return;
+      }
+      // Sign in anonymously using Better Auth's anonymous plugin
+      const result = await authClient.signIn.anonymous();
+      if (result?.error) {
+        // Handle "already signed in anonymously" error gracefully
+        if (result.error.message?.includes('ANONYMOUS_USERS_CANNOT_SIGN_IN')) {
+          setLocation('/');
+          return;
+        }
+        console.error('Guest sign-in error:', result.error);
+        return;
+      }
+      setLocation('/');
+    } catch (error) {
+      console.error('Guest sign-in failed:', error);
+    } finally {
+      setIsGuestLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen -mx-4">
       <Helmet>
@@ -107,6 +142,16 @@ export default function PublicHomePage() {
                   Join Now
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </a>
+              </Button>
+              <Button 
+                size="lg" 
+                onClick={handleGuestSignIn}
+                disabled={isGuestLoading}
+                className="bg-primary/80 backdrop-blur-md border border-primary/50 text-white hover:bg-primary/90"
+                data-testid="button-hero-guest"
+              >
+                <UserCircle className="mr-2 h-5 w-5" />
+                {isGuestLoading ? 'Loading...' : 'Play as Guest'}
               </Button>
               <Button 
                 size="lg" 
