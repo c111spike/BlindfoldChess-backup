@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mail, MessageCircle, Bug, Shield, Lightbulb, DollarSign, Scale, Users, ArrowLeft, Clock } from "lucide-react";
-import { SiDiscord } from "react-icons/si";
+import { SiDiscord, SiX } from "react-icons/si";
 
 export default function Contact() {
   return (
@@ -23,7 +23,7 @@ export default function Contact() {
                   Have questions, feedback, or need assistance? Reach out to us through any of the channels below. We typically respond to email inquiries within 48 hours.
                 </p>
                 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                   <div className="p-6 rounded-lg border hover-elevate" data-testid="container-discord">
                     <div className="flex items-start gap-4">
                       <div className="p-3 rounded-lg bg-[#5865F2]/10">
@@ -62,6 +62,30 @@ export default function Contact() {
                           <a href="mailto:simulchess.com@gmail.com">
                             <Mail className="h-4 w-4 mr-2" />
                             simulchess.com@gmail.com
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 rounded-lg border hover-elevate" data-testid="container-twitter">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-lg bg-foreground/10">
+                        <SiX className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold mb-1" data-testid="text-twitter-heading">X (Twitter)</h3>
+                        <p className="text-sm text-muted-foreground mb-3" data-testid="text-twitter-description">
+                          Follow us for announcements, chess tips, and updates on new features.
+                        </p>
+                        <Button asChild variant="outline" size="sm" data-testid="link-twitter">
+                          <a 
+                            href="https://x.com/Simulchess" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                          >
+                            <SiX className="h-4 w-4 mr-2" />
+                            @Simulchess
                           </a>
                         </Button>
                       </div>
