@@ -113,7 +113,7 @@ export default function About() {
                   While our mission is human-centric, our engine is world-class.
                 </p>
                 <ul className="text-muted-foreground space-y-2">
-                  <li><strong>Stockfish Integration:</strong> Every game is analyzed to show you not just the "Best Move," but your Efficiency Factor and Burnout Levels.</li>
+                  <li><strong>Stockfish Integration:</strong> Every game is analyzed to show you not just the "Best Move," but your Accuracy of Game and Burnout Levels.</li>
                   <li><strong>Secure Authentication:</strong> We use Better-Auth, a world-class authentication framework, to ensure your identity and training data are protected. By using a secure, database-backed session model rather than vulnerable client-side storage, we guarantee that your VSS Mismatch scores and puzzle progress stay private, encrypted, and accessible only to you.</li>
                 </ul>
               </section>

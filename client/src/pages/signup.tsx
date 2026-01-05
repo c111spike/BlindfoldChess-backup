@@ -1,22 +1,56 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { signUp } from "@/lib/auth-client";
+import { signUp, authClient } from "@/lib/auth-client";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, UserCircle } from "lucide-react";
 import logoImage from "@assets/optimized/simulchess_logo_64.webp";
 
 export default function Signup() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const handleGuestSignIn = async () => {
+    setIsGuestLoading(true);
+    try {
+      const result = await authClient.signIn.anonymous();
+      if (result?.error) {
+        if (result.error.message?.includes('ANONYMOUS_USERS_CANNOT_SIGN_IN')) {
+          setLocation('/');
+          return;
+        }
+        console.error('Guest sign-in error:', result.error);
+        toast({
+          title: "Guest sign-in failed",
+          description: "Could not sign in as guest. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/get-session"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      setLocation('/');
+    } catch (error: any) {
+      console.error('Guest sign-in error:', error);
+      toast({
+        title: "Guest sign-in failed",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGuestLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +124,36 @@ export default function Signup() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mb-6"
+            onClick={handleGuestSignIn}
+            disabled={isGuestLoading}
+            data-testid="button-play-as-guest"
+          >
+            {isGuestLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <UserCircle className="mr-2 h-4 w-4" />
+                Play as Guest
+              </>
+            )}
+          </Button>
+
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or create an account</span>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Account Name</Label>

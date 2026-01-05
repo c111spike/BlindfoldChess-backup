@@ -73,7 +73,7 @@ export default function SimulChessTraining() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/simul-vs-simul")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-simul-training"
             >
               <Grid3X3 className="mr-2 h-5 w-5" />
@@ -248,7 +248,7 @@ export default function SimulChessTraining() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/simul-vs-simul")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-simul-training-bottom"
             >
               <Grid3X3 className="mr-2 h-5 w-5" />

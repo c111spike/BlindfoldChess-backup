@@ -61,7 +61,7 @@ export default function ChessPieceChallenge() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/n-piece")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-npiece-challenge"
             >
               <Layers className="mr-2 h-5 w-5" />
@@ -252,7 +252,7 @@ export default function ChessPieceChallenge() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/n-piece")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-npiece-challenge-bottom"
             >
               <Layers className="mr-2 h-5 w-5" />

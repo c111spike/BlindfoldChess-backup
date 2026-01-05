@@ -61,7 +61,7 @@ export default function OpeningRepertoireTrainer() {
             <div className="flex justify-center">
               <Button 
                 size="lg" 
-                onClick={() => setLocation("/repertoire")}
+                onClick={() => setLocation("/signup")}
                 data-testid="button-start-repertoire-training"
               >
                 <Book className="mr-2 h-5 w-5" />
@@ -230,7 +230,7 @@ export default function OpeningRepertoireTrainer() {
           <div className="flex justify-center my-8">
             <Button 
               size="lg" 
-              onClick={() => setLocation("/repertoire")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-repertoire-training-bottom"
             >
               <Book className="mr-2 h-5 w-5" />

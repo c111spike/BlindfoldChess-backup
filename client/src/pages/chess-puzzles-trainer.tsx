@@ -61,7 +61,7 @@ export default function ChessPuzzlesTrainer() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/puzzles")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-puzzles"
             >
               <Puzzle className="mr-2 h-5 w-5" />
@@ -214,7 +214,7 @@ export default function ChessPuzzlesTrainer() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/puzzles")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-puzzles-bottom"
             >
               <Puzzle className="mr-2 h-5 w-5" />

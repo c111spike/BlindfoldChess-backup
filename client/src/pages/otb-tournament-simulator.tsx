@@ -61,7 +61,7 @@ export default function OTBTournamentSimulator() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/otb")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-otb-training"
             >
               <Trophy className="mr-2 h-5 w-5" />
@@ -304,7 +304,7 @@ export default function OTBTournamentSimulator() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/otb")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-otb-training-bottom"
             >
               <Trophy className="mr-2 h-5 w-5" />

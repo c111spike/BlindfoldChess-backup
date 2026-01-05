@@ -81,7 +81,7 @@ export default function ChessGameReview() {
             <div className="text-center">
               <Button 
                 size="lg" 
-                onClick={() => setLocation("/")}
+                onClick={() => setLocation("/signup")}
                 data-testid="button-start-review"
               >
                 <BarChart3 className="mr-2 h-5 w-5" />
@@ -155,7 +155,7 @@ export default function ChessGameReview() {
               <ul className="text-sm space-y-1 text-muted-foreground">
                 <li><strong>Tactical Insights</strong> — Cross-references missed tactics against your puzzle history</li>
                 <li><strong>Focus Check</strong> — Measures decision consistency (0-100% with letter grade)</li>
-                <li><strong>Efficiency Factor</strong> — Time spent vs. move quality (0-100% with letter grade)</li>
+                <li><strong>Accuracy of Game</strong> — Time spent vs. move quality (0-100% with letter grade)</li>
                 <li><strong>Time Trouble</strong> — Detects when clock pressure hurt you</li>
                 <li><strong>Burnout Detection</strong> — Identifies late-game fatigue patterns</li>
                 <li><strong>VSS Mismatch</strong> (proprietary) — Spots visualization failures with replay</li>
@@ -187,7 +187,7 @@ export default function ChessGameReview() {
             <div className="p-4 rounded-lg bg-muted/30 border-l-4 border-green-500">
               <h3 className="font-semibold flex items-center gap-2 mb-2">
                 <Timer className="h-4 w-4" />
-                Efficiency Factor (0-100% with letter grade)
+                Accuracy of Game (0-100% with letter grade)
               </h3>
               <p className="text-sm text-muted-foreground">
                 Compares time spent to move quality. A high score (A/B grade) means you're using your 
@@ -431,7 +431,7 @@ export default function ChessGameReview() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-review-bottom"
             >
               <BarChart3 className="mr-2 h-5 w-5" />

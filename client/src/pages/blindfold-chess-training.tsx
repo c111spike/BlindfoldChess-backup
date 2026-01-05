@@ -61,7 +61,7 @@ export default function BlindfoldChessTraining() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/standard")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-blindfold-training"
             >
               <Eye className="mr-2 h-5 w-5" />
@@ -252,7 +252,7 @@ export default function BlindfoldChessTraining() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/standard")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-blindfold-training-bottom"
             >
               <Eye className="mr-2 h-5 w-5" />

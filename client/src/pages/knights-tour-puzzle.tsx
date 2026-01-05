@@ -61,7 +61,7 @@ export default function KnightsTourPuzzle() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/knights-tour")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-knights-tour"
             >
               <Waypoints className="mr-2 h-5 w-5" />
@@ -231,7 +231,7 @@ export default function KnightsTourPuzzle() {
             <Button 
               size="lg" 
               className="w-full"
-              onClick={() => setLocation("/knights-tour")}
+              onClick={() => setLocation("/signup")}
               data-testid="button-start-knights-tour-bottom"
             >
               <Waypoints className="mr-2 h-5 w-5" />
