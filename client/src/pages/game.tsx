@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon } from "lucide-react";
+import titleImage from "@assets/image_1767696897621.jpg";
 import { voiceRecognition, speak, moveToSpeech } from "@/lib/voice";
 import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition } from "@/lib/botEngine";
 import { clientStockfish } from "@/lib/stockfish";
@@ -95,6 +96,7 @@ type TimeControlOption = "practice" | "blitz" | "rapid";
 export default function GamePage() {
   const { toast } = useToast();
   
+  const [showTitleScreen, setShowTitleScreen] = useState(true);
   const [game, setGame] = useState<Chess | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [fen, setFen] = useState("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -551,6 +553,39 @@ export default function GamePage() {
     setIsPeeking(false);
     peekStartTimeRef.current = null;
   };
+
+  if (showTitleScreen) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-amber-100 dark:from-stone-900 dark:to-stone-950 p-4">
+        <div className="flex flex-col items-center gap-8 max-w-sm w-full">
+          <img 
+            src={titleImage} 
+            alt="Blindfold Chess Knight" 
+            className="w-64 h-auto drop-shadow-xl"
+            data-testid="img-title-knight"
+          />
+          <h1 
+            className="text-4xl font-bold text-stone-800 dark:text-amber-100 text-center tracking-tight"
+            data-testid="text-title"
+          >
+            Blindfold Chess
+          </h1>
+          <p className="text-stone-600 dark:text-stone-400 text-center text-lg">
+            Train your visualization and memory
+          </p>
+          <Button 
+            size="lg" 
+            className="w-full max-w-xs text-lg py-6"
+            onClick={() => setShowTitleScreen(false)}
+            data-testid="button-start-now"
+          >
+            <Play className="mr-2 h-5 w-5" />
+            Start Now
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!gameStarted) {
     return (
