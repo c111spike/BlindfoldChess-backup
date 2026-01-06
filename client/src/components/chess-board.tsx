@@ -556,7 +556,7 @@ export function ChessBoard({
                     </span>
                   )}
                   {showCoordinates && rankIndex === 7 && (
-                    <span className="absolute top-0.5 right-1 text-xs font-semibold select-none opacity-70">
+                    <span className="absolute bottom-0.5 right-1 text-xs font-semibold select-none opacity-70">
                       {file}
                     </span>
                   )}

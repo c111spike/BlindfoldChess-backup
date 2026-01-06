@@ -883,13 +883,13 @@ export default function GamePage() {
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="tile-names-toggle">Show Tile Names (a1-h8)</Label>
+                    <Label htmlFor="coordinates-toggle">Show Coordinates (1-8, a-h)</Label>
                     <Switch
-                      id="tile-names-toggle"
+                      id="coordinates-toggle"
                       checked={showCoordinates}
                       onCheckedChange={setShowCoordinates}
                       className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
-                      data-testid="switch-tile-names"
+                      data-testid="switch-coordinates"
                     />
                   </div>
                 </div>
@@ -1139,7 +1139,7 @@ export default function GamePage() {
                 <ChessBoard 
                   fen={fen}
                   orientation={playerColor}
-                  showCoordinates={true}
+                  showCoordinates={isBlindfold && showCoordinates}
                   highlightedSquares={legalMoves}
                   lastMove={lastMove || undefined}
                   onSquareClick={handleSquareClick}
@@ -1159,15 +1159,23 @@ export default function GamePage() {
                         const ranks = playerColor === "white"
                           ? ['8', '7', '6', '5', '4', '3', '2', '1']
                           : ['1', '2', '3', '4', '5', '6', '7', '8'];
-                        const squareName = files[col] + ranks[row];
+                        const showRank = col === 0;
+                        const showFile = row === 7;
                         return (
                           <div
-                            key={squareName}
-                            className={`flex items-center justify-center font-mono text-xs md:text-sm ${
-                              isLight ? 'bg-amber-100' : 'bg-amber-700'
-                            } ${isLight ? 'text-amber-800/60' : 'text-amber-100/60'}`}
+                            key={i}
+                            className={`relative ${isLight ? 'bg-amber-100' : 'bg-amber-700'}`}
                           >
-                            {showCoordinates && squareName}
+                            {showCoordinates && showRank && (
+                              <span className={`absolute bottom-0.5 left-1 text-xs font-semibold select-none ${isLight ? 'text-amber-800/70' : 'text-amber-100/70'}`}>
+                                {ranks[row]}
+                              </span>
+                            )}
+                            {showCoordinates && showFile && (
+                              <span className={`absolute bottom-0.5 right-1 text-xs font-semibold select-none ${isLight ? 'text-amber-800/70' : 'text-amber-100/70'}`}>
+                                {files[col]}
+                              </span>
+                            )}
                           </div>
                         );
                       })}
@@ -1196,13 +1204,20 @@ export default function GamePage() {
                           const ranks = playerColor === "white"
                             ? ['8', '7', '6', '5', '4', '3', '2', '1']
                             : ['1', '2', '3', '4', '5', '6', '7', '8'];
-                          const squareName = files[col] + ranks[row];
+                          const showRank = col === 0;
+                          const showFile = row === 7;
                           return (
-                            <div
-                              key={squareName}
-                              className="flex items-center justify-center text-white/70 font-mono text-xs md:text-sm"
-                            >
-                              {squareName}
+                            <div key={i} className="relative">
+                              {showRank && (
+                                <span className="absolute bottom-0.5 left-1 text-xs font-semibold select-none text-white/70">
+                                  {ranks[row]}
+                                </span>
+                              )}
+                              {showFile && (
+                                <span className="absolute bottom-0.5 right-1 text-xs font-semibold select-none text-white/70">
+                                  {files[col]}
+                                </span>
+                              )}
                             </div>
                           );
                         })}
