@@ -144,8 +144,9 @@ export default function GamePage() {
   
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
   const [botThinking, setBotThinking] = useState(false);
-  const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty | null>(null);
-  const [selectedBotPersonality, setSelectedBotPersonality] = useState<BotProfile | null>(null);
+  const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty>("club");
+  const [selectedBotPersonalityType, setSelectedBotPersonalityType] = useState<BotPersonality>("balanced");
+  const [selectedColor, setSelectedColor] = useState<"white" | "black" | "random">("white");
   
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
@@ -205,8 +206,6 @@ export default function GamePage() {
     setLegalMoves([]);
     setLastMove(null);
     setSelectedBot(null);
-    setSelectedBotDifficulty(null);
-    setSelectedBotPersonality(null);
     setBotThinking(false);
     setIsPeeking(false);
     setAwaitingDisambiguation(null);
@@ -307,8 +306,6 @@ export default function GamePage() {
     setLegalMoves([]);
     setGameResult(null);
     setSelectedBot(bot);
-    setSelectedBotDifficulty(null);
-    setSelectedBotPersonality(null);
     
     const assignedColor = colorChoice === "random" 
       ? (Math.random() < 0.5 ? "white" : "black")
@@ -828,354 +825,292 @@ export default function GamePage() {
   }
 
   if (!gameStarted) {
+    const handleStartGameClick = () => {
+      const bot = getBotByConfig(selectedBotDifficulty, selectedBotPersonalityType);
+      if (bot) {
+        handleStartGame(bot, selectedColor);
+      }
+    };
+
     return (
       <div className="container max-w-lg mx-auto p-4">
         <Card>
           <CardContent className="pt-6 space-y-6">
-            {!selectedBotDifficulty ? (
-              <>
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">Game Settings</h2>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="blindfold-toggle">Blindfold Mode</Label>
+                <Switch
+                  id="blindfold-toggle"
+                  checked={isBlindfold}
+                  onCheckedChange={setIsBlindfold}
+                  className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
+                  data-testid="switch-blindfold"
+                />
+              </div>
+              
+              {isBlindfold && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Blindfold Difficulty</Label>
+                    <Select value={blindfoldDifficulty} onValueChange={(v) => setBlindFoldDifficulty(v as BlindFoldDifficulty)}>
+                      <SelectTrigger data-testid="select-blindfold-difficulty">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="easy">Easy (Unlimited Peeks)</SelectItem>
+                        <SelectItem value="medium">Medium (20 Peeks)</SelectItem>
+                        <SelectItem value="hard">Hard (10 Peeks)</SelectItem>
+                        <SelectItem value="expert">Expert (5 Peeks)</SelectItem>
+                        <SelectItem value="master">Master (2 Peeks)</SelectItem>
+                        <SelectItem value="grandmaster">Grandmaster (No Peeks)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Display Mode</Label>
+                    <Select value={blindfoldDisplayMode} onValueChange={(v) => setBlindFoldDisplayMode(v as BlindFoldDisplayMode)}>
+                      <SelectTrigger data-testid="select-blindfold-display">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="empty_board">Empty Board</SelectItem>
+                        <SelectItem value="black_overlay">Black Overlay</SelectItem>
+                        <SelectItem value="no_board">No Board</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="tile-names-toggle">Show Tile Names (a1-h8)</Label>
+                    <Switch
+                      id="tile-names-toggle"
+                      checked={showCoordinates}
+                      onCheckedChange={setShowCoordinates}
+                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
+                      data-testid="switch-tile-names"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mic className="h-4 w-4" />
+                  <Label htmlFor="voice-input">Voice Input</Label>
+                </div>
+                <Switch
+                  id="voice-input"
+                  checked={voiceInputEnabled}
+                  onCheckedChange={setVoiceInputEnabled}
+                  className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
+                  data-testid="switch-voice-input"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Volume2 className="h-4 w-4" />
+                  <Label htmlFor="voice-output">Voice Output</Label>
+                </div>
+                <Switch
+                  id="voice-output"
+                  checked={voiceOutputEnabled}
+                  onCheckedChange={setVoiceOutputEnabled}
+                  className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
+                  data-testid="switch-voice-output"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Time Control</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={timeControl === "blitz" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  onClick={() => setTimeControl("blitz")}
+                  data-testid="button-time-blitz"
+                >
+                  <Clock className="mr-1 h-3 w-3" />
+                  5 min
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={timeControl === "rapid" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  onClick={() => setTimeControl("rapid")}
+                  data-testid="button-time-rapid"
+                >
+                  <Clock className="mr-1 h-3 w-3" />
+                  15 min
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={timeControl === "classical" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  onClick={() => setTimeControl("classical")}
+                  data-testid="button-time-classical"
+                >
+                  <Clock className="mr-1 h-3 w-3" />
+                  30 min
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={timeControl === "practice" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  onClick={() => setTimeControl("practice")}
+                  data-testid="button-time-practice"
+                >
+                  <InfinityIcon className="mr-1 h-3 w-3" />
+                  Practice
+                </Button>
+              </div>
+            </div>
+            
+            <Dialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  data-testid="button-stats"
+                >
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  Statistics
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Your Statistics</DialogTitle>
+                </DialogHeader>
                 <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Game Settings</h2>
-                  
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="blindfold-toggle">Blindfold Mode</Label>
-                    <Switch
-                      id="blindfold-toggle"
-                      checked={isBlindfold}
-                      onCheckedChange={setIsBlindfold}
-                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
-                      data-testid="switch-blindfold"
-                    />
-                  </div>
-                  
-                  {isBlindfold && (
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        <Label>Blindfold Difficulty</Label>
-                        <Select value={blindfoldDifficulty} onValueChange={(v) => setBlindFoldDifficulty(v as BlindFoldDifficulty)}>
-                          <SelectTrigger data-testid="select-blindfold-difficulty">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="easy">Easy (Unlimited Peeks)</SelectItem>
-                            <SelectItem value="medium">Medium (20 Peeks)</SelectItem>
-                            <SelectItem value="hard">Hard (10 Peeks)</SelectItem>
-                            <SelectItem value="expert">Expert (5 Peeks)</SelectItem>
-                            <SelectItem value="master">Master (2 Peeks)</SelectItem>
-                            <SelectItem value="grandmaster">Grandmaster (No Peeks)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Display Mode</Label>
-                        <Select value={blindfoldDisplayMode} onValueChange={(v) => setBlindFoldDisplayMode(v as BlindFoldDisplayMode)}>
-                          <SelectTrigger data-testid="select-blindfold-display">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="empty_board">Empty Board</SelectItem>
-                            <SelectItem value="black_overlay">Black Overlay</SelectItem>
-                            <SelectItem value="no_board">No Board</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="tile-names-toggle">Show Tile Names (a1-h8)</Label>
-                        <Switch
-                          id="tile-names-toggle"
-                          checked={showCoordinates}
-                          onCheckedChange={setShowCoordinates}
-                          className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
-                          data-testid="switch-tile-names"
-                        />
-                      </div>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="space-y-1">
+                      <p className="text-2xl font-bold text-green-600">{stats.wins}</p>
+                      <p className="text-sm text-muted-foreground">Wins</p>
                     </div>
-                  )}
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Mic className="h-4 w-4" />
-                      <Label htmlFor="voice-input">Voice Input</Label>
+                    <div className="space-y-1">
+                      <p className="text-2xl font-bold text-gray-600">{stats.draws}</p>
+                      <p className="text-sm text-muted-foreground">Draws</p>
                     </div>
-                    <Switch
-                      id="voice-input"
-                      checked={voiceInputEnabled}
-                      onCheckedChange={setVoiceInputEnabled}
-                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
-                      data-testid="switch-voice-input"
-                    />
+                    <div className="space-y-1">
+                      <p className="text-2xl font-bold text-red-600">{stats.losses}</p>
+                      <p className="text-sm text-muted-foreground">Losses</p>
+                    </div>
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Volume2 className="h-4 w-4" />
-                      <Label htmlFor="voice-output">Voice Output</Label>
+                  <div className="border-t pt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Last Game Peek Time</span>
+                      <span className="font-medium">{formatPeekTime(stats.lastGamePeekTime)}</span>
                     </div>
-                    <Switch
-                      id="voice-output"
-                      checked={voiceOutputEnabled}
-                      onCheckedChange={setVoiceOutputEnabled}
-                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
-                      data-testid="switch-voice-output"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Time Control</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={timeControl === "blitz" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
-                      onClick={() => setTimeControl("blitz")}
-                      data-testid="button-time-blitz"
-                    >
-                      <Clock className="mr-1 h-3 w-3" />
-                      5 min
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={timeControl === "rapid" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
-                      onClick={() => setTimeControl("rapid")}
-                      data-testid="button-time-rapid"
-                    >
-                      <Clock className="mr-1 h-3 w-3" />
-                      15 min
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={timeControl === "classical" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
-                      onClick={() => setTimeControl("classical")}
-                      data-testid="button-time-classical"
-                    >
-                      <Clock className="mr-1 h-3 w-3" />
-                      30 min
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={timeControl === "practice" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
-                      onClick={() => setTimeControl("practice")}
-                      data-testid="button-time-practice"
-                    >
-                      <InfinityIcon className="mr-1 h-3 w-3" />
-                      Practice
-                    </Button>
-                  </div>
-                </div>
-                
-                <Dialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      data-testid="button-stats"
-                    >
-                      <BarChart3 className="mr-2 h-4 w-4" />
-                      Statistics
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Your Statistics</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div className="space-y-1">
-                          <p className="text-2xl font-bold text-green-600">{stats.wins}</p>
-                          <p className="text-sm text-muted-foreground">Wins</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-2xl font-bold text-gray-600">{stats.draws}</p>
-                          <p className="text-sm text-muted-foreground">Draws</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-2xl font-bold text-red-600">{stats.losses}</p>
-                          <p className="text-sm text-muted-foreground">Losses</p>
-                        </div>
-                      </div>
-                      
-                      <div className="border-t pt-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Last Game Peek Time</span>
-                          <span className="font-medium">{formatPeekTime(stats.lastGamePeekTime)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Average Peek Time</span>
-                          <span className="font-medium">{formatPeekTime(getAveragePeekTime(stats))}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Games with Peeks</span>
-                          <span className="font-medium">{stats.gamesWithPeeks}</span>
-                        </div>
-                      </div>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-muted-foreground"
-                        onClick={() => {
-                          resetStats();
-                          setStats(loadStats());
-                        }}
-                        data-testid="button-reset-stats"
-                      >
-                        <RefreshCw className="mr-2 h-3 w-3" />
-                        Reset Statistics
-                      </Button>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Average Peek Time</span>
+                      <span className="font-medium">{formatPeekTime(getAveragePeekTime(stats))}</span>
                     </div>
-                  </DialogContent>
-                </Dialog>
-                
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Select Bot Difficulty</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {ALL_DIFFICULTIES.map((difficulty) => (
-                      <Card 
-                        key={difficulty}
-                        className="cursor-pointer hover-elevate"
-                        onClick={() => setSelectedBotDifficulty(difficulty)}
-                        data-testid={`card-difficulty-${difficulty}`}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex flex-col">
-                            <span className="font-medium text-sm">{BOT_DIFFICULTY_NAMES[difficulty]}</span>
-                            <span className="text-xs text-muted-foreground">{BOT_DIFFICULTY_ELO[difficulty]} Elo</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Games with Peeks</span>
+                      <span className="font-medium">{stats.gamesWithPeeks}</span>
+                    </div>
                   </div>
-                </div>
-              </>
-            ) : !selectedBotPersonality ? (
-              <>
-                <div className="flex items-center gap-2 mb-2">
+                  
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSelectedBotDifficulty(null)}
-                    data-testid="button-back-from-personality"
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-muted-foreground"
+                    onClick={() => {
+                      resetStats();
+                      setStats(loadStats());
+                    }}
+                    data-testid="button-reset-stats"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <RefreshCw className="mr-2 h-3 w-3" />
+                    Reset Statistics
                   </Button>
-                  <h2 className="text-lg font-semibold">Select Playstyle</h2>
-                  <Badge variant="secondary" className="ml-auto">
-                    {BOT_DIFFICULTY_ELO[selectedBotDifficulty]} Elo
-                  </Badge>
                 </div>
-                
-                <div className="grid grid-cols-1 gap-2">
-                  {ALL_PERSONALITIES.map((personality) => {
-                    const bot = getBotByConfig(selectedBotDifficulty, personality);
-                    if (!bot) return null;
-                    return (
-                      <Card 
-                        key={personality}
-                        className="cursor-pointer hover-elevate"
-                        onClick={() => setSelectedBotPersonality(bot)}
-                        data-testid={`card-personality-${personality}`}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10">
-                              <AvatarFallback className="bg-amber-100 text-amber-500 font-bold text-lg shadow-[0_0_8px_rgba(251,191,36,0.4)]">
-                                {BOT_PERSONALITY_ICONS[personality]}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <span className="font-semibold">{BOT_PERSONALITY_NAMES[personality]}</span>
-                              <p className="text-xs text-muted-foreground">
-                                {BOT_PERSONALITY_DESCRIPTIONS[personality]}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 mb-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSelectedBotPersonality(null)}
-                    data-testid="button-back-from-color"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <h2 className="text-lg font-semibold">Choose Your Color</h2>
-                </div>
-                
-                <p className="text-sm text-muted-foreground mb-4">
-                  Playing against {selectedBotPersonality.elo} {BOT_PERSONALITY_NAMES[selectedBotPersonality.personality]}
-                </p>
-                
-                <div className="grid grid-cols-1 gap-3">
-                  <Card 
-                    className="cursor-pointer hover-elevate"
-                    onClick={() => handleStartGame(selectedBotPersonality, "white")}
-                    data-testid="card-color-white"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center">
-                          <Crown className="h-6 w-6 text-gray-700" />
-                        </div>
-                        <div>
-                          <span className="font-semibold text-lg">Play as White</span>
-                          <p className="text-sm text-muted-foreground">You move first</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card 
-                    className="cursor-pointer hover-elevate"
-                    onClick={() => handleStartGame(selectedBotPersonality, "black")}
-                    data-testid="card-color-black"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gray-900 border-2 border-gray-700 flex items-center justify-center">
-                          <Crown className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <span className="font-semibold text-lg">Play as Black</span>
-                          <p className="text-sm text-muted-foreground">Bot moves first</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card 
-                    className="cursor-pointer hover-elevate"
-                    onClick={() => handleStartGame(selectedBotPersonality, "random")}
-                    data-testid="card-color-random"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-white to-gray-900 border-2 border-gray-500 flex items-center justify-center">
-                          <Shuffle className="h-6 w-6 text-gray-500" />
-                        </div>
-                        <div>
-                          <span className="font-semibold text-lg">Random</span>
-                          <p className="text-sm text-muted-foreground">Let fate decide</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </>
-            )}
+              </DialogContent>
+            </Dialog>
+            
+            <div className="space-y-2">
+              <Label>Bot Difficulty</Label>
+              <Select value={selectedBotDifficulty} onValueChange={(v) => setSelectedBotDifficulty(v as BotDifficulty)}>
+                <SelectTrigger data-testid="select-bot-difficulty">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_DIFFICULTIES.map((difficulty) => (
+                    <SelectItem key={difficulty} value={difficulty}>
+                      {BOT_DIFFICULTY_NAMES[difficulty]} ({BOT_DIFFICULTY_ELO[difficulty]} Elo)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Playstyle</Label>
+              <Select value={selectedBotPersonalityType} onValueChange={(v) => setSelectedBotPersonalityType(v as BotPersonality)}>
+                <SelectTrigger data-testid="select-bot-playstyle">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_PERSONALITIES.map((personality) => (
+                    <SelectItem key={personality} value={personality}>
+                      {BOT_PERSONALITY_NAMES[personality]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Your Color</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={selectedColor === "white" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  onClick={() => setSelectedColor("white")}
+                  data-testid="button-color-white"
+                >
+                  <div className="w-4 h-4 rounded-full bg-white border border-gray-400 mr-1" />
+                  White
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={selectedColor === "black" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  onClick={() => setSelectedColor("black")}
+                  data-testid="button-color-black"
+                >
+                  <div className="w-4 h-4 rounded-full bg-gray-900 mr-1" />
+                  Black
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={selectedColor === "random" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  onClick={() => setSelectedColor("random")}
+                  data-testid="button-color-random"
+                >
+                  <Shuffle className="w-4 h-4 mr-1" />
+                  Random
+                </Button>
+              </div>
+            </div>
+            
+            <Button
+              size="lg"
+              className="w-full bg-amber-400 hover:bg-amber-500 text-stone-900"
+              onClick={handleStartGameClick}
+              data-testid="button-start-game"
+            >
+              <Play className="mr-2 h-5 w-5" />
+              Start Game
+            </Button>
           </CardContent>
         </Card>
       </div>
