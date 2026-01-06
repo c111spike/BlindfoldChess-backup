@@ -1061,7 +1061,7 @@ export default function GamePage() {
   return (
     <div className="container max-w-4xl mx-auto p-2 md:p-4">
       {gameResult && (
-        <Card className="mb-3 border-stone-300 bg-white">
+        <Card className="mb-3 border-amber-400 border-2 bg-white">
           <CardContent className="py-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
@@ -1084,7 +1084,7 @@ export default function GamePage() {
                 <Button
                   variant="default"
                   size="sm"
-                  className="bg-black hover:bg-stone-800 text-white"
+                  className="bg-black hover:bg-stone-800 text-white border border-black"
                   onClick={() => {
                     if (selectedBot) {
                       const newColor = playerColor === "white" ? "black" : "white";
@@ -1100,7 +1100,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-stone-300 text-black hover:bg-stone-100"
+                  className="border-black text-black hover:bg-stone-100"
                   onClick={resetGameState}
                   data-testid="button-main-menu"
                 >
