@@ -610,7 +610,7 @@ export default function GamePage() {
                       id="blindfold-toggle"
                       checked={isBlindfold}
                       onCheckedChange={setIsBlindfold}
-                      className="data-[state=checked]:bg-stone-800 data-[state=unchecked]:bg-white border border-stone-300"
+                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
                       data-testid="switch-blindfold"
                     />
                   </div>
@@ -654,7 +654,7 @@ export default function GamePage() {
                           id="tile-names-toggle"
                           checked={showCoordinates}
                           onCheckedChange={setShowCoordinates}
-                          className="data-[state=checked]:bg-stone-800 data-[state=unchecked]:bg-white border border-stone-300"
+                          className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
                           data-testid="switch-tile-names"
                         />
                       </div>
@@ -670,7 +670,7 @@ export default function GamePage() {
                       id="voice-input"
                       checked={voiceInputEnabled}
                       onCheckedChange={setVoiceInputEnabled}
-                      className="data-[state=checked]:bg-stone-800 data-[state=unchecked]:bg-white border border-stone-300"
+                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
                       data-testid="switch-voice-input"
                     />
                   </div>
@@ -684,7 +684,7 @@ export default function GamePage() {
                       id="voice-output"
                       checked={voiceOutputEnabled}
                       onCheckedChange={setVoiceOutputEnabled}
-                      className="data-[state=checked]:bg-stone-800 data-[state=unchecked]:bg-white border border-stone-300"
+                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
                       data-testid="switch-voice-output"
                     />
                   </div>
@@ -696,7 +696,7 @@ export default function GamePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={timeControl === "blitz" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white"}
+                      className={timeControl === "blitz" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
                       onClick={() => setTimeControl("blitz")}
                       data-testid="button-time-blitz"
                     >
@@ -706,7 +706,7 @@ export default function GamePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={timeControl === "rapid" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white"}
+                      className={timeControl === "rapid" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
                       onClick={() => setTimeControl("rapid")}
                       data-testid="button-time-rapid"
                     >
@@ -716,7 +716,7 @@ export default function GamePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={timeControl === "classical" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white"}
+                      className={timeControl === "classical" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
                       onClick={() => setTimeControl("classical")}
                       data-testid="button-time-classical"
                     >
@@ -726,7 +726,7 @@ export default function GamePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={timeControl === "practice" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white"}
+                      className={timeControl === "practice" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
                       onClick={() => setTimeControl("practice")}
                       data-testid="button-time-practice"
                     >
