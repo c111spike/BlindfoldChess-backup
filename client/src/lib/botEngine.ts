@@ -1725,7 +1725,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // Candidate (2200 Elo): Candidate Master strength
   // -2.5 threshold
   candidate: { 
-    elo: 2200, timePerMoveMs: 4000, maxDepth: 8, multiPvCount: 3, stockfishNodes: 4000000, 
+    elo: 2200, timePerMoveMs: 4000, maxDepth: 7, multiPvCount: 3, stockfishNodes: 3000000, 
     mistakeProbability: 0.01, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 95, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
