@@ -1652,15 +1652,24 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     drawSeekThreshold: -99, // Never seeks draws
     recaptureChance: 0.5    // 50% chance to see recaptures
   },
-  // Intermediate (900 Elo): Basic search heuristics, growing positional awareness
+  // Intermediate (800 Elo): Basic search heuristics, growing positional awareness
   // -3.0 threshold: Minor piece down triggers survival mode
   intermediate: { 
-    elo: 900, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
+    elo: 800, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
     mistakeProbability: 0.10, useStockfish: true,
     useKillers: true, useHistory: false,
     mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false,
     drawSeekThreshold: -3.0, // Minor piece down = seek draw
     recaptureChance: 0.75    // 75% chance to see recaptures
+  },
+  // Improving (1000 Elo): Copied from old intermediate (900)
+  improving: { 
+    elo: 1000, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
+    mistakeProbability: 0.10, useStockfish: true,
+    useKillers: true, useHistory: false,
+    mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false,
+    drawSeekThreshold: -3.0,
+    recaptureChance: 0.75
   },
   // Club (1200 Elo): Full search heuristics, decent evaluation
   // -3.0 threshold: Minor piece down triggers survival mode (same as intermediate)
@@ -1672,15 +1681,24 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     drawSeekThreshold: -3.0,
     recaptureChance: 1.0     // 100% chance to see recaptures
   },
-  // Advanced (1500 Elo): Strong heuristics, good evaluation
+  // Advanced (1400 Elo): Strong heuristics, good evaluation
   // -2.5 threshold: 2-pawn deficit triggers draw-seeking
   advanced: { 
-    elo: 1500, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
+    elo: 1400, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
     mistakeProbability: 0.03, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true,
     drawSeekThreshold: -2.5,
     recaptureChance: 1.0     // 100% chance to see recaptures
+  },
+  // Strong (1600 Elo): Copied from old advanced (1500)
+  strong: { 
+    elo: 1600, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
+    mistakeProbability: 0.03, useStockfish: true,
+    useKillers: true, useHistory: true,
+    mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true,
+    drawSeekThreshold: -2.5,
+    recaptureChance: 1.0
   },
   // Expert (1800 Elo): Full strength heuristics
   // -2.0 threshold: Recognizes 2 pawns down is likely a loss
@@ -1702,11 +1720,29 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     drawSeekThreshold: -1.5,
     recaptureChance: 1.0     // 100% chance to see recaptures
   },
-  // Grandmaster (2500 Elo): Uses transposition tables and advanced pawn evaluation
+  // Candidate (2200 Elo): Copied from master (2000)
+  candidate: { 
+    elo: 2200, timePerMoveMs: 4000, maxDepth: 10, multiPvCount: 3, stockfishNodes: 2000000, 
+    mistakeProbability: 0.00025, useStockfish: true,
+    useKillers: true, useHistory: true,
+    mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
+    drawSeekThreshold: -1.5,
+    recaptureChance: 1.0
+  },
+  // Elite (2400 Elo): Copied from old grandmaster (2500)
+  elite: { 
+    elo: 2400, timePerMoveMs: 5000, maxDepth: 11, multiPvCount: 2, stockfishNodes: 3000000, 
+    mistakeProbability: 0.00001, useStockfish: true,
+    useKillers: true, useHistory: true,
+    mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
+    drawSeekThreshold: -1.0,
+    recaptureChance: 1.0
+  },
+  // Grandmaster (2600 Elo): Uses transposition tables and advanced pawn evaluation
   // -1.0 threshold: Ultra-sensitive - any pawn deficit triggers draw-seeking
   // "Cynical Chess" - prefers 0.0 draw over grinding -1.1 loss
   grandmaster: { 
-    elo: 2500, timePerMoveMs: 5000, maxDepth: 11, multiPvCount: 2, stockfishNodes: 3000000, 
+    elo: 2600, timePerMoveMs: 5000, maxDepth: 11, multiPvCount: 2, stockfishNodes: 3000000, 
     mistakeProbability: 0.00001, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
@@ -1742,6 +1778,11 @@ const MATE_VISION_CONFIG: Record<BotDifficulty, MateVisionConfig> = {
     mateInMax: 2, 
     mateInProbability: {} 
   },
+  // Improving: Same as intermediate (copied from old 900)
+  improving: { 
+    mateInMax: 2, 
+    mateInProbability: {} 
+  },
   // Club: Sees mate in 1-2, 50% chance to see mate in 3
   club: { 
     mateInMax: 2, 
@@ -1752,6 +1793,11 @@ const MATE_VISION_CONFIG: Record<BotDifficulty, MateVisionConfig> = {
     mateInMax: 3, 
     mateInProbability: { 4: 0.25 } 
   },
+  // Strong: Same as advanced (copied from old 1500)
+  strong: { 
+    mateInMax: 3, 
+    mateInProbability: { 4: 0.25 } 
+  },
   // Expert: Sees all mates up to 4
   expert: { 
     mateInMax: 4, 
@@ -1759,6 +1805,16 @@ const MATE_VISION_CONFIG: Record<BotDifficulty, MateVisionConfig> = {
   },
   // Master: Sees all forced checkmates (no limit)
   master: { 
+    mateInMax: Infinity, 
+    mateInProbability: {} 
+  },
+  // Candidate: Same as master (copied from 2000)
+  candidate: { 
+    mateInMax: Infinity, 
+    mateInProbability: {} 
+  },
+  // Elite: Same as grandmaster (copied from old 2500)
+  elite: { 
     mateInMax: Infinity, 
     mateInProbability: {} 
   },
