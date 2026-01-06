@@ -232,12 +232,7 @@ export default function GamePage() {
     if (voiceOutputEnabled) {
       speak(message);
     }
-    
-    toast({
-      title: "Game Over",
-      description: message,
-    });
-  }, [playerColor, voiceOutputEnabled, toast]);
+  }, [playerColor, voiceOutputEnabled]);
 
   const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[], lastMoveInfo?: LastMoveInfo) => {
     if (!botId) return null;
