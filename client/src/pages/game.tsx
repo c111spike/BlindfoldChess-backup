@@ -1101,7 +1101,7 @@ export default function GamePage() {
                   variant="outline"
                   size="sm"
                   className="text-black hover:bg-stone-100 bg-white"
-                  style={{ borderColor: '#000000', borderWidth: '1px' }}
+                  style={{ '--button-outline': '#000000' } as React.CSSProperties}
                   onClick={resetGameState}
                   data-testid="button-main-menu"
                 >
