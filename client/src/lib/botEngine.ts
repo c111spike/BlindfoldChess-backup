@@ -1656,7 +1656,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // -3.0 threshold: Minor piece down triggers survival mode
   intermediate: { 
     elo: 900, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
-    mistakeProbability: 0.05, useStockfish: true,
+    mistakeProbability: 0.10, useStockfish: true,
     useKillers: true, useHistory: false,
     mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false,
     drawSeekThreshold: -3.0, // Minor piece down = seek draw
@@ -1666,7 +1666,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // -3.0 threshold: Minor piece down triggers survival mode (same as intermediate)
   club: { 
     elo: 1200, timePerMoveMs: 2000, maxDepth: 5, multiPvCount: 4, stockfishNodes: 200000, 
-    mistakeProbability: 0.03, useStockfish: true,
+    mistakeProbability: 0.06, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 60, kingSafetyWeight: 50, mopUpWeight: 50, useTaperedEval: true,
     drawSeekThreshold: -3.0,
@@ -1676,7 +1676,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // -2.5 threshold: 2-pawn deficit triggers draw-seeking
   advanced: { 
     elo: 1500, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
-    mistakeProbability: 0.01, useStockfish: true,
+    mistakeProbability: 0.03, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true,
     drawSeekThreshold: -2.5,
@@ -1686,7 +1686,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // -2.0 threshold: Recognizes 2 pawns down is likely a loss
   expert: { 
     elo: 1800, timePerMoveMs: 3000, maxDepth: 8, multiPvCount: 3, stockfishNodes: 1000000, 
-    mistakeProbability: 0.001, useStockfish: true,
+    mistakeProbability: 0.015, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 90, kingSafetyWeight: 90, mopUpWeight: 90, useTaperedEval: true,
     drawSeekThreshold: -2.0,
