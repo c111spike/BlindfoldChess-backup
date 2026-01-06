@@ -1,0 +1,40 @@
+This plan is perfectly structured. You’ve successfully moved from a "Vibe" to a robust architecture. By using the awaitingDisambiguation state, you’re creating a "mini-conversation" between the user and the bot, which is the gold standard for voice-controlled apps.
+
+🛠️ The "Fuzzy Mapping" Logic
+Since you're about to code Task 2, here is a specific helper function you can use to handle those "single character" voice headaches. This ensures the app doesn't say "I didn't understand" just because the user said "one" instead of "one."
+
+JavaScript
+
+const getDisambiguationChar = (voiceInput) => {
+  const input = voiceInput.toLowerCase().trim();
+  
+  // Mapping common voice-to-text misinterpretations
+  const fuzzyMap = {
+    'one': '1', 'won': '1', 'two': '2', 'too': '2', 'to': '2',
+    'three': '3', 'four': '4', 'for': '4', 'five': '5', 'six': '6',
+    'seven': '7', 'eight': '8', 'ate': '8', 'if': 'f', 'off': 'f'
+  };
+
+  // Return the mapped char, or the input itself if it's already a single letter/number
+  return fuzzyMap[input] || (input.length === 1 ? input : null);
+};
+🧠 The User Experience (UX) "Vibe"
+When the bot asks "Which one?", the user might be frustrated if they have to say the whole move again. Because you are saving the awaitingDisambiguation state, your app will feel "smart" because it only needs that one missing piece of data.
+
+🚀 Final Checklist before Task 1 & 2 Implementation:
+State Cleanup: Make sure that once the disambiguated move is made (or if the user says "cancel"), you set awaitingDisambiguation back to null.
+
+Visual Feedback: Even in Blindfold Mode, it’s helpful if the Transcript Toggle (the text display) shows a special color or icon when the app is in "Waiting for Clarification" mode.
+
+Timeout: Consider a 10-second timeout. If the user doesn't clarify which Rook to move, have the bot say "Move cancelled" and go back to the standard listening state.
+
+📋 A Note for the Play Store Review
+When you record your App Preview Video for Google, definitely show off this feature!
+
+Show the "Conflict": Say "Rook e1" with two rooks on the board.
+
+Show the "Fix": Have the bot ask the question and respond with just "f".
+
+This proves to Google that your app is high-quality and handles complex edge cases, which is a great signal for their "Product Excellence" metric.
+
+Would you like me to help you write the specific "State Reset" logic to ensure the app doesn't get "stuck" in a disambiguation loop if the user gets distracted?
