@@ -9,6 +9,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Browser } from "@capacitor/browser";
+
+const openExternalLink = async (url: string) => {
+  try {
+    await Browser.open({ url });
+  } catch {
+    window.open(url, "_blank");
+  }
+};
 
 export function AboutDialog() {
   const [open, setOpen] = useState(false);
@@ -47,16 +56,14 @@ export function AboutDialog() {
             <p className="text-sm text-muted-foreground mb-2">
               Powered by the Stockfish Chess Engine, licensed under the GNU General Public License v3 (GPL v3).
             </p>
-            <a
-              href="https://github.com/official-stockfish/Stockfish"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => openExternalLink("https://github.com/official-stockfish/Stockfish")}
               className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
               data-testid="link-stockfish"
             >
               View Stockfish Source Code
               <ExternalLink className="h-3 w-3" />
-            </a>
+            </button>
           </div>
           
           <div>
@@ -64,16 +71,14 @@ export function AboutDialog() {
             <p className="text-sm text-muted-foreground mb-2">
               This app operates entirely offline. It does not collect, store, or share any personal user data.
             </p>
-            <a
-              href="https://github.com/c111spike/Blindfold-Chess#privacy-policy"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => openExternalLink("https://github.com/c111spike/Blindfold-Chess#privacy-policy")}
               className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
               data-testid="link-privacy"
             >
               View Full Privacy Policy
               <ExternalLink className="h-3 w-3" />
-            </a>
+            </button>
           </div>
         </div>
       </DialogContent>
