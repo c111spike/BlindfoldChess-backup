@@ -90,7 +90,7 @@ export default function App() {
                 </DialogContent>
               </Dialog>
             </div>
-            <h1 className="text-lg font-bold text-foreground text-center">Blindfold Chess</h1>
+            <h1 className="text-lg font-bold text-foreground text-center whitespace-nowrap">Blindfold Chess</h1>
             <div className="flex items-center gap-1 justify-end">
               <AboutDialog />
               <ThemeToggle />
