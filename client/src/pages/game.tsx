@@ -935,7 +935,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={timeControl === "blitz" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  className={timeControl === "blitz" ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white text-stone-900"}
                   onClick={() => setTimeControl("blitz")}
                   data-testid="button-time-blitz"
                 >
@@ -945,7 +945,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={timeControl === "rapid" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  className={timeControl === "rapid" ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white text-stone-900"}
                   onClick={() => setTimeControl("rapid")}
                   data-testid="button-time-rapid"
                 >
@@ -955,7 +955,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={timeControl === "classical" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  className={timeControl === "classical" ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white text-stone-900"}
                   onClick={() => setTimeControl("classical")}
                   data-testid="button-time-classical"
                 >
@@ -965,7 +965,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={timeControl === "practice" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  className={timeControl === "practice" ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white text-stone-900"}
                   onClick={() => setTimeControl("practice")}
                   data-testid="button-time-practice"
                 >
@@ -1013,7 +1013,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={selectedColor === "white" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  className={selectedColor === "white" ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white text-stone-900"}
                   onClick={() => setSelectedColor("white")}
                   data-testid="button-color-white"
                 >
@@ -1023,7 +1023,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={selectedColor === "black" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  className={selectedColor === "black" ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white text-stone-900"}
                   onClick={() => setSelectedColor("black")}
                   data-testid="button-color-black"
                 >
@@ -1033,7 +1033,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={selectedColor === "random" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white text-stone-900"}
+                  className={selectedColor === "random" ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white text-stone-900"}
                   onClick={() => setSelectedColor("random")}
                   data-testid="button-color-random"
                 >
