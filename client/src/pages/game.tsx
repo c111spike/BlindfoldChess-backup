@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import titleImage from "@assets/image_1767696897621.jpg";
+import titleImage from "@assets/title_cropped.jpg";
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
 import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition } from "@/lib/botEngine";
 import { loadStats, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats } from "@/lib/gameStats";
