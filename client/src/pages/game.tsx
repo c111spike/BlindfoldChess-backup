@@ -91,7 +91,8 @@ const BLINDFOLD_CONFIG = {
 };
 
 type BlindFoldDifficulty = keyof typeof BLINDFOLD_CONFIG;
-type TimeControlOption = "practice" | "blitz" | "rapid";
+type TimeControlOption = "practice" | "blitz" | "rapid" | "classical";
+type BlindFoldDisplayMode = "empty_board" | "black_overlay" | "no_board";
 
 export default function GamePage() {
   const { toast } = useToast();
@@ -113,9 +114,10 @@ export default function GamePage() {
   
   const [isBlindfold, setIsBlindfold] = useState(false);
   const [blindfoldDifficulty, setBlindFoldDifficulty] = useState<BlindFoldDifficulty>("medium");
+  const [blindfoldDisplayMode, setBlindFoldDisplayMode] = useState<BlindFoldDisplayMode>("empty_board");
+  const [showCoordinates, setShowCoordinates] = useState(true);
   const [remainingPeeks, setRemainingPeeks] = useState<number>(Number.POSITIVE_INFINITY);
   const [isPeeking, setIsPeeking] = useState(false);
-  const [showCoordinates, setShowCoordinates] = useState(true);
   const peekStartTimeRef = useRef<number | null>(null);
   
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
@@ -270,7 +272,7 @@ export default function GamePage() {
       : colorChoice;
     setPlayerColor(assignedColor);
     
-    const seconds = timeControl === "practice" ? 99999999 : (timeControl === "blitz" ? 300 : 900);
+    const seconds = timeControl === "practice" ? 99999999 : (timeControl === "blitz" ? 300 : (timeControl === "rapid" ? 900 : 1800));
     setWhiteTime(seconds);
     setBlackTime(seconds);
     whiteTimeRef.current = seconds;
@@ -608,34 +610,52 @@ export default function GamePage() {
                       id="blindfold-toggle"
                       checked={isBlindfold}
                       onCheckedChange={setIsBlindfold}
+                      className="data-[state=checked]:bg-stone-800 data-[state=unchecked]:bg-white border border-stone-300"
                       data-testid="switch-blindfold"
                     />
                   </div>
                   
                   {isBlindfold && (
-                    <div className="space-y-2">
-                      <Label>Blindfold Difficulty</Label>
-                      <Select value={blindfoldDifficulty} onValueChange={(v) => setBlindFoldDifficulty(v as BlindFoldDifficulty)}>
-                        <SelectTrigger data-testid="select-blindfold-difficulty">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="easy">Easy (Unlimited Peeks)</SelectItem>
-                          <SelectItem value="medium">Medium (20 Peeks)</SelectItem>
-                          <SelectItem value="hard">Hard (10 Peeks)</SelectItem>
-                          <SelectItem value="expert">Expert (5 Peeks)</SelectItem>
-                          <SelectItem value="master">Master (2 Peeks)</SelectItem>
-                          <SelectItem value="grandmaster">Grandmaster (No Peeks)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label>Blindfold Difficulty</Label>
+                        <Select value={blindfoldDifficulty} onValueChange={(v) => setBlindFoldDifficulty(v as BlindFoldDifficulty)}>
+                          <SelectTrigger data-testid="select-blindfold-difficulty">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="easy">Easy (Unlimited Peeks)</SelectItem>
+                            <SelectItem value="medium">Medium (20 Peeks)</SelectItem>
+                            <SelectItem value="hard">Hard (10 Peeks)</SelectItem>
+                            <SelectItem value="expert">Expert (5 Peeks)</SelectItem>
+                            <SelectItem value="master">Master (2 Peeks)</SelectItem>
+                            <SelectItem value="grandmaster">Grandmaster (No Peeks)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Display Mode</Label>
+                        <Select value={blindfoldDisplayMode} onValueChange={(v) => setBlindFoldDisplayMode(v as BlindFoldDisplayMode)}>
+                          <SelectTrigger data-testid="select-blindfold-display">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="empty_board">Empty Board</SelectItem>
+                            <SelectItem value="black_overlay">Black Overlay</SelectItem>
+                            <SelectItem value="no_board">No Board</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                       
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="coords-toggle">Show Coordinates</Label>
+                        <Label htmlFor="tile-names-toggle">Show Tile Names (a1-h8)</Label>
                         <Switch
-                          id="coords-toggle"
+                          id="tile-names-toggle"
                           checked={showCoordinates}
                           onCheckedChange={setShowCoordinates}
-                          data-testid="switch-coordinates"
+                          className="data-[state=checked]:bg-stone-800 data-[state=unchecked]:bg-white border border-stone-300"
+                          data-testid="switch-tile-names"
                         />
                       </div>
                     </div>
@@ -650,6 +670,7 @@ export default function GamePage() {
                       id="voice-input"
                       checked={voiceInputEnabled}
                       onCheckedChange={setVoiceInputEnabled}
+                      className="data-[state=checked]:bg-stone-800 data-[state=unchecked]:bg-white border border-stone-300"
                       data-testid="switch-voice-input"
                     />
                   </div>
@@ -663,6 +684,7 @@ export default function GamePage() {
                       id="voice-output"
                       checked={voiceOutputEnabled}
                       onCheckedChange={setVoiceOutputEnabled}
+                      className="data-[state=checked]:bg-stone-800 data-[state=unchecked]:bg-white border border-stone-300"
                       data-testid="switch-voice-output"
                     />
                   </div>
@@ -670,11 +692,11 @@ export default function GamePage() {
                 
                 <div className="space-y-2">
                   <Label>Time Control</Label>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
-                      variant={timeControl === "blitz" ? "default" : "outline"}
+                      variant="outline"
                       size="sm"
-                      className="flex-1"
+                      className={timeControl === "blitz" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white"}
                       onClick={() => setTimeControl("blitz")}
                       data-testid="button-time-blitz"
                     >
@@ -682,9 +704,9 @@ export default function GamePage() {
                       5 min
                     </Button>
                     <Button
-                      variant={timeControl === "rapid" ? "default" : "outline"}
+                      variant="outline"
                       size="sm"
-                      className="flex-1"
+                      className={timeControl === "rapid" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white"}
                       onClick={() => setTimeControl("rapid")}
                       data-testid="button-time-rapid"
                     >
@@ -692,9 +714,19 @@ export default function GamePage() {
                       15 min
                     </Button>
                     <Button
-                      variant={timeControl === "practice" ? "default" : "outline"}
+                      variant="outline"
                       size="sm"
-                      className="flex-1"
+                      className={timeControl === "classical" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white"}
+                      onClick={() => setTimeControl("classical")}
+                      data-testid="button-time-classical"
+                    >
+                      <Clock className="mr-1 h-3 w-3" />
+                      30 min
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={timeControl === "practice" ? "bg-amber-200 border-amber-400 text-stone-900" : "bg-white"}
                       onClick={() => setTimeControl("practice")}
                       data-testid="button-time-practice"
                     >
@@ -931,33 +963,26 @@ export default function GamePage() {
         </Card>
         
         <div className="flex flex-col lg:flex-row gap-3">
-          <Card className="aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2">
-            <div className="relative w-full h-full">
-              <ChessBoard 
-                fen={fen}
-                orientation={playerColor}
-                showCoordinates={true}
-                highlightedSquares={legalMoves}
-                lastMove={lastMove || undefined}
-                onSquareClick={handleSquareClick}
-                noCard={true}
-              />
-              
-              {isBlindfold && !isPeeking && (
-                <div className="absolute inset-0 bg-black pointer-events-none overflow-visible">
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 8 8" preserveAspectRatio="none">
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <line key={`h-${i}`} x1="0" y1={i} x2="8" y2={i} stroke="white" strokeWidth="0.02" />
-                    ))}
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <line key={`v-${i}`} x1={i} y1="0" x2={i} y2="8" stroke="white" strokeWidth="0.02" />
-                    ))}
-                  </svg>
-                  {showCoordinates && (
+          {(!isBlindfold || blindfoldDisplayMode !== "no_board" || isPeeking) && (
+            <Card className="aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2">
+              <div className="relative w-full h-full">
+                <ChessBoard 
+                  fen={fen}
+                  orientation={playerColor}
+                  showCoordinates={true}
+                  highlightedSquares={legalMoves}
+                  lastMove={lastMove || undefined}
+                  onSquareClick={handleSquareClick}
+                  noCard={true}
+                />
+                
+                {isBlindfold && !isPeeking && blindfoldDisplayMode === "empty_board" && (
+                  <div className="absolute inset-0 pointer-events-none overflow-visible">
                     <div className="absolute inset-0 grid grid-cols-8 grid-rows-8">
                       {Array.from({ length: 64 }).map((_, i) => {
                         const row = Math.floor(i / 8);
                         const col = i % 8;
+                        const isLight = (row + col) % 2 === 0;
                         const files = playerColor === "white" 
                           ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
                           : ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
@@ -968,18 +993,56 @@ export default function GamePage() {
                         return (
                           <div
                             key={squareName}
-                            className="flex items-center justify-center text-white/70 font-mono text-xs md:text-sm"
+                            className={`flex items-center justify-center font-mono text-xs md:text-sm ${
+                              isLight ? 'bg-amber-100' : 'bg-amber-700'
+                            } ${isLight ? 'text-amber-800/60' : 'text-amber-100/60'}`}
                           >
-                            {squareName}
+                            {showCoordinates && squareName}
                           </div>
                         );
                       })}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
+                  </div>
+                )}
+                
+                {isBlindfold && !isPeeking && blindfoldDisplayMode === "black_overlay" && (
+                  <div className="absolute inset-0 bg-black pointer-events-none overflow-visible">
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 8 8" preserveAspectRatio="none">
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <line key={`h-${i}`} x1="0" y1={i} x2="8" y2={i} stroke="white" strokeWidth="0.02" />
+                      ))}
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <line key={`v-${i}`} x1={i} y1="0" x2={i} y2="8" stroke="white" strokeWidth="0.02" />
+                      ))}
+                    </svg>
+                    {showCoordinates && (
+                      <div className="absolute inset-0 grid grid-cols-8 grid-rows-8">
+                        {Array.from({ length: 64 }).map((_, i) => {
+                          const row = Math.floor(i / 8);
+                          const col = i % 8;
+                          const files = playerColor === "white" 
+                            ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+                            : ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
+                          const ranks = playerColor === "white"
+                            ? ['8', '7', '6', '5', '4', '3', '2', '1']
+                            : ['1', '2', '3', '4', '5', '6', '7', '8'];
+                          const squareName = files[col] + ranks[row];
+                          return (
+                            <div
+                              key={squareName}
+                              className="flex items-center justify-center text-white/70 font-mono text-xs md:text-sm"
+                            >
+                              {squareName}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
           
           <div className="flex flex-col gap-2 lg:w-48">
             {isBlindfold && blindfoldDifficulty !== 'grandmaster' && (
