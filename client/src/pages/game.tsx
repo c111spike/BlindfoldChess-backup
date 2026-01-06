@@ -1100,7 +1100,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-black text-black hover:bg-stone-100"
+                  className="!border-black text-black hover:bg-stone-100 bg-white"
                   onClick={resetGameState}
                   data-testid="button-main-menu"
                 >
