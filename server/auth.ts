@@ -9,7 +9,7 @@ import * as schema from "@shared/schema";
 import { Resend } from "resend";
 import { sql } from "drizzle-orm";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM_EMAIL = "noreply@simulchess.com";
 
 export const auth = betterAuth({
@@ -86,6 +86,11 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     maxPasswordLength: 128,
     sendResetPassword: async ({ user, url }) => {
+      if (!resend) {
+        console.warn("RESEND_API_KEY not configured - password reset email not sent");
+        console.log(`Password reset URL for ${user.email}: ${url}`);
+        return;
+      }
       try {
         await resend.emails.send({
           from: FROM_EMAIL,
