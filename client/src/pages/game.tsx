@@ -148,6 +148,7 @@ export default function GamePage() {
   const blackTimeRef = useRef(300);
   const movesRef = useRef<string[]>([]);
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isTtsSpeaking = useRef(false);
   
   useEffect(() => {
     return () => {
@@ -364,7 +365,7 @@ export default function GamePage() {
       return;
     }
     
-    voiceRecognition.setOnResult((move, transcript) => {
+    voiceRecognition.setOnResult(async (move, transcript) => {
       const currentGame = gameRef.current;
       if (!currentGame) return;
       
@@ -372,33 +373,39 @@ export default function GamePage() {
       
       if (move) {
         if (voiceOutputEnabled) {
-          speak(moveToSpeech(move, move.includes('x'), false, false));
+          isTtsSpeaking.current = true;
+          voiceRecognition.stop();
+          try {
+            await speak(moveToSpeech(move, move.includes('x'), false, false));
+          } catch (e) {
+            console.error('[Voice] TTS error:', e);
+          } finally {
+            isTtsSpeaking.current = false;
+          }
         }
         
-        setTimeout(() => {
-          if (!gameRef.current) return;
-          const moveObj = gameRef.current.move(move);
-          if (moveObj) {
-            setFen(gameRef.current.fen());
-            setLastMove({ from: moveObj.from, to: moveObj.to });
-            recordPosition(gameRef.current.fen());
-            
-            const newMoves = [...movesRef.current, moveObj.san];
-            setMoves(newMoves);
-            movesRef.current = newMoves;
-            
-            setSelectedSquare(null);
-            setLegalMoves([]);
-            setVoiceTranscript(null);
-            
-            if (gameRef.current.isCheckmate()) {
-              const result = gameRef.current.turn() === "w" ? "black_win" : "white_win";
-              handleGameEnd(result);
-            } else if (gameRef.current.isDraw() || gameRef.current.isStalemate() || gameRef.current.isThreefoldRepetition() || gameRef.current.isInsufficientMaterial()) {
-              handleGameEnd("draw");
-            }
+        if (!gameRef.current) return;
+        const moveObj = gameRef.current.move(move);
+        if (moveObj) {
+          setFen(gameRef.current.fen());
+          setLastMove({ from: moveObj.from, to: moveObj.to });
+          recordPosition(gameRef.current.fen());
+          
+          const newMoves = [...movesRef.current, moveObj.san];
+          setMoves(newMoves);
+          movesRef.current = newMoves;
+          
+          setSelectedSquare(null);
+          setLegalMoves([]);
+          setVoiceTranscript(null);
+          
+          if (gameRef.current.isCheckmate()) {
+            const result = gameRef.current.turn() === "w" ? "black_win" : "white_win";
+            handleGameEnd(result);
+          } else if (gameRef.current.isDraw() || gameRef.current.isStalemate() || gameRef.current.isThreefoldRepetition() || gameRef.current.isInsufficientMaterial()) {
+            handleGameEnd("draw");
           }
-        }, 500);
+        }
       } else {
         toast({
           title: "Didn't understand",
@@ -414,7 +421,7 @@ export default function GamePage() {
     const currentTurn = currentGame.turn();
     const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
     
-    if (isMyTurn && !botThinking && !pendingPromotion && gameResult === null) {
+    if (isMyTurn && !botThinking && !pendingPromotion && gameResult === null && !isTtsSpeaking.current) {
       const allLegalMoves = currentGame.moves();
       voiceRecognition.setLegalMoves(allLegalMoves);
       voiceRecognition.start();
@@ -440,7 +447,7 @@ export default function GamePage() {
       const currentFen = currentGame.fen();
       const lastMoveInfo = lastMove ? extractLastMoveInfo({ from: lastMove.from, to: lastMove.to }) : undefined;
       
-      requestBotMove(currentFen, selectedBot.id, moveHistorySAN, lastMoveInfo).then((botMove) => {
+      requestBotMove(currentFen, selectedBot.id, moveHistorySAN, lastMoveInfo).then(async (botMove) => {
         if (botMove && gameRef.current) {
           const botMoveResult = gameRef.current.move(botMove.move);
           if (botMoveResult) {
@@ -454,11 +461,30 @@ export default function GamePage() {
           movesRef.current = updatedMoves;
           
           if (voiceOutputEnabled) {
+            isTtsSpeaking.current = true;
+            voiceRecognition.stop();
+            
             const isCheck = gameRef.current.isCheck();
             const isCheckmate = gameRef.current.isCheckmate();
             const isCapture = botMove.move.includes('x');
             const spokenMove = moveToSpeech(botMove.move, isCapture, isCheck, isCheckmate);
-            speak(spokenMove);
+            
+            try {
+              await speak(spokenMove);
+            } catch (e) {
+              console.error('[Voice] TTS error:', e);
+            } finally {
+              isTtsSpeaking.current = false;
+              
+              if (gameRef.current && !gameRef.current.isGameOver() && voiceInputEnabled) {
+                const currentTurn = gameRef.current.turn();
+                const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
+                if (isMyTurn) {
+                  voiceRecognition.setLegalMoves(gameRef.current.moves());
+                  voiceRecognition.start();
+                }
+              }
+            }
           }
           
           if (gameRef.current.isCheckmate()) {
@@ -470,7 +496,7 @@ export default function GamePage() {
         }
       });
     }
-  }, [fen, selectedBot, playerColor, gameStarted, botThinking, gameResult, voiceOutputEnabled, requestBotMove, handleGameEnd, lastMove]);
+  }, [fen, selectedBot, playerColor, gameStarted, botThinking, gameResult, voiceOutputEnabled, voiceInputEnabled, requestBotMove, handleGameEnd, lastMove]);
 
   const formatTime = (seconds: number) => {
     if (seconds >= 99999) return "∞";
