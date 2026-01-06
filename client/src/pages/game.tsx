@@ -145,6 +145,8 @@ export default function GamePage() {
     targetSquare: string;
   } | null>(null);
   const disambiguationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [voiceRestartTrigger, setVoiceRestartTrigger] = useState(0);
+  const lastSpokenMove = useRef<string>("");
   
   const [pendingPromotion, setPendingPromotion] = useState<{ from: string; to: string } | null>(null);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
@@ -324,6 +326,7 @@ export default function GamePage() {
         
         if (voiceOutputEnabled) {
           const spokenMove = moveToSpeech(botMove.move, botMove.move.includes('x'), gameRef.current.isCheck(), false);
+          lastSpokenMove.current = spokenMove;
           speak(spokenMove);
         }
       }
@@ -382,6 +385,23 @@ export default function GamePage() {
       
       setVoiceTranscript(transcript);
       
+      const lowerTranscript = transcript.toLowerCase();
+      if (lowerTranscript.includes("repeat") || lowerTranscript.includes("say again") || lowerTranscript.includes("what was that") || lowerTranscript.includes("again")) {
+        if (lastSpokenMove.current && voiceOutputEnabled) {
+          isTtsSpeaking.current = true;
+          voiceRecognition.stop();
+          try {
+            await speak(lastSpokenMove.current);
+          } catch (e) {
+            console.error('[Voice] TTS error:', e);
+          } finally {
+            isTtsSpeaking.current = false;
+            setVoiceRestartTrigger(prev => prev + 1);
+          }
+        }
+        return;
+      }
+      
       if (awaitingDisambiguation) {
         if (disambiguationTimeoutRef.current) {
           clearTimeout(disambiguationTimeoutRef.current);
@@ -399,8 +419,10 @@ export default function GamePage() {
             if (voiceOutputEnabled) {
               isTtsSpeaking.current = true;
               voiceRecognition.stop();
+              const spokenMove = moveToSpeech(matchingMove, matchingMove.includes('x'), false, false);
+              lastSpokenMove.current = spokenMove;
               try {
-                await speak(moveToSpeech(matchingMove, matchingMove.includes('x'), false, false));
+                await speak(spokenMove);
               } catch (e) {
                 console.error('[Voice] TTS error:', e);
               } finally {
@@ -458,7 +480,10 @@ export default function GamePage() {
               console.error('[Voice] TTS error:', e);
             } finally {
               isTtsSpeaking.current = false;
+              setVoiceRestartTrigger(prev => prev + 1);
             }
+          } else {
+            setVoiceRestartTrigger(prev => prev + 1);
           }
         }, 10000);
         return;
@@ -471,8 +496,10 @@ export default function GamePage() {
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
           voiceRecognition.stop();
+          const spokenMove = moveToSpeech(result.move, result.move.includes('x'), false, false);
+          lastSpokenMove.current = spokenMove;
           try {
-            await speak(moveToSpeech(result.move, result.move.includes('x'), false, false));
+            await speak(spokenMove);
           } catch (e) {
             console.error('[Voice] TTS error:', e);
           } finally {
@@ -540,7 +567,10 @@ export default function GamePage() {
               console.error('[Voice] TTS error:', e);
             } finally {
               isTtsSpeaking.current = false;
+              setVoiceRestartTrigger(prev => prev + 1);
             }
+          } else {
+            setVoiceRestartTrigger(prev => prev + 1);
           }
         }, 10000);
       } else {
@@ -549,6 +579,7 @@ export default function GamePage() {
           description: `Heard: "${transcript}". Try again.`,
           variant: "destructive",
         });
+        setVoiceRestartTrigger(prev => prev + 1);
       }
     });
     
@@ -573,7 +604,7 @@ export default function GamePage() {
         disambiguationTimeoutRef.current = null;
       }
     };
-  }, [voiceInputEnabled, gameStarted, fen, playerColor, botThinking, pendingPromotion, gameResult, voiceOutputEnabled, toast, handleGameEnd, awaitingDisambiguation]);
+  }, [voiceInputEnabled, gameStarted, fen, playerColor, botThinking, pendingPromotion, gameResult, voiceOutputEnabled, toast, handleGameEnd, awaitingDisambiguation, voiceRestartTrigger]);
 
   useEffect(() => {
     if (!selectedBot || !gameRef.current) return;
@@ -609,6 +640,7 @@ export default function GamePage() {
             const isCheckmate = gameRef.current.isCheckmate();
             const isCapture = botMove.move.includes('x');
             const spokenMove = moveToSpeech(botMove.move, isCapture, isCheck, isCheckmate);
+            lastSpokenMove.current = spokenMove;
             
             try {
               await speak(spokenMove);

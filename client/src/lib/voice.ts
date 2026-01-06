@@ -594,7 +594,7 @@ const DISAMBIGUATION_MAP: Record<string, string> = {
   'a': 'a', 'alpha': 'a', 'ay': 'a',
   'b': 'b', 'bee': 'b', 'be': 'b', 'bravo': 'b',
   'c': 'c', 'see': 'c', 'sea': 'c', 'charlie': 'c',
-  'd': 'd', 'dee': 'd', 'delta': 'd',
+  'd': 'd', 'dee': 'd', 'delta': 'd', 'the': 'd', 'tea': 'd',
   'e': 'e', 'echo': 'e', 'ee': 'e',
   'f': 'f', 'if': 'f', 'eff': 'f', 'foxtrot': 'f', 'off': 'f',
   'g': 'g', 'gee': 'g', 'golf': 'g',
