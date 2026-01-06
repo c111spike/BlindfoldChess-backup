@@ -865,7 +865,13 @@ export default function GamePage() {
                   
                   <div className="space-y-2">
                     <Label>Display Mode</Label>
-                    <Select value={blindfoldDisplayMode} onValueChange={(v) => setBlindFoldDisplayMode(v as BlindFoldDisplayMode)}>
+                    <Select value={blindfoldDisplayMode} onValueChange={(v) => {
+                      const mode = v as BlindFoldDisplayMode;
+                      setBlindFoldDisplayMode(mode);
+                      if (mode === "no_board") {
+                        setShowCoordinates(false);
+                      }
+                    }}>
                       <SelectTrigger data-testid="select-blindfold-display">
                         <SelectValue />
                       </SelectTrigger>
@@ -877,16 +883,18 @@ export default function GamePage() {
                     </Select>
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="coordinates-toggle">Show Coordinates (1-8, a-h)</Label>
-                    <Switch
-                      id="coordinates-toggle"
-                      checked={showCoordinates}
-                      onCheckedChange={setShowCoordinates}
-                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
-                      data-testid="switch-coordinates"
-                    />
-                  </div>
+                  {blindfoldDisplayMode !== "no_board" && (
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="coordinates-toggle">Show Coordinates (1-8, a-h)</Label>
+                      <Switch
+                        id="coordinates-toggle"
+                        checked={showCoordinates}
+                        onCheckedChange={setShowCoordinates}
+                        className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
+                        data-testid="switch-coordinates"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
               
