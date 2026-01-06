@@ -837,7 +837,71 @@ export default function GamePage() {
         <Card>
           <CardContent className="pt-6 space-y-6">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Game Settings</h2>
+              <div className="flex items-center justify-between">
+                <Dialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      data-testid="button-stats"
+                    >
+                      <BarChart3 className="h-5 w-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Your Statistics</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div className="space-y-1">
+                          <p className="text-2xl font-bold text-green-600">{stats.wins}</p>
+                          <p className="text-sm text-muted-foreground">Wins</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-2xl font-bold text-gray-600">{stats.draws}</p>
+                          <p className="text-sm text-muted-foreground">Draws</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-2xl font-bold text-red-600">{stats.losses}</p>
+                          <p className="text-sm text-muted-foreground">Losses</p>
+                        </div>
+                      </div>
+                      
+                      <div className="border-t pt-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Last Game Peek Time</span>
+                          <span className="font-medium">{formatPeekTime(stats.lastGamePeekTime)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Average Peek Time</span>
+                          <span className="font-medium">{formatPeekTime(getAveragePeekTime(stats))}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Games with Peeks</span>
+                          <span className="font-medium">{stats.gamesWithPeeks}</span>
+                        </div>
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-muted-foreground"
+                        onClick={() => {
+                          resetStats();
+                          setStats(loadStats());
+                        }}
+                        data-testid="button-reset-stats"
+                      >
+                        <RefreshCw className="mr-2 h-3 w-3" />
+                        Reset Statistics
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <h2 className="text-xl font-semibold">Blindfold Chess</h2>
+                <div className="w-9" />
+              </div>
               
               <div className="flex items-center justify-between">
                 <Label htmlFor="blindfold-toggle">Blindfold Mode</Label>
@@ -971,69 +1035,6 @@ export default function GamePage() {
               </div>
             </div>
             
-            <Dialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  data-testid="button-stats"
-                >
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Statistics
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Your Statistics</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div className="space-y-1">
-                      <p className="text-2xl font-bold text-green-600">{stats.wins}</p>
-                      <p className="text-sm text-muted-foreground">Wins</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-2xl font-bold text-gray-600">{stats.draws}</p>
-                      <p className="text-sm text-muted-foreground">Draws</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-2xl font-bold text-red-600">{stats.losses}</p>
-                      <p className="text-sm text-muted-foreground">Losses</p>
-                    </div>
-                  </div>
-                  
-                  <div className="border-t pt-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Last Game Peek Time</span>
-                      <span className="font-medium">{formatPeekTime(stats.lastGamePeekTime)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Average Peek Time</span>
-                      <span className="font-medium">{formatPeekTime(getAveragePeekTime(stats))}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Games with Peeks</span>
-                      <span className="font-medium">{stats.gamesWithPeeks}</span>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-muted-foreground"
-                    onClick={() => {
-                      resetStats();
-                      setStats(loadStats());
-                    }}
-                    data-testid="button-reset-stats"
-                  >
-                    <RefreshCw className="mr-2 h-3 w-3" />
-                    Reset Statistics
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-            
             <div className="space-y-2">
               <Label>Bot Difficulty</Label>
               <Select value={selectedBotDifficulty} onValueChange={(v) => setSelectedBotDifficulty(v as BotDifficulty)}>
@@ -1043,7 +1044,7 @@ export default function GamePage() {
                 <SelectContent>
                   {ALL_DIFFICULTIES.map((difficulty) => (
                     <SelectItem key={difficulty} value={difficulty}>
-                      {BOT_DIFFICULTY_NAMES[difficulty]} ({BOT_DIFFICULTY_ELO[difficulty]} Elo)
+                      {BOT_DIFFICULTY_ELO[difficulty]} Elo
                     </SelectItem>
                   ))}
                 </SelectContent>
