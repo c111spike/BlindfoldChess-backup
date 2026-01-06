@@ -809,7 +809,7 @@ export default function GamePage() {
           </p>
         </div>
         <div className="flex-1" />
-        <div className="relative z-10 flex flex-col items-center p-6 pb-24 w-full max-w-sm">
+        <div className="relative z-10 flex flex-col items-center p-6 pb-[120px] w-full max-w-sm">
           <Button 
             size="lg" 
             variant="ghost"
