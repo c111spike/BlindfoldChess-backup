@@ -1061,15 +1061,15 @@ export default function GamePage() {
   return (
     <div className="container max-w-4xl mx-auto p-2 md:p-4">
       {gameResult && (
-        <Card className="mb-3 border-amber-400 bg-amber-100/50">
+        <Card className="mb-3 border-stone-300 bg-white">
           <CardContent className="py-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Trophy className="h-6 w-6 text-amber-500" />
                   <div>
-                    <p className="font-semibold text-lg">Game Over</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="font-semibold text-lg text-black">Game Over</p>
+                    <p className="text-sm text-stone-600">
                       {gameResult === "draw" 
                         ? "Game drawn" 
                         : gameResult === "white_win" 
@@ -1084,7 +1084,7 @@ export default function GamePage() {
                 <Button
                   variant="default"
                   size="sm"
-                  className="bg-amber-400 hover:bg-amber-500 text-stone-900"
+                  className="bg-black hover:bg-stone-800 text-white"
                   onClick={() => {
                     if (selectedBot) {
                       const newColor = playerColor === "white" ? "black" : "white";
@@ -1100,6 +1100,7 @@ export default function GamePage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="border-stone-300 text-black hover:bg-stone-100"
                   onClick={resetGameState}
                   data-testid="button-main-menu"
                 >
