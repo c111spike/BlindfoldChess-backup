@@ -1115,7 +1115,7 @@ export default function GamePage() {
                 </div>
                 
                 <p className="text-sm text-muted-foreground mb-4">
-                  Playing against {selectedBotPersonality.name}
+                  Playing against {selectedBotPersonality.elo} {BOT_PERSONALITY_NAMES[selectedBotPersonality.personality]}
                 </p>
                 
                 <div className="grid grid-cols-1 gap-3">
@@ -1242,8 +1242,9 @@ export default function GamePage() {
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-black" : "bg-white border border-gray-400"}`} />
                 <Bot className="h-4 w-4 text-amber-500" />
-                <span className="font-medium text-sm" data-testid="text-opponent-name">{selectedBot?.name || "Bot"}</span>
-                <span className="text-xs text-muted-foreground">({selectedBot?.elo || 1200})</span>
+                <span className="font-medium text-sm" data-testid="text-opponent-name">
+                  {selectedBot ? `${selectedBot.elo} ${BOT_PERSONALITY_NAMES[selectedBot.personality]}` : "Bot"}
+                </span>
                 {botThinking && (
                   <span className="text-xs text-primary animate-pulse" data-testid="text-bot-thinking">
                     thinking...
