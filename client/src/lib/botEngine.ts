@@ -3366,7 +3366,9 @@ export async function generateBotMoveClient(
     // Phase 2: Engine evaluation
     // Use Stockfish for intermediate+ difficulty
     if (config.useStockfish) {
-      console.log(`[ClientBot] Using Stockfish with ${effectiveStockfishNodes} nodes, MultiPV ${config.multiPvCount}`);
+      console.log(`[ClientBot] 📊 Bot Config: ${difficulty} (${config.elo} Elo)`);
+      console.log(`[ClientBot] 🔧 Stockfish: ${effectiveStockfishNodes.toLocaleString()} nodes, MultiPV ${config.multiPvCount}, Depth ${config.maxDepth}`);
+      console.log(`[ClientBot] ⏱️ Target time: ${config.timePerMoveMs}ms`);
       
       // Pass game.turn() to normalize evaluations to White's perspective
       // This ensures MateVision correctly identifies who is delivering vs receiving mate

@@ -30,6 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import titleImage from "@assets/title_cropped.jpg";
+import { KeepAwake } from '@capacitor-community/keep-awake';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
 import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition } from "@/lib/botEngine";
 import { loadStats, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats } from "@/lib/gameStats";
@@ -377,6 +378,31 @@ export default function GamePage() {
       };
     }
   }, [gameStarted, game, handleGameEnd, timeControl]);
+
+  // Keep screen awake during blindfold games (critical for voice-only play)
+  useEffect(() => {
+    const manageKeepAwake = async () => {
+      try {
+        if (gameStarted && isBlindfold) {
+          await KeepAwake.keepAwake();
+          console.log('[KeepAwake] Screen wake lock enabled for blindfold game');
+        } else {
+          await KeepAwake.allowSleep();
+          console.log('[KeepAwake] Screen wake lock released');
+        }
+      } catch (error) {
+        // KeepAwake may not be available in web browser (only in Capacitor)
+        console.log('[KeepAwake] Plugin not available (web mode):', error);
+      }
+    };
+    
+    manageKeepAwake();
+    
+    // Cleanup: release wake lock when component unmounts or game ends
+    return () => {
+      KeepAwake.allowSleep().catch(() => {});
+    };
+  }, [gameStarted, isBlindfold]);
 
   useEffect(() => {
     if (!voiceInputEnabled) {

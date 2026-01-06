@@ -73,6 +73,9 @@ class ClientStockfish {
         const initHandler = (line: string) => {
           if (line === 'uciok') {
             receivedUciOk = true;
+            // Configure hash table to 16MB for mobile memory management
+            this.sendCommand('setoption name Hash value 16');
+            console.log('[ClientStockfish] Set Hash table to 16MB for mobile optimization');
             this.sendCommand('isready');
           }
           if (line === 'readyok' && receivedUciOk) {
