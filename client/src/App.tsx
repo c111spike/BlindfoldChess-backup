@@ -6,12 +6,13 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { AboutDialog } from "@/components/about-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { BarChart3, RefreshCw } from "lucide-react";
+import { BarChart3, RefreshCw, Mic } from "lucide-react";
 import { loadStats, resetStats, getAveragePeekTime, formatPeekTime, type GameStats } from "@/lib/gameStats";
 import GamePage from "@/pages/game";
 
 export default function App() {
   const [showStatsDialog, setShowStatsDialog] = useState(false);
+  const [showVoiceHelpDialog, setShowVoiceHelpDialog] = useState(false);
   const [stats, setStats] = useState<GameStats>(loadStats());
 
   useEffect(() => {
@@ -86,6 +87,54 @@ export default function App() {
                       <RefreshCw className="mr-2 h-3 w-3" />
                       Reset Statistics
                     </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
+              <Dialog open={showVoiceHelpDialog} onOpenChange={setShowVoiceHelpDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    data-testid="button-voice-help"
+                  >
+                    <Mic className="h-5 w-5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Voice Commands</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 text-sm">
+                    <div className="space-y-2">
+                      <h3 className="font-semibold">Basic Moves</h3>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li><span className="font-mono text-foreground">"e4"</span> - Move pawn to e4</li>
+                        <li><span className="font-mono text-foreground">"knight f3"</span> - Move knight to f3</li>
+                        <li><span className="font-mono text-foreground">"bishop takes c6"</span> - Capture on c6</li>
+                        <li><span className="font-mono text-foreground">"castle kingside"</span> - Castle short (O-O)</li>
+                        <li><span className="font-mono text-foreground">"castle queenside"</span> - Castle long (O-O-O)</li>
+                      </ul>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="font-semibold">When Two Pieces Can Move</h3>
+                      <p className="text-muted-foreground">
+                        If you have two pieces that can reach the same square, specify which one by adding the file letter:
+                      </p>
+                      <p className="text-muted-foreground">
+                        Example: Rooks on A1 and F1, to move the F rook to D1:
+                      </p>
+                      <p className="font-mono text-foreground">"Rook F to D1"</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="font-semibold">Other Commands</h3>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li><span className="font-mono text-foreground">"say again"</span> or <span className="font-mono text-foreground">"repeat"</span> - Hear the last move again</li>
+                        <li><span className="font-mono text-foreground">"resign"</span> - Resign the game</li>
+                      </ul>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
