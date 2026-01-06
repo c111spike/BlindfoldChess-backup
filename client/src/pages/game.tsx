@@ -556,26 +556,30 @@ export default function GamePage() {
 
   if (showTitleScreen) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-amber-100 dark:from-stone-900 dark:to-stone-950 p-4">
-        <div className="flex flex-col items-center gap-8 max-w-sm w-full">
-          <img 
-            src={titleImage} 
-            alt="Blindfold Chess Knight" 
-            className="w-64 h-auto drop-shadow-xl"
-            data-testid="img-title-knight"
-          />
+      <div 
+        className="min-h-screen w-full flex flex-col items-center justify-end relative"
+        style={{
+          backgroundImage: `url(${titleImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          backgroundRepeat: 'no-repeat',
+        }}
+        data-testid="screen-title"
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="relative z-10 flex flex-col items-center gap-6 p-8 pb-16 w-full max-w-sm">
           <h1 
-            className="text-4xl font-bold text-stone-800 dark:text-amber-100 text-center tracking-tight"
+            className="text-5xl font-bold text-white text-center tracking-tight drop-shadow-lg"
             data-testid="text-title"
           >
             Blindfold Chess
           </h1>
-          <p className="text-stone-600 dark:text-stone-400 text-center text-lg">
+          <p className="text-white/80 text-center text-lg">
             Train your visualization and memory
           </p>
           <Button 
             size="lg" 
-            className="w-full max-w-xs text-lg py-6"
+            className="w-full text-lg py-6 bg-white text-stone-900 hover:bg-white/90"
             onClick={() => setShowTitleScreen(false)}
             data-testid="button-start-now"
           >
