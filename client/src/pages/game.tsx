@@ -1136,10 +1136,11 @@ export default function GamePage() {
         </Card>
         
         <div className="flex flex-col lg:flex-row gap-3">
-          {(!isBlindfold || blindfoldDisplayMode !== "no_board" || isPeeking) && (
-            <Card className="aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2">
-              <div className="relative w-full h-full">
-                <ChessBoard 
+          <Card className={`aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${
+            isBlindfold && blindfoldDisplayMode === "no_board" && !isPeeking ? "invisible" : ""
+          }`}>
+            <div className="relative w-full h-full">
+              <ChessBoard 
                   fen={fen}
                   orientation={playerColor}
                   showCoordinates={isBlindfold && showCoordinates}
@@ -1230,7 +1231,6 @@ export default function GamePage() {
                 )}
               </div>
             </Card>
-          )}
           
           <div className="flex flex-col gap-2 lg:w-48">
             {isBlindfold && blindfoldDifficulty !== 'grandmaster' && (
