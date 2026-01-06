@@ -1635,7 +1635,7 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // Patzer (400 Elo): No advanced heuristics, basic evaluation
   // No draw-seeking - fights to the death
   patzer: { 
-    elo: 400, timePerMoveMs: 500, maxDepth: 2, multiPvCount: 5, stockfishNodes: 10000, 
+    elo: 400, timePerMoveMs: 500, maxDepth: 1, multiPvCount: 5, stockfishNodes: 5000, 
     mistakeProbability: 0.33, useStockfish: false,
     useKillers: false, useHistory: false,
     mobilityWeight: 0, kingSafetyWeight: 0, mopUpWeight: 0, useTaperedEval: false,
@@ -1645,108 +1645,111 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // Novice (600 Elo): Minimal heuristics, slight mobility awareness
   // No draw-seeking - fights to the death
   novice: { 
-    elo: 600, timePerMoveMs: 1000, maxDepth: 3, multiPvCount: 5, stockfishNodes: 50000, 
-    mistakeProbability: 0.15, useStockfish: false,
+    elo: 600, timePerMoveMs: 1000, maxDepth: 1, multiPvCount: 5, stockfishNodes: 10000, 
+    mistakeProbability: 0.25, useStockfish: false,
     useKillers: false, useHistory: false,
     mobilityWeight: 20, kingSafetyWeight: 10, mopUpWeight: 0, useTaperedEval: false,
     drawSeekThreshold: -99, // Never seeks draws
     recaptureChance: 0.5    // 50% chance to see recaptures
   },
-  // Intermediate (800 Elo): Basic search heuristics, growing positional awareness
-  // -3.0 threshold: Minor piece down triggers survival mode
+  // Intermediate (800 Elo): Basic positional awareness, no killer heuristic
+  // -4.0 threshold: Minor piece+ down triggers survival mode
   intermediate: { 
-    elo: 800, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
-    mistakeProbability: 0.10, useStockfish: true,
-    useKillers: true, useHistory: false,
+    elo: 800, timePerMoveMs: 1500, maxDepth: 2, multiPvCount: 4, stockfishNodes: 25000, 
+    mistakeProbability: 0.17, useStockfish: true,
+    useKillers: false, useHistory: false,
     mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false,
-    drawSeekThreshold: -3.0, // Minor piece down = seek draw
+    drawSeekThreshold: -4.0,
     recaptureChance: 0.75    // 75% chance to see recaptures
   },
-  // Improving (1000 Elo): Copied from old intermediate (900)
+  // Improving (1000 Elo): Growing tactical awareness
+  // -4.0 threshold
   improving: { 
-    elo: 1000, timePerMoveMs: 1500, maxDepth: 4, multiPvCount: 4, stockfishNodes: 100000, 
+    elo: 1000, timePerMoveMs: 1500, maxDepth: 3, multiPvCount: 4, stockfishNodes: 40000, 
     mistakeProbability: 0.10, useStockfish: true,
     useKillers: true, useHistory: false,
     mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false,
-    drawSeekThreshold: -3.0,
+    drawSeekThreshold: -4.0,
     recaptureChance: 0.75
   },
   // Club (1200 Elo): Full search heuristics, decent evaluation
-  // -3.0 threshold: Minor piece down triggers survival mode (same as intermediate)
+  // -4.0 threshold
   club: { 
-    elo: 1200, timePerMoveMs: 2000, maxDepth: 5, multiPvCount: 4, stockfishNodes: 200000, 
-    mistakeProbability: 0.06, useStockfish: true,
+    elo: 1200, timePerMoveMs: 2000, maxDepth: 3, multiPvCount: 4, stockfishNodes: 60000, 
+    mistakeProbability: 0.08, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 60, kingSafetyWeight: 50, mopUpWeight: 50, useTaperedEval: true,
-    drawSeekThreshold: -3.0,
+    drawSeekThreshold: -4.0,
     recaptureChance: 1.0     // 100% chance to see recaptures
   },
   // Advanced (1400 Elo): Strong heuristics, good evaluation
-  // -2.5 threshold: 2-pawn deficit triggers draw-seeking
+  // -3.5 threshold
   advanced: { 
-    elo: 1400, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
-    mistakeProbability: 0.03, useStockfish: true,
+    elo: 1400, timePerMoveMs: 2500, maxDepth: 4, multiPvCount: 3, stockfishNodes: 80000, 
+    mistakeProbability: 0.06, useStockfish: true,
     useKillers: true, useHistory: true,
-    mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true,
-    drawSeekThreshold: -2.5,
+    mobilityWeight: 70, kingSafetyWeight: 60, mopUpWeight: 70, useTaperedEval: true,
+    drawSeekThreshold: -3.5,
     recaptureChance: 1.0     // 100% chance to see recaptures
   },
-  // Strong (1600 Elo): Copied from old advanced (1500)
+  // Strong (1600 Elo): Solid club player strength
+  // -3.5 threshold
   strong: { 
-    elo: 1600, timePerMoveMs: 2500, maxDepth: 6, multiPvCount: 3, stockfishNodes: 500000, 
-    mistakeProbability: 0.03, useStockfish: true,
+    elo: 1600, timePerMoveMs: 2500, maxDepth: 5, multiPvCount: 3, stockfishNodes: 100000, 
+    mistakeProbability: 0.04, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 80, kingSafetyWeight: 70, mopUpWeight: 70, useTaperedEval: true,
-    drawSeekThreshold: -2.5,
+    drawSeekThreshold: -3.5,
     recaptureChance: 1.0
   },
   // Expert (1800 Elo): Full strength heuristics
-  // -2.0 threshold: Recognizes 2 pawns down is likely a loss
+  // -3.0 threshold
   expert: { 
-    elo: 1800, timePerMoveMs: 3000, maxDepth: 8, multiPvCount: 3, stockfishNodes: 1000000, 
-    mistakeProbability: 0.015, useStockfish: true,
+    elo: 1800, timePerMoveMs: 3000, maxDepth: 6, multiPvCount: 3, stockfishNodes: 600000, 
+    mistakeProbability: 0.03, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 90, kingSafetyWeight: 90, mopUpWeight: 90, useTaperedEval: true,
-    drawSeekThreshold: -2.0,
+    drawSeekThreshold: -3.0,
     recaptureChance: 1.0     // 100% chance to see recaptures
   },
-  // Master (2000 Elo): Maximum strength
-  // -1.5 threshold: Very sensitive - seeks draws at 1.5 pawn deficit
+  // Master (2000 Elo): Near-maximum strength
+  // -2.5 threshold
   master: { 
-    elo: 2000, timePerMoveMs: 4000, maxDepth: 10, multiPvCount: 3, stockfishNodes: 2000000, 
-    mistakeProbability: 0.00025, useStockfish: true,
+    elo: 2000, timePerMoveMs: 4000, maxDepth: 7, multiPvCount: 3, stockfishNodes: 2000000, 
+    mistakeProbability: 0.02, useStockfish: true,
     useKillers: true, useHistory: true,
-    mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
-    drawSeekThreshold: -1.5,
+    mobilityWeight: 95, kingSafetyWeight: 95, mopUpWeight: 95, useTaperedEval: true,
+    drawSeekThreshold: -2.5,
     recaptureChance: 1.0     // 100% chance to see recaptures
   },
-  // Candidate (2200 Elo): Copied from master (2000)
+  // Candidate (2200 Elo): Candidate Master strength
+  // -2.5 threshold
   candidate: { 
-    elo: 2200, timePerMoveMs: 4000, maxDepth: 10, multiPvCount: 3, stockfishNodes: 2000000, 
-    mistakeProbability: 0.00025, useStockfish: true,
+    elo: 2200, timePerMoveMs: 4000, maxDepth: 8, multiPvCount: 3, stockfishNodes: 4000000, 
+    mistakeProbability: 0.01, useStockfish: true,
     useKillers: true, useHistory: true,
-    mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
-    drawSeekThreshold: -1.5,
+    mobilityWeight: 95, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
+    drawSeekThreshold: -2.5,
     recaptureChance: 1.0
   },
-  // Elite (2400 Elo): Copied from old grandmaster (2500)
+  // Elite (2400 Elo): International Master strength
+  // -2.0 threshold
   elite: { 
-    elo: 2400, timePerMoveMs: 5000, maxDepth: 11, multiPvCount: 2, stockfishNodes: 3000000, 
-    mistakeProbability: 0.00001, useStockfish: true,
+    elo: 2400, timePerMoveMs: 5000, maxDepth: 8, multiPvCount: 2, stockfishNodes: 5000000, 
+    mistakeProbability: 0.0025, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
-    drawSeekThreshold: -1.0,
+    drawSeekThreshold: -2.0,
     recaptureChance: 1.0
   },
-  // Grandmaster (2600 Elo): Uses transposition tables and advanced pawn evaluation
-  // -1.0 threshold: Ultra-sensitive - any pawn deficit triggers draw-seeking
-  // "Cynical Chess" - prefers 0.0 draw over grinding -1.1 loss
+  // Grandmaster (2600 Elo): Maximum strength
+  // -2.0 threshold
   grandmaster: { 
-    elo: 2600, timePerMoveMs: 5000, maxDepth: 11, multiPvCount: 2, stockfishNodes: 3000000, 
+    elo: 2600, timePerMoveMs: 5000, maxDepth: 8, multiPvCount: 2, stockfishNodes: 5000000, 
     mistakeProbability: 0.00001, useStockfish: true,
     useKillers: true, useHistory: true,
     mobilityWeight: 100, kingSafetyWeight: 100, mopUpWeight: 100, useTaperedEval: true,
-    drawSeekThreshold: -1.0,
+    drawSeekThreshold: -2.0,
     recaptureChance: 1.0     // 100% chance to see recaptures
   },
 };
