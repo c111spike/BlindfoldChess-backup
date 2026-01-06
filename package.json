@@ -11,6 +11,11 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^8.0.0",
+    "@capgo/capacitor-speech-synthesis": "^8.0.6",
     "@google-cloud/storage": "^7.18.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",

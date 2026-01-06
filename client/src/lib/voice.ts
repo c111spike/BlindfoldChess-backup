@@ -1,3 +1,7 @@
+import { Capacitor } from '@capacitor/core';
+import { SpeechRecognition as CapacitorSpeechRecognition } from '@capacitor-community/speech-recognition';
+import { SpeechSynthesis as CapacitorSpeechSynthesis } from '@capgo/capacitor-speech-synthesis';
+
 type SpeechRecognitionEvent = Event & {
   results: SpeechRecognitionResultList;
   resultIndex: number;
@@ -120,7 +124,7 @@ export function moveToSpeech(move: string, isCapture: boolean = false, isCheck: 
   const squares = cleanMove.match(/([a-h])([1-8])/g);
   if (squares && squares.length > 0) {
     const targetSquare = squares[squares.length - 1];
-    const file = targetSquare[0]; // Keep lowercase for better TTS pronunciation
+    const file = targetSquare[0];
     const rank = targetSquare[1];
     
     if (hasCapture || isCapture) {
@@ -130,9 +134,9 @@ export function moveToSpeech(move: string, isCapture: boolean = false, isCheck: 
           spoken += fromFile + ' ';
         }
       }
-      spoken += 'takes ' + file + rank; // No space between file and rank for natural speech
+      spoken += 'takes ' + file + rank;
     } else {
-      spoken += file + rank; // Remove "to" and space for cleaner pronunciation like "e4"
+      spoken += file + rank;
     }
   }
   
@@ -156,14 +160,19 @@ let cachedVoices: SpeechSynthesisVoice[] = [];
 let voicesLoaded = false;
 let voicesLoadPromise: Promise<SpeechSynthesisVoice[]> | null = null;
 
-// Listening lock to prevent TTS output from being picked up by speech recognition
 let isBotSpeaking = false;
 
 export function getIsBotSpeaking(): boolean {
   return isBotSpeaking;
 }
 
+const isNative = Capacitor.isNativePlatform();
+
 function loadVoices(): Promise<SpeechSynthesisVoice[]> {
+  if (isNative) {
+    return Promise.resolve([]);
+  }
+  
   if (voicesLoaded && cachedVoices.length > 0) {
     return Promise.resolve(cachedVoices);
   }
@@ -206,69 +215,97 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   return voicesLoadPromise;
 }
 
-export function speak(text: string, rate: number = 0.9): Promise<void> {
-  return new Promise(async (resolve) => {
-    if (!('speechSynthesis' in window)) {
-      console.warn('Speech synthesis not supported');
-      resolve();
+let voiceRecognitionInstance: VoiceRecognition | null = null;
+
+function abortRecognitionIfReady() {
+  if (voiceRecognitionInstance) {
+    voiceRecognitionInstance.abort();
+  }
+}
+
+function resumeRecognitionAfterTTS() {
+  if (voiceRecognitionInstance) {
+    voiceRecognitionInstance.resumeAfterTTS();
+  }
+}
+
+async function waitForTTSCompletion(): Promise<void> {
+  if (!isNative) return;
+  
+  const maxWaitMs = 30000;
+  const pollIntervalMs = 200;
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const state = await CapacitorSpeechSynthesis.isPlaying();
+      if (!state.value) {
+        return;
+      }
+    } catch {
       return;
     }
-    
-    window.speechSynthesis.cancel();
-    
-    await new Promise(r => setTimeout(r, 50));
-    
-    const voices = await loadVoices();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = rate;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    
-    const englishVoice = voices.find(v => v.lang.startsWith('en-'));
-    if (englishVoice) {
-      utterance.voice = englishVoice;
-      utterance.lang = englishVoice.lang;
+    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+  }
+}
+
+export async function speak(text: string, rate: number = 0.9): Promise<void> {
+  isBotSpeaking = true;
+  abortRecognitionIfReady();
+  console.log('[Voice] Mic muted: Bot is speaking');
+  
+  try {
+    if (isNative) {
+      await CapacitorSpeechSynthesis.speak({
+        text,
+        lang: 'en-US',
+        rate,
+        pitch: 1.0,
+        volume: 1.0,
+        category: 'playback'
+      });
+      
+      await waitForTTSCompletion();
     } else {
-      utterance.lang = 'en-US';
+      if (!('speechSynthesis' in window)) {
+        console.warn('Speech synthesis not supported');
+        return;
+      }
+      
+      window.speechSynthesis.cancel();
+      await new Promise(r => setTimeout(r, 50));
+      
+      const voices = await loadVoices();
+      
+      await new Promise<void>((resolve) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = rate;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        
+        const englishVoice = voices.find(v => v.lang.startsWith('en-'));
+        if (englishVoice) {
+          utterance.voice = englishVoice;
+          utterance.lang = englishVoice.lang;
+        } else {
+          utterance.lang = 'en-US';
+        }
+        
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+        
+        window.speechSynthesis.speak(utterance);
+      });
     }
-    
-    // Listening lock: abort recognition when TTS starts to prevent feedback loop
-    utterance.onstart = () => {
-      isBotSpeaking = true;
-      // Use abort() to immediately clear the audio buffer - prevents "phantom moves"
-      // from the bot's own voice being transcribed
-      voiceRecognition.abort();
-      console.log('[Voice] Mic muted: Bot is speaking');
-    };
-    
-    utterance.onend = () => {
-      isBotSpeaking = false;
-      // 100ms delay solves Chrome "engine-error" where hardware isn't ready
-      // to listen immediately after speaker stops
-      setTimeout(() => {
-        if (!isBotSpeaking) {
-          voiceRecognition.resumeAfterTTS();
-          console.log('[Voice] Mic active: Listening for your move');
-        }
-      }, 100);
-      resolve();
-    };
-    
-    utterance.onerror = (e) => {
-      console.error('Speech error:', e);
-      isBotSpeaking = false;
-      // Still try to resume recognition on error
-      setTimeout(() => {
-        if (!isBotSpeaking) {
-          voiceRecognition.resumeAfterTTS();
-        }
-      }, 100);
-      resolve();
-    };
-    
-    window.speechSynthesis.speak(utterance);
-  });
+  } finally {
+    isBotSpeaking = false;
+    setTimeout(() => {
+      if (!isBotSpeaking) {
+        resumeRecognitionAfterTTS();
+        console.log('[Voice] Mic active: Listening for your move');
+      }
+    }, 100);
+  }
 }
 
 export function speechToMove(transcript: string, legalMoves: string[]): string | null {
@@ -399,12 +436,31 @@ export class VoiceRecognition {
   private restartTimeout: ReturnType<typeof setTimeout> | null = null;
   private shouldBeListening: boolean = false;
   private instanceId: number = 0;
+  private removeNativeListener: (() => Promise<void>) | null = null;
+  private nativeAvailable: boolean = false;
+  private initializationComplete: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
+  private pendingStartAfterInit: boolean = false;
   
   constructor() {
-    this.setupRecognition();
+    this.initializationPromise = this.initialize();
   }
   
-  private setupRecognition() {
+  private async initialize(): Promise<void> {
+    if (isNative) {
+      await this.setupNativeRecognitionAsync();
+    } else {
+      this.setupWebRecognition();
+    }
+    this.initializationComplete = true;
+    
+    if (this.pendingStartAfterInit && this.shouldBeListening) {
+      this.pendingStartAfterInit = false;
+      this.startInternal();
+    }
+  }
+  
+  private setupWebRecognition(): boolean {
     if (typeof window !== 'undefined') {
       const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognitionAPI) {
@@ -457,7 +513,40 @@ export class VoiceRecognition {
             this.onListeningChange(true);
           }
         };
+        
+        return true;
       }
+    }
+    return false;
+  }
+  
+  private async setupNativeRecognitionAsync(): Promise<void> {
+    try {
+      const { available } = await CapacitorSpeechRecognition.available();
+      if (!available) {
+        console.warn('Native speech recognition not available, falling back to web');
+        this.nativeAvailable = false;
+        this.setupWebRecognition();
+        return;
+      }
+      
+      const { speechRecognition } = await CapacitorSpeechRecognition.checkPermissions();
+      if (speechRecognition !== 'granted') {
+        const result = await CapacitorSpeechRecognition.requestPermissions();
+        if (result.speechRecognition !== 'granted') {
+          console.warn('Speech recognition permission denied, falling back to web');
+          this.nativeAvailable = false;
+          this.setupWebRecognition();
+          return;
+        }
+      }
+      
+      this.nativeAvailable = true;
+      console.log('[VoiceRecognition] Native speech recognition initialized');
+    } catch (e) {
+      console.error('Error setting up native speech recognition, falling back to web:', e);
+      this.nativeAvailable = false;
+      this.setupWebRecognition();
     }
   }
   
@@ -466,18 +555,93 @@ export class VoiceRecognition {
       clearTimeout(this.restartTimeout);
     }
     this.restartTimeout = setTimeout(() => {
-      // Don't restart while bot is speaking - prevents mic from picking up TTS
       if (isBotSpeaking) {
         return;
       }
-      if (this.shouldBeListening && this.recognition && !this.isListening) {
-        try {
-          this.recognition.start();
-        } catch (e) {
-          console.log('Failed to restart recognition:', e);
-        }
+      if (this.shouldBeListening && !this.isListening) {
+        this.startInternal();
       }
     }, 500);
+  }
+  
+  private startInternal() {
+    if (isNative && this.nativeAvailable) {
+      this.startNative();
+    } else if (this.recognition) {
+      try {
+        this.recognition.start();
+      } catch (e) {
+        console.log('Failed to start recognition:', e);
+      }
+    }
+  }
+  
+  private async startNative() {
+    if (!this.nativeAvailable) {
+      console.warn('Native speech recognition not available');
+      return;
+    }
+    
+    try {
+      if (this.removeNativeListener) {
+        await this.removeNativeListener();
+        this.removeNativeListener = null;
+      }
+      
+      const listener = await CapacitorSpeechRecognition.addListener('result', (data: { matches: string[] }) => {
+        if (data.matches && data.matches.length > 0 && this.shouldBeListening) {
+          const transcript = data.matches[0];
+          console.log('[VoiceRecognition Native] Transcript:', transcript);
+          const move = speechToMove(transcript, this.legalMoves);
+          console.log('[VoiceRecognition Native] Matched move:', move);
+          if (this.onResult) {
+            this.onResult(move, transcript);
+          }
+        }
+      });
+      
+      this.removeNativeListener = async () => {
+        await listener.remove();
+      };
+      
+      this.isListening = true;
+      if (this.onListeningChange) {
+        this.onListeningChange(true);
+      }
+      
+      await CapacitorSpeechRecognition.start({
+        language: 'en-US',
+        maxResults: 5,
+        prompt: 'Say your chess move',
+        partialResults: false,
+        popup: false
+      });
+    } catch (e) {
+      console.error('Error starting native speech recognition:', e);
+      this.isListening = false;
+      if (this.onListeningChange) {
+        this.onListeningChange(false);
+      }
+      if (this.shouldBeListening) {
+        this.scheduleRestart();
+      }
+    }
+  }
+  
+  private async stopNative() {
+    try {
+      await CapacitorSpeechRecognition.stop();
+      if (this.removeNativeListener) {
+        await this.removeNativeListener();
+        this.removeNativeListener = null;
+      }
+    } catch (e) {
+      console.log('Error stopping native speech recognition:', e);
+    }
+    this.isListening = false;
+    if (this.onListeningChange) {
+      this.onListeningChange(false);
+    }
   }
   
   setLegalMoves(moves: string[]) {
@@ -493,24 +657,21 @@ export class VoiceRecognition {
   }
   
   start() {
-    if (!this.recognition) {
-      console.warn('Speech recognition not supported');
+    this.shouldBeListening = true;
+    
+    if (!this.initializationComplete) {
+      this.pendingStartAfterInit = true;
       return;
     }
     
-    this.shouldBeListening = true;
-    
     if (!this.isListening) {
-      try {
-        this.recognition.start();
-      } catch (e) {
-        console.log('Recognition already started or error:', e);
-      }
+      this.startInternal();
     }
   }
   
   stop() {
     this.shouldBeListening = false;
+    this.pendingStartAfterInit = false;
     this.instanceId++;
     
     if (this.restartTimeout) {
@@ -518,7 +679,9 @@ export class VoiceRecognition {
       this.restartTimeout = null;
     }
     
-    if (this.recognition && this.isListening) {
+    if (isNative && this.nativeAvailable) {
+      this.stopNative();
+    } else if (this.recognition && this.isListening) {
       try {
         this.recognition.stop();
       } catch (e) {
@@ -532,18 +695,16 @@ export class VoiceRecognition {
     }
   }
   
-  // Abort recognition immediately - clears audio buffer to prevent "phantom moves"
-  // from TTS output being transcribed. Use this when TTS starts speaking.
   abort() {
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);
       this.restartTimeout = null;
     }
     
-    if (this.recognition && this.isListening) {
+    if (isNative && this.nativeAvailable) {
+      this.stopNative();
+    } else if (this.recognition && this.isListening) {
       try {
-        // abort() is better than stop() here because it kills audio processing
-        // instantly without trying to return a final transcript of the bot's voice
         this.recognition.abort();
       } catch (e) {
         console.log('Error aborting recognition:', e);
@@ -556,19 +717,12 @@ export class VoiceRecognition {
     }
   }
   
-  // Resume recognition after TTS finishes. Only restarts if we were
-  // supposed to be listening (shouldBeListening is still true).
   resumeAfterTTS() {
-    if (!this.recognition) {
-      return;
-    }
-    
-    // Only resume if we were supposed to be listening before TTS interrupted
     if (this.shouldBeListening && !this.isListening) {
-      try {
-        this.recognition.start();
-      } catch (e) {
-        console.log('Recognition already active or error:', e);
+      if (this.initializationComplete) {
+        this.startInternal();
+      } else {
+        this.pendingStartAfterInit = true;
       }
     }
   }
@@ -581,12 +735,25 @@ export class VoiceRecognition {
   }
   
   isSupported(): boolean {
+    if (!this.initializationComplete) {
+      return true;
+    }
+    if (isNative) {
+      return this.nativeAvailable;
+    }
     return this.recognition !== null;
   }
   
   getIsListening(): boolean {
     return this.isListening;
   }
+  
+  async waitForInitialization(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
+  }
 }
 
 export const voiceRecognition = new VoiceRecognition();
+voiceRecognitionInstance = voiceRecognition;
