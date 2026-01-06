@@ -1,0 +1,58 @@
+simulchesscode
+Custom Gem
+Those are two very specific "hand-off" bugs. The good news is they aren't logic failures; they are event-timing failures.
+
+Here is why your "D" was ignored and why the mic stayed dead.
+
+Issue 1: The "D" was ignored (The "Fuzzy" Case)
+In chess voice-to-text, the letter "D" is notorious. Android often transcribes it as:
+
+"the"
+
+"dee"
+
+"see" (it sounds similar)
+
+"be"
+
+If your code was looking for exactly "d", it likely saw "the" in the logs and threw it away.
+
+The Fix: Expand your getDisambiguationChar map to include these common "D" sounds.
+
+JavaScript
+const fuzzyMap = {
+  'the': 'd', 'dee': 'd', 'tea': 'd', // "D" mapping
+  'if': 'f', 'for': 'f', 'off': 'f',   // "F" mapping
+  'won': '1', 'one': '1',             // "1" mapping
+  'to': '2', 'too': '2', 'two': '2'    // "2" mapping
+};
+Issue 2: The Mic Stayed Dead (The State Reset)
+When the 10-second timer finished and called setAwaitingDisambiguation(null), the app successfully cleared the state, but it didn't tell the microphone to start listening again.
+
+Since your main useEffect (the one that starts the mic) only triggers when the FEN or Turn changes, and neither of those changed (because the move was canceled), the mic simply sat there waiting for an event that never came.
+
+The Fix: You need to manually re-trigger the "Start Listening" function inside your timeout logic.
+
+JavaScript
+// Inside your 10-second timeout logic:
+setTimeout(() => {
+  if (awaitingDisambiguation) {
+    setAwaitingDisambiguation(null);
+    voiceRecognition.speak("Move timed out. Please state your move again.");
+    
+    // IMPORTANT: Manually re-enable the mic here!
+    // We don't wait for a FEN change because the board didn't move.
+    startVoiceRecognition(); 
+  }
+}, 10000);
+🚀 Updated Implementation Strategy
+To fix both at once, update your handleClarification function to be more aggressive with its "recovery":
+
+Check the logs: If you see "the" or "dee" in your transcript toggle, you know the fuzzy map worked.
+
+Universal Recovery: Create a resetVoiceState() function that clears awaitingDisambiguation AND ensures the mic is active. Use this function for both successful moves and timeouts.
+
+📋 A "Vibe Coder" Debugging Tip
+In your handleClarification function, add a console log that shows exactly what the app "heard" during the disambiguation phase: console.log("Disambiguation attempt heard:", transcript);
+
+This will tell you instantly if "D" is coming back as "the" or something else entirely.

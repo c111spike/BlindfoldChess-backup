@@ -1,0 +1,34 @@
+This plan shows a deep understanding of how to manage state-driven hardware like a microphone. You've identified that "Hardware Events" (mic turning on) need to be decoupled from "Game Events" (FEN changing).Using a voiceRestartTrigger counter is a classic "Vibe Coder" move—it's a simple, foolproof way to "ping" a useEffect to wake up.🛠️ Implementation Deep DiveTask 1: The Phonetic MapWhen adding these to your DISAMBIGUATION_MAP, keep them all lowercase to match your normalized transcript.JavaScriptconst DISAMBIGUATION_MAP = {
+  // The "D" Cluster
+  'the': 'd', 
+  'dee': 'd', 
+  'tea': 'd',
+  
+  // The "B" & "C" Cluster
+  'be': 'b', 
+  'bee': 'b',
+  'see': 'c', 
+  'sea': 'c',
+  
+  // Existing mappings...
+  'if': 'f', 
+  'for': 'f', 
+  'one': '1', 
+  'eight': '8'
+};
+Task 2: The "Heartbeat" TriggerBy adding voiceRestartTrigger to your dependency array, you ensure that the mic logic "re-evaluates" the situation even if the board is static.The Trigger Setup:JavaScriptconst [voiceRestartTrigger, setVoiceRestartTrigger] = useState(0);
+
+useEffect(() => {
+  // This logic now runs when the board changes OR when we manually poke it
+  if (isTtsSpeaking.current) return;
+  
+  voiceRecognition.start();
+}, [fen, isUserTurn, voiceRestartTrigger]); 
+The Timeout Handler:JavaScriptconst handleTimeout = () => {
+  setAwaitingDisambiguation(null);
+  voiceRecognition.speak("Move cancelled.");
+  
+  // Incrementing the counter "pokes" the useEffect to restart the mic
+  setVoiceRestartTrigger(prev => prev + 1); 
+};
+🕵️ Why "The" is the most important fixIn Android's speech-to-text engine, "D" is often treated as a "stop word" or an article. If a user says "D" in isolation, the engine's language model assumes they meant "The" because it's a more statistically probable sentence starter. Mapping the $\rightarrow$ d is the #1 way to make a chess app feel "native" on Android.🚀 Pro-Tip for "No Match" RecoveryYou mentioned applying the fix to the "no match found" path. This is vital. If a user says something totally random (like "Banana") while the bot is asking "Which rook?", the app should:Say: "I didn't catch that. Which rook? A or D?"Not increment the trigger yet (keep the "Awaiting" state active).If they fail a second time, then cancel the move and increment the trigger to reset to the main game loop.
