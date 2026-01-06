@@ -23,7 +23,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home } from "lucide-react";
 import titleImage from "@assets/image_1767696897621.jpg";
-import { voiceRecognition, speak, moveToSpeech } from "@/lib/voice";
+import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
 import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition } from "@/lib/botEngine";
 import { clientStockfish } from "@/lib/stockfish";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
@@ -139,6 +139,12 @@ export default function GamePage() {
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
   const [isVoiceListening, setIsVoiceListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [awaitingDisambiguation, setAwaitingDisambiguation] = useState<{
+    candidates: string[];
+    piece: string;
+    targetSquare: string;
+  } | null>(null);
+  const disambiguationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [pendingPromotion, setPendingPromotion] = useState<{ from: string; to: string } | null>(null);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
@@ -171,6 +177,10 @@ export default function GamePage() {
       clearInterval(clockIntervalRef.current);
       clockIntervalRef.current = null;
     }
+    if (disambiguationTimeoutRef.current) {
+      clearTimeout(disambiguationTimeoutRef.current);
+      disambiguationTimeoutRef.current = null;
+    }
     clearPositionHistory();
     setGame(null);
     setGameStarted(false);
@@ -185,6 +195,7 @@ export default function GamePage() {
     setSelectedBotPersonality(null);
     setBotThinking(false);
     setIsPeeking(false);
+    setAwaitingDisambiguation(null);
     voiceRecognition.stop();
   }, []);
 
@@ -371,12 +382,97 @@ export default function GamePage() {
       
       setVoiceTranscript(transcript);
       
-      if (move) {
+      if (awaitingDisambiguation) {
+        if (disambiguationTimeoutRef.current) {
+          clearTimeout(disambiguationTimeoutRef.current);
+          disambiguationTimeoutRef.current = null;
+        }
+        
+        const disambigResult = parseDisambiguation(transcript);
+        
+        if (disambigResult.file || disambigResult.rank) {
+          const matchingMove = findMoveByDisambiguation(awaitingDisambiguation.candidates, disambigResult);
+          
+          if (matchingMove) {
+            setAwaitingDisambiguation(null);
+            
+            if (voiceOutputEnabled) {
+              isTtsSpeaking.current = true;
+              voiceRecognition.stop();
+              try {
+                await speak(moveToSpeech(matchingMove, matchingMove.includes('x'), false, false));
+              } catch (e) {
+                console.error('[Voice] TTS error:', e);
+              } finally {
+                isTtsSpeaking.current = false;
+              }
+            }
+            
+            if (!gameRef.current) return;
+            const moveObj = gameRef.current.move(matchingMove);
+            if (moveObj) {
+              setFen(gameRef.current.fen());
+              setLastMove({ from: moveObj.from, to: moveObj.to });
+              recordPosition(gameRef.current.fen());
+              
+              const newMoves = [...movesRef.current, moveObj.san];
+              setMoves(newMoves);
+              movesRef.current = newMoves;
+              
+              setSelectedSquare(null);
+              setLegalMoves([]);
+              setVoiceTranscript(null);
+              
+              if (gameRef.current.isCheckmate()) {
+                const result = gameRef.current.turn() === "w" ? "black_win" : "white_win";
+                handleGameEnd(result);
+              } else if (gameRef.current.isDraw() || gameRef.current.isStalemate() || gameRef.current.isThreefoldRepetition() || gameRef.current.isInsufficientMaterial()) {
+                handleGameEnd("draw");
+              }
+            }
+            return;
+          }
+        }
+        
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
           voiceRecognition.stop();
           try {
-            await speak(moveToSpeech(move, move.includes('x'), false, false));
+            await speak("I didn't catch that. Which piece?");
+          } catch (e) {
+            console.error('[Voice] TTS error:', e);
+          } finally {
+            isTtsSpeaking.current = false;
+          }
+        }
+        
+        disambiguationTimeoutRef.current = setTimeout(async () => {
+          setAwaitingDisambiguation(null);
+          setVoiceTranscript(null);
+          if (voiceOutputEnabled) {
+            isTtsSpeaking.current = true;
+            voiceRecognition.stop();
+            try {
+              await speak("Move cancelled");
+            } catch (e) {
+              console.error('[Voice] TTS error:', e);
+            } finally {
+              isTtsSpeaking.current = false;
+            }
+          }
+        }, 10000);
+        return;
+      }
+      
+      const allLegalMoves = currentGame.moves();
+      const result = speechToMoveWithAmbiguity(transcript, allLegalMoves);
+      
+      if (result.move) {
+        if (voiceOutputEnabled) {
+          isTtsSpeaking.current = true;
+          voiceRecognition.stop();
+          try {
+            await speak(moveToSpeech(result.move, result.move.includes('x'), false, false));
           } catch (e) {
             console.error('[Voice] TTS error:', e);
           } finally {
@@ -385,7 +481,7 @@ export default function GamePage() {
         }
         
         if (!gameRef.current) return;
-        const moveObj = gameRef.current.move(move);
+        const moveObj = gameRef.current.move(result.move);
         if (moveObj) {
           setFen(gameRef.current.fen());
           setLastMove({ from: moveObj.from, to: moveObj.to });
@@ -400,12 +496,53 @@ export default function GamePage() {
           setVoiceTranscript(null);
           
           if (gameRef.current.isCheckmate()) {
-            const result = gameRef.current.turn() === "w" ? "black_win" : "white_win";
-            handleGameEnd(result);
+            const resultStr = gameRef.current.turn() === "w" ? "black_win" : "white_win";
+            handleGameEnd(resultStr);
           } else if (gameRef.current.isDraw() || gameRef.current.isStalemate() || gameRef.current.isThreefoldRepetition() || gameRef.current.isInsufficientMaterial()) {
             handleGameEnd("draw");
           }
         }
+      } else if (result.isAmbiguous && result.candidates.length > 1) {
+        const sources = getSourceSquaresFromCandidates(result.candidates);
+        const pieceName = result.piece === 'R' ? 'rook' : result.piece === 'N' ? 'knight' : result.piece === 'B' ? 'bishop' : result.piece === 'Q' ? 'queen' : 'piece';
+        const prompt = sources.length === 2 
+          ? `Two ${pieceName}s can move to ${result.targetSquare}. The one on ${sources[0]} or ${sources[1]}?`
+          : `Multiple ${pieceName}s can move to ${result.targetSquare}. Which one?`;
+        
+        setAwaitingDisambiguation({
+          candidates: result.candidates,
+          piece: result.piece,
+          targetSquare: result.targetSquare,
+        });
+        setVoiceTranscript(`Clarify: ${result.candidates.join(' or ')}`);
+        
+        if (voiceOutputEnabled) {
+          isTtsSpeaking.current = true;
+          voiceRecognition.stop();
+          try {
+            await speak(prompt);
+          } catch (e) {
+            console.error('[Voice] TTS error:', e);
+          } finally {
+            isTtsSpeaking.current = false;
+          }
+        }
+        
+        disambiguationTimeoutRef.current = setTimeout(async () => {
+          setAwaitingDisambiguation(null);
+          setVoiceTranscript(null);
+          if (voiceOutputEnabled) {
+            isTtsSpeaking.current = true;
+            voiceRecognition.stop();
+            try {
+              await speak("Move cancelled");
+            } catch (e) {
+              console.error('[Voice] TTS error:', e);
+            } finally {
+              isTtsSpeaking.current = false;
+            }
+          }
+        }, 10000);
       } else {
         toast({
           title: "Didn't understand",
@@ -431,8 +568,12 @@ export default function GamePage() {
     
     return () => {
       voiceRecognition.reset();
+      if (disambiguationTimeoutRef.current) {
+        clearTimeout(disambiguationTimeoutRef.current);
+        disambiguationTimeoutRef.current = null;
+      }
     };
-  }, [voiceInputEnabled, gameStarted, fen, playerColor, botThinking, pendingPromotion, gameResult, voiceOutputEnabled, toast, handleGameEnd]);
+  }, [voiceInputEnabled, gameStarted, fen, playerColor, botThinking, pendingPromotion, gameResult, voiceOutputEnabled, toast, handleGameEnd, awaitingDisambiguation]);
 
   useEffect(() => {
     if (!selectedBot || !gameRef.current) return;
@@ -1109,7 +1250,12 @@ export default function GamePage() {
             
             {voiceInputEnabled && (
               <div className="flex items-center justify-center gap-2 text-sm">
-                {isVoiceListening ? (
+                {awaitingDisambiguation ? (
+                  <>
+                    <Mic className="h-4 w-4 text-amber-500 animate-pulse" />
+                    <span className="text-amber-500">Which piece?</span>
+                  </>
+                ) : isVoiceListening ? (
                   <>
                     <Mic className="h-4 w-4 text-primary animate-pulse" />
                     <span className="text-primary">Listening...</span>
@@ -1124,8 +1270,8 @@ export default function GamePage() {
             )}
             
             {voiceTranscript && (
-              <div className="text-xs text-center text-muted-foreground">
-                Heard: "{voiceTranscript}"
+              <div className={`text-xs text-center ${awaitingDisambiguation ? 'text-amber-500 font-medium' : 'text-muted-foreground'}`}>
+                {awaitingDisambiguation ? voiceTranscript : `Heard: "${voiceTranscript}"`}
               </div>
             )}
             

@@ -326,6 +326,7 @@ export function speechToMove(transcript: string, legalMoves: string[]): string |
   let targetFile = '';
   let targetRank = '';
   let sourceFile = '';
+  let sourceRank = '';
   let isCapture = false;
   let promotion = '';
   
@@ -356,6 +357,9 @@ export function speechToMove(transcript: string, legalMoves: string[]): string |
     }
     
     if (RANK_NAMES[lowerWord]) {
+      if (targetRank && !sourceRank) {
+        sourceRank = targetRank;
+      }
       targetRank = RANK_NAMES[lowerWord];
     }
     
@@ -367,8 +371,11 @@ export function speechToMove(transcript: string, legalMoves: string[]): string |
   for (const word of words) {
     const match = word.match(/^([a-h])([1-8])$/i);
     if (match) {
-      if (targetFile && targetRank) {
+      if (targetFile && !sourceFile) {
         sourceFile = targetFile;
+      }
+      if (targetRank && !sourceRank) {
+        sourceRank = targetRank;
       }
       targetFile = match[1].toLowerCase();
       targetRank = match[2];
@@ -393,8 +400,15 @@ export function speechToMove(transcript: string, legalMoves: string[]): string |
     }
     
     if (sourceFile) {
-      const moveSource = cleanMove.match(/^[KQRBN]?([a-h])?x?[a-h][1-8]/);
+      const moveSource = cleanMove.match(/^[KQRBN]?([a-h])?([1-8])?x?[a-h][1-8]/);
       if (moveSource && moveSource[1] && moveSource[1] !== sourceFile) {
+        return false;
+      }
+    }
+    
+    if (sourceRank) {
+      const moveSource = cleanMove.match(/^[KQRBN]?([a-h])?([1-8])?x?[a-h][1-8]/);
+      if (moveSource && moveSource[2] && moveSource[2] !== sourceRank) {
         return false;
       }
     }
@@ -425,6 +439,261 @@ export function speechToMove(transcript: string, legalMoves: string[]): string |
   }
   
   return null;
+}
+
+export interface AmbiguousMoveResult {
+  move: string | null;
+  isAmbiguous: boolean;
+  candidates: string[];
+  piece: string;
+  targetSquare: string;
+}
+
+export function speechToMoveWithAmbiguity(transcript: string, legalMoves: string[]): AmbiguousMoveResult {
+  const input = transcript.toLowerCase().trim();
+  
+  if (input.includes('castle') || input.includes('castles')) {
+    if (input.includes('queen') || input.includes('long')) {
+      if (legalMoves.includes('O-O-O')) return { move: 'O-O-O', isAmbiguous: false, candidates: [], piece: '', targetSquare: '' };
+    } else if (input.includes('king') || input.includes('short')) {
+      if (legalMoves.includes('O-O')) return { move: 'O-O', isAmbiguous: false, candidates: [], piece: '', targetSquare: '' };
+    } else {
+      if (legalMoves.includes('O-O')) return { move: 'O-O', isAmbiguous: false, candidates: [], piece: '', targetSquare: '' };
+      if (legalMoves.includes('O-O-O')) return { move: 'O-O-O', isAmbiguous: false, candidates: [], piece: '', targetSquare: '' };
+    }
+  }
+  
+  let piece = '';
+  let targetFile = '';
+  let targetRank = '';
+  let sourceFile = '';
+  let sourceRank = '';
+  let isCapture = false;
+  let promotion = '';
+  
+  const words = input.split(/\s+/);
+  
+  for (const word of words) {
+    const lowerWord = word.toLowerCase();
+    
+    if (PIECE_LETTERS[lowerWord] !== undefined) {
+      piece = PIECE_LETTERS[lowerWord];
+    }
+    
+    if (lowerWord === 'takes' || lowerWord === 'captures' || lowerWord === 'x') {
+      isCapture = true;
+    }
+    
+    if (lowerWord === 'promotes' || lowerWord === 'promotion') {
+      continue;
+    }
+    
+    if (FILE_NAMES[lowerWord]) {
+      if (!targetFile) {
+        targetFile = FILE_NAMES[lowerWord];
+      } else if (!sourceFile) {
+        sourceFile = targetFile;
+        targetFile = FILE_NAMES[lowerWord];
+      }
+    }
+    
+    if (RANK_NAMES[lowerWord]) {
+      if (targetRank && !sourceRank) {
+        sourceRank = targetRank;
+      }
+      targetRank = RANK_NAMES[lowerWord];
+    }
+    
+    if (['queen', 'rook', 'bishop', 'knight'].includes(lowerWord) && (input.includes('promote') || input.includes('equals'))) {
+      promotion = PIECE_LETTERS[lowerWord] || 'Q';
+    }
+  }
+  
+  for (const word of words) {
+    const match = word.match(/^([a-h])([1-8])$/i);
+    if (match) {
+      if (targetFile && !sourceFile) {
+        sourceFile = targetFile;
+      }
+      if (targetRank && !sourceRank) {
+        sourceRank = targetRank;
+      }
+      targetFile = match[1].toLowerCase();
+      targetRank = match[2];
+    }
+  }
+  
+  if (!targetFile || !targetRank) {
+    return { move: null, isAmbiguous: false, candidates: [], piece: '', targetSquare: '' };
+  }
+  
+  const targetSquare = targetFile + targetRank;
+  
+  const candidates = legalMoves.filter(move => {
+    const cleanMove = move.replace(/[+#]/g, '');
+    
+    if (!cleanMove.includes(targetSquare)) return false;
+    
+    if (piece) {
+      if (!cleanMove.startsWith(piece)) return false;
+    } else {
+      if (cleanMove.match(/^[KQRBN]/)) return false;
+    }
+    
+    if (sourceFile) {
+      const moveSource = cleanMove.match(/^[KQRBN]?([a-h])?([1-8])?x?[a-h][1-8]/);
+      if (moveSource && moveSource[1] && moveSource[1] !== sourceFile) {
+        return false;
+      }
+    }
+    
+    if (sourceRank) {
+      const moveSource = cleanMove.match(/^[KQRBN]?([a-h])?([1-8])?x?[a-h][1-8]/);
+      if (moveSource && moveSource[2] && moveSource[2] !== sourceRank) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+  
+  if (candidates.length === 1) {
+    let result = candidates[0];
+    if (promotion && result.includes('=')) {
+      result = result.replace(/=[QRBN]/, '=' + promotion);
+    }
+    return { move: result, isAmbiguous: false, candidates: [], piece, targetSquare };
+  }
+  
+  if (candidates.length > 1) {
+    const withCapture = candidates.filter(m => m.includes('x'));
+    const withoutCapture = candidates.filter(m => !m.includes('x'));
+    
+    if (isCapture && withCapture.length === 1) {
+      return { move: withCapture[0], isAmbiguous: false, candidates: [], piece, targetSquare };
+    }
+    if (!isCapture && withoutCapture.length === 1) {
+      return { move: withoutCapture[0], isAmbiguous: false, candidates: [], piece, targetSquare };
+    }
+    
+    return { move: null, isAmbiguous: true, candidates, piece, targetSquare };
+  }
+  
+  return { move: null, isAmbiguous: false, candidates: [], piece, targetSquare };
+}
+
+const DISAMBIGUATION_MAP: Record<string, string> = {
+  'one': '1', 'won': '1', 'want': '1',
+  'two': '2', 'too': '2', 'to': '2',
+  'three': '3', 'tree': '3', 'free': '3',
+  'four': '4', 'for': '4', 'fore': '4',
+  'five': '5', 'fife': '5',
+  'six': '6', 'sick': '6', 'sicks': '6',
+  'seven': '7',
+  'eight': '8', 'ate': '8', 'ait': '8',
+  'a': 'a', 'alpha': 'a', 'ay': 'a',
+  'b': 'b', 'bee': 'b', 'be': 'b', 'bravo': 'b',
+  'c': 'c', 'see': 'c', 'sea': 'c', 'charlie': 'c',
+  'd': 'd', 'dee': 'd', 'delta': 'd',
+  'e': 'e', 'echo': 'e', 'ee': 'e',
+  'f': 'f', 'if': 'f', 'eff': 'f', 'foxtrot': 'f', 'off': 'f',
+  'g': 'g', 'gee': 'g', 'golf': 'g',
+  'h': 'h', 'aitch': 'h', 'hotel': 'h',
+};
+
+export interface DisambiguationResult {
+  file: string | null;
+  rank: string | null;
+}
+
+export function parseDisambiguation(voiceInput: string): DisambiguationResult {
+  const input = voiceInput.toLowerCase().trim();
+  const words = input.split(/\s+/);
+  
+  let file: string | null = null;
+  let rank: string | null = null;
+  
+  for (const word of words) {
+    const mapped = DISAMBIGUATION_MAP[word];
+    if (mapped) {
+      if (/^[a-h]$/.test(mapped)) {
+        if (!file) file = mapped;
+      } else if (/^[1-8]$/.test(mapped)) {
+        if (!rank) rank = mapped;
+      }
+    } else if (word.length === 1) {
+      if (/^[a-h]$/i.test(word)) {
+        if (!file) file = word.toLowerCase();
+      } else if (/^[1-8]$/.test(word)) {
+        if (!rank) rank = word;
+      }
+    }
+  }
+  
+  if (DISAMBIGUATION_MAP[input]) {
+    const mapped = DISAMBIGUATION_MAP[input];
+    if (/^[a-h]$/.test(mapped)) {
+      file = mapped;
+    } else if (/^[1-8]$/.test(mapped)) {
+      rank = mapped;
+    }
+  }
+  
+  if (input.length === 1) {
+    if (/^[a-h]$/i.test(input)) {
+      file = input.toLowerCase();
+    } else if (/^[1-8]$/.test(input)) {
+      rank = input;
+    }
+  }
+  
+  return { file, rank };
+}
+
+export function findMoveByDisambiguation(candidates: string[], disambig: DisambiguationResult): string | null {
+  for (const move of candidates) {
+    const cleanMove = move.replace(/[+#]/g, '');
+    const match = cleanMove.match(/^[KQRBN]([a-h])?([1-8])?x?[a-h][1-8]/);
+    
+    if (match) {
+      const moveFile = match[1] || null;
+      const moveRank = match[2] || null;
+      
+      if (disambig.file && disambig.rank) {
+        if (moveFile === disambig.file && moveRank === disambig.rank) {
+          return move;
+        }
+      } else if (disambig.file) {
+        if (moveFile === disambig.file) {
+          return move;
+        }
+      } else if (disambig.rank) {
+        if (moveRank === disambig.rank) {
+          return move;
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
+export function getSourceSquaresFromCandidates(candidates: string[]): string[] {
+  const sources: string[] = [];
+  
+  for (const move of candidates) {
+    const cleanMove = move.replace(/[+#]/g, '');
+    const match = cleanMove.match(/^[KQRBN]([a-h])?([1-8])?x?[a-h][1-8]/);
+    if (match) {
+      const file = match[1] || '';
+      const rank = match[2] || '';
+      if (file || rank) {
+        sources.push(file + rank);
+      }
+    }
+  }
+  
+  return sources;
 }
 
 export class VoiceRecognition {
