@@ -3,6 +3,16 @@ import { Chess } from "chess.js";
 import { ChessBoard } from "@/components/chess-board";
 import { PromotionDialog } from "@/components/promotion-dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon } from "lucide-react";
+import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home } from "lucide-react";
 import titleImage from "@assets/image_1767696897621.jpg";
 import { voiceRecognition, speak, moveToSpeech } from "@/lib/voice";
 import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition } from "@/lib/botEngine";
@@ -131,6 +141,7 @@ export default function GamePage() {
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   
   const [pendingPromotion, setPendingPromotion] = useState<{ from: string; to: string } | null>(null);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
   
   const gameRef = useRef<Chess | null>(null);
   const whiteTimeRef = useRef(300);
@@ -930,7 +941,8 @@ export default function GamePage() {
                   onClick={resetGameState}
                   data-testid="button-main-menu"
                 >
-                  New Game
+                  <Home className="mr-2 h-4 w-4" />
+                  Back to Menu
                 </Button>
               </div>
             </div>
@@ -1105,6 +1117,19 @@ export default function GamePage() {
                 </ScrollArea>
               </CardContent>
             </Card>
+            
+            {!gameResult && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-red-600 border-red-300 hover:bg-red-50"
+                onClick={() => setShowResignConfirm(true)}
+                data-testid="button-resign"
+              >
+                <Flag className="mr-2 h-4 w-4" />
+                Resign
+              </Button>
+            )}
           </div>
         </div>
         
@@ -1135,6 +1160,31 @@ export default function GamePage() {
           }
         }}
       />
+      
+      <AlertDialog open={showResignConfirm} onOpenChange={setShowResignConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resign Game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to resign? This will count as a loss.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-resign-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                const result = playerColor === "white" ? "black_win" : "white_win";
+                handleGameEnd(result);
+                setShowResignConfirm(false);
+              }}
+              data-testid="button-resign-confirm"
+            >
+              Resign
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
