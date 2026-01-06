@@ -1045,7 +1045,7 @@ export default function GamePage() {
             
             <Button
               size="lg"
-              className="w-full bg-amber-400 hover:bg-amber-500 text-stone-900"
+              className="w-full bg-amber-400 hover:bg-amber-500 text-stone-900 border border-black"
               onClick={handleStartGameClick}
               data-testid="button-start-game"
             >
