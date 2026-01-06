@@ -870,6 +870,8 @@ export default function GamePage() {
                       setBlindFoldDisplayMode(mode);
                       if (mode === "no_board") {
                         setShowCoordinates(false);
+                        setVoiceInputEnabled(true);
+                        setVoiceOutputEnabled(true);
                       }
                     }}>
                       <SelectTrigger data-testid="select-blindfold-display">
