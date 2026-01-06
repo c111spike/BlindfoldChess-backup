@@ -788,27 +788,28 @@ export default function GamePage() {
   if (showTitleScreen) {
     return (
       <div 
-        className="min-h-screen w-full flex flex-col items-center justify-between relative"
-        style={{
-          backgroundImage: `url(${titleImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
+        className="h-screen w-full flex flex-col items-center relative overflow-hidden"
         data-testid="screen-title"
       >
-        <div className="relative z-10 flex flex-col items-center gap-2 p-8 pt-16 w-full">
+        <img 
+          src={titleImage} 
+          alt="Blindfold Chess" 
+          className="absolute inset-0 w-full h-full object-cover object-center z-0"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-transparent to-white/90 z-[1]" />
+        <div className="relative z-10 flex flex-col items-center gap-2 p-6 pt-12 w-full">
           <h1 
-            className="text-5xl font-bold text-black text-center tracking-tight"
+            className="text-4xl md:text-5xl font-bold text-black text-center tracking-tight"
             data-testid="text-title"
           >
             Blindfold Chess
           </h1>
-          <p className="text-black/70 text-center text-lg">
+          <p className="text-black/70 text-center text-base md:text-lg">
             Train your visualization and memory
           </p>
         </div>
-        <div className="relative z-10 flex flex-col items-center p-8 pb-16 w-full max-w-sm">
+        <div className="flex-1" />
+        <div className="relative z-10 flex flex-col items-center p-6 pb-12 w-full max-w-sm">
           <Button 
             size="lg" 
             variant="ghost"
