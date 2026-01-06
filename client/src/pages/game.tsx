@@ -21,10 +21,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home } from "lucide-react";
+import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import titleImage from "@assets/image_1767696897621.jpg";
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
 import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition } from "@/lib/botEngine";
+import { loadStats, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats } from "@/lib/gameStats";
 import { clientStockfish } from "@/lib/stockfish";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
 import { 
@@ -129,6 +137,10 @@ export default function GamePage() {
   const [remainingPeeks, setRemainingPeeks] = useState<number>(Number.POSITIVE_INFINITY);
   const [isPeeking, setIsPeeking] = useState(false);
   const peekStartTimeRef = useRef<number | null>(null);
+  const gamePeekTimeRef = useRef<number>(0);
+  
+  const [showStatsDialog, setShowStatsDialog] = useState(false);
+  const [stats, setStats] = useState<GameStats>(() => loadStats());
   
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
   const [botThinking, setBotThinking] = useState(false);
@@ -199,6 +211,7 @@ export default function GamePage() {
     setIsPeeking(false);
     setAwaitingDisambiguation(null);
     voiceRecognition.stop();
+    gamePeekTimeRef.current = 0;
   }, []);
 
   const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
@@ -212,6 +225,10 @@ export default function GamePage() {
     const playerWon = (result === "white_win" && playerColor === "white") || 
                      (result === "black_win" && playerColor === "black");
     const message = result === "draw" ? "Game drawn" : playerWon ? "You win!" : "You lose";
+    
+    const statsResult = result === "draw" ? "draw" : playerWon ? "win" : "loss";
+    const newStats = recordGameResult(statsResult, gamePeekTimeRef.current);
+    setStats(newStats);
     
     if (voiceOutputEnabled) {
       speak(message);
@@ -279,6 +296,7 @@ export default function GamePage() {
   }, [toast, playerColor]);
 
   const handleStartGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
+    gamePeekTimeRef.current = 0;
     const newGame = new Chess();
     setGame(newGame);
     gameRef.current = newGame;
@@ -761,6 +779,10 @@ export default function GamePage() {
   const handlePeekEnd = () => {
     if (isPeeking && remainingPeeks > 0) {
       setRemainingPeeks(prev => prev - 1);
+      if (peekStartTimeRef.current) {
+        const peekDuration = Date.now() - peekStartTimeRef.current;
+        gamePeekTimeRef.current += peekDuration;
+      }
     }
     setIsPeeking(false);
     peekStartTimeRef.current = null;
@@ -797,7 +819,7 @@ export default function GamePage() {
             data-testid="button-start-now"
           >
             <Play className="mr-2 h-5 w-5" />
-            Start Now
+            Play Now
           </Button>
         </div>
       </div>
@@ -946,6 +968,69 @@ export default function GamePage() {
                   </div>
                 </div>
                 
+                <Dialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-stats"
+                    >
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      Statistics
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Your Statistics</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div className="space-y-1">
+                          <p className="text-2xl font-bold text-green-600">{stats.wins}</p>
+                          <p className="text-sm text-muted-foreground">Wins</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-2xl font-bold text-gray-600">{stats.draws}</p>
+                          <p className="text-sm text-muted-foreground">Draws</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-2xl font-bold text-red-600">{stats.losses}</p>
+                          <p className="text-sm text-muted-foreground">Losses</p>
+                        </div>
+                      </div>
+                      
+                      <div className="border-t pt-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Last Game Peek Time</span>
+                          <span className="font-medium">{formatPeekTime(stats.lastGamePeekTime)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Average Peek Time</span>
+                          <span className="font-medium">{formatPeekTime(getAveragePeekTime(stats))}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Games with Peeks</span>
+                          <span className="font-medium">{stats.gamesWithPeeks}</span>
+                        </div>
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-muted-foreground"
+                        onClick={() => {
+                          resetStats();
+                          setStats(loadStats());
+                        }}
+                        data-testid="button-reset-stats"
+                      >
+                        <RefreshCw className="mr-2 h-3 w-3" />
+                        Reset Statistics
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold">Select Bot Difficulty</h3>
                   <div className="grid grid-cols-2 gap-2">
@@ -998,7 +1083,7 @@ export default function GamePage() {
                         <CardContent className="p-3">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10">
-                              <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+                              <AvatarFallback className="bg-amber-100 text-amber-500 font-bold text-lg shadow-[0_0_8px_rgba(251,191,36,0.4)]">
                                 {BOT_PERSONALITY_ICONS[personality]}
                               </AvatarFallback>
                             </Avatar>
@@ -1099,12 +1184,12 @@ export default function GamePage() {
   return (
     <div className="container max-w-4xl mx-auto p-2 md:p-4">
       {gameResult && (
-        <Card className="mb-3 border-primary bg-primary/10">
+        <Card className="mb-3 border-amber-400 bg-amber-100/50">
           <CardContent className="py-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Trophy className="h-6 w-6 text-primary" />
+                  <Trophy className="h-6 w-6 text-amber-500" />
                   <div>
                     <p className="font-semibold text-lg">Game Over</p>
                     <p className="text-sm text-muted-foreground">
@@ -1122,6 +1207,7 @@ export default function GamePage() {
                 <Button
                   variant="default"
                   size="sm"
+                  className="bg-amber-400 hover:bg-amber-500 text-stone-900"
                   onClick={() => {
                     if (selectedBot) {
                       const newColor = playerColor === "white" ? "black" : "white";
@@ -1150,12 +1236,12 @@ export default function GamePage() {
       )}
       
       <div className="space-y-2">
-        <Card className={`${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-primary" : ""}`}>
+        <Card className={`${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
           <CardContent className="py-2 px-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-black" : "bg-white border border-gray-400"}`} />
-                <Bot className="h-4 w-4 text-primary" />
+                <Bot className="h-4 w-4 text-amber-500" />
                 <span className="font-medium text-sm" data-testid="text-opponent-name">{selectedBot?.name || "Bot"}</span>
                 <span className="text-xs text-muted-foreground">({selectedBot?.elo || 1200})</span>
                 {botThinking && (
@@ -1337,7 +1423,7 @@ export default function GamePage() {
           </div>
         </div>
         
-        <Card className={`${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-primary" : ""}`}>
+        <Card className={`${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
           <CardContent className="py-2 px-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
