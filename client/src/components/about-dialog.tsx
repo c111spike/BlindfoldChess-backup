@@ -40,13 +40,13 @@ export function AboutDialog() {
         
         <div className="space-y-4 pt-4">
           <div>
-            <h3 className="font-semibold mb-1">Version</h3>
-            <p className="text-sm text-muted-foreground">1.0.0</p>
+            <h3 className="text-sm text-muted-foreground mb-1">Version</h3>
+            <p className="text-xs text-muted-foreground/70">1.0.0</p>
           </div>
           
           <div>
-            <h3 className="font-semibold mb-1">Age Rating</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="text-sm text-muted-foreground mb-1">Age Rating</h3>
+            <p className="text-xs text-muted-foreground/70">
               This app is intended for users ages 13 and older.
             </p>
           </div>
@@ -109,6 +109,12 @@ export function AboutDialog() {
               View Full Privacy Policy
               <ExternalLink className="h-3 w-3" />
             </button>
+          </div>
+          
+          <div className="pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground/60 text-center">
+              This app is not affiliated with, endorsed by, or sponsored by the Stockfish team.
+            </p>
           </div>
         </div>
       </DialogContent>
