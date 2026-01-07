@@ -16,15 +16,26 @@ interface EvaluationBarProps {
   isLoading: boolean;
   isMate: boolean;
   mateIn?: number;
+  playerColor: "white" | "black";
 }
 
-function EvaluationBar({ evaluation, isLoading, isMate, mateIn }: EvaluationBarProps) {
-  const evalToPercentage = (evalValue: number): number => {
+function EvaluationBar({ evaluation, isLoading, isMate, mateIn, playerColor }: EvaluationBarProps) {
+  // Calculate the fill percentage based on evaluation
+  // Positive eval = white advantage, negative = black advantage
+  // Clamp to ±10 pawns, then convert to percentage
+  const evalToFillPercentage = (evalValue: number): number => {
+    // For mate, pin to 0% or 100%
+    if (isMate) {
+      return evalValue > 0 ? 100 : 0; // 100% white, 0% black
+    }
+    // Clamp to ±10 pawns
     const clampedEval = Math.max(-10, Math.min(10, evalValue));
-    return 50 - (clampedEval / 10) * 50;
+    // Convert to 0-100%: 0 eval = 50%, +10 = 100% (white wins), -10 = 0% (black wins)
+    return 50 + (clampedEval / 10) * 50;
   };
 
-  const blackPercentage = evaluation !== null ? evalToPercentage(evaluation) : 50;
+  // This is the percentage of the bar that should be white (from bottom)
+  const whiteFillPercent = evaluation !== null ? evalToFillPercentage(evaluation) : 50;
   
   const formatEval = (evalValue: number | null): string => {
     if (evalValue === null) return "...";
@@ -35,15 +46,40 @@ function EvaluationBar({ evaluation, isLoading, isMate, mateIn }: EvaluationBarP
     return `${sign}${evalValue.toFixed(1)}`;
   };
 
+  // When player is white: opponent (black) at top, player (white) at bottom
+  // When player is black: opponent (white) at top, player (black) at bottom
+  // The bar should show: top color fills DOWN when that side gains advantage
+  
+  // For white player: black on top, white on bottom
+  // whiteFillPercent represents how much of the bar from bottom is white
+  // So blackFillPercent = 100 - whiteFillPercent (fills from top)
+  
+  // For black player: white on top, black on bottom
+  // We flip the perspective: blackFillPercent fills from bottom
+  const isFlipped = playerColor === "black";
+  
+  // Top section color and bottom section color based on player perspective
+  const topColor = isFlipped ? "bg-white" : "bg-stone-900";
+  const bottomColor = isFlipped ? "bg-stone-900" : "bg-white";
+  
+  // The fill from top: when player is white, black fills from top (100 - whiteFill)
+  // When player is black, white fills from top (whiteFill)
+  const topFillPercent = isFlipped ? whiteFillPercent : (100 - whiteFillPercent);
+
   return (
-    <div className="flex flex-col items-center h-full w-8" data-testid="evaluation-bar">
-      <div className="relative flex-1 w-6 rounded-full overflow-hidden border border-border bg-white">
+    <div className="flex flex-col items-center w-6 h-full" data-testid="evaluation-bar">
+      <div className="text-xs font-mono font-bold mb-1 flex-shrink-0" data-testid="evaluation-value">
+        {formatEval(evaluation)}
+      </div>
+      <div className={`relative w-full rounded overflow-hidden border border-border ${bottomColor} flex-1`}>
+        {/* Top section fills down based on advantage */}
         <div 
-          className="absolute top-0 left-0 right-0 bg-stone-900 transition-all duration-300"
-          style={{ height: `${blackPercentage}%` }}
+          className={`absolute top-0 left-0 right-0 ${topColor} transition-all duration-300`}
+          style={{ height: `${topFillPercent}%` }}
         />
+        {/* Center line at 50% (equal position) */}
         <div 
-          className="absolute left-0 right-0 h-[2px] bg-muted-foreground/50"
+          className="absolute left-0 right-0 h-[2px] bg-amber-500"
           style={{ top: '50%', transform: 'translateY(-50%)' }}
         />
         {isLoading && (
@@ -51,9 +87,6 @@ function EvaluationBar({ evaluation, isLoading, isMate, mateIn }: EvaluationBarP
             <Loader2 className="h-3 w-3 animate-spin text-white" />
           </div>
         )}
-      </div>
-      <div className="mt-1 text-xs font-mono font-bold" data-testid="evaluation-value">
-        {formatEval(evaluation)}
       </div>
     </div>
   );
@@ -221,22 +254,25 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
       </div>
 
       <div className="flex-1 overflow-auto p-4">
-        <div className="flex gap-3 justify-center items-start">
-          <EvaluationBar 
-            evaluation={evaluation} 
-            isLoading={isEvaluating}
-            isMate={isMate}
-            mateIn={mateIn}
-          />
-          
-          <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 items-center">
+          {/* Board and eval bar row - items-stretch makes bar match board height */}
+          <div className="flex gap-2 items-stretch">
+            <EvaluationBar 
+              evaluation={evaluation} 
+              isLoading={isEvaluating}
+              isMate={isMate}
+              mateIn={mateIn}
+              playerColor={playerColor}
+            />
             <ChessBoard 
               position={currentFen} 
               flipped={playerColor === "black"}
               lastMove={lastMove}
             />
-            
-            <div className="flex justify-center gap-1">
+          </div>
+          
+          {/* Navigation buttons below */}
+          <div className="flex justify-center gap-1">
               <Button
                 variant="outline"
                 size="icon"
@@ -273,7 +309,6 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
               >
                 <ChevronsRight className="h-4 w-4" />
               </Button>
-            </div>
           </div>
         </div>
 
