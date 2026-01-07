@@ -20,8 +20,18 @@ export interface SavedGame {
 let sqlite: SQLiteConnection | null = null;
 let db: SQLiteDBConnection | null = null;
 let isNative = false;
+let dbInitialized = false;
+let initPromise: Promise<boolean> | null = null;
 
 export async function initGameHistoryDB(): Promise<boolean> {
+  if (dbInitialized) return true;
+  if (initPromise) return initPromise;
+  
+  initPromise = doInitGameHistoryDB();
+  return initPromise;
+}
+
+async function doInitGameHistoryDB(): Promise<boolean> {
   try {
     isNative = Capacitor.isNativePlatform();
     
@@ -62,9 +72,11 @@ export async function initGameHistoryDB(): Promise<boolean> {
     await db.execute(createTableQuery);
     
     console.log('[GameHistory] Database initialized successfully');
+    dbInitialized = true;
     return true;
   } catch (error) {
     console.error('[GameHistory] Failed to initialize database:', error);
+    dbInitialized = true; // Allow fallback to localStorage
     return false;
   }
 }
@@ -84,6 +96,8 @@ function setLocalStorageGames(games: SavedGame[]): void {
 }
 
 export async function saveGame(game: Omit<SavedGame, 'id'>): Promise<number | null> {
+  await initGameHistoryDB();
+  
   try {
     if (!isNative) {
       const games = getLocalStorageGames();
@@ -127,6 +141,8 @@ export async function saveGame(game: Omit<SavedGame, 'id'>): Promise<number | nu
 }
 
 export async function getAllGames(): Promise<SavedGame[]> {
+  await initGameHistoryDB();
+  
   try {
     if (!isNative) {
       return getLocalStorageGames();
@@ -161,6 +177,8 @@ export async function getAllGames(): Promise<SavedGame[]> {
 }
 
 export async function getFavoriteGames(): Promise<SavedGame[]> {
+  await initGameHistoryDB();
+  
   try {
     if (!isNative) {
       return getLocalStorageGames().filter(g => g.isFavorite);
@@ -195,6 +213,8 @@ export async function getFavoriteGames(): Promise<SavedGame[]> {
 }
 
 export async function toggleFavorite(gameId: number): Promise<boolean> {
+  await initGameHistoryDB();
+  
   try {
     if (!isNative) {
       const games = getLocalStorageGames();
@@ -227,6 +247,8 @@ export async function toggleFavorite(gameId: number): Promise<boolean> {
 }
 
 export async function deleteGame(gameId: number): Promise<boolean> {
+  await initGameHistoryDB();
+  
   try {
     if (!isNative) {
       const games = getLocalStorageGames();
@@ -252,6 +274,8 @@ export async function deleteGame(gameId: number): Promise<boolean> {
 }
 
 export async function getGameById(gameId: number): Promise<SavedGame | null> {
+  await initGameHistoryDB();
+  
   try {
     if (!isNative) {
       const games = getLocalStorageGames();

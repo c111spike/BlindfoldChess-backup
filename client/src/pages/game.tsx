@@ -378,7 +378,7 @@ export default function GamePage() {
         pgn,
         clarityScore,
         isFavorite: false,
-        timeControl: selectedTimeControl
+        timeControl: timeControl
       };
       saveGame(gameToSave).then(id => {
         if (id) {
@@ -386,7 +386,7 @@ export default function GamePage() {
         }
       });
     }
-  }, [playerColor, bestPeekFreeStreak, isBlindfold, selectedBot, selectedTimeControl]);
+  }, [playerColor, bestPeekFreeStreak, isBlindfold, selectedBot, timeControl]);
 
   const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
     if (clockIntervalRef.current) {
@@ -1799,27 +1799,34 @@ export default function GamePage() {
     );
   }
   
+  if (viewingHistoryGame) {
+    return (
+      <HistoryGameReport
+        game={viewingHistoryGame}
+        open={true}
+        onClose={() => {
+          setViewingHistoryGame(null);
+          setShowGameHistory(true);
+        }}
+        onAnalyze={(moves) => {
+          setLastGameMoveHistory(moves);
+          setViewingHistoryGame(null);
+          setShowGameHistory(false);
+          setShowAnalysis(true);
+        }}
+      />
+    );
+  }
+  
   if (showGameHistory) {
     return (
-      <>
-        <GameHistory
-          onBack={() => setShowGameHistory(false)}
-          onViewGame={(game) => {
-            setViewingHistoryGame(game);
-          }}
-        />
-        <HistoryGameReport
-          game={viewingHistoryGame}
-          open={viewingHistoryGame !== null}
-          onClose={() => setViewingHistoryGame(null)}
-          onAnalyze={(moves) => {
-            setLastGameMoveHistory(moves);
-            setViewingHistoryGame(null);
-            setShowGameHistory(false);
-            setShowAnalysis(true);
-          }}
-        />
-      </>
+      <GameHistory
+        onBack={() => setShowGameHistory(false)}
+        onViewGame={(game) => {
+          setViewingHistoryGame(game);
+          setShowGameHistory(false);
+        }}
+      />
     );
   }
 
