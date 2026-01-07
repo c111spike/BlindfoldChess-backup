@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Trophy, Brain, Clock, Grid3X3, TrendingUp, TrendingDown, RotateCcw, Home, Activity, X } from "lucide-react";
+import { Trophy, Brain, Clock, Grid3X3, TrendingUp, TrendingDown, RotateCcw, Home, Activity, X, PuzzleIcon, Mic } from "lucide-react";
 import { formatResponseTime } from "@/lib/gameStats";
 
 interface PostMortemReportProps {
@@ -13,6 +13,9 @@ interface PostMortemReportProps {
   clarityScore: number;
   responseTimes: number[];
   squareInquiries: string[];
+  reconstructionScore: number | null;
+  reconstructionVoicePurity: number | null;
+  reconstructionEnabled: boolean;
   onRematch: () => void;
   onMainMenu: () => void;
 }
@@ -173,6 +176,9 @@ export function PostMortemReport({
   clarityScore,
   responseTimes,
   squareInquiries,
+  reconstructionScore,
+  reconstructionVoicePurity,
+  reconstructionEnabled,
   onRematch,
   onMainMenu,
 }: PostMortemReportProps) {
@@ -260,6 +266,43 @@ export function PostMortemReport({
             </p>
             <SpatialBlurHeatmap squareInquiries={squareInquiries} />
           </div>
+          
+          {reconstructionEnabled && reconstructionScore !== null && (
+            <>
+              <Separator />
+              
+              <div className="space-y-2" data-testid="reconstruction-stats">
+                <div className="flex items-center gap-2">
+                  <PuzzleIcon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Board Reconstruction</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="bg-muted/30 border-0">
+                    <CardContent className="p-3 text-center">
+                      <p className={`text-xl font-bold ${reconstructionScore >= 80 ? 'text-green-500' : reconstructionScore >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                        {reconstructionScore}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">Accuracy</p>
+                    </CardContent>
+                  </Card>
+                  
+                  {reconstructionVoicePurity !== null && (
+                    <Card className="bg-muted/30 border-0">
+                      <CardContent className="p-3 text-center">
+                        <div className="flex items-center justify-center gap-1 mb-0.5">
+                          <Mic className="h-3 w-3 text-purple-500" />
+                          <p className={`text-xl font-bold ${reconstructionVoicePurity >= 80 ? 'text-purple-500' : reconstructionVoicePurity >= 50 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                            {reconstructionVoicePurity}%
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Voice Purity</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
           
           <Separator />
           

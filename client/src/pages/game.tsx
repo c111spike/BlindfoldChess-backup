@@ -205,6 +205,8 @@ export default function GamePage() {
   const [showPostMortem, setShowPostMortem] = useState(false);
   const [lastGameResponseTimes, setLastGameResponseTimes] = useState<number[]>([]);
   const [lastGameSquareInquiries, setLastGameSquareInquiries] = useState<string[]>([]);
+  const [lastReconstructionScore, setLastReconstructionScore] = useState<number | null>(null);
+  const [lastReconstructionVoicePurity, setLastReconstructionVoicePurity] = useState<number | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const whiteTimeRef = useRef(300);
@@ -268,6 +270,8 @@ export default function GamePage() {
     setShowReconstruction(false);
     setReconstructionFen(null);
     pendingGameResultRef.current = null;
+    setLastReconstructionScore(null);
+    setLastReconstructionVoicePurity(null);
   }, []);
 
   const finalizeGameResult = useCallback((result: "white_win" | "black_win" | "draw", clarityScore?: number, voicePurity?: number) => {
@@ -339,6 +343,10 @@ export default function GamePage() {
     reconstructionVoiceInputsRef.current = voiceInputs;
     reconstructionTouchInputsRef.current = touchInputs;
     
+    // Store reconstruction results for post-mortem report
+    setLastReconstructionScore(score);
+    setLastReconstructionVoicePurity(voicePurity);
+    
     if (pendingGameResultRef.current) {
       finalizeGameResult(pendingGameResultRef.current.result, score, voicePurity);
       // Clear to prevent double finalization
@@ -355,6 +363,10 @@ export default function GamePage() {
   }, []);
 
   const handleReconstructionSkip = useCallback(() => {
+    // Clear reconstruction stats since we're skipping
+    setLastReconstructionScore(null);
+    setLastReconstructionVoicePurity(null);
+    
     if (pendingGameResultRef.current) {
       finalizeGameResult(pendingGameResultRef.current.result);
     }
@@ -1361,6 +1373,9 @@ export default function GamePage() {
         clarityScore={stats.lastClarityScore}
         responseTimes={lastGameResponseTimes}
         squareInquiries={lastGameSquareInquiries}
+        reconstructionScore={lastReconstructionScore}
+        reconstructionVoicePurity={lastReconstructionVoicePurity}
+        reconstructionEnabled={blindfoldSettings.boardReconstructionEnabled}
         onRematch={() => {
           if (selectedBot) {
             const newColor = playerColor === "white" ? "black" : "white";
@@ -1375,6 +1390,7 @@ export default function GamePage() {
         }}
       />
       
+      {!showReconstruction && (
       <div className="space-y-2">
         <Card className={`${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
           <CardContent className="py-2 px-4">
@@ -1605,6 +1621,7 @@ export default function GamePage() {
           </CardContent>
         </Card>
       </div>
+      )}
       
       <PromotionDialog
         open={!!pendingPromotion}
