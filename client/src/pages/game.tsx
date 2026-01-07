@@ -127,7 +127,10 @@ export default function GamePage() {
   
   const [whiteTime, setWhiteTime] = useState(300);
   const [blackTime, setBlackTime] = useState(300);
-  const [timeControl, setTimeControl] = useState<TimeControlOption>("blitz");
+  const [timeControl, setTimeControl] = useState<TimeControlOption>(() => {
+    const saved = localStorage.getItem('blindfold-settings-time');
+    return (saved as TimeControlOption) || "blitz";
+  });
   
   const [isBlindfold, setIsBlindfold] = useState(false);
   const [blindfoldDifficulty, setBlindFoldDifficulty] = useState<BlindFoldDifficulty>("medium");
@@ -171,8 +174,17 @@ export default function GamePage() {
   
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
   const [botThinking, setBotThinking] = useState(false);
-  const [selectedBotElo, setSelectedBotElo] = useState<number>(1200);
-  const [selectedColor, setSelectedColor] = useState<"white" | "black" | "random">("white");
+  const [selectedBotElo, setSelectedBotElo] = useState<number>(() => {
+    const saved = localStorage.getItem('blindfold-settings-elo');
+    return saved ? Number(saved) : 1200;
+  });
+  const [selectedColor, setSelectedColor] = useState<"white" | "black" | "random">(() => {
+    const saved = localStorage.getItem('blindfold-settings-color');
+    return (saved as "white" | "black" | "random") || "white";
+  });
+  
+  // Settings transition animation
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
@@ -224,6 +236,19 @@ export default function GamePage() {
       }
     };
   }, []);
+  
+  // Persist game settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('blindfold-settings-elo', String(selectedBotElo));
+  }, [selectedBotElo]);
+  
+  useEffect(() => {
+    localStorage.setItem('blindfold-settings-color', selectedColor);
+  }, [selectedColor]);
+  
+  useEffect(() => {
+    localStorage.setItem('blindfold-settings-time', timeControl);
+  }, [timeControl]);
   
   useEffect(() => {
     gameRef.current = game;
@@ -490,6 +515,7 @@ export default function GamePage() {
     }
     
     setGameStarted(true);
+    setIsTransitioning(false); // Reset transition for fade-in
     
     if (assignedColor === "black") {
       const botMove = await requestBotMove(newGame.fen(), bot.id);
@@ -1109,15 +1135,25 @@ export default function GamePage() {
   }
 
   if (!gameStarted) {
-    const handleStartGameClick = () => {
+    const handleStartGameClick = async () => {
       const bot = getBotByElo(selectedBotElo);
       if (bot) {
-        handleStartGame(bot, selectedColor);
+        // Haptic thud for "entering battle"
+        try {
+          await Haptics.impact({ style: ImpactStyle.Heavy });
+        } catch (e) {
+          // Haptics not available (browser)
+        }
+        // Trigger fade-out transition
+        setIsTransitioning(true);
+        setTimeout(() => {
+          handleStartGame(bot, selectedColor);
+        }, 200);
       }
     };
 
     return (
-      <div className="container max-w-lg mx-auto p-4">
+      <div className={`container max-w-lg mx-auto p-4 transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         <Card>
           <CardContent className="pt-6 space-y-6">
             <div className="space-y-4">
@@ -1354,7 +1390,7 @@ export default function GamePage() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto p-2 md:p-4">
+    <div className="container max-w-4xl mx-auto p-2 md:p-4 animate-in fade-in duration-300">
       {showReconstruction && reconstructionFen && (
         <div className="mb-3">
           <BoardReconstruction
