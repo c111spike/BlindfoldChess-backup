@@ -81,6 +81,10 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        board: {
+          light: "hsl(var(--board-light) / <alpha-value>)",
+          dark: "hsl(var(--board-dark) / <alpha-value>)",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

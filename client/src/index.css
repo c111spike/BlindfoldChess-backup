@@ -20,42 +20,42 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE */
+/* LIGHT MODE - "Premium Paper" Palette */
 :root {
-  --button-outline: rgba(0,0,0, .10);
-  --badge-outline: rgba(0,0,0, .05);
-  --opaque-button-border-intensity: -8;
-  --elevate-1: rgba(0,0,0, .03);
-  --elevate-2: rgba(0,0,0, .08);
-  --background: 210 6% 98%;
-  --foreground: 210 8% 12%;
-  --border: 210 6% 88%;
-  --card: 210 6% 96%;
-  --card-foreground: 210 8% 12%;
-  --card-border: 210 6% 92%;
-  --sidebar: 210 6% 94%;
-  --sidebar-foreground: 210 8% 14%;
-  --sidebar-border: 210 6% 90%;
+  --button-outline: rgba(0,0,0, .08);
+  --badge-outline: rgba(0,0,0, .04);
+  --opaque-button-border-intensity: -6;
+  --elevate-1: rgba(0,0,0, .025);
+  --elevate-2: rgba(0,0,0, .06);
+  --background: 240 9% 97%;
+  --foreground: 240 3% 12%;
+  --border: 220 10% 90%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 3% 12%;
+  --card-border: 220 8% 92%;
+  --sidebar: 240 6% 95%;
+  --sidebar-foreground: 240 3% 14%;
+  --sidebar-border: 220 8% 90%;
   --sidebar-primary: 0 55% 40%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 210 8% 88%;
-  --sidebar-accent-foreground: 210 10% 18%;
-  --sidebar-ring: 45 93% 47%;
-  --popover: 210 6% 92%;
-  --popover-foreground: 210 8% 12%;
-  --popover-border: 210 6% 88%;
+  --sidebar-accent: 220 10% 90%;
+  --sidebar-accent-foreground: 240 5% 18%;
+  --sidebar-ring: 43 86% 62%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 3% 12%;
+  --popover-border: 220 8% 90%;
   --primary: 0 55% 40%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 210 8% 86%;
-  --secondary-foreground: 210 10% 16%;
-  --muted: 210 10% 90%;
-  --muted-foreground: 210 8% 30%;
-  --accent: 210 12% 88%;
-  --accent-foreground: 210 10% 18%;
+  --secondary: 220 10% 88%;
+  --secondary-foreground: 240 5% 16%;
+  --muted: 220 12% 92%;
+  --muted-foreground: 240 5% 35%;
+  --accent: 220 12% 90%;
+  --accent-foreground: 240 5% 18%;
   --destructive: 0 55% 40%;
   --destructive-foreground: 0 0% 100%;
-  --input: 210 8% 65%;
-  --ring: 45 93% 47%;
+  --input: 220 10% 70%;
+  --ring: 43 86% 62%;
   --chart-1: 0 55% 40%;
   --chart-2: 200 75% 45%;
   --chart-3: 175 70% 42%;
@@ -65,16 +65,18 @@
   --font-serif: Georgia, serif;
   --font-mono: "JetBrains Mono", monospace;
   --radius: .5rem;
-  --shadow-2xs: 0px 2px 0px 0px hsl(210 8% 12% / 0.05);
-  --shadow-xs: 0px 2px 0px 0px hsl(210 8% 12% / 0.08);
-  --shadow-sm: 0px 2px 0px 0px hsl(210 8% 12% / 0.05), 0px 1px 2px -1px hsl(210 8% 12% / 0.10);
-  --shadow: 0px 2px 0px 0px hsl(210 8% 12% / 0.05), 0px 1px 2px -1px hsl(210 8% 12% / 0.10);
-  --shadow-md: 0px 2px 0px 0px hsl(210 8% 12% / 0.05), 0px 2px 4px -1px hsl(210 8% 12% / 0.12);
-  --shadow-lg: 0px 2px 0px 0px hsl(210 8% 12% / 0.05), 0px 4px 6px -1px hsl(210 8% 12% / 0.14);
-  --shadow-xl: 0px 2px 0px 0px hsl(210 8% 12% / 0.05), 0px 8px 10px -1px hsl(210 8% 12% / 0.16);
-  --shadow-2xl: 0px 2px 0px 0px hsl(210 8% 12% / 0.08);
+  --shadow-2xs: 0 1px 2px 0 rgba(0,0,0,0.03);
+  --shadow-xs: 0 1px 3px 0 rgba(0,0,0,0.04);
+  --shadow-sm: 0 2px 4px -1px rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03);
+  --shadow: 0 4px 8px -2px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.03);
+  --shadow-md: 0 6px 12px -3px rgba(0,0,0,0.06), 0 3px 6px -3px rgba(0,0,0,0.04);
+  --shadow-lg: 0 8px 16px -4px rgba(0,0,0,0.07), 0 4px 8px -4px rgba(0,0,0,0.04);
+  --shadow-xl: 0 12px 24px -6px rgba(0,0,0,0.08), 0 6px 12px -6px rgba(0,0,0,0.05);
+  --shadow-2xl: 0 16px 32px -8px rgba(0,0,0,0.10);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
+  --board-light: 211 25% 93%;
+  --board-dark: 213 18% 75%;
 
 /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -153,6 +155,8 @@
   --shadow-lg: 0px 2px 0px 0px hsl(207 20% 8% / 0.15), 0px 4px 6px -1px hsl(207 20% 8% / 0.24);
   --shadow-xl: 0px 2px 0px 0px hsl(207 20% 8% / 0.15), 0px 8px 10px -1px hsl(207 20% 8% / 0.26);
   --shadow-2xl: 0px 2px 0px 0px hsl(207 20% 8% / 0.20);
+  --board-light: 34 35% 82%;
+  --board-dark: 30 25% 55%;
 
 /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -183,35 +187,35 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
-/* Custom Scrollbar Styling - Light Mode */
+/* Custom Scrollbar Styling - Light Mode (Paper Aesthetic) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(210 6% 94%);
+  background: hsl(240 6% 95%);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(210 8% 70%);
+  background: hsl(220 10% 78%);
   border-radius: 4px;
-  border: 2px solid hsl(210 6% 94%);
+  border: 2px solid hsl(240 6% 95%);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(210 8% 55%);
+  background: hsl(220 10% 65%);
 }
 
 ::-webkit-scrollbar-corner {
-  background: hsl(210 6% 94%);
+  background: hsl(240 6% 95%);
 }
 
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: hsl(210 8% 70%) hsl(210 6% 94%);
+  scrollbar-color: hsl(220 10% 78%) hsl(240 6% 95%);
 }
 
 /* Custom Scrollbar Styling - Dark Mode */

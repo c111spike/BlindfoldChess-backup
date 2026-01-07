@@ -371,7 +371,7 @@ export function ChessBoard({
 
   const getSquareColor = (fileIndex: number, rankIndex: number) => {
     const isLight = (fileIndex + rankIndex) % 2 === 0;
-    return isLight ? "bg-[#f0d9b5]" : "bg-[#b58863]";
+    return isLight ? "bg-board-light" : "bg-board-dark";
   };
 
   const isPremoveSquare = (square: string) => {
