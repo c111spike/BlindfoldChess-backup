@@ -487,20 +487,18 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
               let squareClass = isLight ? 'bg-amber-100' : 'bg-amber-700';
               let indicator = null;
               
+              // Determine if this square has an error
+              const isCorrect = userPiece === actualPiece;
+              const isMissed = !userPiece && actualPiece; // User missed a piece
+              const isWrong = userPiece && userPiece !== actualPiece; // User placed wrong or no piece should be here
+              
               if (submitted) {
-                if (userPiece === actualPiece) {
+                if (isCorrect) {
                   if (userPiece !== null) {
                     squareClass = isLight ? 'bg-green-200' : 'bg-green-600';
                   }
                 } else {
                   squareClass = isLight ? 'bg-red-200' : 'bg-red-500';
-                  if (actualPiece && userPiece !== actualPiece) {
-                    indicator = (
-                      <div className="absolute bottom-0 right-0 w-4 h-4 bg-white/80 rounded-tl flex items-center justify-center">
-                        <img src={PIECE_IMAGES[actualPiece]} alt="correct" className="w-3 h-3" />
-                      </div>
-                    );
-                  }
                 }
               }
               
@@ -516,15 +514,37 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
                   style={{ touchAction: 'none' }}
                   data-testid={`reconstruction-square-${files[displayCol]}${ranks[displayRow]}`}
                 >
+                  {/* Ghost piece showing actual position at 30% opacity */}
+                  {submitted && actualPiece && !isCorrect && (
+                    <img 
+                      src={PIECE_IMAGES[actualPiece]} 
+                      alt={`actual-${actualPiece}`} 
+                      className="absolute w-[85%] h-[85%] opacity-30 pointer-events-none" 
+                      draggable={false}
+                    />
+                  )}
+                  
+                  {/* User's piece - animate slide if wrong */}
                   {userPiece && (
                     <img 
                       src={PIECE_IMAGES[userPiece]} 
                       alt={userPiece} 
-                      className="w-[85%] h-[85%] pointer-events-none" 
+                      className={`w-[85%] h-[85%] pointer-events-none z-10 ${
+                        submitted && !isCorrect ? 'animate-[shake_0.5s_ease-in-out]' : ''
+                      }`} 
                       draggable={false}
                     />
                   )}
-                  {indicator}
+                  
+                  {/* Error indicator with sliding animation for missed pieces */}
+                  {submitted && isMissed && (
+                    <div 
+                      className="absolute inset-0 flex items-center justify-center animate-[fadeSlideIn_0.6s_ease-out_forwards]"
+                      style={{ animationDelay: `${(boardRow * 8 + boardCol) * 30}ms` }}
+                    >
+                      <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                    </div>
+                  )}
                   {displayCol === 0 && (
                     <span className="absolute top-0.5 left-0.5 text-[8px] font-semibold select-none opacity-70">
                       {ranks[displayRow]}

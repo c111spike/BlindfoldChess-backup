@@ -31,7 +31,9 @@ import {
 } from "@/components/ui/dialog";
 import titleImage from "@assets/title_cropped.jpg";
 import { BoardReconstruction } from "@/components/board-reconstruction";
+import { PostMortemReport } from "@/components/post-mortem-report";
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
 import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition, clearRecentMoves } from "@/lib/botEngine";
 import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats, type BlindfoldSettings } from "@/lib/gameStats";
@@ -199,6 +201,11 @@ export default function GamePage() {
   const [reconstructionFen, setReconstructionFen] = useState<string | null>(null);
   const pendingGameResultRef = useRef<{ result: "white_win" | "black_win" | "draw"; fen: string } | null>(null);
   
+  // Post-mortem report state
+  const [showPostMortem, setShowPostMortem] = useState(false);
+  const [lastGameResponseTimes, setLastGameResponseTimes] = useState<number[]>([]);
+  const [lastGameSquareInquiries, setLastGameSquareInquiries] = useState<string[]>([]);
+  
   const gameRef = useRef<Chess | null>(null);
   const whiteTimeRef = useRef(300);
   const blackTimeRef = useRef(300);
@@ -269,6 +276,10 @@ export default function GamePage() {
     
     const statsResult = result === "draw" ? "draw" : playerWon ? "win" : "loss";
     const wasPeekFree = gamePeekTimeRef.current === 0;
+    
+    // Store response times and inquiries for post-mortem report
+    setLastGameResponseTimes([...responseTimesRef.current]);
+    setLastGameSquareInquiries([...squareInquiriesRef.current]);
     const totalMoves = movesRef.current.length;
     
     const newStats = recordGameResult(
@@ -291,6 +302,9 @@ export default function GamePage() {
     );
     setStats(newStats);
     window.dispatchEvent(new CustomEvent('statsUpdated'));
+    
+    // Show post-mortem report after game ends
+    setShowPostMortem(true);
   }, [playerColor, bestPeekFreeStreak]);
 
   const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
@@ -457,6 +471,14 @@ export default function GamePage() {
         
         // Record timestamp for response time tracking (first move when player is black)
         botMoveTimestampRef.current = Date.now();
+        
+        // Haptic feedback for bot move (double pulse)
+        try {
+          Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+          setTimeout(() => {
+            Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+          }, 100);
+        } catch (e) {}
         
         if (voiceOutputEnabled) {
           const spokenMove = moveToSpeech(botMove.move, botMove.move.includes('x'), gameRef.current.isCheck(), false);
@@ -709,6 +731,11 @@ export default function GamePage() {
         if (!gameRef.current) return;
         const moveObj = gameRef.current.move(result.move);
         if (moveObj) {
+          // Haptic feedback for successful voice move (light tap)
+          try {
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+          } catch (e) {}
+          
           setFen(gameRef.current.fen());
           setLastMove({ from: moveObj.from, to: moveObj.to });
           recordPosition(gameRef.current.fen());
@@ -836,6 +863,14 @@ export default function GamePage() {
           
           // Record timestamp for response time tracking
           botMoveTimestampRef.current = Date.now();
+          
+          // Haptic feedback for bot move (double pulse)
+          try {
+            Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+            setTimeout(() => {
+              Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+            }, 100);
+          } catch (e) {}
           
           if (voiceOutputEnabled) {
             isTtsSpeaking.current = true;
@@ -1310,65 +1345,27 @@ export default function GamePage() {
         </div>
       )}
       
-      {gameResult && !showReconstruction && (
-        <Card className="mb-3 border-amber-400 border-2 bg-white">
-          <CardContent className="py-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Trophy className="h-6 w-6 text-amber-500" />
-                  <div>
-                    <p className="font-semibold text-lg text-black">Game Over</p>
-                    <p className="text-sm text-stone-600">
-                      {gameResult === "draw" 
-                        ? "Game drawn" 
-                        : gameResult === "white_win" 
-                          ? (playerColor === "white" ? "You win!" : "Bot wins") 
-                          : (playerColor === "black" ? "You win!" : "Bot wins")}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              {stats.lastClarityScore > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  Clarity Score: <span className="font-semibold text-amber-500">{stats.lastClarityScore}%</span>
-                </div>
-              )}
-              
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="bg-black hover:bg-stone-800 text-white border border-black"
-                  onClick={() => {
-                    if (selectedBot) {
-                      const newColor = playerColor === "white" ? "black" : "white";
-                      resetGameState();
-                      setTimeout(() => handleStartGame(selectedBot, newColor), 100);
-                    }
-                  }}
-                  data-testid="button-rematch"
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Rematch
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-black hover:bg-amber-300 bg-amber-400"
-                  style={{ '--button-outline': '#000000' } as React.CSSProperties}
-                  onClick={resetGameState}
-                  data-testid="button-main-menu"
-                >
-                  <Home className="mr-2 h-4 w-4" />
-                  Back to Menu
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <PostMortemReport
+        open={showPostMortem && !showReconstruction}
+        onClose={() => setShowPostMortem(false)}
+        gameResult={gameResult}
+        playerColor={playerColor}
+        clarityScore={stats.lastClarityScore}
+        responseTimes={lastGameResponseTimes}
+        squareInquiries={lastGameSquareInquiries}
+        onRematch={() => {
+          if (selectedBot) {
+            const newColor = playerColor === "white" ? "black" : "white";
+            setShowPostMortem(false);
+            resetGameState();
+            setTimeout(() => handleStartGame(selectedBot, newColor), 100);
+          }
+        }}
+        onMainMenu={() => {
+          setShowPostMortem(false);
+          resetGameState();
+        }}
+      />
       
       <div className="space-y-2">
         <Card className={`${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
