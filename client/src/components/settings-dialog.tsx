@@ -100,6 +100,7 @@ export function SettingsDialog() {
                 checked={toastsEnabled}
                 onCheckedChange={handleToastToggle}
                 data-testid="switch-toast-notifications"
+                className="data-[state=checked]:bg-amber-400"
               />
             </div>
             <p className="text-xs text-muted-foreground">
