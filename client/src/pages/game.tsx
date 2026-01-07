@@ -30,10 +30,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import titleImage from "@assets/title_cropped.jpg";
+import { BoardReconstruction } from "@/components/board-reconstruction";
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
 import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition } from "@/lib/botEngine";
-import { loadStats, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats } from "@/lib/gameStats";
+import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats, type BlindfoldSettings } from "@/lib/gameStats";
 import { clientStockfish } from "@/lib/stockfish";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
 import { 
@@ -140,6 +141,18 @@ export default function GamePage() {
   const peekStartTimeRef = useRef<number | null>(null);
   const gamePeekTimeRef = useRef<number>(0);
   
+  // Peek-free streak tracking
+  const [peekFreeStreak, setPeekFreeStreak] = useState(0);
+  const [bestPeekFreeStreak, setBestPeekFreeStreak] = useState(0);
+  const peekedSinceLastMoveRef = useRef(false);
+  
+  // Response time tracking
+  const botMoveTimestampRef = useRef<number | null>(null);
+  const responseTimesRef = useRef<number[]>([]);
+  
+  // Board reconstruction settings
+  const [blindfoldSettings, setBlindFoldSettings] = useState<BlindfoldSettings>(() => loadSettings());
+  
   const [stats, setStats] = useState<GameStats>(() => loadStats());
   
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
@@ -163,6 +176,11 @@ export default function GamePage() {
   
   const [pendingPromotion, setPendingPromotion] = useState<{ from: string; to: string } | null>(null);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
+  
+  // Board reconstruction state
+  const [showReconstruction, setShowReconstruction] = useState(false);
+  const [reconstructionFen, setReconstructionFen] = useState<string | null>(null);
+  const pendingGameResultRef = useRef<{ result: "white_win" | "black_win" | "draw"; fen: string } | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const whiteTimeRef = useRef(300);
@@ -211,7 +229,31 @@ export default function GamePage() {
     setAwaitingDisambiguation(null);
     voiceRecognition.stop();
     gamePeekTimeRef.current = 0;
+    setPeekFreeStreak(0);
+    setBestPeekFreeStreak(0);
+    peekedSinceLastMoveRef.current = false;
+    botMoveTimestampRef.current = null;
+    responseTimesRef.current = [];
+    setShowReconstruction(false);
+    setReconstructionFen(null);
+    pendingGameResultRef.current = null;
   }, []);
+
+  const finalizeGameResult = useCallback((result: "white_win" | "black_win" | "draw", clarityScore?: number) => {
+    const playerWon = (result === "white_win" && playerColor === "white") || 
+                     (result === "black_win" && playerColor === "black");
+    
+    const statsResult = result === "draw" ? "draw" : playerWon ? "win" : "loss";
+    const newStats = recordGameResult(
+      statsResult, 
+      gamePeekTimeRef.current,
+      bestPeekFreeStreak,
+      responseTimesRef.current,
+      clarityScore
+    );
+    setStats(newStats);
+    window.dispatchEvent(new CustomEvent('statsUpdated'));
+  }, [playerColor, bestPeekFreeStreak]);
 
   const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
     if (clockIntervalRef.current) {
@@ -225,15 +267,45 @@ export default function GamePage() {
                      (result === "black_win" && playerColor === "black");
     const message = result === "draw" ? "Game drawn" : playerWon ? "You win!" : "You lose";
     
-    const statsResult = result === "draw" ? "draw" : playerWon ? "win" : "loss";
-    const newStats = recordGameResult(statsResult, gamePeekTimeRef.current);
-    setStats(newStats);
-    window.dispatchEvent(new CustomEvent('statsUpdated'));
-    
     if (voiceOutputEnabled) {
       speak(message);
     }
-  }, [playerColor, voiceOutputEnabled]);
+    
+    // Check if board reconstruction is enabled for blindfold games
+    if (isBlindfold && blindfoldSettings.boardReconstructionEnabled && gameRef.current) {
+      pendingGameResultRef.current = { result, fen: gameRef.current.fen() };
+      setReconstructionFen(gameRef.current.fen());
+      setShowReconstruction(true);
+    } else {
+      // Finalize immediately without reconstruction
+      finalizeGameResult(result);
+    }
+  }, [playerColor, voiceOutputEnabled, isBlindfold, blindfoldSettings.boardReconstructionEnabled, finalizeGameResult]);
+
+  const handleReconstructionComplete = useCallback((score: number) => {
+    if (pendingGameResultRef.current) {
+      finalizeGameResult(pendingGameResultRef.current.result, score);
+      // Clear to prevent double finalization
+      pendingGameResultRef.current = null;
+    }
+    // Keep showReconstruction true until user clicks Continue
+    // The reconstruction component handles showing the score internally
+  }, [finalizeGameResult]);
+  
+  const handleReconstructionContinue = useCallback(() => {
+    setShowReconstruction(false);
+    setReconstructionFen(null);
+    pendingGameResultRef.current = null;
+  }, []);
+
+  const handleReconstructionSkip = useCallback(() => {
+    if (pendingGameResultRef.current) {
+      finalizeGameResult(pendingGameResultRef.current.result);
+    }
+    setShowReconstruction(false);
+    setReconstructionFen(null);
+    pendingGameResultRef.current = null;
+  }, [finalizeGameResult]);
 
   const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[], lastMoveInfo?: LastMoveInfo) => {
     if (!botId) return null;
@@ -334,6 +406,9 @@ export default function GamePage() {
         const newMoves = [botMove.move];
         setMoves(newMoves);
         movesRef.current = newMoves;
+        
+        // Record timestamp for response time tracking (first move when player is black)
+        botMoveTimestampRef.current = Date.now();
         
         if (voiceOutputEnabled) {
           const spokenMove = moveToSpeech(botMove.move, botMove.move.includes('x'), gameRef.current.isCheck(), false);
@@ -668,6 +743,9 @@ export default function GamePage() {
           setMoves(updatedMoves);
           movesRef.current = updatedMoves;
           
+          // Record timestamp for response time tracking
+          botMoveTimestampRef.current = Date.now();
+          
           if (voiceOutputEnabled) {
             isTtsSpeaking.current = true;
             voiceRecognition.stop();
@@ -729,6 +807,23 @@ export default function GamePage() {
       const move = game.move({ from, to, promotion });
       
       if (move) {
+        // Track response time (time since bot moved)
+        if (botMoveTimestampRef.current !== null) {
+          const responseTime = Date.now() - botMoveTimestampRef.current;
+          responseTimesRef.current.push(responseTime);
+          botMoveTimestampRef.current = null;
+        }
+        
+        // Track peek-free streak
+        if (!peekedSinceLastMoveRef.current) {
+          const newStreak = peekFreeStreak + 1;
+          setPeekFreeStreak(newStreak);
+          if (newStreak > bestPeekFreeStreak) {
+            setBestPeekFreeStreak(newStreak);
+          }
+        }
+        peekedSinceLastMoveRef.current = false;
+        
         const newFen = game.fen();
         setFen(newFen);
         setLastMove({ from: move.from, to: move.to });
@@ -792,6 +887,9 @@ export default function GamePage() {
     if (remainingPeeks <= 0) return;
     setIsPeeking(true);
     peekStartTimeRef.current = Date.now();
+    peekedSinceLastMoveRef.current = true;
+    // Reset current streak when peeking
+    setPeekFreeStreak(0);
   };
 
   const handlePeekEnd = () => {
@@ -922,6 +1020,28 @@ export default function GamePage() {
                         data-testid="switch-coordinates"
                       />
                     </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="reconstruction-toggle" className="text-sm">
+                      Board Reconstruction Challenge
+                    </Label>
+                    <Switch
+                      id="reconstruction-toggle"
+                      checked={blindfoldSettings.boardReconstructionEnabled}
+                      onCheckedChange={(checked) => {
+                        const newSettings = { ...blindfoldSettings, boardReconstructionEnabled: checked };
+                        setBlindFoldSettings(newSettings);
+                        saveSettings(newSettings);
+                      }}
+                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
+                      data-testid="switch-board-reconstruction"
+                    />
+                  </div>
+                  {blindfoldSettings.boardReconstructionEnabled && (
+                    <p className="text-xs text-muted-foreground">
+                      After each game, reconstruct the final position to test your memory.
+                    </p>
                   )}
                 </div>
               )}
@@ -1086,7 +1206,19 @@ export default function GamePage() {
 
   return (
     <div className="container max-w-4xl mx-auto p-2 md:p-4">
-      {gameResult && (
+      {showReconstruction && reconstructionFen && (
+        <div className="mb-3">
+          <BoardReconstruction
+            actualFen={reconstructionFen}
+            playerColor={playerColor}
+            onComplete={handleReconstructionComplete}
+            onSkip={handleReconstructionSkip}
+            onContinue={handleReconstructionContinue}
+          />
+        </div>
+      )}
+      
+      {gameResult && !showReconstruction && (
         <Card className="mb-3 border-amber-400 border-2 bg-white">
           <CardContent className="py-4">
             <div className="flex flex-col gap-3">
@@ -1105,6 +1237,12 @@ export default function GamePage() {
                   </div>
                 </div>
               </div>
+              
+              {stats.lastClarityScore > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  Clarity Score: <span className="font-semibold text-amber-500">{stats.lastClarityScore}%</span>
+                </div>
+              )}
               
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -1284,6 +1422,16 @@ export default function GamePage() {
             {isBlindfold && (
               <div className="text-center text-sm text-muted-foreground" data-testid="text-peeks-remaining">
                 {isFinite(remainingPeeks) ? `${remainingPeeks} peeks left` : "Unlimited peeks"}
+              </div>
+            )}
+            
+            {isBlindfold && (
+              <div className="text-center text-sm" data-testid="text-peek-free-streak">
+                <span className="text-muted-foreground">Streak: </span>
+                <span className="font-semibold text-amber-500">{peekFreeStreak}</span>
+                {bestPeekFreeStreak > 0 && (
+                  <span className="text-muted-foreground/70 text-xs ml-1">(best: {bestPeekFreeStreak})</span>
+                )}
               </div>
             )}
             
