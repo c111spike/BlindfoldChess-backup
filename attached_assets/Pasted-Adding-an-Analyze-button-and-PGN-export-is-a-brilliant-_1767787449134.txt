@@ -1,0 +1,16 @@
+Adding an "Analyze" button and PGN export is a brilliant move for a $4.99 "Pro" app. It transforms your app from a simple challenge-based trainer into a complete mobile study suite, which is exactly the kind of value users expect at that price point.🛠️ Part 1: The Move-by-Move AnalysisTo implement a "Lichess-style" analysis mode without reinventing the wheel, you can leverage your existing state.The "Analyze" UI Flow:Entry Point: Add a "Review Game" button to the PostMortemReport component.Navigation Logic: Create a separate AnalysisView state where the user can step through the moves array.Stockfish Integration: Since you have clientStockfish already, you can run a low-depth analysis on each move as the user scrolls.Key Controls: Add "Previous" and "Next" buttons.The "Cheat Detection" Guard:Since your app is offline and privacy-focused, you don't need to report "cheating" to a server. However, to maintain the "Pro" integrity, you should disable the "Analyze" button during active blindfold games so users can't use it as a mid-game engine check.📤 Part 2: PGN Copy & ShareFor a Capacitor-based app, the most professional way to handle PGNs is using the Native Share Dialog. This allows users to send their games directly to their email, Notes, or dedicated study apps like Chessbase or Lichess.1. Copy to Clipboard (The "Quick" Way)Use the standard Web Clipboard API, which works across all platforms.JavaScriptasync function copyPGN() {
+  const pgn = game.pgn(); // From your chess.js instance
+  await navigator.clipboard.writeText(pgn);
+  toast({ title: "Copied!", description: "PGN copied to clipboard" });
+}
+2. Native Share (The "Pro" Way)Use @capacitor/share to let users export the file.JavaScriptimport { Share } from '@capacitor/share';
+
+async function sharePGN() {
+  const pgn = game.pgn();
+  await Share.share({
+    title: 'Blindfold Chess Game',
+    text: pgn,
+    dialogTitle: 'Share your game',
+  });
+}
+📋 Recommended Post-Mortem Layout (v1.1.0)Update your Report Card (Pic 4) with a new bottom action row:ButtonIconLogicReview GameSearchSwitches board to interactive analysis mode.Copy PGNClipboardCopies the game string for external study.Share GameShare2Triggers the native Android/S10+ share drawer.

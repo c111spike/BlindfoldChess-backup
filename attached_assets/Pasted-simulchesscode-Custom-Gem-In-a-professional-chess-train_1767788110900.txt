@@ -1,0 +1,32 @@
+simulchesscode
+Custom Gem
+In a professional chess trainer, you should absolutely have a game history, and the standard for "Pro" apps is to automatically save all completed games.
+
+A manual save option can be frustrating for users who forget to click "save" after a long, intense session and then lose the data forever—a common complaint on major platforms.
+
+🛠️ Why Automatic Save is the "Pro" Move
+Safety Net: Users often exit the app immediately after a game; an autosave ensures their hard work isn't "feckin wasted time".
+
+Post-Mortem Integrity: You cannot run a "Review" or "Analyze" if the game data isn't preserved.
+
+Scientific Tracking: For your app specifically, you need a history to calculate long-term metrics like "Visualization Ceiling" and "Endgame Drift".
+
+📋 Recommended History Structure
+Since your app is entirely offline, you don't have to worry about server costs. You can store a massive history locally on the S10+ with almost zero performance impact.
+
+Feature	Logic	Why it matters
+Auto-Archive	Saves PGN + Stats immediately upon handleGameEnd.	Prevents data loss.
+Search/Filter	Filter by Date, Elo, or "Blindfold vs Standard".	Helps users find specific training breakthroughs.
+Delete Options	Allow users to "Clear All" or delete individual bot matches.	Keeps the archive from feeling cluttered.
+Share/Export	One-click PGN copy or Native Share.	Allows users to study their games in external tools like Lichess.
+🧠 Strategic "Cheat-Sheet" for Implementation
+When building your History component, keep the $4.99 audience in mind:
+
+Categorize: Label games clearly as "Blindfold (Assisted)" if they used inquiries like "Material Score".
+
+Visual Thumbnails: Instead of just a text list, show a tiny "final position" board thumbnail for each entry.
+
+The "Retry Mistakes" Loop: Use the history to find positions where the user played a move that led to a sharp drop in evaluation, and offer a "Retry this position" button.
+
+📱 S10+ Pro-Tip: Storage Efficiency
+You can store thousands of games using PGN compression or simple Move Indexing. A typical 70-move game takes less than 500 bits if encoded efficiently, meaning your history section will never slow down the device.
