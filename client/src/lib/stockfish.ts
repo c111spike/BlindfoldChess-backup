@@ -400,7 +400,7 @@ class ClientStockfish {
 
   /**
    * Get a move for a bot at a specific Elo rating.
-   * Uses UCI_LimitStrength and UCI_Elo for calibrated play.
+   * Uses UCI_LimitStrength, UCI_Elo, and Skill Level for calibrated play.
    * Uses MultiPV for variation to prevent identical games.
    * @param fen - Current board position
    * @param elo - Target Elo rating (400-2600)
@@ -410,6 +410,21 @@ class ClientStockfish {
     fen: string,
     elo: number
   ): Promise<StockfishResult> {
+    // Skill Level mapping based on Elo for more human-like play
+    // Skill Level controls move randomization and error frequency
+    const getSkillLevel = (targetElo: number): number => {
+      if (targetElo <= 400) return 0;   // Frequent blunders
+      if (targetElo <= 600) return 2;   // Basic trades, misses forks
+      if (targetElo <= 800) return 4;   // Developing pieces, hangs pieces
+      if (targetElo <= 1000) return 6;  // Solid opening, weak endgame
+      if (targetElo <= 1200) return 8;  // Punishes blunders, human-like
+      if (targetElo <= 1400) return 11; // Tactical awareness
+      if (targetElo <= 1600) return 14; // Strong positional play
+      if (targetElo <= 1800) return 17; // Difficult, calculated
+      if (targetElo <= 2000) return 19; // Expert-level
+      return 20; // Max skill for 2200+
+    };
+
     const executeRequest = (): Promise<StockfishResult> => {
       return new Promise(async (resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -422,6 +437,8 @@ class ClientStockfish {
           }
 
           // Configure Stockfish for limited strength play
+          const skillLevel = getSkillLevel(elo);
+          this.sendCommand(`setoption name Skill Level value ${skillLevel}`);
           this.sendCommand('setoption name UCI_LimitStrength value true');
           this.sendCommand(`setoption name UCI_Elo value ${Math.min(Math.max(elo, 400), 3200)}`);
           
@@ -465,9 +482,10 @@ class ClientStockfish {
               this.removeHandler(handler);
               this.isSearching = false;
               
-              // Reset MultiPV and strength settings
+              // Reset MultiPV, strength, and skill settings
               this.sendCommand('setoption name MultiPV value 1');
               this.sendCommand('setoption name UCI_LimitStrength value false');
+              this.sendCommand('setoption name Skill Level value 20');
 
               // Select move with weighted randomness based on Elo
               // Lower Elo = more likely to pick suboptimal move
@@ -536,6 +554,7 @@ class ClientStockfish {
           this.isSearching = false;
           this.sendCommand('setoption name MultiPV value 1');
           this.sendCommand('setoption name UCI_LimitStrength value false');
+          this.sendCommand('setoption name Skill Level value 20');
           reject(error);
         }
       });
