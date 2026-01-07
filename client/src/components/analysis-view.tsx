@@ -104,11 +104,13 @@ function EvaluationBar({ evaluation, isLoading, isMate, mateIn, playerColor }: E
 function ChessBoard({ 
   position, 
   flipped,
-  lastMove 
+  lastMove,
+  bestMoveSquares
 }: { 
   position: string; 
   flipped: boolean;
   lastMove?: { from: string; to: string } | null;
+  bestMoveSquares?: { from: string; to: string } | null;
 }) {
   const game = new Chess(position);
   const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -131,6 +133,7 @@ function ChessBoard({
             const piece = game.get(square as any);
             const isLight = (rankIdx + fileIdx) % 2 === 0;
             const isHighlighted = lastMove && (lastMove.from === square || lastMove.to === square);
+            const isBestMoveSquare = bestMoveSquares && (bestMoveSquares.from === square || bestMoveSquares.to === square);
             
             return (
               <div
@@ -138,6 +141,7 @@ function ChessBoard({
                 className={`aspect-square flex items-center justify-center text-2xl sm:text-3xl
                   ${isLight ? 'bg-amber-100 dark:bg-amber-200' : 'bg-amber-600 dark:bg-amber-700'}
                   ${isHighlighted ? 'ring-2 ring-inset ring-amber-400' : ''}
+                  ${isBestMoveSquare ? 'ring-2 ring-inset ring-emerald-500' : ''}
                 `}
                 data-testid={`analysis-square-${square}`}
               >
@@ -162,8 +166,10 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
   const [isMate, setIsMate] = useState(false);
   const [mateIn, setMateIn] = useState<number | undefined>(undefined);
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
+  const [bestMove, setBestMove] = useState<string | null>(null);
+  const [showBestMove, setShowBestMove] = useState(true);
   
-  const evalCacheRef = useRef<Map<string, { eval: number; isMate: boolean; mateIn?: number }>>(new Map());
+  const evalCacheRef = useRef<Map<string, { eval: number; isMate: boolean; mateIn?: number; bestMove?: string }>>(new Map());
   const gameRef = useRef(new Chess());
 
   const getPositionAtMove = useCallback((moveIndex: number): string => {
@@ -200,6 +206,7 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
         setEvaluation(cached.eval);
         setIsMate(cached.isMate);
         setMateIn(cached.mateIn);
+        setBestMove(cached.bestMove || null);
         return;
       }
 
@@ -224,15 +231,18 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
         const evalResult = {
           eval: whiteEval,
           isMate: result.isMate,
-          mateIn: normalizedMateIn !== undefined ? Math.abs(normalizedMateIn) : undefined
+          mateIn: normalizedMateIn !== undefined ? Math.abs(normalizedMateIn) : undefined,
+          bestMove: result.bestMove
         };
         evalCacheRef.current.set(currentFen, evalResult);
         setEvaluation(whiteEval);
         setIsMate(result.isMate);
         setMateIn(normalizedMateIn !== undefined ? Math.abs(normalizedMateIn) : undefined);
+        setBestMove(result.bestMove || null);
       } catch (error) {
         console.error('[Analysis] Evaluation error:', error);
         setEvaluation(null);
+        setBestMove(null);
       } finally {
         setIsEvaluating(false);
       }
@@ -263,6 +273,34 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
 
   const moveList = formatMoveList();
 
+  // Convert UCI move (e.g., "e2e4") to from/to squares
+  const parseBestMove = (uciMove: string | null): { from: string; to: string } | null => {
+    if (!uciMove || uciMove.length < 4) return null;
+    return {
+      from: uciMove.slice(0, 2),
+      to: uciMove.slice(2, 4)
+    };
+  };
+
+  // Format best move for display (convert UCI to SAN if possible)
+  const formatBestMove = (uciMove: string | null): string | null => {
+    if (!uciMove) return null;
+    try {
+      const game = new Chess(currentFen);
+      const move = game.move({
+        from: uciMove.slice(0, 2),
+        to: uciMove.slice(2, 4),
+        promotion: uciMove.length > 4 ? uciMove[4] as 'q' | 'r' | 'b' | 'n' : undefined
+      });
+      return move ? move.san : uciMove;
+    } catch {
+      return uciMove;
+    }
+  };
+
+  const bestMoveSquares = showBestMove ? parseBestMove(bestMove) : null;
+  const formattedBestMove = formatBestMove(bestMove);
+
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col" data-testid="analysis-view">
       <div className="flex items-center justify-between p-3 border-b border-border">
@@ -292,6 +330,7 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
               position={currentFen} 
               flipped={playerColor === "black"}
               lastMove={lastMove}
+              bestMoveSquares={bestMoveSquares}
             />
           </div>
           
@@ -333,6 +372,30 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
               >
                 <ChevronsRight className="h-4 w-4" />
               </Button>
+          </div>
+
+          {/* Best move display */}
+          <div className="flex items-center justify-center gap-2 text-sm" data-testid="best-move-display">
+            <Button
+              variant={showBestMove ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowBestMove(!showBestMove)}
+              className="h-7 px-2"
+              data-testid="button-toggle-best-move"
+            >
+              {showBestMove ? "Hide Best" : "Show Best"}
+            </Button>
+            {showBestMove && formattedBestMove && (
+              <span className="font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded" data-testid="text-best-move">
+                Best: {formattedBestMove}
+              </span>
+            )}
+            {showBestMove && isEvaluating && !formattedBestMove && (
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Analyzing...
+              </span>
+            )}
           </div>
         </div>
 
