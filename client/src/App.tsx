@@ -33,7 +33,7 @@ export default function App() {
   return (
     <ThemeProvider defaultTheme="dark">
       <TooltipProvider>
-        <div className="flex flex-col min-h-screen bg-background">
+        <div className="flex flex-col h-screen bg-background">
           <header className="grid grid-cols-3 items-center p-3 border-b border-border">
             <div className="flex justify-start">
               <Dialog open={showVoiceHelpDialog} onOpenChange={setShowVoiceHelpDialog}>

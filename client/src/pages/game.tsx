@@ -1562,10 +1562,10 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
     };
 
     return (
-      <div className={`container max-w-lg mx-auto p-4 transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
-        <Card>
-          <CardContent className="pt-6 space-y-6">
-            <div className="space-y-4">
+      <div className={`h-full flex flex-col max-w-lg mx-auto px-4 py-2 transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+        <Card className="flex-1 min-h-0 flex flex-col">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto pt-4 pb-2 space-y-3">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="blindfold-toggle">Blindfold Challenge</Label>
                 <Switch
@@ -1783,6 +1783,8 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
               </div>
             </div>
             
+          </CardContent>
+          <div className="p-4 pt-2 border-t">
             <Button
               size="lg"
               className="w-full bg-amber-400 hover:bg-amber-500 text-stone-900 border border-black"
@@ -1792,7 +1794,7 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
               <Play className="mr-2 h-5 w-5" />
               Start Game
             </Button>
-          </CardContent>
+          </div>
         </Card>
       </div>
     );
