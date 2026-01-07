@@ -490,6 +490,15 @@ export default function GamePage() {
   };
 
   useEffect(() => {
+    // Don't run timer if game has ended
+    if (gameResult !== null) {
+      if (clockIntervalRef.current) {
+        clearInterval(clockIntervalRef.current);
+        clockIntervalRef.current = null;
+      }
+      return;
+    }
+    
     if (gameStarted && game && timeControl !== "practice") {
       const timer = setInterval(() => {
         const currentTurn = game.turn();
@@ -522,7 +531,7 @@ export default function GamePage() {
         clockIntervalRef.current = null;
       };
     }
-  }, [gameStarted, game, handleGameEnd, timeControl]);
+  }, [gameStarted, game, handleGameEnd, timeControl, gameResult]);
 
   // Keep screen awake during blindfold games (critical for voice-only play)
   useEffect(() => {
@@ -1347,7 +1356,6 @@ export default function GamePage() {
       
       <PostMortemReport
         open={showPostMortem && !showReconstruction}
-        onClose={() => setShowPostMortem(false)}
         gameResult={gameResult}
         playerColor={playerColor}
         clarityScore={stats.lastClarityScore}

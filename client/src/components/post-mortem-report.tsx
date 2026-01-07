@@ -8,7 +8,6 @@ import { formatResponseTime } from "@/lib/gameStats";
 
 interface PostMortemReportProps {
   open: boolean;
-  onClose: () => void;
   gameResult: "white_win" | "black_win" | "draw" | null;
   playerColor: "white" | "black";
   clarityScore: number;
@@ -169,7 +168,6 @@ function SpatialBlurHeatmap({ squareInquiries }: { squareInquiries: string[] }) 
 
 export function PostMortemReport({
   open,
-  onClose,
   gameResult,
   playerColor,
   clarityScore,
@@ -194,8 +192,13 @@ export function PostMortemReport({
     : 0;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+    <Dialog open={open}>
+      <DialogContent 
+        className="max-w-md max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <Trophy className={`h-6 w-6 ${resultColor}`} />
@@ -253,10 +256,7 @@ export function PostMortemReport({
           <div className="flex gap-2">
             <Button
               className="flex-1 bg-black hover:bg-stone-800 text-white"
-              onClick={() => {
-                onClose();
-                onRematch();
-              }}
+              onClick={onRematch}
               data-testid="button-postmortem-rematch"
             >
               <RotateCcw className="mr-2 h-4 w-4" />
@@ -265,10 +265,7 @@ export function PostMortemReport({
             <Button
               variant="outline"
               className="flex-1 bg-amber-400 hover:bg-amber-500 text-black border-black"
-              onClick={() => {
-                onClose();
-                onMainMenu();
-              }}
+              onClick={onMainMenu}
               data-testid="button-postmortem-menu"
             >
               <Home className="mr-2 h-4 w-4" />
