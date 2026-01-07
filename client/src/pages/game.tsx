@@ -150,6 +150,20 @@ export default function GamePage() {
   const botMoveTimestampRef = useRef<number | null>(null);
   const responseTimesRef = useRef<number[]>([]);
   
+  // Book moves tracking (how many moves were from opening book)
+  const bookMovesRef = useRef<number>(0);
+  
+  // Voice command tracking
+  const voiceCorrectionsRef = useRef<number>(0);
+  const voiceCommandsRef = useRef<number>(0);
+  
+  // Reconstruction input tracking
+  const reconstructionVoiceInputsRef = useRef<number>(0);
+  const reconstructionTouchInputsRef = useRef<number>(0);
+  
+  // Capture bot difficulty at game start (avoid mid-game changes affecting stats)
+  const gameDifficultyRef = useRef<BotDifficulty>("club");
+  
   // Board reconstruction settings
   const [blindfoldSettings, setBlindFoldSettings] = useState<BlindfoldSettings>(() => loadSettings());
   
@@ -235,6 +249,11 @@ export default function GamePage() {
     peekedSinceLastMoveRef.current = false;
     botMoveTimestampRef.current = null;
     responseTimesRef.current = [];
+    bookMovesRef.current = 0;
+    voiceCorrectionsRef.current = 0;
+    voiceCommandsRef.current = 0;
+    reconstructionVoiceInputsRef.current = 0;
+    reconstructionTouchInputsRef.current = 0;
     setShowReconstruction(false);
     setReconstructionFen(null);
     pendingGameResultRef.current = null;
@@ -245,13 +264,26 @@ export default function GamePage() {
                      (result === "black_win" && playerColor === "black");
     
     const statsResult = result === "draw" ? "draw" : playerWon ? "win" : "loss";
+    const wasPeekFree = gamePeekTimeRef.current === 0;
+    const totalMoves = movesRef.current.length;
+    
     const newStats = recordGameResult(
       statsResult, 
       gamePeekTimeRef.current,
       bestPeekFreeStreak,
       responseTimesRef.current,
       clarityScore,
-      voicePurity
+      voicePurity,
+      {
+        difficulty: gameDifficultyRef.current,
+        wasPeekFree,
+        totalMoves,
+        bookMoves: bookMovesRef.current,
+        voiceCorrections: voiceCorrectionsRef.current,
+        voiceCommands: voiceCommandsRef.current,
+        reconstructionVoiceInputs: reconstructionVoiceInputsRef.current,
+        reconstructionTouchInputs: reconstructionTouchInputsRef.current,
+      }
     );
     setStats(newStats);
     window.dispatchEvent(new CustomEvent('statsUpdated'));
@@ -284,7 +316,11 @@ export default function GamePage() {
     }
   }, [playerColor, voiceOutputEnabled, isBlindfold, blindfoldSettings.boardReconstructionEnabled, finalizeGameResult]);
 
-  const handleReconstructionComplete = useCallback((score: number, voicePurity: number) => {
+  const handleReconstructionComplete = useCallback((score: number, voicePurity: number, voiceInputs: number, touchInputs: number) => {
+    // Store reconstruction input counts for statistics
+    reconstructionVoiceInputsRef.current = voiceInputs;
+    reconstructionTouchInputsRef.current = touchInputs;
+    
     if (pendingGameResultRef.current) {
       finalizeGameResult(pendingGameResultRef.current.result, score, voicePurity);
       // Clear to prevent double finalization
@@ -339,6 +375,11 @@ export default function GamePage() {
         throw new Error("Bot failed to generate move");
       }
       
+      // Track book moves for statistics
+      if (result.wasFromBook) {
+        bookMovesRef.current++;
+      }
+      
       let thinkDelay: number;
       
       if (result.isFreeCapture) {
@@ -366,6 +407,7 @@ export default function GamePage() {
 
   const handleStartGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     gamePeekTimeRef.current = 0;
+    gameDifficultyRef.current = bot.difficulty; // Capture difficulty at game start
     const newGame = new Chess();
     setGame(newGame);
     gameRef.current = newGame;
@@ -496,6 +538,9 @@ export default function GamePage() {
       const currentGame = gameRef.current;
       if (!currentGame) return;
       
+      // Track voice command for statistics
+      voiceCommandsRef.current++;
+      
       setVoiceTranscript(transcript);
       
       const lowerTranscript = transcript.toLowerCase();
@@ -568,6 +613,9 @@ export default function GamePage() {
             return;
           }
         }
+        
+        // Track correction - disambiguation failed to resolve
+        voiceCorrectionsRef.current++;
         
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
@@ -687,6 +735,9 @@ export default function GamePage() {
           }
         }, 10000);
       } else {
+        // Track correction - move not understood
+        voiceCorrectionsRef.current++;
+        
         toast({
           title: "Didn't understand",
           description: `Heard: "${transcript}". Try again.`,

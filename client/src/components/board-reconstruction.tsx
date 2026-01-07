@@ -46,7 +46,7 @@ const FILE_PHONETICS: Record<string, string> = {
 interface BoardReconstructionProps {
   actualFen: string;
   playerColor: 'white' | 'black';
-  onComplete: (score: number, voicePurity: number) => void;
+  onComplete: (score: number, voicePurity: number, voiceInputs: number, touchInputs: number) => void;
   onSkip: () => void;
   onContinue?: () => void;
 }
@@ -372,7 +372,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     
     setSubmitted(true);
     stopListening();
-    onComplete(calculatedScore, purity);
+    onComplete(calculatedScore, purity, voicePlacementsRef.current, touchPlacementsRef.current);
   }, [userBoard, actualBoard, stopListening, onComplete]);
   
   useEffect(() => {

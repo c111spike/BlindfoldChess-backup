@@ -7,7 +7,8 @@ import { AboutDialog } from "@/components/about-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { BarChart3, RefreshCw, Mic } from "lucide-react";
-import { loadStats, resetStats, getAveragePeekTime, formatPeekTime, type GameStats } from "@/lib/gameStats";
+import { loadStats, resetStats, type GameStats } from "@/lib/gameStats";
+import { StatsDashboard } from "@/components/stats-dashboard";
 import GamePage from "@/pages/game";
 
 export default function App() {
@@ -39,55 +40,24 @@ export default function App() {
                     <BarChart3 className="h-5 w-5" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden">
                   <DialogHeader>
-                    <DialogTitle>Your Statistics</DialogTitle>
+                    <DialogTitle>Training Metrics</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="space-y-1">
-                        <p className="text-2xl font-bold text-green-600">{stats.wins}</p>
-                        <p className="text-sm text-muted-foreground">Wins</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-2xl font-bold text-gray-600">{stats.draws}</p>
-                        <p className="text-sm text-muted-foreground">Draws</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-2xl font-bold text-red-600">{stats.losses}</p>
-                        <p className="text-sm text-muted-foreground">Losses</p>
-                      </div>
-                    </div>
-                    
-                    <div className="border-t pt-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Last Game Peek Time</span>
-                        <span className="font-medium">{formatPeekTime(stats.lastGamePeekTime)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Average Peek Time</span>
-                        <span className="font-medium">{formatPeekTime(getAveragePeekTime(stats))}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Games with Peeks</span>
-                        <span className="font-medium">{stats.gamesWithPeeks}</span>
-                      </div>
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full text-muted-foreground"
-                      onClick={() => {
-                        resetStats();
-                        setStats(loadStats());
-                      }}
-                      data-testid="button-reset-stats"
-                    >
-                      <RefreshCw className="mr-2 h-3 w-3" />
-                      Reset Statistics
-                    </Button>
-                  </div>
+                  <StatsDashboard stats={stats} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-muted-foreground mt-4"
+                    onClick={() => {
+                      resetStats();
+                      setStats(loadStats());
+                    }}
+                    data-testid="button-reset-stats"
+                  >
+                    <RefreshCw className="mr-2 h-3 w-3" />
+                    Reset All Statistics
+                  </Button>
                 </DialogContent>
               </Dialog>
               

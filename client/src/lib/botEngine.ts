@@ -3352,7 +3352,7 @@ export async function generateBotMoveClient(
   remainingTimeMs?: number,
   moveCount?: number,
   lastMoveInfo?: LastMoveInfo
-): Promise<{ move: string; from: string; to: string; promotion?: string; isFreeCapture?: boolean } | null> {
+): Promise<{ move: string; from: string; to: string; promotion?: string; isFreeCapture?: boolean; wasFromBook?: boolean } | null> {
   // CPU Safety: Stop any previous search before starting a new one
   // Prevents "double-search" if user moves quickly or rapid game changes
   clientStockfish.stopAnalysis();
@@ -3483,6 +3483,7 @@ export async function generateBotMoveClient(
                 from: matchingMove.from,
                 to: matchingMove.to,
                 promotion: matchingMove.promotion,
+                wasFromBook: true,
               };
             }
           }
