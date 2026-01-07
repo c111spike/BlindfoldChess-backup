@@ -1601,6 +1601,38 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
     );
   }
 
+  // Game history views - check these BEFORE !gameStarted so they can be accessed from main menu
+  if (viewingHistoryGame) {
+    return (
+      <HistoryGameReport
+        game={viewingHistoryGame}
+        open={true}
+        onClose={() => {
+          setViewingHistoryGame(null);
+          setShowGameHistory(true);
+        }}
+        onAnalyze={(moves) => {
+          setLastGameMoveHistory(moves);
+          setViewingHistoryGame(null);
+          setShowGameHistory(false);
+          setShowAnalysis(true);
+        }}
+      />
+    );
+  }
+  
+  if (showGameHistory) {
+    return (
+      <GameHistory
+        onBack={() => setShowGameHistory(false)}
+        onViewGame={(game) => {
+          setViewingHistoryGame(game);
+          setShowGameHistory(false);
+        }}
+      />
+    );
+  }
+
   if (!gameStarted) {
     const handleStartGameClick = async () => {
       const bot = getBotByElo(selectedBotElo);
@@ -1855,37 +1887,6 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
           </div>
         </Card>
       </div>
-    );
-  }
-  
-  if (viewingHistoryGame) {
-    return (
-      <HistoryGameReport
-        game={viewingHistoryGame}
-        open={true}
-        onClose={() => {
-          setViewingHistoryGame(null);
-          setShowGameHistory(true);
-        }}
-        onAnalyze={(moves) => {
-          setLastGameMoveHistory(moves);
-          setViewingHistoryGame(null);
-          setShowGameHistory(false);
-          setShowAnalysis(true);
-        }}
-      />
-    );
-  }
-  
-  if (showGameHistory) {
-    return (
-      <GameHistory
-        onBack={() => setShowGameHistory(false)}
-        onViewGame={(game) => {
-          setViewingHistoryGame(game);
-          setShowGameHistory(false);
-        }}
-      />
     );
   }
 
