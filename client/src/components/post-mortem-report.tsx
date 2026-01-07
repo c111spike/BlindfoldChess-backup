@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Trophy, Brain, Clock, Grid3X3, TrendingUp, TrendingDown, RotateCcw, Home, Activity } from "lucide-react";
+import { Trophy, Brain, Clock, Grid3X3, TrendingUp, TrendingDown, RotateCcw, Home, Activity, X } from "lucide-react";
 import { formatResponseTime } from "@/lib/gameStats";
 
 interface PostMortemReportProps {
@@ -194,11 +194,21 @@ export function PostMortemReport({
   return (
     <Dialog open={open}>
       <DialogContent 
-        className="max-w-md max-h-[90vh] overflow-y-auto"
+        className="max-w-md max-h-[90vh] overflow-y-auto [&>button.absolute]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-4 top-4 h-6 w-6 rounded-sm opacity-70 hover:opacity-100"
+          onClick={onMainMenu}
+          data-testid="button-postmortem-close"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </Button>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <Trophy className={`h-6 w-6 ${resultColor}`} />
