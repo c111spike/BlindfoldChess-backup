@@ -1394,24 +1394,24 @@ export default function GamePage() {
       
       {!showReconstruction && (
       <div className="space-y-2">
-        <Card className={`${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
+        <Card className={`lg:hidden ${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
           <CardContent className="py-2 px-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-black" : "bg-white border border-gray-400"}`} />
                 <Bot className="h-4 w-4 text-amber-500" />
-                <span className="font-medium text-sm" data-testid="text-opponent-name">
+                <span className="font-medium text-sm">
                   {selectedBot ? `${selectedBot.elo} Elo Bot` : "Bot"}
                 </span>
                 {botThinking && (
-                  <span className="text-xs text-primary animate-pulse" data-testid="text-bot-thinking">
+                  <span className="text-xs text-primary animate-pulse">
                     thinking...
                   </span>
                 )}
               </div>
               <div className={`text-2xl font-mono font-bold ${
                 game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "text-foreground" : "text-muted-foreground"
-              }`} data-testid="text-opponent-time">
+              }`}>
                 {formatTime(playerColor === "white" ? blackTime : whiteTime)}
               </div>
             </div>
@@ -1420,6 +1420,30 @@ export default function GamePage() {
         
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="flex flex-col gap-2">
+            <Card className={`hidden lg:block ${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
+              <CardContent className="py-2 px-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-black" : "bg-white border border-gray-400"}`} />
+                    <Bot className="h-4 w-4 text-amber-500" />
+                    <span className="font-medium text-sm" data-testid="text-opponent-name">
+                      {selectedBot ? `${selectedBot.elo} Elo Bot` : "Bot"}
+                    </span>
+                    {botThinking && (
+                      <span className="text-xs text-primary animate-pulse" data-testid="text-bot-thinking">
+                        thinking...
+                      </span>
+                    )}
+                  </div>
+                  <div className={`text-2xl font-mono font-bold ${
+                    game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "text-foreground" : "text-muted-foreground"
+                  }`} data-testid="text-opponent-time">
+                    {formatTime(playerColor === "white" ? blackTime : whiteTime)}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
             <Card className={`aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${
               isBlindfold && blindfoldDisplayMode === "no_board" && !isPeeking ? "invisible" : ""
             }`}>
