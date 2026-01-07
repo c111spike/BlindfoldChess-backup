@@ -20,7 +20,13 @@ interface EvaluationBarProps {
 }
 
 function EvaluationBar({ evaluation, isLoading, isMate, mateIn, playerColor }: EvaluationBarProps) {
-  // Calculate the fill percentage based on evaluation
+  // Stockfish returns eval from White's perspective
+  // Convert to player's perspective: negate for black
+  const playerEval = evaluation !== null 
+    ? (playerColor === "black" ? -evaluation : evaluation) 
+    : null;
+  
+  // Calculate the fill percentage based on evaluation (always from White's perspective for bar fill)
   // Positive eval = white advantage, negative = black advantage
   // Clamp to ±10 pawns, then convert to percentage
   const evalToFillPercentage = (evalValue: number): number => {
@@ -34,12 +40,15 @@ function EvaluationBar({ evaluation, isLoading, isMate, mateIn, playerColor }: E
     return 50 + (clampedEval / 10) * 50;
   };
 
-  // This is the percentage of the bar that should be white (from bottom)
+  // Bar fill uses raw evaluation (White's perspective) for correct visual
   const whiteFillPercent = evaluation !== null ? evalToFillPercentage(evaluation) : 50;
   
+  // Display uses player-relative evaluation
   const formatEval = (evalValue: number | null): string => {
     if (evalValue === null) return "...";
     if (isMate && mateIn !== undefined) {
+      // Positive playerEval means player is winning, show M#
+      // Negative playerEval means player is losing, show -M#
       return evalValue > 0 ? `M${mateIn}` : `-M${mateIn}`;
     }
     const sign = evalValue >= 0 ? "+" : "";
@@ -69,7 +78,7 @@ function EvaluationBar({ evaluation, isLoading, isMate, mateIn, playerColor }: E
   return (
     <div className="flex flex-col items-center w-full h-full" data-testid="evaluation-bar">
       <div className="text-xs font-mono font-bold mb-1 flex-shrink-0" data-testid="evaluation-value">
-        {formatEval(evaluation)}
+        {formatEval(playerEval)}
       </div>
       <div className={`relative w-full rounded overflow-hidden border border-border ${bottomColor} flex-1 min-h-0`}>
         {/* Top section fills down based on advantage */}
