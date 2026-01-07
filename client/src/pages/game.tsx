@@ -660,7 +660,10 @@ export default function GamePage() {
       const whatOnMatch = lowerTranscript.match(/what(?:'?s| is)?\s+(?:on\s+)?([a-h])[\s-]?([1-8])/);
       if (whatOnMatch) {
         const inquiredSquare = `${whatOnMatch[1]}${whatOnMatch[2]}`;
-        squareInquiriesRef.current.push(inquiredSquare);
+        // Only track confusion heatmap data if in Blindfold mode
+        if (isBlindfold) {
+          squareInquiriesRef.current.push(inquiredSquare);
+        }
         
         // Tell the user what's on the square
         const piece = currentGame.get(inquiredSquare as any);
@@ -1000,22 +1003,25 @@ export default function GamePage() {
       const move = game.move({ from, to, promotion });
       
       if (move) {
-        // Track response time (time since bot moved)
-        if (botMoveTimestampRef.current !== null) {
-          const responseTime = Date.now() - botMoveTimestampRef.current;
-          responseTimesRef.current.push(responseTime);
-          botMoveTimestampRef.current = null;
-        }
-        
-        // Track peek-free streak
-        if (!peekedSinceLastMoveRef.current) {
-          const newStreak = peekFreeStreak + 1;
-          setPeekFreeStreak(newStreak);
-          if (newStreak > bestPeekFreeStreak) {
-            setBestPeekFreeStreak(newStreak);
+        // Only track visualization performance if Blindfold is active
+        if (isBlindfold) {
+          // Track response time (time since bot moved)
+          if (botMoveTimestampRef.current !== null) {
+            const responseTime = Date.now() - botMoveTimestampRef.current;
+            responseTimesRef.current.push(responseTime);
+            botMoveTimestampRef.current = null;
           }
+          
+          // Track peek-free streak
+          if (!peekedSinceLastMoveRef.current) {
+            const newStreak = peekFreeStreak + 1;
+            setPeekFreeStreak(newStreak);
+            if (newStreak > bestPeekFreeStreak) {
+              setBestPeekFreeStreak(newStreak);
+            }
+          }
+          peekedSinceLastMoveRef.current = false;
         }
-        peekedSinceLastMoveRef.current = false;
         
         const newFen = game.fen();
         setFen(newFen);
