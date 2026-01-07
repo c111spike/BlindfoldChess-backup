@@ -959,7 +959,7 @@ export default function GamePage() {
           <CardContent className="pt-6 space-y-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label htmlFor="blindfold-toggle">Blindfold Mode</Label>
+                <Label htmlFor="blindfold-toggle">Blindfold Challenge</Label>
                 <Switch
                   id="blindfold-toggle"
                   checked={isBlindfold}

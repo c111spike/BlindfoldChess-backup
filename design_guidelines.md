@@ -103,7 +103,7 @@
 - 3-level highlighting system clearly differentiated
 - Arbiter AI notifications: subtle but impossible to miss
 
-### Blindfold Mode  
+### Blindfold Challenge  
 - High contrast grid on dark background
 - Peek counter: always visible, decrements clearly
 - Audio feedback indicators (visual wave/pulse)

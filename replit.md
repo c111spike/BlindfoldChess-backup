@@ -37,7 +37,7 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 ### Training Modes
 - **Standard Mode**: Traditional multiplayer chess.
 - **OTB Tournament Mode**: Simulates OTB tournaments with manual clock taps, touch-move, and arbiter warning system.
-- **Blindfold Mode**: Memory and visualization training with a press-and-hold peek system.
+- **Blindfold Challenge**: Memory and visualization training with a press-and-hold peek system.
 - **Simul Mode**: Multi-board management training for simultaneous exhibitions.
 
 ### Bot Engine
