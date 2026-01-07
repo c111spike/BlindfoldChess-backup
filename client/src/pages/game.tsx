@@ -1023,28 +1023,29 @@ export default function GamePage() {
                     </div>
                   )}
                   
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="reconstruction-toggle" className="text-sm">
-                      Board Reconstruction Challenge
-                    </Label>
-                    <Switch
-                      id="reconstruction-toggle"
-                      checked={blindfoldSettings.boardReconstructionEnabled}
-                      onCheckedChange={(checked) => {
-                        const newSettings = { ...blindfoldSettings, boardReconstructionEnabled: checked };
-                        setBlindFoldSettings(newSettings);
-                        saveSettings(newSettings);
-                      }}
-                      className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
-                      data-testid="switch-board-reconstruction"
-                    />
-                  </div>
-                  {blindfoldSettings.boardReconstructionEnabled && (
-                    <p className="text-xs text-muted-foreground">
-                      After each game, reconstruct the final position to test your memory.
-                    </p>
-                  )}
                 </div>
+              )}
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="reconstruction-toggle" className="text-sm">
+                  Board Reconstruction Challenge
+                </Label>
+                <Switch
+                  id="reconstruction-toggle"
+                  checked={blindfoldSettings.boardReconstructionEnabled}
+                  onCheckedChange={(checked) => {
+                    const newSettings = { ...blindfoldSettings, boardReconstructionEnabled: checked };
+                    setBlindFoldSettings(newSettings);
+                    saveSettings(newSettings);
+                  }}
+                  className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
+                  data-testid="switch-board-reconstruction"
+                />
+              </div>
+              {blindfoldSettings.boardReconstructionEnabled && (
+                <p className="text-xs text-muted-foreground">
+                  After each game, reconstruct the final position to test your memory.
+                </p>
               )}
               
               <div className="flex items-center justify-between">
