@@ -1782,15 +1782,16 @@ const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
     recaptureChance: 0.5,   // 50% chance to see recaptures
     useDevelopment: true    // Anti-shuffle: encourage piece development
   },
-  // Intermediate (800 Elo): The Blunderer tier
-  // MultiPV 3 with 50K nodes
+  // Intermediate (800 Elo): The Blunderer tier - uses minimax for natural play
+  // Depth 3 minimax with development heuristics
   intermediate: { 
-    elo: 800, timePerMoveMs: 1500, maxDepth: 2, multiPvCount: 3, stockfishNodes: 50000, 
-    mistakeProbability: 0.17, useStockfish: true,
+    elo: 800, timePerMoveMs: 1500, maxDepth: 3, multiPvCount: 3, stockfishNodes: 50000, 
+    mistakeProbability: 0.17, useStockfish: false,
     useKillers: false, useHistory: false,
     mobilityWeight: 40, kingSafetyWeight: 30, mopUpWeight: 20, useTaperedEval: false,
     drawSeekThreshold: -4.0,
-    recaptureChance: 0.75    // 75% chance to see recaptures
+    recaptureChance: 0.75,   // 75% chance to see recaptures
+    useDevelopment: true     // Anti-shuffle: encourage piece development
   },
   // Improving (1000 Elo): The Casual - needs more nodes to not miss M1
   // MultiPV 3 with 150K nodes
