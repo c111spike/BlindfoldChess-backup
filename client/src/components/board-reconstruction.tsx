@@ -3,8 +3,29 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, RotateCcw, Send, Mic, MicOff, Trash2 } from "lucide-react";
-import { SpeechRecognition } from "@capacitor-community/speech-recognition";
+import { SpeechRecognition as CapacitorSpeechRecognition } from "@capacitor-community/speech-recognition";
 import { Capacitor } from "@capacitor/core";
+
+// Web Speech API types
+interface WebSpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onend: (() => void) | null;
+  onstart: (() => void) | null;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => WebSpeechRecognition;
+    webkitSpeechRecognition: new () => WebSpeechRecognition;
+  }
+}
 
 const PIECE_IMAGES: Record<string, string> = {
   'wK': '/pieces/wK.svg',
@@ -169,7 +190,9 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   const voicePlacementsRef = useRef(0);
   const touchPlacementsRef = useRef(0);
   const listenerRef = useRef<any>(null);
+  const webRecognitionRef = useRef<WebSpeechRecognition | null>(null);
   const submitRef = useRef<(() => void) | null>(null);
+  const shouldBeListeningRef = useRef(false);
   
   const actualBoard = fenToBoard(actualFen);
   
@@ -286,28 +309,105 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   
   const startListening = useCallback(async () => {
     if (submitted) return;
+    shouldBeListeningRef.current = true;
     
     try {
       if (Capacitor.isNativePlatform()) {
-        const { available } = await SpeechRecognition.available();
-        if (!available) return;
+        // NATIVE: Use Capacitor SDK
+        const { available } = await CapacitorSpeechRecognition.available();
+        if (!available) {
+          console.warn('[Reconstruction] Native speech not available');
+          return;
+        }
         
-        const permResult = await SpeechRecognition.requestPermissions();
-        if (permResult.speechRecognition !== 'granted') return;
+        const permResult = await CapacitorSpeechRecognition.requestPermissions();
+        if (permResult.speechRecognition !== 'granted') {
+          console.warn('[Reconstruction] Permission denied');
+          return;
+        }
         
-        listenerRef.current = await SpeechRecognition.addListener('partialResults', (data: any) => {
-          if (data.matches && data.matches.length > 0) {
+        listenerRef.current = await CapacitorSpeechRecognition.addListener('partialResults', (data: any) => {
+          if (data.matches && data.matches.length > 0 && shouldBeListeningRef.current) {
             processVoiceCommand(data.matches[0]);
           }
         });
         
-        await SpeechRecognition.start({
+        await CapacitorSpeechRecognition.start({
           language: 'en-US',
           partialResults: true,
           popup: false,
         });
         
         setIsListening(true);
+        console.log('[Reconstruction] Native speech started');
+      } else {
+        // WEB: Use Web Speech API for browser testing
+        const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognitionAPI) {
+          console.warn('[Reconstruction] Speech Recognition not supported in this browser');
+          return;
+        }
+        
+        if (!webRecognitionRef.current) {
+          const recognition = new SpeechRecognitionAPI();
+          recognition.continuous = true;
+          recognition.interimResults = false;
+          recognition.lang = 'en-US';
+          
+          recognition.onresult = (event: any) => {
+            const lastResult = event.results[event.results.length - 1];
+            if (lastResult.isFinal && shouldBeListeningRef.current) {
+              const transcript = lastResult[0].transcript;
+              console.log('[Reconstruction Web] Transcript:', transcript);
+              processVoiceCommand(transcript);
+            }
+          };
+          
+          recognition.onerror = (event: any) => {
+            console.log('[Reconstruction Web] Error:', event.error);
+            if (event.error === 'no-speech' || event.error === 'audio-capture') {
+              // Auto-restart on recoverable errors - check shouldBeListening inside timeout
+              setTimeout(() => {
+                if (shouldBeListeningRef.current && webRecognitionRef.current) {
+                  try {
+                    webRecognitionRef.current.start();
+                  } catch (e) {
+                    // Already started
+                  }
+                }
+              }, 500);
+            }
+          };
+          
+          recognition.onend = () => {
+            setIsListening(false);
+            // Auto-restart if should still be listening - check inside timeout
+            setTimeout(() => {
+              if (shouldBeListeningRef.current && webRecognitionRef.current) {
+                try {
+                  webRecognitionRef.current.start();
+                  setIsListening(true);
+                } catch (e) {
+                  // Already started
+                }
+              }
+            }, 300);
+          };
+          
+          recognition.onstart = () => {
+            setIsListening(true);
+          };
+          
+          webRecognitionRef.current = recognition;
+        }
+        
+        try {
+          webRecognitionRef.current.start();
+          setIsListening(true);
+          console.log('[Reconstruction] Web speech started');
+        } catch (e) {
+          console.log('[Reconstruction] Web speech already running');
+        }
       }
     } catch (e) {
       console.error('[Reconstruction] Speech recognition error:', e);
@@ -315,12 +415,20 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   }, [submitted, processVoiceCommand]);
   
   const stopListening = useCallback(async () => {
+    shouldBeListeningRef.current = false;
+    
     try {
       if (Capacitor.isNativePlatform()) {
-        await SpeechRecognition.stop();
+        // NATIVE: Stop Capacitor SDK
+        await CapacitorSpeechRecognition.stop();
         if (listenerRef.current) {
           await listenerRef.current.remove();
           listenerRef.current = null;
+        }
+      } else {
+        // WEB: Stop Web Speech API
+        if (webRecognitionRef.current) {
+          webRecognitionRef.current.stop();
         }
       }
       setIsListening(false);
@@ -338,10 +446,10 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     };
   }, [isListening, stopListening]);
   
-  // Auto-start voice recognition when component mounts on native platform
+  // Auto-start voice recognition when component mounts (both native and web)
   const hasAutoStartedRef = useRef(false);
   useEffect(() => {
-    if (Capacitor.isNativePlatform() && !submitted && !hasAutoStartedRef.current) {
+    if (!submitted && !hasAutoStartedRef.current) {
       hasAutoStartedRef.current = true;
       // Small delay to ensure component is fully mounted
       const timer = setTimeout(() => {
