@@ -255,15 +255,17 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
 
       <div className="flex-1 overflow-auto p-4">
         <div className="flex flex-col gap-3 items-center">
-          {/* Board and eval bar row - items-stretch makes bar match board height */}
-          <div className="flex gap-2 items-stretch">
-            <EvaluationBar 
-              evaluation={evaluation} 
-              isLoading={isEvaluating}
-              isMate={isMate}
-              mateIn={mateIn}
-              playerColor={playerColor}
-            />
+          {/* Board and eval bar row */}
+          <div className="flex gap-2 items-end">
+            <div className="h-[300px] max-h-[80vw]">
+              <EvaluationBar 
+                evaluation={evaluation} 
+                isLoading={isEvaluating}
+                isMate={isMate}
+                mateIn={mateIn}
+                playerColor={playerColor}
+              />
+            </div>
             <ChessBoard 
               position={currentFen} 
               flipped={playerColor === "black"}
