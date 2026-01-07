@@ -310,6 +310,19 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
       }
     };
   }, [isListening, stopListening]);
+  
+  // Auto-start voice recognition when component mounts on native platform
+  const hasAutoStartedRef = useRef(false);
+  useEffect(() => {
+    if (Capacitor.isNativePlatform() && !submitted && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
+      // Small delay to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        startListening();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [submitted, startListening]);
 
   const handleSquareClick = useCallback((row: number, col: number) => {
     if (submitted) return;
