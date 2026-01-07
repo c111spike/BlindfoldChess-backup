@@ -114,10 +114,35 @@ type BlindFoldDifficulty = keyof typeof BLINDFOLD_CONFIG;
 type TimeControlOption = "practice" | "blitz" | "rapid" | "classical";
 type BlindFoldDisplayMode = "empty_board" | "black_overlay" | "no_board";
 
+const PRACTICE_POSITIONS = [
+  { fen: "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4", name: "Italian Game" },
+  { fen: "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", name: "Open Game" },
+  { fen: "rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 2 3", name: "Bishop's Opening" },
+  { fen: "r1bqkbnr/ppp2ppp/2np4/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4", name: "Philidor Defense" },
+  { fen: "rnbqkb1r/ppp1pppp/5n2/3p4/3P4/2N5/PPP1PPPP/R1BQKBNR w KQkq d6 0 3", name: "Queen's Gambit" },
+  { fen: "rnbqkb1r/pppppp1p/5np1/8/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3", name: "King's Indian" },
+  { fen: "r1bqkbnr/pppppppp/2n5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2", name: "Sicilian Defense" },
+  { fen: "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", name: "Sicilian, Open" },
+  { fen: "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 5", name: "Italian, Giuoco Piano" },
+  { fen: "rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 0 4", name: "Slav Defense" },
+  { fen: "r1bqk2r/ppp2ppp/2n2n2/3pp3/1bPP4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 6", name: "Nimzo-Indian" },
+  { fen: "r2qkb1r/ppp2ppp/2n1bn2/3pp3/2PP4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 2 6", name: "Queen's Indian" },
+  { fen: "1k1r3r/ppp2ppp/2n5/3p4/3P1B2/2P2N2/PP3PPP/R3K2R b KQ - 0 12", name: "Middlegame Position 1" },
+  { fen: "r4rk1/ppp2ppp/2n1bn2/3p4/3P4/2NBPN2/PP3PPP/R2QK2R w KQ - 0 10", name: "Middlegame Position 2" },
+  { fen: "r1b2rk1/pp3ppp/2n1pn2/2pp4/3P4/2PB1N2/PP2QPPP/R1B1K2R w KQ - 0 9", name: "Closed Center" },
+  { fen: "8/5pk1/5p1p/2R5/5PP1/7P/r7/4K3 w - - 0 40", name: "Rook Endgame" },
+  { fen: "8/8/4k3/8/3K4/8/4P3/8 w - - 0 50", name: "King + Pawn" },
+  { fen: "8/5k2/8/8/3BK3/8/8/8 w - - 0 55", name: "Bishop Endgame" },
+  { fen: "8/8/3k4/8/3NK3/8/8/8 w - - 0 60", name: "Knight Endgame" },
+  { fen: "3r2k1/5pp1/7p/8/8/7P/5PP1/3R2K1 w - - 0 35", name: "Rook vs Rook" },
+];
+
 export default function GamePage() {
   const { toast } = useToast();
   
   const [showTitleScreen, setShowTitleScreen] = useState(true);
+  const [showPracticeReconstruction, setShowPracticeReconstruction] = useState(false);
+  const [practicePositionIndex, setPracticePositionIndex] = useState(0);
   const [game, setGame] = useState<Chess | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [fen, setFen] = useState("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -929,7 +954,7 @@ export default function GamePage() {
           </p>
         </div>
         <div className="flex-1" />
-        <div className="relative z-10 flex flex-col items-center p-6 pb-[120px] w-full max-w-sm">
+        <div className="relative z-10 flex flex-col items-center gap-3 p-6 pb-[120px] w-full max-w-sm">
           <Button 
             size="lg" 
             variant="ghost"
@@ -939,6 +964,104 @@ export default function GamePage() {
           >
             <Play className="mr-2 h-5 w-5" />
             Play Now
+          </Button>
+          <Button 
+            size="lg" 
+            variant="outline"
+            className="w-full text-lg py-6 bg-white/80 text-black border-black/50 hover:bg-white"
+            onClick={() => {
+              setPracticePositionIndex(Math.floor(Math.random() * PRACTICE_POSITIONS.length));
+              setShowPracticeReconstruction(true);
+              setShowTitleScreen(false);
+            }}
+            data-testid="button-practice-reconstruction"
+          >
+            <Eye className="mr-2 h-5 w-5" />
+            Practice Reconstruction
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  if (showPracticeReconstruction) {
+    const currentPosition = PRACTICE_POSITIONS[practicePositionIndex];
+    
+    const handleNextPosition = () => {
+      setPracticePositionIndex((prev) => (prev + 1) % PRACTICE_POSITIONS.length);
+    };
+    
+    const handleRandomPosition = () => {
+      let newIndex;
+      do {
+        newIndex = Math.floor(Math.random() * PRACTICE_POSITIONS.length);
+      } while (newIndex === practicePositionIndex && PRACTICE_POSITIONS.length > 1);
+      setPracticePositionIndex(newIndex);
+    };
+    
+    const handleBackToMenu = () => {
+      setShowPracticeReconstruction(false);
+      setShowTitleScreen(true);
+    };
+    
+    return (
+      <div className="container max-w-lg mx-auto p-4">
+        <div className="flex items-center justify-between mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToMenu}
+            data-testid="button-back-menu"
+          >
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Back
+          </Button>
+          <h2 className="text-lg font-semibold">Practice Reconstruction</h2>
+          <div className="w-16" />
+        </div>
+        
+        <Card className="mb-4">
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground text-center mb-3">
+              Study the position for a few seconds, then reconstruct it from memory.
+            </p>
+            <p className="text-center font-medium">{currentPosition.name}</p>
+            <p className="text-xs text-muted-foreground text-center">
+              Position {practicePositionIndex + 1} of {PRACTICE_POSITIONS.length}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <BoardReconstruction
+          key={practicePositionIndex}
+          actualFen={currentPosition.fen}
+          playerColor="white"
+          onComplete={(score, voicePurity) => {
+            toast({
+              title: score >= 80 ? "Excellent!" : score >= 50 ? "Good effort!" : "Keep practicing!",
+              description: `You scored ${score}%${voicePurity > 0 ? ` (Voice: ${voicePurity}%)` : ''}`,
+            });
+          }}
+          onSkip={handleNextPosition}
+        />
+        
+        <div className="flex gap-2 mt-4">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={handleNextPosition}
+            data-testid="button-next-position"
+          >
+            Next Position
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={handleRandomPosition}
+            data-testid="button-random-position"
+          >
+            <Shuffle className="mr-1 h-4 w-4" />
+            Random
           </Button>
         </div>
       </div>
