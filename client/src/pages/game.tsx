@@ -1594,6 +1594,22 @@ export default function GamePage() {
               </div>
             )}
             
+            <Card className={`lg:hidden ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
+              <CardContent className="py-2 px-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-white border border-gray-400" : "bg-black"}`} />
+                    <span className="font-medium text-sm">You</span>
+                  </div>
+                  <div className={`text-2xl font-mono font-bold ${
+                    game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "text-foreground" : "text-muted-foreground"
+                  }`}>
+                    {formatTime(playerColor === "white" ? whiteTime : blackTime)}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
             <Card className="flex-1">
               <CardContent className="p-2">
                 <ScrollArea className="h-24 lg:h-48">
@@ -1609,7 +1625,7 @@ export default function GamePage() {
               </CardContent>
             </Card>
             
-            <Card className={`${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
+            <Card className={`hidden lg:block ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
               <CardContent className="py-2 px-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
