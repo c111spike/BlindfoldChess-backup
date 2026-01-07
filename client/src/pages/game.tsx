@@ -161,6 +161,9 @@ export default function GamePage() {
   const reconstructionVoiceInputsRef = useRef<number>(0);
   const reconstructionTouchInputsRef = useRef<number>(0);
   
+  // Square inquiry tracking (for confusion heatmap)
+  const squareInquiriesRef = useRef<string[]>([]);
+  
   // Capture bot difficulty at game start (avoid mid-game changes affecting stats)
   const gameDifficultyRef = useRef<BotDifficulty>("club");
   
@@ -254,6 +257,7 @@ export default function GamePage() {
     voiceCommandsRef.current = 0;
     reconstructionVoiceInputsRef.current = 0;
     reconstructionTouchInputsRef.current = 0;
+    squareInquiriesRef.current = [];
     setShowReconstruction(false);
     setReconstructionFen(null);
     pendingGameResultRef.current = null;
@@ -278,11 +282,11 @@ export default function GamePage() {
         difficulty: gameDifficultyRef.current,
         wasPeekFree,
         totalMoves,
-        bookMoves: bookMovesRef.current,
         voiceCorrections: voiceCorrectionsRef.current,
         voiceCommands: voiceCommandsRef.current,
         reconstructionVoiceInputs: reconstructionVoiceInputsRef.current,
         reconstructionTouchInputs: reconstructionTouchInputsRef.current,
+        squareInquiries: squareInquiriesRef.current,
       }
     );
     setStats(newStats);
@@ -557,6 +561,40 @@ export default function GamePage() {
             setVoiceRestartTrigger(prev => prev + 1);
           }
         }
+        return;
+      }
+      
+      // Handle "what's on [square]" inquiries for confusion heatmap tracking
+      const whatOnMatch = lowerTranscript.match(/what(?:'?s| is)?\s+(?:on\s+)?([a-h])[\s-]?([1-8])/);
+      if (whatOnMatch) {
+        const inquiredSquare = `${whatOnMatch[1]}${whatOnMatch[2]}`;
+        squareInquiriesRef.current.push(inquiredSquare);
+        
+        // Tell the user what's on the square
+        const piece = currentGame.get(inquiredSquare as any);
+        let response = '';
+        if (piece) {
+          const colorName = piece.color === 'w' ? 'White' : 'Black';
+          const pieceNames: Record<string, string> = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' };
+          const pieceName = pieceNames[piece.type] || piece.type;
+          response = `${colorName} ${pieceName} on ${inquiredSquare}`;
+        } else {
+          response = `${inquiredSquare.toUpperCase()} is empty`;
+        }
+        
+        if (voiceOutputEnabled) {
+          isTtsSpeaking.current = true;
+          voiceRecognition.stop();
+          try {
+            await speak(response);
+          } catch (e) {
+            console.error('[Voice] TTS error:', e);
+          } finally {
+            isTtsSpeaking.current = false;
+            setVoiceRestartTrigger(prev => prev + 1);
+          }
+        }
+        setVoiceTranscript(null);
         return;
       }
       

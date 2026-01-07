@@ -36,6 +36,26 @@ export interface ResponseTimeByPhase {
   endgame: { total: number; count: number }; // Moves 31+
 }
 
+// Square inquiry heatmap - tracks which squares users ask about most
+export type SquareInquiryHeatmap = Partial<Record<string, number>>;
+
+// Board zones for pattern detection
+export const BOARD_ZONES = {
+  kingsideCornerWhite: ['f1', 'g1', 'h1', 'f2', 'g2', 'h2'],
+  queensideCornerWhite: ['a1', 'b1', 'c1', 'a2', 'b2', 'c2'],
+  kingsideCornerBlack: ['f8', 'g8', 'h8', 'f7', 'g7', 'h7'],
+  queensideCornerBlack: ['a8', 'b8', 'c8', 'a7', 'b7', 'c7'],
+  center: ['d4', 'e4', 'd5', 'e5'],
+  extendedCenter: ['c3', 'd3', 'e3', 'f3', 'c4', 'f4', 'c5', 'f5', 'c6', 'd6', 'e6', 'f6'],
+  kingside: ['f1', 'g1', 'h1', 'f2', 'g2', 'h2', 'f3', 'g3', 'h3', 'f4', 'g4', 'h4', 
+             'f5', 'g5', 'h5', 'f6', 'g6', 'h6', 'f7', 'g7', 'h7', 'f8', 'g8', 'h8'],
+  queenside: ['a1', 'b1', 'c1', 'a2', 'b2', 'c2', 'a3', 'b3', 'c3', 'a4', 'b4', 'c4',
+              'a5', 'b5', 'c5', 'a6', 'b6', 'c6', 'a7', 'b7', 'c7', 'a8', 'b8', 'c8'],
+  corners: ['a1', 'h1', 'a8', 'h8'],
+} as const;
+
+export type BoardZone = keyof typeof BOARD_ZONES;
+
 // Complete game statistics interface
 export interface GameStats {
   // Legacy global stats (kept for backwards compatibility)
@@ -99,11 +119,9 @@ export interface GameStats {
   // 3. TACTICAL & SKILL METRICS
   // ============================================
   
-  // Opening book depth tracking
-  totalBookMoves: number; // Total moves made while in book
-  totalBookGames: number; // Games where book was used
-  deepestBookLine: number; // Deepest we've stayed in book
-  lastGameBookMoves: number; // How many moves in book last game
+  // Square inquiry heatmap (confusion tracking)
+  squareInquiryHeatmap: SquareInquiryHeatmap;
+  totalSquareInquiries: number;
   
   // Stockfish threshold (where win rate drops below 50%)
   stockfishThreshold: BotDifficulty | null;
@@ -178,10 +196,8 @@ const DEFAULT_STATS: GameStats = {
   mentalBlurCount: 0,
   
   // Tactical metrics
-  totalBookMoves: 0,
-  totalBookGames: 0,
-  deepestBookLine: 0,
-  lastGameBookMoves: 0,
+  squareInquiryHeatmap: {},
+  totalSquareInquiries: 0,
   stockfishThreshold: null,
   longestGame: 0,
   fastestWin: 0,
@@ -209,6 +225,7 @@ function deepMergeStats(saved: Partial<GameStats>): GameStats {
     ...(saved.responseTimeByPhase || {}),
   };
   result.tierStats = saved.tierStats || {};
+  result.squareInquiryHeatmap = saved.squareInquiryHeatmap || {};
   
   return result;
 }
@@ -276,11 +293,11 @@ export interface GameResultData {
   clarityScore?: number;
   voicePurity?: number;
   totalMoves: number;
-  bookMoves: number; // Moves that were in opening book
   voiceCorrections: number; // Voice command corrections
   voiceCommands: number; // Total voice commands
   reconstructionVoiceInputs: number; // Voice inputs during reconstruction
   reconstructionTouchInputs: number; // Touch inputs during reconstruction
+  squareInquiries: string[]; // Squares inquired about during game
 }
 
 // Calculate which move count bucket a game falls into
@@ -379,11 +396,11 @@ export function recordGameResult(
   const difficulty = extendedData?.difficulty || 'club';
   const wasPeekFree = extendedData?.wasPeekFree ?? (peekTimeMs === 0);
   const totalMoves = extendedData?.totalMoves || responseTimes.length;
-  const bookMoves = extendedData?.bookMoves || 0;
   const voiceCorrections = extendedData?.voiceCorrections || 0;
   const voiceCommands = extendedData?.voiceCommands || 0;
   const reconstructionVoice = extendedData?.reconstructionVoiceInputs || 0;
   const reconstructionTouch = extendedData?.reconstructionTouchInputs || 0;
+  const squareInquiries = extendedData?.squareInquiries || [];
   
   // Legacy global stats
   if (result === 'win') {
@@ -547,17 +564,15 @@ export function recordGameResult(
   stats.reconstructionTouchInputs += reconstructionTouch;
   
   // ============================================
-  // Opening book tracking
+  // Square inquiry heatmap tracking
   // ============================================
-  if (bookMoves > 0) {
-    stats.totalBookMoves += bookMoves;
-    stats.totalBookGames++;
-    stats.lastGameBookMoves = bookMoves;
-    if (bookMoves > stats.deepestBookLine) {
-      stats.deepestBookLine = bookMoves;
+  if (squareInquiries.length > 0) {
+    stats.totalSquareInquiries += squareInquiries.length;
+    for (const square of squareInquiries) {
+      const normalizedSquare = square.toLowerCase();
+      stats.squareInquiryHeatmap[normalizedSquare] = 
+        (stats.squareInquiryHeatmap[normalizedSquare] || 0) + 1;
     }
-  } else {
-    stats.lastGameBookMoves = 0;
   }
   
   saveStats(stats);
@@ -631,9 +646,45 @@ export function getVoiceCorrectionRate(stats: GameStats): number {
   return Math.round((stats.voiceCorrections / stats.voiceCommandsTotal) * 100);
 }
 
-export function getAverageBookDepth(stats: GameStats): number {
-  if (stats.totalBookGames === 0) return 0;
-  return Math.round(stats.totalBookMoves / stats.totalBookGames);
+// Get zone inquiry counts from heatmap
+export function getZoneInquiries(stats: GameStats): Record<BoardZone, number> {
+  const result: Record<BoardZone, number> = {
+    kingsideCornerWhite: 0,
+    queensideCornerWhite: 0,
+    kingsideCornerBlack: 0,
+    queensideCornerBlack: 0,
+    center: 0,
+    extendedCenter: 0,
+    kingside: 0,
+    queenside: 0,
+    corners: 0,
+  };
+  
+  for (const [square, count] of Object.entries(stats.squareInquiryHeatmap)) {
+    for (const [zoneName, squares] of Object.entries(BOARD_ZONES)) {
+      if ((squares as readonly string[]).includes(square)) {
+        result[zoneName as BoardZone] += count || 0;
+      }
+    }
+  }
+  
+  return result;
+}
+
+// Get top confused squares (most inquired)
+export function getTopConfusedSquares(stats: GameStats, limit: number = 5): { square: string; count: number }[] {
+  return Object.entries(stats.squareInquiryHeatmap)
+    .map(([square, count]) => ({ square, count: count || 0 }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+// Get heatmap intensity for a square (0-100 scale)
+export function getSquareHeatIntensity(stats: GameStats, square: string): number {
+  if (stats.totalSquareInquiries === 0) return 0;
+  const count = stats.squareInquiryHeatmap[square.toLowerCase()] || 0;
+  const maxCount = Math.max(...Object.values(stats.squareInquiryHeatmap).map(c => c || 0), 1);
+  return Math.round((count / maxCount) * 100);
 }
 
 export function getTierWinRate(stats: GameStats, tier: BotDifficulty): number {
@@ -747,13 +798,46 @@ export function generateInsights(stats: GameStats): Insight[] {
     });
   }
   
-  const avgBookDepth = getAverageBookDepth(stats);
-  if (avgBookDepth > 0) {
+  // Zone-based confusion insights
+  const zoneInquiries = getZoneInquiries(stats);
+  const topConfused = getTopConfusedSquares(stats, 3);
+  
+  if (topConfused.length > 0 && topConfused[0].count >= 3) {
+    const confusedSquares = topConfused.map(s => s.square.toUpperCase()).join(', ');
     insights.push({
-      type: 'info',
+      type: 'warning',
       category: 'tactical',
-      title: 'Opening Mastery',
-      message: `You average ${avgBookDepth} moves in book. Deepest line: ${stats.deepestBookLine} moves.`,
+      title: 'Board Blind Spots',
+      message: `You frequently lose track of: ${confusedSquares}. Focus on visualizing these squares.`,
+    });
+  }
+  
+  // Check for kingside vs queenside weakness
+  const kingsideTotal = zoneInquiries.kingside;
+  const queensideTotal = zoneInquiries.queenside;
+  if (kingsideTotal > queensideTotal * 2 && kingsideTotal >= 5) {
+    insights.push({
+      type: 'tip',
+      category: 'tactical',
+      title: 'Kingside Visualization',
+      message: 'Your mental image of the kingside is weaker. Practice visualizing the f, g, and h files.',
+    });
+  } else if (queensideTotal > kingsideTotal * 2 && queensideTotal >= 5) {
+    insights.push({
+      type: 'tip',
+      category: 'tactical',
+      title: 'Queenside Visualization',
+      message: 'Your mental image of the queenside is weaker. Practice visualizing the a, b, and c files.',
+    });
+  }
+  
+  // Corner weakness detection
+  if (zoneInquiries.corners >= 4) {
+    insights.push({
+      type: 'tip',
+      category: 'visualization',
+      title: 'Corner Awareness',
+      message: 'Your mental board is blurry in the corners (a1, h1, a8, h8). These squares need more focus.',
     });
   }
   
