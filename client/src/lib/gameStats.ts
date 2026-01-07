@@ -14,6 +14,8 @@ export interface GameStats {
   totalResponseMoves: number; // number of moves tracked for response time
   bestClarityScore: number; // best board reconstruction score (0-100)
   lastClarityScore: number; // last game's clarity score
+  lastVoicePurity: number; // voice vs touch ratio for last reconstruction (0-100)
+  bestVoicePurity: number; // personal best voice purity score
 }
 
 export interface BlindfoldSettings {
@@ -37,6 +39,8 @@ const DEFAULT_STATS: GameStats = {
   totalResponseMoves: 0,
   bestClarityScore: 0,
   lastClarityScore: 0,
+  lastVoicePurity: 0,
+  bestVoicePurity: 0,
 };
 
 const DEFAULT_SETTINGS: BlindfoldSettings = {
@@ -98,7 +102,8 @@ export function recordGameResult(
   peekTimeMs: number,
   peekFreeStreak: number = 0,
   responseTimes: number[] = [],
-  clarityScore?: number
+  clarityScore?: number,
+  voicePurity?: number
 ): GameStats {
   const stats = loadStats();
   
@@ -138,6 +143,14 @@ export function recordGameResult(
     stats.lastClarityScore = clarityScore;
     if (clarityScore > stats.bestClarityScore) {
       stats.bestClarityScore = clarityScore;
+    }
+  }
+  
+  // Voice purity score (reconstruction voice vs touch)
+  if (voicePurity !== undefined) {
+    stats.lastVoicePurity = voicePurity;
+    if (voicePurity > stats.bestVoicePurity) {
+      stats.bestVoicePurity = voicePurity;
     }
   }
   

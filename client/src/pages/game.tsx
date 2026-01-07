@@ -239,7 +239,7 @@ export default function GamePage() {
     pendingGameResultRef.current = null;
   }, []);
 
-  const finalizeGameResult = useCallback((result: "white_win" | "black_win" | "draw", clarityScore?: number) => {
+  const finalizeGameResult = useCallback((result: "white_win" | "black_win" | "draw", clarityScore?: number, voicePurity?: number) => {
     const playerWon = (result === "white_win" && playerColor === "white") || 
                      (result === "black_win" && playerColor === "black");
     
@@ -249,7 +249,8 @@ export default function GamePage() {
       gamePeekTimeRef.current,
       bestPeekFreeStreak,
       responseTimesRef.current,
-      clarityScore
+      clarityScore,
+      voicePurity
     );
     setStats(newStats);
     window.dispatchEvent(new CustomEvent('statsUpdated'));
@@ -282,9 +283,9 @@ export default function GamePage() {
     }
   }, [playerColor, voiceOutputEnabled, isBlindfold, blindfoldSettings.boardReconstructionEnabled, finalizeGameResult]);
 
-  const handleReconstructionComplete = useCallback((score: number) => {
+  const handleReconstructionComplete = useCallback((score: number, voicePurity: number) => {
     if (pendingGameResultRef.current) {
-      finalizeGameResult(pendingGameResultRef.current.result, score);
+      finalizeGameResult(pendingGameResultRef.current.result, score, voicePurity);
       // Clear to prevent double finalization
       pendingGameResultRef.current = null;
     }

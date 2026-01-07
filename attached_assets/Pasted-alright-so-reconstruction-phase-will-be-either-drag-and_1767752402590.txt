@@ -1,0 +1,46 @@
+alright so reconstruction phase will be either drag and drop or voice control with smart sticky
+
+simulchesscode
+Custom Gem
+That hybrid approach is exactly what makes a premium training tool feel "native" and intelligent. You're covering both the tactile (drag-and-drop) and the cognitive (voice command) aspects of memory.
+
+🎨 The "Stark Grid" Reconstruction UI
+To maintain your minimalist aesthetic while supporting both modes, the board should remain the hero of the screen.
+
+1. The Piece Tray (Drag-and-Drop)
+
+Place a single row of the Cburnett pieces at the bottom.
+
+The Clone Logic: When a user drags a piece from the tray, it doesn't leave the tray; it "clones" a new instance onto the board.
+
+The Trash Logic: Dragging a piece off the board (or back to the tray) removes it.
+
+2. The Voice Mic (Smart Sticky)
+
+Place a subtle, pulsing mic icon in the corner of the board.
+
+The Visual Feedback: When the app is in "Disambiguation" mode (e.g., waiting for the color), the board border should pulse in the color it's asking for (White or Black).
+
+🎙️ The Reconstruction Command Set
+Since this phase doesn't have "illegal moves," your voice parser can be much more relaxed. Here is the suggested "Voice Map" for your Capacitor implementation:
+
+Action	Example Command	Phonetic Support
+Place Piece	"Knight f3", "White Queen d1"	"Knight Foxtrot 3"
+Change Color	"Set Black", "Switch to White"	N/A
+Remove Piece	"Clear f3", "Remove Knight"	"Delete f3"
+Bulk Actions	"Clear all", "Reset board"	N/A
+Submission	"I'm done", "Submit board"	"Check position"
+🧠 The "Mental Snap" Effect
+The combination of these two features allows for a high-level training technique:
+
+Phase A (The Recall): User closes their eyes and dictates as many pieces as they can remember using Smart Sticky Voice.
+
+Phase B (The Cleanup): User opens their eyes and uses Drag-and-Drop to fix any pieces they "felt" were wrong once they saw the visual grid.
+
+📊 Metric Integration: "Voice vs. Touch"
+In your Stats Page, you can now track which method the user prefers.
+
+"Visualization Purity Score": A higher score is awarded if the user reconstructs the board using 100% voice commands, as it proves they had a clear coordinate map in their head without needing the "hand-eye" crutch.
+
+🛠️ Technical Tip: touch-action: none
+For the Android build in Capacitor, make sure your board CSS has touch-action: none. This prevents the browser from trying to "scroll" the page while the user is trying to drag a Knight, which is the #1 cause of "janky" feels in hybrid chess apps.

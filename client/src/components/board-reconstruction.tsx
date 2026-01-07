@@ -1,8 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, RotateCcw, Send } from "lucide-react";
+import { Check, X, RotateCcw, Send, Mic, MicOff, Trash2 } from "lucide-react";
+import { SpeechRecognition } from "@capacitor-community/speech-recognition";
+import { Capacitor } from "@capacitor/core";
 
 const PIECE_IMAGES: Record<string, string> = {
   'wK': '/pieces/wK.svg',
@@ -21,10 +23,30 @@ const PIECE_IMAGES: Record<string, string> = {
 
 const ALL_PIECES = ['wK', 'wQ', 'wR', 'wB', 'wN', 'wP', 'bK', 'bQ', 'bR', 'bB', 'bN', 'bP'];
 
+const PIECE_NAMES: Record<string, string[]> = {
+  'K': ['king'],
+  'Q': ['queen'],
+  'R': ['rook', 'castle'],
+  'B': ['bishop'],
+  'N': ['knight', 'horse'],
+  'P': ['pawn'],
+};
+
+const FILE_PHONETICS: Record<string, string> = {
+  'alpha': 'a', 'alfa': 'a',
+  'bravo': 'b',
+  'charlie': 'c',
+  'delta': 'd',
+  'echo': 'e',
+  'foxtrot': 'f', 'fox': 'f',
+  'golf': 'g',
+  'hotel': 'h',
+};
+
 interface BoardReconstructionProps {
   actualFen: string;
   playerColor: 'white' | 'black';
-  onComplete: (score: number) => void;
+  onComplete: (score: number, voicePurity: number) => void;
   onSkip: () => void;
   onContinue?: () => void;
 }
@@ -76,6 +98,53 @@ function calculateScore(userBoard: (string | null)[][], actualBoard: (string | n
   return Math.round((correct / total) * 100);
 }
 
+function parseSquare(text: string): { file: string; rank: string } | null {
+  const normalized = text.toLowerCase().trim();
+  
+  for (const [phonetic, file] of Object.entries(FILE_PHONETICS)) {
+    if (normalized.includes(phonetic)) {
+      const rankMatch = normalized.match(/[1-8]/);
+      if (rankMatch) {
+        return { file, rank: rankMatch[0] };
+      }
+    }
+  }
+  
+  const directMatch = normalized.match(/([a-h])\s*([1-8])/);
+  if (directMatch) {
+    return { file: directMatch[1], rank: directMatch[2] };
+  }
+  
+  return null;
+}
+
+function parsePieceType(text: string): string | null {
+  const normalized = text.toLowerCase();
+  
+  for (const [piece, names] of Object.entries(PIECE_NAMES)) {
+    for (const name of names) {
+      if (normalized.includes(name)) {
+        return piece;
+      }
+    }
+  }
+  
+  return null;
+}
+
+function parseColor(text: string): 'w' | 'b' | null {
+  const normalized = text.toLowerCase();
+  if (normalized.includes('white')) return 'w';
+  if (normalized.includes('black')) return 'b';
+  return null;
+}
+
+type DisambiguationState = {
+  type: 'color';
+  pieceType: string;
+  square: { file: string; rank: string };
+} | null;
+
 export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip, onContinue }: BoardReconstructionProps) {
   const [userBoard, setUserBoard] = useState<(string | null)[][]>(
     Array(8).fill(null).map(() => Array(8).fill(null))
@@ -83,38 +152,232 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
+  const [voicePurity, setVoicePurity] = useState<number>(100);
+  
+  const [isListening, setIsListening] = useState(false);
+  const [disambiguation, setDisambiguation] = useState<DisambiguationState>(null);
+  const [lastVoiceCommand, setLastVoiceCommand] = useState<string>('');
+  
+  const [draggedPiece, setDraggedPiece] = useState<string | null>(null);
+  
+  const voicePlacementsRef = useRef(0);
+  const touchPlacementsRef = useRef(0);
+  const listenerRef = useRef<any>(null);
+  const submitRef = useRef<(() => void) | null>(null);
   
   const actualBoard = fenToBoard(actualFen);
   
+  const squareToIndices = useCallback((file: string, rank: string): { row: number; col: number } => {
+    const col = file.charCodeAt(0) - 'a'.charCodeAt(0);
+    const row = 8 - parseInt(rank);
+    return { row, col };
+  }, []);
+  
+  const placePiece = useCallback((piece: string, row: number, col: number, isVoice: boolean) => {
+    setUserBoard(prev => {
+      const newBoard = prev.map(r => [...r]);
+      newBoard[row][col] = piece;
+      return newBoard;
+    });
+    if (isVoice) {
+      voicePlacementsRef.current++;
+    } else {
+      touchPlacementsRef.current++;
+    }
+  }, []);
+  
+  const removePiece = useCallback((row: number, col: number, isVoice: boolean) => {
+    setUserBoard(prev => {
+      const newBoard = prev.map(r => [...r]);
+      if (newBoard[row][col]) {
+        if (isVoice) {
+          voicePlacementsRef.current++;
+        } else {
+          touchPlacementsRef.current++;
+        }
+        newBoard[row][col] = null;
+      }
+      return newBoard;
+    });
+  }, []);
+  
+  const processVoiceCommand = useCallback((transcript: string) => {
+    const normalized = transcript.toLowerCase().trim();
+    setLastVoiceCommand(transcript);
+    
+    if (normalized.includes('clear all') || normalized.includes('reset board') || normalized.includes('reset')) {
+      setUserBoard(Array(8).fill(null).map(() => Array(8).fill(null)));
+      setDisambiguation(null);
+      return;
+    }
+    
+    if (normalized.includes('done') || normalized.includes('submit') || normalized.includes('check position')) {
+      if (submitRef.current) {
+        submitRef.current();
+      }
+      return;
+    }
+    
+    if (disambiguation) {
+      const color = parseColor(normalized);
+      if (color) {
+        const piece = color + disambiguation.pieceType;
+        const { row, col } = squareToIndices(disambiguation.square.file, disambiguation.square.rank);
+        placePiece(piece, row, col, true);
+        setDisambiguation(null);
+        return;
+      }
+    }
+    
+    if (normalized.includes('clear') || normalized.includes('remove') || normalized.includes('delete')) {
+      const square = parseSquare(normalized);
+      if (square) {
+        const { row, col } = squareToIndices(square.file, square.rank);
+        removePiece(row, col, true);
+      }
+      return;
+    }
+    
+    const pieceType = parsePieceType(normalized);
+    const square = parseSquare(normalized);
+    const color = parseColor(normalized);
+    
+    if (pieceType && square) {
+      if (color) {
+        const piece = color + pieceType;
+        const { row, col } = squareToIndices(square.file, square.rank);
+        placePiece(piece, row, col, true);
+      } else {
+        setDisambiguation({
+          type: 'color',
+          pieceType,
+          square
+        });
+      }
+    }
+  }, [disambiguation, squareToIndices, placePiece, removePiece]);
+  
+  const startListening = useCallback(async () => {
+    if (submitted) return;
+    
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const { available } = await SpeechRecognition.available();
+        if (!available) return;
+        
+        const permResult = await SpeechRecognition.requestPermissions();
+        if (permResult.speechRecognition !== 'granted') return;
+        
+        listenerRef.current = await SpeechRecognition.addListener('partialResults', (data: any) => {
+          if (data.matches && data.matches.length > 0) {
+            processVoiceCommand(data.matches[0]);
+          }
+        });
+        
+        await SpeechRecognition.start({
+          language: 'en-US',
+          partialResults: true,
+          popup: false,
+        });
+        
+        setIsListening(true);
+      }
+    } catch (e) {
+      console.error('[Reconstruction] Speech recognition error:', e);
+    }
+  }, [submitted, processVoiceCommand]);
+  
+  const stopListening = useCallback(async () => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await SpeechRecognition.stop();
+        if (listenerRef.current) {
+          await listenerRef.current.remove();
+          listenerRef.current = null;
+        }
+      }
+      setIsListening(false);
+      setDisambiguation(null);
+    } catch (e) {
+      console.error('[Reconstruction] Stop listening error:', e);
+    }
+  }, []);
+  
+  useEffect(() => {
+    return () => {
+      if (isListening) {
+        stopListening();
+      }
+    };
+  }, [isListening, stopListening]);
+
   const handleSquareClick = useCallback((row: number, col: number) => {
     if (submitted) return;
     
     if (selectedPiece) {
-      setUserBoard(prev => {
-        const newBoard = prev.map(r => [...r]);
-        newBoard[row][col] = selectedPiece;
-        return newBoard;
-      });
+      placePiece(selectedPiece, row, col, false);
     } else if (userBoard[row][col]) {
-      setUserBoard(prev => {
-        const newBoard = prev.map(r => [...r]);
-        newBoard[row][col] = null;
-        return newBoard;
-      });
+      removePiece(row, col, false);
     }
-  }, [selectedPiece, userBoard, submitted]);
+  }, [selectedPiece, userBoard, submitted, placePiece, removePiece]);
+  
+  const handleDragStart = useCallback((e: React.DragEvent, piece: string) => {
+    if (submitted) return;
+    e.dataTransfer.setData('piece', piece);
+    e.dataTransfer.effectAllowed = 'copy';
+    setDraggedPiece(piece);
+  }, [submitted]);
+  
+  const handleDragEnd = useCallback(() => {
+    setDraggedPiece(null);
+  }, []);
+  
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }, []);
+  
+  const handleDrop = useCallback((e: React.DragEvent, row: number, col: number) => {
+    e.preventDefault();
+    if (submitted) return;
+    
+    const piece = e.dataTransfer.getData('piece');
+    if (piece) {
+      placePiece(piece, row, col, false);
+    }
+    setDraggedPiece(null);
+  }, [submitted, placePiece]);
+  
+  const handleTouchStart = useCallback((e: React.TouchEvent, piece: string) => {
+    if (submitted) return;
+    setSelectedPiece(piece);
+  }, [submitted]);
   
   const handleReset = () => {
     setUserBoard(Array(8).fill(null).map(() => Array(8).fill(null)));
     setSelectedPiece(null);
+    voicePlacementsRef.current = 0;
+    touchPlacementsRef.current = 0;
   };
   
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     const calculatedScore = calculateScore(userBoard, actualBoard);
     setScore(calculatedScore);
+    
+    const totalPlacements = voicePlacementsRef.current + touchPlacementsRef.current;
+    const purity = totalPlacements > 0 
+      ? Math.round((voicePlacementsRef.current / totalPlacements) * 100)
+      : 0;
+    setVoicePurity(purity);
+    
     setSubmitted(true);
-    onComplete(calculatedScore);
-  };
+    stopListening();
+    onComplete(calculatedScore, purity);
+  }, [userBoard, actualBoard, stopListening, onComplete]);
+  
+  useEffect(() => {
+    submitRef.current = handleSubmit;
+  }, [handleSubmit]);
   
   const files = playerColor === "white" 
     ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
@@ -123,45 +386,94 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     ? ['8', '7', '6', '5', '4', '3', '2', '1']
     : ['1', '2', '3', '4', '5', '6', '7', '8'];
   
+  const disambiguationBorderClass = disambiguation?.type === 'color' 
+    ? 'animate-pulse ring-4 ring-amber-400' 
+    : '';
+  
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center justify-between">
           <span>Reconstruct the Board</span>
-          {score !== null && (
-            <Badge variant={score >= 80 ? "default" : score >= 50 ? "secondary" : "destructive"} className="ml-2">
-              Clarity Score: {score}%
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {score !== null && (
+              <Badge variant={score >= 80 ? "default" : score >= 50 ? "secondary" : "destructive"}>
+                {score}%
+              </Badge>
+            )}
+            {submitted && voicePurity > 0 && (
+              <Badge variant="outline" className="text-amber-600 border-amber-400">
+                Voice: {voicePurity}%
+              </Badge>
+            )}
+          </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {!submitted && (
-          <p className="text-sm text-muted-foreground">
-            Place pieces where you remember them. Click a piece below, then click squares to place it.
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {disambiguation 
+                ? `Say "White" or "Black" for ${disambiguation.pieceType === 'K' ? 'King' : disambiguation.pieceType === 'Q' ? 'Queen' : disambiguation.pieceType === 'R' ? 'Rook' : disambiguation.pieceType === 'B' ? 'Bishop' : disambiguation.pieceType === 'N' ? 'Knight' : 'Pawn'} on ${disambiguation.square.file}${disambiguation.square.rank}`
+                : isListening 
+                  ? `Listening... "${lastVoiceCommand || 'Say piece + square'}"` 
+                  : 'Drag pieces or use voice commands'}
+            </p>
+            <Button
+              size="icon"
+              variant={isListening ? "destructive" : "outline"}
+              onClick={isListening ? stopListening : startListening}
+              className={isListening ? "animate-pulse" : ""}
+              data-testid="button-reconstruction-mic"
+            >
+              {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+          </div>
         )}
         
-        <div className="flex flex-wrap gap-1 justify-center p-2 bg-muted rounded-md">
+        <div 
+          className="flex flex-wrap gap-1 justify-center p-2 bg-muted rounded-md"
+          style={{ touchAction: 'none' }}
+        >
           {ALL_PIECES.map(piece => (
-            <button
+            <div
               key={piece}
-              onClick={() => setSelectedPiece(selectedPiece === piece ? null : piece)}
-              className={`w-8 h-8 rounded transition-all ${
+              draggable={!submitted}
+              onDragStart={(e) => handleDragStart(e, piece)}
+              onDragEnd={handleDragEnd}
+              onTouchStart={(e) => handleTouchStart(e, piece)}
+              onClick={() => !submitted && setSelectedPiece(selectedPiece === piece ? null : piece)}
+              className={`w-8 h-8 rounded transition-all cursor-grab active:cursor-grabbing ${
                 selectedPiece === piece 
                   ? 'ring-2 ring-amber-400 bg-amber-100' 
-                  : 'hover:bg-muted-foreground/20'
+                  : draggedPiece === piece
+                    ? 'opacity-50'
+                    : 'hover:bg-muted-foreground/20'
               } ${submitted ? 'opacity-50 cursor-not-allowed' : ''}`}
-              disabled={submitted}
               data-testid={`piece-palette-${piece}`}
             >
-              <img src={PIECE_IMAGES[piece]} alt={piece} className="w-full h-full" />
-            </button>
+              <img 
+                src={PIECE_IMAGES[piece]} 
+                alt={piece} 
+                className="w-full h-full pointer-events-none" 
+                draggable={false}
+              />
+            </div>
           ))}
+          <div
+            className="w-8 h-8 rounded flex items-center justify-center bg-red-100 hover:bg-red-200 cursor-pointer"
+            onClick={() => setSelectedPiece(null)}
+            data-testid="piece-palette-eraser"
+          >
+            <Trash2 className="h-4 w-4 text-red-600" />
+          </div>
         </div>
         
-        <div className="aspect-square w-full max-w-xs mx-auto">
-          <div className="grid grid-cols-8 grid-rows-8 w-full h-full border border-stone-400">
+        <div className={`aspect-square w-full max-w-xs mx-auto rounded ${disambiguationBorderClass}`}>
+          <div 
+            className="grid grid-cols-8 grid-rows-8 w-full h-full border border-stone-400"
+            style={{ touchAction: 'none' }}
+          >
             {Array.from({ length: 64 }).map((_, i) => {
               const displayRow = Math.floor(i / 8);
               const displayCol = i % 8;
@@ -196,16 +508,20 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
                 <div
                   key={i}
                   onClick={() => handleSquareClick(boardRow, boardCol)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, boardRow, boardCol)}
                   className={`relative flex items-center justify-center cursor-pointer ${squareClass} ${
-                    !submitted && selectedPiece ? 'hover:ring-2 hover:ring-amber-400 hover:ring-inset' : ''
+                    !submitted && (selectedPiece || draggedPiece) ? 'hover:ring-2 hover:ring-amber-400 hover:ring-inset' : ''
                   }`}
+                  style={{ touchAction: 'none' }}
                   data-testid={`reconstruction-square-${files[displayCol]}${ranks[displayRow]}`}
                 >
                   {userPiece && (
                     <img 
                       src={PIECE_IMAGES[userPiece]} 
                       alt={userPiece} 
-                      className="w-[85%] h-[85%]" 
+                      className="w-[85%] h-[85%] pointer-events-none" 
+                      draggable={false}
                     />
                   )}
                   {indicator}
@@ -241,7 +557,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={onSkip}
+                onClick={() => { stopListening(); onSkip(); }}
                 className="flex-1"
                 data-testid="button-reconstruction-skip"
               >
