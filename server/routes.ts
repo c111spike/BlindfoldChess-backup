@@ -9,9 +9,9 @@ import { isAuthenticated } from "./auth";
 import { insertGameSchema, insertPuzzleAttemptSchema, insertUserSettingsSchema, insertPuzzleSchema, insertPuzzleVoteSchema, insertPuzzleReportSchema } from "@shared/schema";
 import { createQueueManager } from "./queueManager";
 import { generatePosition, calculateScore, getAllDifficulties } from "./positionGenerator";
-import { generateBotMove, calculateBotThinkTime } from "./botEngine";
+// Bot moves now generated client-side with Stockfish UCI_LimitStrength
 import { BOTS, getBotById } from "../shared/botTypes";
-import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
+import type { BotDifficulty } from "../shared/botTypes";
 import { analysisQueueManager } from "./analysisQueueManager";
 import { memoryCache, CACHE_KEYS, CACHE_TTL, invalidateCaches } from "./memoryCache";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
@@ -3329,18 +3329,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await new Promise(resolve => setTimeout(resolve, thinkTime));
       }
       
-      const move = await generateBotMove(fen, bot.personality, bot.difficulty, moveHistory);
-      
-      if (!move) {
-        return res.status(400).json({ message: "No legal moves available" });
-      }
-
-      res.json({
-        move: move.move,
-        from: move.from,
-        to: move.to,
-        promotion: move.promotion,
-        thinkTime,
+      // Bot moves now generated client-side with Stockfish UCI_LimitStrength
+      // This endpoint is deprecated - return error to force client-side generation
+      return res.status(410).json({ 
+        message: "Bot move generation moved to client-side. Use client Stockfish with UCI_LimitStrength." 
       });
     } catch (error) {
       console.error("Error generating bot move:", error);

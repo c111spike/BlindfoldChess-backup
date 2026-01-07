@@ -14,13 +14,12 @@ import {
   getVoiceCorrectionRate,
   getSquareHeatIntensity,
   getTopConfusedSquares,
-  getTierWinRate,
+  getEloWinRate,
   formatResponseTime,
   getAverageResponseTime,
   generateInsights,
-  DIFFICULTY_TIERS,
+  ELO_TIERS,
 } from "@/lib/gameStats";
-import { BOT_DIFFICULTY_ELO, BOT_DIFFICULTY_NAMES } from "@shared/botTypes";
 
 interface StatsDashboardProps {
   stats: GameStats;
@@ -151,9 +150,9 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
                 <p className="text-sm text-muted-foreground">
                   Highest Elo beaten without peeking
                 </p>
-                {stats.visualizationCeilingTier && (
+                {stats.visualizationCeilingElo && (
                   <Badge variant="outline" className="mt-2">
-                    {BOT_DIFFICULTY_NAMES[stats.visualizationCeilingTier]}
+                    {stats.visualizationCeilingElo} Elo
                   </Badge>
                 )}
               </div>
@@ -413,7 +412,7 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
           </CardContent>
         </Card>
         
-        {stats.stockfishThreshold && (
+        {stats.stockfishThresholdElo && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -427,10 +426,10 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
             <CardContent>
               <div className="text-center">
                 <p className="text-3xl font-bold text-amber-500">
-                  {BOT_DIFFICULTY_ELO[stats.stockfishThreshold]}
+                  {stats.stockfishThresholdElo}
                 </p>
                 <Badge variant="outline" className="mt-2">
-                  {BOT_DIFFICULTY_NAMES[stats.stockfishThreshold]}
+                  {stats.stockfishThresholdElo} Elo
                 </Badge>
               </div>
             </CardContent>
@@ -477,24 +476,24 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Win Rate by Tier</CardTitle>
+            <CardTitle className="text-sm">Win Rate by Rating</CardTitle>
             <CardDescription className="text-xs">
-              Your success rate at each difficulty level
+              Your success rate at each Elo level
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {DIFFICULTY_TIERS.map(tier => {
-                const tierStat = stats.tierStats[tier];
-                const winRate = getTierWinRate(stats, tier);
+              {ELO_TIERS.map(elo => {
+                const tierStat = stats.tierStats[elo];
+                const winRate = getEloWinRate(stats, elo);
                 const games = tierStat?.totalGames || 0;
                 
                 if (games === 0) return null;
                 
                 return (
-                  <div key={tier} className="flex items-center gap-3">
+                  <div key={elo} className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground w-24 truncate">
-                      {BOT_DIFFICULTY_NAMES[tier]}
+                      {elo} Elo
                     </span>
                     <Progress 
                       value={winRate} 

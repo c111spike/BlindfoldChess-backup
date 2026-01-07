@@ -1,9 +1,24 @@
 import { Chess, Move } from "chess.js";
-import type { BotPersonality, BotDifficulty } from "../shared/botTypes";
-import { BOT_DIFFICULTY_ELO } from "../shared/botTypes";
 import { lookupOpeningMove, isInOpeningPhase } from "./openingBook";
 import { analysisQueueManager } from "./analysisQueueManager";
 import { syzygyService } from "./syzygyService";
+
+// NOTE: Server-side bot engine is DEPRECATED - bot moves now generated client-side using Stockfish UCI_LimitStrength
+// This file is kept for legacy compatibility only
+
+// Legacy types for backward compatibility - includes all difficulty levels used in this file
+type BotDifficulty = "beginner" | "novice" | "intermediate" | "club" | "advanced" | "expert" | "master";
+type BotPersonality = "balanced" | "tactician" | "positional" | "bishop_lover" | "knight_lover" | "aggressive" | "defensive";
+
+const BOT_DIFFICULTY_ELO: Record<BotDifficulty, number> = {
+  beginner: 400,
+  novice: 600,
+  intermediate: 800,
+  club: 1000,
+  advanced: 1200,
+  expert: 1600,
+  master: 2000,
+};
 
 const PIECE_VALUES: Record<string, number> = {
   p: 100,

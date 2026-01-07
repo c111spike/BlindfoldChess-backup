@@ -1,14 +1,10 @@
 // Game statistics tracking with localStorage persistence
 // Comprehensive metrics for visualization, cognitive performance, and tactical tracking
 
-import type { BotDifficulty } from '@shared/botTypes';
-import { BOT_DIFFICULTY_ELO } from '@shared/botTypes';
+import { ALL_ELOS } from '@shared/botTypes';
 
-// All 12 difficulty tiers
-export const DIFFICULTY_TIERS: BotDifficulty[] = [
-  'patzer', 'novice', 'intermediate', 'improving', 'club', 'advanced',
-  'strong', 'expert', 'master', 'candidate', 'elite', 'grandmaster'
-];
+// All 12 Elo tiers
+export const ELO_TIERS: number[] = ALL_ELOS;
 
 // Per-tier statistics
 export interface TierStats {
@@ -79,12 +75,12 @@ export interface GameStats {
   // 1. VISUALIZATION & MEMORY METRICS
   // ============================================
   
-  // Per-tier statistics (12 levels)
-  tierStats: Partial<Record<BotDifficulty, TierStats>>;
+  // Per-Elo statistics (12 levels: 400, 600, 800, etc.)
+  tierStats: Partial<Record<number, TierStats>>;
   
   // Visualization Ceiling: Highest Elo beaten without peeking
   visualizationCeiling: number; // Elo value (0 if never achieved)
-  visualizationCeilingTier: BotDifficulty | null;
+  visualizationCeilingElo: number | null;
   
   // Clarity by move count (degradation tracking)
   clarityByMoveCount: ClarityByMoveCount;
@@ -123,8 +119,8 @@ export interface GameStats {
   squareInquiryHeatmap: SquareInquiryHeatmap;
   totalSquareInquiries: number;
   
-  // Stockfish threshold (where win rate drops below 50%)
-  stockfishThreshold: BotDifficulty | null;
+  // Stockfish threshold Elo (where win rate drops below 50%)
+  stockfishThresholdElo: number | null;
   
   // Personal bests
   longestGame: number; // Most moves in a game
@@ -180,7 +176,7 @@ const DEFAULT_STATS: GameStats = {
   // Visualization metrics
   tierStats: {},
   visualizationCeiling: 0,
-  visualizationCeilingTier: null,
+  visualizationCeilingElo: null,
   clarityByMoveCount: { ...DEFAULT_CLARITY_BY_MOVE_COUNT },
   totalPeekFreeGames: 0,
   totalGamesPlayed: 0,
@@ -198,7 +194,7 @@ const DEFAULT_STATS: GameStats = {
   // Tactical metrics
   squareInquiryHeatmap: {},
   totalSquareInquiries: 0,
-  stockfishThreshold: null,
+  stockfishThresholdElo: null,
   longestGame: 0,
   fastestWin: 0,
   currentWinStreak: 0,
@@ -285,7 +281,7 @@ export function saveSettings(settings: BlindfoldSettings): void {
 // Extended game result data
 export interface GameResultData {
   result: 'win' | 'loss' | 'draw';
-  difficulty: BotDifficulty;
+  botElo: number;
   peekTimeMs: number;
   peekFreeStreak: number;
   wasPeekFree: boolean; // True if no peeks used all game
@@ -345,15 +341,15 @@ function countMentalBlurs(responseTimes: number[]): number {
   return responseTimes.filter(t => t > threshold).length;
 }
 
-// Calculate Stockfish threshold (lowest tier where win rate < 50%)
-function calculateStockfishThreshold(tierStats: Partial<Record<BotDifficulty, TierStats>>): BotDifficulty | null {
-  for (const tier of DIFFICULTY_TIERS) {
-    const stats = tierStats[tier];
+// Calculate Stockfish threshold (lowest Elo where win rate < 50%)
+function calculateStockfishThreshold(tierStats: Partial<Record<number, TierStats>>): number | null {
+  for (const elo of ELO_TIERS) {
+    const stats = tierStats[elo];
     if (!stats || stats.totalGames < 3) continue; // Need at least 3 games
     
     const winRate = stats.wins / stats.totalGames;
     if (winRate < 0.5) {
-      return tier;
+      return elo;
     }
   }
   return null;
@@ -361,23 +357,20 @@ function calculateStockfishThreshold(tierStats: Partial<Record<BotDifficulty, Ti
 
 // Calculate visualization ceiling (highest Elo beaten peek-free)
 function calculateVisualizationCeiling(
-  tierStats: Partial<Record<BotDifficulty, TierStats>>
-): { elo: number; tier: BotDifficulty | null } {
+  tierStats: Partial<Record<number, TierStats>>
+): { elo: number } {
   let highestElo = 0;
-  let highestTier: BotDifficulty | null = null;
   
-  for (const tier of DIFFICULTY_TIERS) {
-    const stats = tierStats[tier];
+  for (const elo of ELO_TIERS) {
+    const stats = tierStats[elo];
     if (stats && stats.peekFreeWins > 0) {
-      const elo = BOT_DIFFICULTY_ELO[tier];
       if (elo > highestElo) {
         highestElo = elo;
-        highestTier = tier;
       }
     }
   }
   
-  return { elo: highestElo, tier: highestTier };
+  return { elo: highestElo };
 }
 
 // Main function to record a game result with all metrics
@@ -393,7 +386,7 @@ export function recordGameResult(
   const stats = loadStats();
   
   // Extract extended data with defaults
-  const difficulty = extendedData?.difficulty || 'club';
+  const botElo = extendedData?.botElo || 1200;
   const wasPeekFree = extendedData?.wasPeekFree ?? (peekTimeMs === 0);
   const totalMoves = extendedData?.totalMoves || responseTimes.length;
   const voiceCorrections = extendedData?.voiceCorrections || 0;
@@ -436,10 +429,10 @@ export function recordGameResult(
   }
   
   // ============================================
-  // Per-tier statistics
+  // Per-Elo statistics
   // ============================================
-  if (!stats.tierStats[difficulty]) {
-    stats.tierStats[difficulty] = {
+  if (!stats.tierStats[botElo]) {
+    stats.tierStats[botElo] = {
       wins: 0,
       losses: 0,
       draws: 0,
@@ -449,7 +442,7 @@ export function recordGameResult(
     };
   }
   
-  const tierStat = stats.tierStats[difficulty]!;
+  const tierStat = stats.tierStats[botElo]!;
   tierStat.totalGames++;
   
   if (result === 'win') {
@@ -489,12 +482,12 @@ export function recordGameResult(
   // ============================================
   const ceiling = calculateVisualizationCeiling(stats.tierStats);
   stats.visualizationCeiling = ceiling.elo;
-  stats.visualizationCeilingTier = ceiling.tier;
+  stats.visualizationCeilingElo = ceiling.elo || null;
   
   // ============================================
   // Stockfish Threshold
   // ============================================
-  stats.stockfishThreshold = calculateStockfishThreshold(stats.tierStats);
+  stats.stockfishThresholdElo = calculateStockfishThreshold(stats.tierStats);
   
   // ============================================
   // Response time tracking
@@ -687,8 +680,8 @@ export function getSquareHeatIntensity(stats: GameStats, square: string): number
   return Math.round((count / maxCount) * 100);
 }
 
-export function getTierWinRate(stats: GameStats, tier: BotDifficulty): number {
-  const tierStat = stats.tierStats[tier];
+export function getEloWinRate(stats: GameStats, elo: number): number {
+  const tierStat = stats.tierStats[elo];
   if (!tierStat || tierStat.totalGames === 0) return 0;
   return Math.round((tierStat.wins / tierStat.totalGames) * 100);
 }
@@ -788,13 +781,12 @@ export function generateInsights(stats: GameStats): Insight[] {
   }
   
   // Tactical insights
-  if (stats.stockfishThreshold) {
-    const thresholdElo = BOT_DIFFICULTY_ELO[stats.stockfishThreshold];
+  if (stats.stockfishThresholdElo) {
     insights.push({
       type: 'info',
       category: 'tactical',
       title: 'Stockfish Threshold',
-      message: `Your win rate drops below 50% at ${thresholdElo} Elo (${stats.stockfishThreshold}). Focus training at this level.`,
+      message: `Your win rate drops below 50% at ${stats.stockfishThresholdElo} Elo. Focus training at this level.`,
     });
   }
   

@@ -35,20 +35,15 @@ import { PostMortemReport } from "@/components/post-mortem-report";
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
-import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition, clearRecentMoves } from "@/lib/botEngine";
+import { getBotMove, countBotPieces, detectRecapture, getBotMoveDelay as botMoveDelay, type LastMoveInfo, type BotMoveResult } from "@/lib/botEngine";
 import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats, type BlindfoldSettings } from "@/lib/gameStats";
 import { clientStockfish } from "@/lib/stockfish";
-import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
+import type { BotProfile } from "@shared/botTypes";
 import { 
-  ALL_DIFFICULTIES, 
-  ALL_PERSONALITIES, 
+  ALL_ELOS,
   BOTS,
-  BOT_DIFFICULTY_ELO, 
-  BOT_DIFFICULTY_NAMES,
-  BOT_PERSONALITY_NAMES,
-  BOT_PERSONALITY_DESCRIPTIONS,
-  BOT_PERSONALITY_ICONS,
-  getBotByConfig 
+  BOT_DIFFICULTY_ELO,
+  getBotByElo 
 } from "@shared/botTypes";
 
 const PIECE_VALUES: Record<string, number> = {
@@ -166,8 +161,8 @@ export default function GamePage() {
   // Square inquiry tracking (for confusion heatmap)
   const squareInquiriesRef = useRef<string[]>([]);
   
-  // Capture bot difficulty at game start (avoid mid-game changes affecting stats)
-  const gameDifficultyRef = useRef<BotDifficulty>("club");
+  // Capture bot elo at game start (avoid mid-game changes affecting stats)
+  const gameBotEloRef = useRef<number>(1200);
   
   // Board reconstruction settings
   const [blindfoldSettings, setBlindFoldSettings] = useState<BlindfoldSettings>(() => loadSettings());
@@ -176,8 +171,7 @@ export default function GamePage() {
   
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
   const [botThinking, setBotThinking] = useState(false);
-  const [selectedBotDifficulty, setSelectedBotDifficulty] = useState<BotDifficulty>("club");
-  const [selectedBotPersonalityType, setSelectedBotPersonalityType] = useState<BotPersonality>("balanced");
+  const [selectedBotElo, setSelectedBotElo] = useState<number>(1200);
   const [selectedColor, setSelectedColor] = useState<"white" | "black" | "random">("white");
   
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
@@ -240,8 +234,6 @@ export default function GamePage() {
       clearTimeout(disambiguationTimeoutRef.current);
       disambiguationTimeoutRef.current = null;
     }
-    clearPositionHistory();
-    clearRecentMoves();
     setGame(null);
     setGameStarted(false);
     setGameResult(null);
@@ -294,7 +286,7 @@ export default function GamePage() {
       clarityScore,
       voicePurity,
       {
-        difficulty: gameDifficultyRef.current,
+        botElo: gameBotEloRef.current,
         wasPeekFree,
         totalMoves,
         voiceCorrections: voiceCorrectionsRef.current,
@@ -381,23 +373,20 @@ export default function GamePage() {
     setBotThinking(true);
     
     try {
-      const parts = botId.split('_');
-      if (parts.length < 3) {
+      // Extract elo from botId (format: "elo_XXXX")
+      const eloMatch = botId.match(/elo_(\d+)/);
+      if (!eloMatch) {
         throw new Error("Invalid bot ID format");
       }
-      
-      const difficulty = parts[1] as BotDifficulty;
-      const personality = parts.slice(2).join('_') as BotPersonality;
+      const botElo = parseInt(eloMatch[1], 10);
       
       const botRemainingTime = playerColor === 'white' ? blackTimeRef.current : whiteTimeRef.current;
       const moveCount = moveHistorySAN?.length || 0;
       
-      const result = await generateBotMoveClient(
+      const result = await getBotMove(
         currentFen,
-        personality,
-        difficulty,
-        botRemainingTime * 1000,
-        moveCount,
+        botId,
+        moveHistorySAN,
         lastMoveInfo
       );
       
@@ -406,7 +395,7 @@ export default function GamePage() {
       }
       
       // Track book moves for statistics
-      if (result.wasFromBook) {
+      if (result.isBookMove) {
         bookMovesRef.current++;
       }
       
@@ -417,7 +406,7 @@ export default function GamePage() {
       } else {
         const moveNumber = Math.ceil((moveCount + 2) / 2);
         const botColor: 'white' | 'black' = playerColor === 'white' ? 'black' : 'white';
-        thinkDelay = getBotMoveDelay(moveNumber, botRemainingTime, currentFen, botColor, lastMoveInfo);
+        thinkDelay = botMoveDelay(moveNumber, botRemainingTime, currentFen, botColor, lastMoveInfo);
       }
       await delay(thinkDelay);
       
@@ -437,7 +426,7 @@ export default function GamePage() {
 
   const handleStartGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     gamePeekTimeRef.current = 0;
-    gameDifficultyRef.current = bot.difficulty; // Capture difficulty at game start
+    gameBotEloRef.current = bot.elo; // Capture bot elo at game start
     const newGame = new Chess();
     setGame(newGame);
     gameRef.current = newGame;
@@ -474,7 +463,6 @@ export default function GamePage() {
         const moveResult = gameRef.current.move(botMove.move);
         if (moveResult) {
           setLastMove({ from: moveResult.from, to: moveResult.to });
-          recordPosition(gameRef.current.fen());
         }
         setFen(gameRef.current.fen());
         const newMoves = [botMove.move];
@@ -674,7 +662,6 @@ export default function GamePage() {
             if (moveObj) {
               setFen(gameRef.current.fen());
               setLastMove({ from: moveObj.from, to: moveObj.to });
-              recordPosition(gameRef.current.fen());
               
               const newMoves = [...movesRef.current, moveObj.san];
               setMoves(newMoves);
@@ -759,7 +746,6 @@ export default function GamePage() {
           
           setFen(gameRef.current.fen());
           setLastMove({ from: moveObj.from, to: moveObj.to });
-          recordPosition(gameRef.current.fen());
           
           const newMoves = [...movesRef.current, moveObj.san];
           setMoves(newMoves);
@@ -874,7 +860,6 @@ export default function GamePage() {
           const botMoveResult = gameRef.current.move(botMove.move);
           if (botMoveResult) {
             setLastMove({ from: botMoveResult.from, to: botMoveResult.to });
-            recordPosition(gameRef.current.fen());
           }
           const botNewFen = gameRef.current.fen();
           setFen(botNewFen);
@@ -974,7 +959,6 @@ export default function GamePage() {
         const newFen = game.fen();
         setFen(newFen);
         setLastMove({ from: move.from, to: move.to });
-        recordPosition(newFen);
         
         const newMoves = [...movesRef.current, move.san];
         setMoves(newMoves);
@@ -1093,7 +1077,7 @@ export default function GamePage() {
 
   if (!gameStarted) {
     const handleStartGameClick = () => {
-      const bot = getBotByConfig(selectedBotDifficulty, selectedBotPersonalityType);
+      const bot = getBotByElo(selectedBotElo);
       if (bot) {
         handleStartGame(bot, selectedColor);
       }
@@ -1270,31 +1254,15 @@ export default function GamePage() {
             </div>
             
             <div className="space-y-2">
-              <Label>Bot Difficulty</Label>
-              <Select value={selectedBotDifficulty} onValueChange={(v) => setSelectedBotDifficulty(v as BotDifficulty)}>
-                <SelectTrigger data-testid="select-bot-difficulty">
+              <Label>Bot Rating</Label>
+              <Select value={String(selectedBotElo)} onValueChange={(v) => setSelectedBotElo(Number(v))}>
+                <SelectTrigger data-testid="select-bot-elo">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ALL_DIFFICULTIES.map((difficulty) => (
-                    <SelectItem key={difficulty} value={difficulty}>
-                      {BOT_DIFFICULTY_ELO[difficulty]} Elo
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Playstyle</Label>
-              <Select value={selectedBotPersonalityType} onValueChange={(v) => setSelectedBotPersonalityType(v as BotPersonality)}>
-                <SelectTrigger data-testid="select-bot-playstyle">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ALL_PERSONALITIES.map((personality) => (
-                    <SelectItem key={personality} value={personality}>
-                      {BOT_PERSONALITY_NAMES[personality]}
+                  {ALL_ELOS.map((elo) => (
+                    <SelectItem key={elo} value={String(elo)}>
+                      {elo} Elo
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1399,7 +1367,7 @@ export default function GamePage() {
                 <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-black" : "bg-white border border-gray-400"}`} />
                 <Bot className="h-4 w-4 text-amber-500" />
                 <span className="font-medium text-sm" data-testid="text-opponent-name">
-                  {selectedBot ? `${selectedBot.elo} ${BOT_PERSONALITY_NAMES[selectedBot.personality]}` : "Bot"}
+                  {selectedBot ? `${selectedBot.elo} Elo Bot` : "Bot"}
                 </span>
                 {botThinking && (
                   <span className="text-xs text-primary animate-pulse" data-testid="text-bot-thinking">

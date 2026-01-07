@@ -1,163 +1,76 @@
-export type BotPersonality = 
-  | "balanced"
-  | "tactician"
-  | "positional"
-  | "aggressive"
-  | "defensive"
-  | "bishop_lover"
-  | "knight_lover";
+// Simplified Elo-only bot system
+// Uses Stockfish UCI_LimitStrength for calibrated play
 
 export type BotDifficulty = 
-  | "patzer"       // ~400 Elo
-  | "novice"       // ~600 Elo
-  | "intermediate" // ~800 Elo
-  | "improving"    // ~1000 Elo
-  | "club"         // ~1200 Elo
-  | "advanced"     // ~1400 Elo
-  | "strong"       // ~1600 Elo
-  | "expert"       // ~1800 Elo
-  | "master"       // ~2000 Elo
-  | "candidate"    // ~2200 Elo
-  | "elite"        // ~2400 Elo
-  | "grandmaster"; // ~2600 Elo
+  | "elo_400"
+  | "elo_600"
+  | "elo_800"
+  | "elo_1000"
+  | "elo_1200"
+  | "elo_1400"
+  | "elo_1600"
+  | "elo_1800"
+  | "elo_2000"
+  | "elo_2200"
+  | "elo_2400"
+  | "elo_2600";
 
 export interface BotProfile {
   id: string;
-  name: string;
-  personality: BotPersonality;
-  difficulty: BotDifficulty;
   elo: number;
-  description: string;
-  avatar: string;
+  difficulty: BotDifficulty;
 }
 
+// Map difficulty to Elo rating
 export const BOT_DIFFICULTY_ELO: Record<BotDifficulty, number> = {
-  patzer: 400,
-  novice: 600,
-  intermediate: 800,
-  improving: 1000,
-  club: 1200,
-  advanced: 1400,
-  strong: 1600,
-  expert: 1800,
-  master: 2000,
-  candidate: 2200,
-  elite: 2400,
-  grandmaster: 2600,
+  elo_400: 400,
+  elo_600: 600,
+  elo_800: 800,
+  elo_1000: 1000,
+  elo_1200: 1200,
+  elo_1400: 1400,
+  elo_1600: 1600,
+  elo_1800: 1800,
+  elo_2000: 2000,
+  elo_2200: 2200,
+  elo_2400: 2400,
+  elo_2600: 2600,
 };
 
-export const BOT_DIFFICULTY_NAMES: Record<BotDifficulty, string> = {
-  patzer: "Patzer",
-  novice: "Novice",
-  intermediate: "Intermediate",
-  improving: "Improving",
-  club: "Club Player",
-  advanced: "Advanced",
-  strong: "Strong",
-  expert: "Expert",
-  master: "Master",
-  candidate: "Candidate",
-  elite: "Elite",
-  grandmaster: "Grandmaster",
-};
-
-export const BOT_PERSONALITY_NAMES: Record<BotPersonality, string> = {
-  balanced: "Balanced",
-  tactician: "Tactician",
-  positional: "Positional",
-  aggressive: "Aggressor",
-  defensive: "Defender",
-  bishop_lover: "Bishop Specialist",
-  knight_lover: "Knight Specialist",
-};
-
-export const BOT_PERSONALITY_DESCRIPTIONS: Record<BotPersonality, string> = {
-  balanced: "Plays solid, well-rounded chess without extreme tendencies",
-  tactician: "Loves combinations and sacrifices, always looking for tricks",
-  positional: "Focuses on piece placement, pawn structure, and long-term plans",
-  aggressive: "Attacks relentlessly, often sacrificing material for initiative",
-  defensive: "Fortress Defender - trades down, coordinates pieces, and punishes overextension",
-  bishop_lover: "Prefers bishops over knights and loves open positions",
-  knight_lover: "Prefers knights, especially in closed positions with outposts",
-};
-
-export const BOT_PERSONALITY_ICONS: Record<BotPersonality, string> = {
-  balanced: "⚖",
-  tactician: "⚔",
-  positional: "♟",
-  aggressive: "🔥",
-  defensive: "🛡",
-  bishop_lover: "♗",
-  knight_lover: "♘",
-};
-
+// All difficulties in order
 export const ALL_DIFFICULTIES: BotDifficulty[] = [
-  "patzer",
-  "novice", 
-  "intermediate",
-  "improving",
-  "club",
-  "advanced",
-  "strong",
-  "expert",
-  "master",
-  "candidate",
-  "elite",
-  "grandmaster",
+  "elo_400",
+  "elo_600", 
+  "elo_800",
+  "elo_1000",
+  "elo_1200",
+  "elo_1400",
+  "elo_1600",
+  "elo_1800",
+  "elo_2000",
+  "elo_2200",
+  "elo_2400",
+  "elo_2600",
 ];
 
-export const ALL_PERSONALITIES: BotPersonality[] = [
-  "balanced",
-  "tactician",
-  "positional",
-  "aggressive",
-  "defensive",
-  "bishop_lover",
-  "knight_lover",
-];
+// All Elo values
+export const ALL_ELOS: number[] = [400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600];
 
-// Generate all bot combinations dynamically
-function generateBotId(difficulty: BotDifficulty, personality: BotPersonality): string {
-  return `bot_${difficulty}_${personality}`;
-}
-
-function generateBotName(difficulty: BotDifficulty, personality: BotPersonality): string {
-  const difficultyName = BOT_DIFFICULTY_NAMES[difficulty];
-  const personalityName = BOT_PERSONALITY_NAMES[personality];
-  return `${difficultyName} ${personalityName}`;
-}
-
-function generateBotDescription(difficulty: BotDifficulty, personality: BotPersonality): string {
-  const elo = BOT_DIFFICULTY_ELO[difficulty];
-  const personalityDesc = BOT_PERSONALITY_DESCRIPTIONS[personality];
-  return `${elo} rated bot. ${personalityDesc}.`;
-}
-
-// Generate all 49 bot combinations
-export const BOTS: BotProfile[] = ALL_DIFFICULTIES.flatMap(difficulty =>
-  ALL_PERSONALITIES.map(personality => ({
-    id: generateBotId(difficulty, personality),
-    name: generateBotName(difficulty, personality),
-    personality,
-    difficulty,
-    elo: BOT_DIFFICULTY_ELO[difficulty],
-    description: generateBotDescription(difficulty, personality),
-    avatar: BOT_PERSONALITY_ICONS[personality],
-  }))
-);
+// Generate simple bot profiles (one per Elo level)
+export const BOTS: BotProfile[] = ALL_DIFFICULTIES.map(difficulty => ({
+  id: difficulty,
+  elo: BOT_DIFFICULTY_ELO[difficulty],
+  difficulty,
+}));
 
 export function getBotById(id: string): BotProfile | undefined {
   return BOTS.find(bot => bot.id === id);
 }
 
-export function getBotByConfig(difficulty: BotDifficulty, personality: BotPersonality): BotProfile | undefined {
-  return BOTS.find(bot => bot.difficulty === difficulty && bot.personality === personality);
+export function getBotByElo(elo: number): BotProfile | undefined {
+  return BOTS.find(bot => bot.elo === elo);
 }
 
-export function getBotsByDifficulty(difficulty: BotDifficulty): BotProfile[] {
-  return BOTS.filter(bot => bot.difficulty === difficulty);
-}
-
-export function getBotsByPersonality(personality: BotPersonality): BotProfile[] {
-  return BOTS.filter(bot => bot.personality === personality);
+export function getDifficultyFromElo(elo: number): BotDifficulty {
+  return `elo_${elo}` as BotDifficulty;
 }

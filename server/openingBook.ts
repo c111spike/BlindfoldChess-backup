@@ -1,4 +1,8 @@
-import type { BotPersonality } from "../shared/botTypes";
+// Opening book for server-side bot moves (legacy support)
+// NOTE: Server-side bot engine is deprecated - bot moves now generated client-side
+
+// Legacy type for backward compatibility
+type BotPersonality = "balanced" | "tactician" | "positional" | "bishop_lover" | "knight_lover" | "aggressive" | "defensive";
 
 export interface BookMove {
   move: string;

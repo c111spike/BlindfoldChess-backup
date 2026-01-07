@@ -1,5 +1,3 @@
-import type { BotPersonality } from '@shared/botTypes';
-
 // Polyglot opening book parser
 // Book format: 16-byte entries (8-byte key, 2-byte move, 2-byte weight, 4-byte learn)
 
@@ -324,65 +322,6 @@ export async function getBookMoves(fen: string): Promise<BookLookupResult> {
   moves.sort((a, b) => b.weight - a.weight);
   
   return { moves };
-}
-
-// Select move based on personality
-export function selectBookMoveByPersonality(
-  moves: BookMove[],
-  personality: BotPersonality
-): BookMove | null {
-  if (moves.length === 0) return null;
-  if (moves.length === 1) return moves[0];
-  
-  // Calculate total weight
-  const totalWeight = moves.reduce((sum, m) => sum + m.weight, 0);
-  
-  // Personality affects how we weight moves
-  let adjustedMoves = moves.map(m => {
-    let adjustedWeight = m.weight;
-    
-    switch (personality) {
-      case 'aggressive':
-      case 'tactician':
-        // Slightly prefer less common moves (more surprise value)
-        adjustedWeight = m.weight + (totalWeight / moves.length) * 0.3;
-        break;
-        
-      case 'defensive':
-      case 'positional':
-        // Strongly prefer popular (high weight) moves
-        adjustedWeight = m.weight * 1.5;
-        break;
-        
-      case 'bishop_lover':
-      case 'knight_lover':
-        // Slightly varied
-        adjustedWeight = m.weight + Math.random() * (totalWeight / moves.length) * 0.2;
-        break;
-        
-      case 'balanced':
-      default:
-        // Use weights as-is
-        break;
-    }
-    
-    return { ...m, adjustedWeight };
-  });
-  
-  // Calculate total adjusted weight
-  const totalAdjusted = adjustedMoves.reduce((sum, m) => sum + m.adjustedWeight, 0);
-  
-  // Weighted random selection
-  let random = Math.random() * totalAdjusted;
-  for (const move of adjustedMoves) {
-    random -= move.adjustedWeight;
-    if (random <= 0) {
-      return move;
-    }
-  }
-  
-  // Fallback to first move
-  return moves[0];
 }
 
 // Check if we're still in book (have moves available)
