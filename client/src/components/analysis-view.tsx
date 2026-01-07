@@ -67,11 +67,11 @@ function EvaluationBar({ evaluation, isLoading, isMate, mateIn, playerColor }: E
   const topFillPercent = isFlipped ? whiteFillPercent : (100 - whiteFillPercent);
 
   return (
-    <div className="flex flex-col items-center w-6 h-full" data-testid="evaluation-bar">
+    <div className="flex flex-col items-center w-full h-full" data-testid="evaluation-bar">
       <div className="text-xs font-mono font-bold mb-1 flex-shrink-0" data-testid="evaluation-value">
         {formatEval(evaluation)}
       </div>
-      <div className={`relative w-full rounded overflow-hidden border border-border ${bottomColor} flex-1`}>
+      <div className={`relative w-full rounded overflow-hidden border border-border ${bottomColor} flex-1 min-h-0`}>
         {/* Top section fills down based on advantage */}
         <div 
           className={`absolute top-0 left-0 right-0 ${topColor} transition-all duration-300`}
@@ -114,7 +114,7 @@ function ChessBoard({
   };
 
   return (
-    <div className="aspect-square w-full max-w-[300px]" data-testid="analysis-board">
+    <div className="aspect-square w-full" data-testid="analysis-board">
       <div className="grid grid-cols-8 gap-0 border border-border rounded overflow-hidden">
         {displayRanks.map((rank, rankIdx) =>
           displayFiles.map((file, fileIdx) => {
@@ -255,17 +255,15 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
 
       <div className="flex-1 overflow-auto p-4">
         <div className="flex flex-col gap-3 items-center">
-          {/* Board and eval bar row */}
-          <div className="flex gap-2 items-end">
-            <div className="h-[300px] max-h-[80vw]">
-              <EvaluationBar 
-                evaluation={evaluation} 
-                isLoading={isEvaluating}
-                isMate={isMate}
-                mateIn={mateIn}
-                playerColor={playerColor}
-              />
-            </div>
+          {/* Board and eval bar row - use grid to sync heights */}
+          <div className="grid grid-cols-[24px_1fr] gap-2 w-full max-w-[324px]">
+            <EvaluationBar 
+              evaluation={evaluation} 
+              isLoading={isEvaluating}
+              isMate={isMate}
+              mateIn={mateIn}
+              playerColor={playerColor}
+            />
             <ChessBoard 
               position={currentFen} 
               flipped={playerColor === "black"}
