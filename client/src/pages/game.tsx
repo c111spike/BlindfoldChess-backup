@@ -33,7 +33,7 @@ import titleImage from "@assets/title_cropped.jpg";
 import { BoardReconstruction } from "@/components/board-reconstruction";
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
-import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition } from "@/lib/botEngine";
+import { generateBotMoveClient, countBotPieces, detectRecapture, LastMoveInfo, clearPositionHistory, recordPosition, clearRecentMoves } from "@/lib/botEngine";
 import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats, type BlindfoldSettings } from "@/lib/gameStats";
 import { clientStockfish } from "@/lib/stockfish";
 import type { BotProfile, BotDifficulty, BotPersonality } from "@shared/botTypes";
@@ -215,6 +215,7 @@ export default function GamePage() {
       disambiguationTimeoutRef.current = null;
     }
     clearPositionHistory();
+    clearRecentMoves();
     setGame(null);
     setGameStarted(false);
     setGameResult(null);

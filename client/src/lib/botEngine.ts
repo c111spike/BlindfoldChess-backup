@@ -1086,6 +1086,122 @@ function evaluatePawnStructure(game: Chess): number {
 }
 
 // ============================================
+// DEVELOPMENT HEURISTICS (Anti-Shuffle for Low-Elo)
+// ============================================
+// Track recent BOT moves only (keyed by piece starting square) to detect shuffling
+// Maps: "fromSquare" -> last destination for that piece
+let botPieceHistory: Map<string, string> = new Map();
+
+export function recordBotMove(from: string, to: string): void {
+  // Track where each piece last moved to
+  botPieceHistory.set(from, to);
+}
+
+export function clearRecentMoves(): void {
+  botPieceHistory.clear();
+}
+
+function isShuffleMove(from: string, to: string): boolean {
+  // Check if this piece is returning to where it just came from
+  // If we previously moved FROM 'to' TO 'from', then moving back is a shuffle
+  const previousDest = botPieceHistory.get(to);
+  if (previousDest === from) {
+    // This piece moved: to -> from previously, now moving from -> to (back)
+    return true;
+  }
+  return false;
+}
+
+// Development score: reward pieces moving off home squares
+function evaluateDevelopment(game: Chess): number {
+  const board = game.board();
+  let score = 0;
+  
+  // White home squares for pieces
+  const whiteKnightHome = [{ row: 7, col: 1 }, { row: 7, col: 6 }]; // b1, g1
+  const whiteBishopHome = [{ row: 7, col: 2 }, { row: 7, col: 5 }]; // c1, f1
+  const whiteRookHome = [{ row: 7, col: 0 }, { row: 7, col: 7 }]; // a1, h1
+  
+  // Black home squares for pieces  
+  const blackKnightHome = [{ row: 0, col: 1 }, { row: 0, col: 6 }]; // b8, g8
+  const blackBishopHome = [{ row: 0, col: 2 }, { row: 0, col: 5 }]; // c8, f8
+  const blackRookHome = [{ row: 0, col: 0 }, { row: 0, col: 7 }]; // a8, h8
+  
+  // Check if white pieces are still on home squares (penalty)
+  for (const sq of whiteKnightHome) {
+    const piece = board[sq.row][sq.col];
+    if (piece?.type === 'n' && piece.color === 'w') {
+      score -= 25; // Knight still on home square
+    }
+  }
+  for (const sq of whiteBishopHome) {
+    const piece = board[sq.row][sq.col];
+    if (piece?.type === 'b' && piece.color === 'w') {
+      score -= 20; // Bishop still on home square
+    }
+  }
+  // Rooks get smaller penalty (castling is fine)
+  for (const sq of whiteRookHome) {
+    const piece = board[sq.row][sq.col];
+    if (piece?.type === 'r' && piece.color === 'w') {
+      score -= 5; // Rook still on home square (minor penalty)
+    }
+  }
+  
+  // Check if black pieces are still on home squares (bonus for white)
+  for (const sq of blackKnightHome) {
+    const piece = board[sq.row][sq.col];
+    if (piece?.type === 'n' && piece.color === 'b') {
+      score += 25;
+    }
+  }
+  for (const sq of blackBishopHome) {
+    const piece = board[sq.row][sq.col];
+    if (piece?.type === 'b' && piece.color === 'b') {
+      score += 20;
+    }
+  }
+  for (const sq of blackRookHome) {
+    const piece = board[sq.row][sq.col];
+    if (piece?.type === 'r' && piece.color === 'b') {
+      score += 5;
+    }
+  }
+  
+  // Central pawn control bonus (e4/d4 for white, e5/d5 for black)
+  const centralSquares = [
+    { row: 4, col: 3 }, { row: 4, col: 4 }, // d4, e4
+    { row: 3, col: 3 }, { row: 3, col: 4 }, // d5, e5
+  ];
+  for (const sq of centralSquares) {
+    const piece = board[sq.row][sq.col];
+    if (piece?.type === 'p') {
+      if (piece.color === 'w') score += 15;
+      else score -= 15;
+    }
+  }
+  
+  // Castling bonus: if king is on typical castled squares
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = board[row][col];
+      if (piece?.type === 'k') {
+        // White castled (g1 or c1)
+        if (piece.color === 'w' && row === 7 && (col === 6 || col === 2)) {
+          score += 30;
+        }
+        // Black castled (g8 or c8)
+        if (piece.color === 'b' && row === 0 && (col === 6 || col === 2)) {
+          score -= 30;
+        }
+      }
+    }
+  }
+  
+  return score;
+}
+
+// ============================================
 // ENHANCED POSITION EVALUATION
 // ============================================
 // Evaluation weights that scale with difficulty
@@ -1095,6 +1211,7 @@ interface EvalWeights {
   mopUp: number;         // 0-100%
   useTaperedEval: boolean;
   usePawnStructure?: boolean; // For Grandmaster
+  useDevelopment?: boolean;   // For low-Elo anti-shuffle
 }
 
 const DEFAULT_EVAL_WEIGHTS: EvalWeights = {
@@ -1173,6 +1290,12 @@ function evaluatePosition(game: Chess, weights: EvalWeights = DEFAULT_EVAL_WEIGH
   // Add pawn structure evaluation (Grandmaster only)
   if (weights.usePawnStructure) {
     score += evaluatePawnStructure(game);
+  }
+  
+  // Add development evaluation (low-Elo anti-shuffle)
+  // Only in opening/early middlegame (phase > 200 = still lots of material)
+  if (weights.useDevelopment && phase > 200) {
+    score += evaluateDevelopment(game);
   }
 
   return score;
@@ -1501,6 +1624,7 @@ function iterativeDeepening(
       kingSafety: config.kingSafetyWeight,
       mopUp: config.mopUpWeight,
       useTaperedEval: config.useTaperedEval,
+      useDevelopment: config.useDevelopment,
     },
   } : DEFAULT_MINIMAX_CONFIG;
   
@@ -1549,6 +1673,8 @@ interface DifficultyConfig {
   drawSeekThreshold: number; // Evaluation threshold to trigger draw-seeking (negative = losing)
   // Recapture awareness (0-1, probability of seeing recaptures)
   recaptureChance: number;   // Probability (0-1) that bot will prioritize recapturing valuable pieces
+  // Development heuristics (anti-shuffle for low-Elo)
+  useDevelopment?: boolean;  // Use development evaluation to encourage piece development
 }
 
 // ============================================
@@ -1634,23 +1760,27 @@ function shouldSeekDraw(
 const DIFFICULTY_CONFIG: Record<BotDifficulty, DifficultyConfig> = {
   // Patzer (400 Elo): The Blunderer - sees hanging pieces but often ignores them
   // MultiPV 3 with 50K nodes = Depth 2-3, believable mistakes
+  // useDevelopment: true to encourage piece development and prevent shuffle
   patzer: { 
-    elo: 400, timePerMoveMs: 500, maxDepth: 1, multiPvCount: 3, stockfishNodes: 50000, 
+    elo: 400, timePerMoveMs: 500, maxDepth: 2, multiPvCount: 3, stockfishNodes: 50000, 
     mistakeProbability: 0.33, useStockfish: false,
     useKillers: false, useHistory: false,
-    mobilityWeight: 0, kingSafetyWeight: 0, mopUpWeight: 0, useTaperedEval: false,
+    mobilityWeight: 10, kingSafetyWeight: 0, mopUpWeight: 0, useTaperedEval: false,
     drawSeekThreshold: -99, // Never seeks draws
-    recaptureChance: 0.25   // 25% chance to see recaptures
+    recaptureChance: 0.25,  // 25% chance to see recaptures
+    useDevelopment: true    // Anti-shuffle: encourage piece development
   },
   // Novice (600 Elo): The Blunderer tier
   // MultiPV 3 with 50K nodes
+  // useDevelopment: true to encourage piece development and prevent shuffle
   novice: { 
-    elo: 600, timePerMoveMs: 1000, maxDepth: 1, multiPvCount: 3, stockfishNodes: 50000, 
+    elo: 600, timePerMoveMs: 1000, maxDepth: 2, multiPvCount: 3, stockfishNodes: 50000, 
     mistakeProbability: 0.25, useStockfish: false,
     useKillers: false, useHistory: false,
-    mobilityWeight: 20, kingSafetyWeight: 10, mopUpWeight: 0, useTaperedEval: false,
+    mobilityWeight: 25, kingSafetyWeight: 10, mopUpWeight: 0, useTaperedEval: false,
     drawSeekThreshold: -99, // Never seeks draws
-    recaptureChance: 0.5    // 50% chance to see recaptures
+    recaptureChance: 0.5,   // 50% chance to see recaptures
+    useDevelopment: true    // Anti-shuffle: encourage piece development
   },
   // Intermediate (800 Elo): The Blunderer tier
   // MultiPV 3 with 50K nodes
@@ -3473,7 +3603,7 @@ export async function generateBotMoveClient(
     
     // Fallback: Use iterative deepening minimax with enhanced heuristics
     console.log(`[ClientBot] Using minimax with depth ${effectiveMaxDepth}, time ${timeBudget}ms`);
-    console.log(`[ClientBot] Heuristics: killers=${config.useKillers}, history=${config.useHistory}, mobility=${config.mobilityWeight}%, kingSafety=${config.kingSafetyWeight}%, mopUp=${config.mopUpWeight}%, tapered=${config.useTaperedEval}`);
+    console.log(`[ClientBot] Heuristics: killers=${config.useKillers}, history=${config.useHistory}, mobility=${config.mobilityWeight}%, kingSafety=${config.kingSafetyWeight}%, mopUp=${config.mopUpWeight}%, tapered=${config.useTaperedEval}, development=${config.useDevelopment}`);
     
     // Use standard iterative deepening for all difficulties
     // Note: TT-enhanced search was removed for Grandmaster because the overhead
@@ -3486,7 +3616,71 @@ export async function generateBotMoveClient(
       const matchingMove = moves.find(m => m.san === result.bestMove);
       
       if (matchingMove) {
+        // Anti-shuffle: Check if this move is a shuffle (A->B->A pattern)
+        if (config.useDevelopment && isShuffleMove(matchingMove.from, matchingMove.to)) {
+          console.log(`[ClientBot] Detected shuffle ${matchingMove.san} - finding alternative`);
+          
+          // Find a non-shuffle developing move instead
+          // Prefer moves that develop undeveloped pieces or make central pawn moves
+          const nonShuffleMoves = moves.filter(m => !isShuffleMove(m.from, m.to));
+          
+          if (nonShuffleMoves.length > 0) {
+            // Score moves by development value
+            const scoredMoves = nonShuffleMoves.map(m => {
+              let devScore = 0;
+              const piece = game.get(m.from as any);
+              
+              // Knights and bishops moving from home squares get high priority
+              if (piece?.type === 'n') {
+                const fromRow = parseInt(m.from[1]);
+                if ((piece.color === 'w' && fromRow === 1) || (piece.color === 'b' && fromRow === 8)) {
+                  devScore += 50; // Knight developing
+                }
+              }
+              if (piece?.type === 'b') {
+                const fromRow = parseInt(m.from[1]);
+                if ((piece.color === 'w' && fromRow === 1) || (piece.color === 'b' && fromRow === 8)) {
+                  devScore += 40; // Bishop developing
+                }
+              }
+              // Central pawn moves
+              if (piece?.type === 'p' && (m.to[0] === 'd' || m.to[0] === 'e')) {
+                devScore += 30;
+              }
+              // Castling
+              if (m.san === 'O-O' || m.san === 'O-O-O') {
+                devScore += 60;
+              }
+              // Captures are always interesting
+              if (m.captured) {
+                devScore += 20;
+              }
+              // Add some randomness for variety
+              devScore += Math.random() * 15;
+              
+              return { move: m, score: devScore };
+            });
+            
+            scoredMoves.sort((a, b) => b.score - a.score);
+            const altMove = scoredMoves[0].move;
+            
+            console.log(`[ClientBot] Playing alternative ${altMove.san} instead of shuffle`);
+            // Record for anti-shuffle tracking (useDevelopment is already true here)
+            recordBotMove(altMove.from, altMove.to);
+            return {
+              move: altMove.san,
+              from: altMove.from,
+              to: altMove.to,
+              promotion: altMove.promotion,
+            };
+          }
+        }
+        
         console.log(`[ClientBot] Minimax found ${matchingMove.san} at depth ${result.depth}`);
+        // Only record moves for anti-shuffle tracking in low-Elo bots
+        if (config.useDevelopment) {
+          recordBotMove(matchingMove.from, matchingMove.to);
+        }
         return {
           move: matchingMove.san,
           from: matchingMove.from,
@@ -3496,8 +3690,28 @@ export async function generateBotMoveClient(
       }
     }
     
-    // Last resort: random move
-    const randomMove = moves[Math.floor(Math.random() * moves.length)];
+    // Last resort: random move (prefer developing moves for low-Elo bots)
+    const developingMoves = config.useDevelopment ? moves.filter(m => {
+      const piece = game.get(m.from as any);
+      // Prefer knight/bishop moves from back rank or central pawn moves
+      if (piece?.type === 'n' || piece?.type === 'b') {
+        const fromRow = parseInt(m.from[1]);
+        if ((piece.color === 'w' && fromRow === 1) || (piece.color === 'b' && fromRow === 8)) {
+          return true;
+        }
+      }
+      if (piece?.type === 'p' && (m.to[0] === 'd' || m.to[0] === 'e')) {
+        return true;
+      }
+      return false;
+    }) : [];
+    
+    const fallbackPool = developingMoves.length > 0 ? developingMoves : moves;
+    const randomMove = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
+    // Only record moves for anti-shuffle tracking in low-Elo bots
+    if (config.useDevelopment) {
+      recordBotMove(randomMove.from, randomMove.to);
+    }
     return {
       move: randomMove.san,
       from: randomMove.from,
