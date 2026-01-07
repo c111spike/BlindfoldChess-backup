@@ -1507,32 +1507,31 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
   if (showTitleScreen) {
     return (
       <div 
-        className="h-full w-full flex flex-col items-center overflow-hidden min-h-0"
+        className="h-screen w-full flex flex-col items-center relative overflow-hidden"
         data-testid="screen-title"
       >
-        <div className="flex-none flex flex-col items-center gap-1 p-4 pt-2 w-full">
+        <img 
+          src={titleImage} 
+          alt="Blindfold Chess" 
+          className="absolute inset-0 w-full h-full object-cover object-center z-0"
+        />
+        <div className="relative z-10 flex flex-col items-center gap-2 p-6 pt-12 w-full">
           <h1 
-            className="text-3xl md:text-4xl font-bold text-black dark:text-white text-center tracking-tight"
+            className="text-4xl md:text-5xl font-bold text-black text-center tracking-tight"
             data-testid="text-title"
           >
             Blindfold Chess
           </h1>
-          <p className="text-black/70 dark:text-white/70 text-center text-sm md:text-base">
+          <p className="text-black/70 text-center text-base md:text-lg">
             Train your visualization and memory
           </p>
         </div>
-        <div className="flex-1 w-full max-w-sm flex flex-col items-center justify-center min-h-0 px-4">
-          <img 
-            src={titleImage} 
-            alt="Blindfold Chess" 
-            className="max-h-full w-full object-contain"
-          />
-        </div>
-        <div className="flex-none flex flex-col items-center p-4 pb-2 w-full max-w-sm">
+        <div className="flex-1" />
+        <div className="relative z-10 flex flex-col items-center p-6 pb-[120px] w-full max-w-sm">
           <Button 
             size="lg" 
             variant="ghost"
-            className="w-full text-lg py-5 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-amber-500 dark:bg-black dark:hover:bg-black/90 dark:text-white dark:border-black"
+            className="w-full text-lg py-6 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-amber-500 dark:bg-black dark:hover:bg-black/90 dark:text-white dark:border-black"
             onClick={() => setShowTitleScreen(false)}
             data-testid="button-start-now"
           >
@@ -1563,9 +1562,9 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
     };
 
     return (
-      <div className={`max-w-lg mx-auto px-4 py-4 transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
-        <Card>
-          <CardContent className="pt-4 pb-4 space-y-3">
+      <div className={`h-full flex flex-col max-w-lg mx-auto px-4 py-2 transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+        <Card className="flex-1 min-h-0 flex flex-col">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto pt-4 pb-2 space-y-3">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="blindfold-toggle">Blindfold Challenge</Label>
@@ -1784,6 +1783,8 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
               </div>
             </div>
             
+          </CardContent>
+          <div className="p-4 pt-2 border-t">
             <Button
               size="lg"
               className="w-full bg-amber-400 hover:bg-amber-500 text-stone-900 border border-black"
@@ -1793,7 +1794,7 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
               <Play className="mr-2 h-5 w-5" />
               Start Game
             </Button>
-          </CardContent>
+          </div>
         </Card>
       </div>
     );
