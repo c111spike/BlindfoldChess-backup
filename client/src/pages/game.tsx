@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import titleImage from "@assets/title_cropped.jpg";
+import titleImage from "@assets/title_cropped.webp";
 import { BoardReconstruction } from "@/components/board-reconstruction";
 import { PostMortemReport } from "@/components/post-mortem-report";
 import { KeepAwake } from '@capacitor-community/keep-awake';
