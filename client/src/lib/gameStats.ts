@@ -134,6 +134,10 @@ export interface GameStats {
   
   // Blindfold vs standard game tracking
   blindfoldGamesPlayed: number;
+  
+  // Assisted games tracking (used eval or voice peek)
+  assistedGamesCount: number; // Games where user used "evaluate" or "show board" voice commands
+  lastGameWasAssisted: boolean; // Whether last game used assistance
 }
 
 export interface BlindfoldSettings {
@@ -205,6 +209,8 @@ const DEFAULT_STATS: GameStats = {
   currentPeekFreeStreak: 0,
   bestPeekFreeGameStreak: 0,
   blindfoldGamesPlayed: 0,
+  assistedGamesCount: 0,
+  lastGameWasAssisted: false,
 };
 
 const DEFAULT_SETTINGS: BlindfoldSettings = {
@@ -299,6 +305,7 @@ export interface GameResultData {
   reconstructionTouchInputs: number; // Touch inputs during reconstruction
   squareInquiries: string[]; // Squares inquired about during game
   isBlindfold: boolean; // Whether this was a blindfold game
+  wasAssisted: boolean; // Whether user used "evaluate" or "show board" voice commands
 }
 
 // Calculate which move count bucket a game falls into
@@ -400,6 +407,7 @@ export function recordGameResult(
   const reconstructionTouch = extendedData?.reconstructionTouchInputs || 0;
   const squareInquiries = extendedData?.squareInquiries || [];
   const isBlindfold = extendedData?.isBlindfold ?? false;
+  const wasAssisted = extendedData?.wasAssisted ?? false;
   
   // Legacy global stats
   if (result === 'win') {
@@ -542,17 +550,28 @@ export function recordGameResult(
   }
   
   // ============================================
+  // Assisted game tracking (voice peek or evaluate)
+  // ============================================
+  stats.lastGameWasAssisted = wasAssisted;
+  if (wasAssisted) {
+    stats.assistedGamesCount++;
+  }
+  
+  // ============================================
   // Clarity score by move count
   // ============================================
   if (clarityScore !== undefined) {
-    stats.lastClarityScore = clarityScore;
-    if (clarityScore > stats.bestClarityScore) {
-      stats.bestClarityScore = clarityScore;
+    // Cap clarity score at 50% for assisted games (used eval or voice peek)
+    const adjustedClarityScore = wasAssisted ? Math.min(clarityScore, 50) : clarityScore;
+    
+    stats.lastClarityScore = adjustedClarityScore;
+    if (adjustedClarityScore > stats.bestClarityScore) {
+      stats.bestClarityScore = adjustedClarityScore;
     }
     
     // Add to appropriate bucket
     const bucket = getMoveCountBucket(totalMoves);
-    stats.clarityByMoveCount[bucket].total += clarityScore;
+    stats.clarityByMoveCount[bucket].total += adjustedClarityScore;
     stats.clarityByMoveCount[bucket].count++;
   }
   

@@ -76,7 +76,7 @@ export default function App() {
                   <DialogHeader>
                     <DialogTitle>Voice Commands</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4 text-sm">
+                  <div className="space-y-4 text-sm max-h-[60vh] overflow-y-auto">
                     <div className="space-y-2">
                       <h3 className="font-semibold">Basic Moves</h3>
                       <ul className="space-y-1 text-muted-foreground">
@@ -91,20 +91,33 @@ export default function App() {
                     <div className="space-y-2">
                       <h3 className="font-semibold">When Two Pieces Can Move</h3>
                       <p className="text-muted-foreground">
-                        If you have two pieces that can reach the same square, specify which one by adding the file letter:
-                      </p>
-                      <p className="text-muted-foreground">
-                        Example: Rooks on A1 and F1, to move the F rook to D1:
+                        If you have two pieces that can reach the same square, specify which one:
                       </p>
                       <p className="font-mono text-foreground">"Rook F to D1"</p>
                     </div>
                     
                     <div className="space-y-2">
-                      <h3 className="font-semibold">Other Commands</h3>
+                      <h3 className="font-semibold">Query Commands</h3>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li><span className="font-mono text-foreground">"say again"</span> or <span className="font-mono text-foreground">"repeat"</span> - Hear the last move again</li>
+                        <li><span className="font-mono text-foreground">"say again"</span> or <span className="font-mono text-foreground">"repeat"</span> - Hear the last move</li>
+                        <li><span className="font-mono text-foreground">"what's on e4"</span> - Check what piece is on a square</li>
+                        <li><span className="font-mono text-foreground">"where is my queen"</span> - Find your piece locations</li>
+                        <li><span className="font-mono text-foreground">"how much time"</span> or <span className="font-mono text-foreground">"clock"</span> - Hear remaining time</li>
                         <li><span className="font-mono text-foreground">"resign"</span> - Resign the game</li>
                       </ul>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="font-semibold">Pro Commands</h3>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li><span className="font-mono text-foreground">"material"</span> - Hear material balance</li>
+                        <li><span className="font-mono text-foreground">"legal moves for knight"</span> - List piece's legal moves</li>
+                        <li><span className="font-mono text-foreground">"show board"</span> or <span className="font-mono text-foreground">"peek"</span> - Show board for 5 seconds</li>
+                        <li><span className="font-mono text-foreground">"evaluate"</span> - Hear engine evaluation</li>
+                      </ul>
+                      <p className="text-xs text-muted-foreground/70 mt-1">
+                        Note: "show board" and "evaluate" mark the game as assisted
+                      </p>
                     </div>
                   </div>
                 </DialogContent>

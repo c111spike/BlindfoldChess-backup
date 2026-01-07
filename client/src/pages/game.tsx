@@ -164,6 +164,12 @@ export default function GamePage() {
   // Square inquiry tracking (for confusion heatmap)
   const squareInquiriesRef = useRef<string[]>([]);
   
+  // Assisted game tracking (used eval or voice peek)
+  const wasAssistedRef = useRef<boolean>(false);
+  
+  // Voice peek auto-hide timeout
+  const voicePeekTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Capture bot elo at game start (avoid mid-game changes affecting stats)
   const gameBotEloRef = useRef<number>(1200);
   
@@ -291,6 +297,11 @@ export default function GamePage() {
     reconstructionVoiceInputsRef.current = 0;
     reconstructionTouchInputsRef.current = 0;
     squareInquiriesRef.current = [];
+    wasAssistedRef.current = false;
+    if (voicePeekTimeoutRef.current) {
+      clearTimeout(voicePeekTimeoutRef.current);
+      voicePeekTimeoutRef.current = null;
+    }
     setShowReconstruction(false);
     setReconstructionFen(null);
     pendingGameResultRef.current = null;
@@ -332,6 +343,7 @@ export default function GamePage() {
         reconstructionTouchInputs: reconstructionTouchInputsRef.current,
         squareInquiries: squareInquiriesRef.current,
         isBlindfold,
+        wasAssisted: wasAssistedRef.current,
       }
     );
     setStats(newStats);
@@ -690,6 +702,344 @@ export default function GamePage() {
             isTtsSpeaking.current = false;
             setVoiceRestartTrigger(prev => prev + 1);
           }
+        }
+        setVoiceTranscript(null);
+        return;
+      }
+      
+      // Handle "how much time" / "clock" / "time" query (strict matching to avoid collision with other commands)
+      const isTimeQuery = /\b(how much time|what('?s| is) the time|time left|clock|my time)\b/.test(lowerTranscript);
+      if (isTimeQuery) {
+        // Haptic confirmation
+        try {
+          Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+        } catch (e) {}
+        
+        const myTimeSeconds = playerColor === "white" ? whiteTimeRef.current : blackTimeRef.current;
+        const botTimeSeconds = playerColor === "white" ? blackTimeRef.current : whiteTimeRef.current;
+        
+        const formatTimeVoice = (seconds: number): string => {
+          const mins = Math.floor(seconds / 60);
+          const secs = seconds % 60;
+          if (mins > 0 && secs > 0) {
+            return `${mins} minute${mins !== 1 ? 's' : ''} ${secs} second${secs !== 1 ? 's' : ''}`;
+          } else if (mins > 0) {
+            return `${mins} minute${mins !== 1 ? 's' : ''}`;
+          } else {
+            return `${secs} second${secs !== 1 ? 's' : ''}`;
+          }
+        };
+        
+        const response = `You have ${formatTimeVoice(myTimeSeconds)}. Opponent has ${formatTimeVoice(botTimeSeconds)}.`;
+        
+        if (voiceOutputEnabled) {
+          isTtsSpeaking.current = true;
+          await voiceRecognition.stopAndWait();
+          try {
+            await speak(response);
+          } catch (e) {
+            console.error('[Voice] TTS error:', e);
+          } finally {
+            isTtsSpeaking.current = false;
+            setVoiceRestartTrigger(prev => prev + 1);
+          }
+        }
+        setVoiceTranscript(null);
+        return;
+      }
+      
+      // Handle "where is my [piece]" query
+      const whereIsMatch = lowerTranscript.match(/where(?:'?s| is| are)?\s+(?:my\s+)?(\w+)/);
+      if (whereIsMatch) {
+        const pieceQuery = whereIsMatch[1].toLowerCase();
+        const pieceMap: Record<string, string> = {
+          'king': 'k', 'kings': 'k',
+          'queen': 'q', 'queens': 'q',
+          'rook': 'r', 'rooks': 'r', 'castle': 'r', 'castles': 'r',
+          'bishop': 'b', 'bishops': 'b',
+          'knight': 'n', 'knights': 'n', 'horse': 'n', 'horses': 'n',
+          'pawn': 'p', 'pawns': 'p',
+        };
+        
+        const pieceType = pieceMap[pieceQuery];
+        if (pieceType) {
+          // Haptic confirmation
+          try {
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+          } catch (e) {}
+          
+          const playerColorCode = playerColor === "white" ? "w" : "b";
+          const pieceFullNames: Record<string, string> = { k: 'King', q: 'Queen', r: 'Rook', b: 'Bishop', n: 'Knight', p: 'Pawn' };
+          const pieceName = pieceFullNames[pieceType];
+          
+          // Find all squares with this piece
+          const squares: string[] = [];
+          const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+          for (const file of files) {
+            for (let rank = 1; rank <= 8; rank++) {
+              const square = `${file}${rank}`;
+              const piece = currentGame.get(square as any);
+              if (piece && piece.type === pieceType && piece.color === playerColorCode) {
+                squares.push(square.toUpperCase());
+              }
+            }
+          }
+          
+          let response = '';
+          if (squares.length === 0) {
+            response = `You have no ${pieceName}s`;
+          } else if (squares.length === 1) {
+            response = `Your ${pieceName} is on ${squares[0]}`;
+          } else {
+            response = `You have ${pieceName}s on ${squares.slice(0, -1).join(', ')} and ${squares[squares.length - 1]}`;
+          }
+          
+          if (voiceOutputEnabled) {
+            isTtsSpeaking.current = true;
+            await voiceRecognition.stopAndWait();
+            try {
+              await speak(response);
+            } catch (e) {
+              console.error('[Voice] TTS error:', e);
+            } finally {
+              isTtsSpeaking.current = false;
+              setVoiceRestartTrigger(prev => prev + 1);
+            }
+          }
+          setVoiceTranscript(null);
+          return;
+        }
+      }
+      
+      // Handle "material" / "material score" query
+      if (lowerTranscript.includes("material")) {
+        // Haptic confirmation
+        try {
+          Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+        } catch (e) {}
+        
+        const pieceValues: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+        const pieceNames: Record<string, string> = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen' };
+        
+        // Count pieces for each side
+        const whitePieces: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+        const blackPieces: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+        
+        const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+        for (const file of files) {
+          for (let rank = 1; rank <= 8; rank++) {
+            const square = `${file}${rank}`;
+            const piece = currentGame.get(square as any);
+            if (piece && piece.type !== 'k') {
+              if (piece.color === 'w') {
+                whitePieces[piece.type]++;
+              } else {
+                blackPieces[piece.type]++;
+              }
+            }
+          }
+        }
+        
+        // Calculate net difference
+        const netDiff: Record<string, number> = {};
+        let whiteAdvantage = 0;
+        for (const type of ['q', 'r', 'b', 'n', 'p']) {
+          const diff = whitePieces[type] - blackPieces[type];
+          if (diff !== 0) {
+            netDiff[type] = diff;
+            whiteAdvantage += diff * pieceValues[type];
+          }
+        }
+        
+        let response = '';
+        if (whiteAdvantage === 0) {
+          response = 'Material is equal';
+        } else {
+          const advSide = whiteAdvantage > 0 ? 'White' : 'Black';
+          const absDiff = Math.abs(whiteAdvantage);
+          
+          // Build natural language description of what's extra
+          const extras: string[] = [];
+          for (const type of ['q', 'r', 'b', 'n', 'p']) {
+            const typeDiff = whiteAdvantage > 0 ? netDiff[type] : -(netDiff[type] || 0);
+            if (typeDiff && typeDiff > 0) {
+              const count = typeDiff;
+              const name = pieceNames[type];
+              extras.push(count === 1 ? `a ${name}` : `${count} ${name}s`);
+            }
+          }
+          
+          if (extras.length > 0) {
+            const extraDesc = extras.length === 1 ? extras[0] : `${extras.slice(0, -1).join(', ')} and ${extras[extras.length - 1]}`;
+            response = `${advSide} is up ${extraDesc}`;
+          } else {
+            response = `${advSide} is up by ${absDiff} point${absDiff !== 1 ? 's' : ''}`;
+          }
+        }
+        
+        if (voiceOutputEnabled) {
+          isTtsSpeaking.current = true;
+          await voiceRecognition.stopAndWait();
+          try {
+            await speak(response);
+          } catch (e) {
+            console.error('[Voice] TTS error:', e);
+          } finally {
+            isTtsSpeaking.current = false;
+            setVoiceRestartTrigger(prev => prev + 1);
+          }
+        }
+        setVoiceTranscript(null);
+        return;
+      }
+      
+      // Handle "legal moves for [piece]" query
+      const legalMovesMatch = lowerTranscript.match(/legal\s+moves?\s+(?:for\s+)?(?:my\s+)?(\w+)/);
+      if (legalMovesMatch) {
+        const pieceQuery = legalMovesMatch[1].toLowerCase();
+        const pieceMap: Record<string, string> = {
+          'king': 'k', 'queen': 'q', 'rook': 'r', 'bishop': 'b', 'knight': 'n', 'pawn': 'p',
+          'kings': 'k', 'queens': 'q', 'rooks': 'r', 'bishops': 'b', 'knights': 'n', 'pawns': 'p',
+          'horse': 'n', 'horses': 'n', 'castle': 'r', 'castles': 'r',
+        };
+        
+        const pieceType = pieceMap[pieceQuery];
+        if (pieceType) {
+          // Haptic confirmation
+          try {
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+          } catch (e) {}
+          
+          const pieceFullNames: Record<string, string> = { k: 'King', q: 'Queen', r: 'Rook', b: 'Bishop', n: 'Knight', p: 'Pawn' };
+          const pieceName = pieceFullNames[pieceType];
+          
+          // Get all legal moves for this piece type
+          const allMoves = currentGame.moves({ verbose: true });
+          const pieceMoves = allMoves.filter(m => m.piece === pieceType);
+          
+          // Extract unique destination squares
+          const destinations = Array.from(new Set(pieceMoves.map(m => m.to.toUpperCase())));
+          
+          let response = '';
+          if (destinations.length === 0) {
+            response = `Your ${pieceName} has no legal moves`;
+          } else if (destinations.length <= 4) {
+            response = `Your ${pieceName} can move to ${destinations.join(', ')}`;
+          } else {
+            // More than 4 moves - give count and examples
+            const examples = destinations.slice(0, 3);
+            response = `Your ${pieceName} has ${destinations.length} legal moves, including ${examples.join(', ')}`;
+          }
+          
+          if (voiceOutputEnabled) {
+            isTtsSpeaking.current = true;
+            await voiceRecognition.stopAndWait();
+            try {
+              await speak(response);
+            } catch (e) {
+              console.error('[Voice] TTS error:', e);
+            } finally {
+              isTtsSpeaking.current = false;
+              setVoiceRestartTrigger(prev => prev + 1);
+            }
+          }
+          setVoiceTranscript(null);
+          return;
+        }
+      }
+      
+      // Handle "show board" / "peek" / "show" voice command (5 second auto-hide)
+      if ((lowerTranscript.includes("show") && lowerTranscript.includes("board")) || 
+          lowerTranscript === "peek" || lowerTranscript === "peak" ||
+          lowerTranscript === "show") {
+        // Haptic confirmation
+        try {
+          Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+        } catch (e) {}
+        
+        // Mark game as assisted (this is cheating aid)
+        wasAssistedRef.current = true;
+        
+        // Trigger peek
+        setIsPeeking(true);
+        
+        // Clear any existing timeout
+        if (voicePeekTimeoutRef.current) {
+          clearTimeout(voicePeekTimeoutRef.current);
+        }
+        
+        // Auto-hide after 5 seconds
+        voicePeekTimeoutRef.current = setTimeout(() => {
+          setIsPeeking(false);
+          voicePeekTimeoutRef.current = null;
+        }, 5000);
+        
+        if (voiceOutputEnabled) {
+          isTtsSpeaking.current = true;
+          await voiceRecognition.stopAndWait();
+          try {
+            await speak("Board visible for 5 seconds");
+          } catch (e) {
+            console.error('[Voice] TTS error:', e);
+          } finally {
+            isTtsSpeaking.current = false;
+            setVoiceRestartTrigger(prev => prev + 1);
+          }
+        } else {
+          setVoiceRestartTrigger(prev => prev + 1);
+        }
+        setVoiceTranscript(null);
+        return;
+      }
+      
+      // Handle "evaluate" / "eval" / "evaluation" command
+      if (lowerTranscript.includes("eval") || lowerTranscript.includes("evaluation")) {
+        // Haptic confirmation
+        try {
+          Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+        } catch (e) {}
+        
+        // Mark game as assisted
+        wasAssistedRef.current = true;
+        
+        if (voiceOutputEnabled) {
+          isTtsSpeaking.current = true;
+          await voiceRecognition.stopAndWait();
+          
+          try {
+            // Get quick evaluation from Stockfish
+            const result = await clientStockfish.getBestMove(currentGame.fen(), { depth: 12 });
+            
+            let evalResponse = '';
+            if (result.evaluation !== undefined) {
+              const evalValue = result.evaluation;
+              const sign = evalValue >= 0 ? 'plus' : 'minus';
+              const absValue = Math.abs(evalValue).toFixed(1);
+              
+              if (Math.abs(evalValue) >= 100) {
+                // Mate evaluation
+                evalResponse = evalValue > 0 ? 'White has checkmate' : 'Black has checkmate';
+              } else if (Math.abs(evalValue) < 0.3) {
+                evalResponse = 'Position is equal';
+              } else {
+                evalResponse = `Evaluation is ${sign} ${absValue}`;
+              }
+            } else {
+              evalResponse = 'Unable to evaluate position';
+            }
+            
+            await speak(evalResponse);
+          } catch (e) {
+            console.error('[Voice] Eval error:', e);
+            try {
+              await speak("Unable to evaluate position");
+            } catch (e2) {}
+          } finally {
+            isTtsSpeaking.current = false;
+            setVoiceRestartTrigger(prev => prev + 1);
+          }
+        } else {
+          setVoiceRestartTrigger(prev => prev + 1);
         }
         setVoiceTranscript(null);
         return;
