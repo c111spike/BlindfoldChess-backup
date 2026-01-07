@@ -36,7 +36,7 @@ import { AnalysisView } from "@/components/analysis-view";
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
-import { getBotMove, countBotPieces, detectRecapture, getBotMoveDelay as botMoveDelay, type LastMoveInfo, type BotMoveResult } from "@/lib/botEngine";
+import { getBotMove, countBotPieces, detectRecapture, getBotMoveDelay as botMoveDelay, getHumanBotThinkingDelay, countAllPieces, type LastMoveInfo, type BotMoveResult } from "@/lib/botEngine";
 import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats, type BlindfoldSettings } from "@/lib/gameStats";
 import { initGameHistoryDB, saveGame, type SavedGame } from "@/lib/gameHistory";
 import { GameHistory } from "@/pages/game-history";
@@ -192,6 +192,7 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
   
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
   const [botThinking, setBotThinking] = useState(false);
+  const [extendedThinking, setExtendedThinking] = useState(false);
   const [selectedBotElo, setSelectedBotElo] = useState<number>(() => {
     const saved = localStorage.getItem('blindfold-settings-elo');
     return saved ? Number(saved) : 1200;
@@ -522,12 +523,24 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
       
       if (result.isFreeCapture) {
         thinkDelay = 2000;
+      } else if (blindfoldSettings.botThinkingTimeEnabled) {
+        // Human-like thinking delay when enabled
+        const moveNumber = Math.ceil((moveCount + 2) / 2);
+        const pieceCount = countAllPieces(currentFen);
+        thinkDelay = getHumanBotThinkingDelay(moveNumber, pieceCount, botRemainingTime, timeControl);
       } else {
+        // Standard delay when disabled
         const moveNumber = Math.ceil((moveCount + 2) / 2);
         const botColor: 'white' | 'black' = playerColor === 'white' ? 'black' : 'white';
         thinkDelay = botMoveDelay(moveNumber, botRemainingTime, currentFen, botColor, lastMoveInfo);
       }
+      
+      // Show extended thinking indicator for delays > 2s
+      if (thinkDelay > 2000) {
+        setExtendedThinking(true);
+      }
       await delay(thinkDelay);
+      setExtendedThinking(false);
       
       return result;
     } catch (error) {
@@ -540,8 +553,9 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
       return null;
     } finally {
       setBotThinking(false);
+      setExtendedThinking(false);
     }
-  }, [toast, playerColor]);
+  }, [toast, playerColor, blindfoldSettings.botThinkingTimeEnabled, timeControl]);
 
   const handleStartGame = async (bot: BotProfile, colorChoice: "white" | "black" | "random") => {
     gamePeekTimeRef.current = 0;
@@ -1562,6 +1576,38 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
     peekStartTimeRef.current = null;
   };
 
+  // Game history views - check FIRST so they work from any screen (title, menu, or game)
+  if (viewingHistoryGame) {
+    return (
+      <HistoryGameReport
+        game={viewingHistoryGame}
+        open={true}
+        onClose={() => {
+          setViewingHistoryGame(null);
+          setShowGameHistory(true);
+        }}
+        onAnalyze={(moves) => {
+          setLastGameMoveHistory(moves);
+          setViewingHistoryGame(null);
+          setShowGameHistory(false);
+          setShowAnalysis(true);
+        }}
+      />
+    );
+  }
+  
+  if (showGameHistory) {
+    return (
+      <GameHistory
+        onBack={() => setShowGameHistory(false)}
+        onViewGame={(game) => {
+          setViewingHistoryGame(game);
+          setShowGameHistory(false);
+        }}
+      />
+    );
+  }
+
   if (showTitleScreen) {
     return (
       <div 
@@ -1598,38 +1644,6 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
           </Button>
         </div>
       </div>
-    );
-  }
-
-  // Game history views - check these BEFORE !gameStarted so they can be accessed from main menu
-  if (viewingHistoryGame) {
-    return (
-      <HistoryGameReport
-        game={viewingHistoryGame}
-        open={true}
-        onClose={() => {
-          setViewingHistoryGame(null);
-          setShowGameHistory(true);
-        }}
-        onAnalyze={(moves) => {
-          setLastGameMoveHistory(moves);
-          setViewingHistoryGame(null);
-          setShowGameHistory(false);
-          setShowAnalysis(true);
-        }}
-      />
-    );
-  }
-  
-  if (showGameHistory) {
-    return (
-      <GameHistory
-        onBack={() => setShowGameHistory(false)}
-        onViewGame={(game) => {
-          setViewingHistoryGame(game);
-          setShowGameHistory(false);
-        }}
-      />
     );
   }
 
@@ -1771,6 +1785,24 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
                   onCheckedChange={setVoiceOutputEnabled}
                   className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
                   data-testid="switch-voice-output"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <Label htmlFor="bot-thinking-toggle" className="text-sm">Bot Thinking Time</Label>
+                  <span className="text-xs text-muted-foreground">Human-like delays</span>
+                </div>
+                <Switch
+                  id="bot-thinking-toggle"
+                  checked={blindfoldSettings.botThinkingTimeEnabled}
+                  onCheckedChange={(checked) => {
+                    const newSettings = { ...blindfoldSettings, botThinkingTimeEnabled: checked };
+                    setBlindFoldSettings(newSettings);
+                    saveSettings(newSettings);
+                  }}
+                  className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
+                  data-testid="switch-bot-thinking-time"
                 />
               </div>
             </div>
@@ -1953,8 +1985,8 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
                   {selectedBot ? `${selectedBot.elo} Elo Bot` : "Bot"}
                 </span>
                 {botThinking && (
-                  <span className="text-xs text-primary animate-pulse">
-                    thinking...
+                  <span className={`text-xs animate-pulse ${extendedThinking ? 'text-amber-500 font-medium' : 'text-primary'}`}>
+                    {extendedThinking ? 'Thinking...' : 'thinking...'}
                   </span>
                 )}
               </div>
@@ -1979,8 +2011,8 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
                       {selectedBot ? `${selectedBot.elo} Elo Bot` : "Bot"}
                     </span>
                     {botThinking && (
-                      <span className="text-xs text-primary animate-pulse" data-testid="text-bot-thinking">
-                        thinking...
+                      <span className={`text-xs animate-pulse ${extendedThinking ? 'text-amber-500 font-medium' : 'text-primary'}`} data-testid="text-bot-thinking">
+                        {extendedThinking ? 'Thinking...' : 'thinking...'}
                       </span>
                     )}
                   </div>

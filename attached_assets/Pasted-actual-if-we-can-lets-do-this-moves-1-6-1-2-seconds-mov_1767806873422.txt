@@ -1,0 +1,135 @@
+actual if we can lets do this
+
+moves 1-6 1-2 seconds
+
+moves 7-12 2-3 seconds
+
+moves 13-20 2-7 seconds
+
+moves 21+3-5 seconds
+
+
+
+if total pieces after move 20
+
+32-26 pieces 4-8 seconds
+
+25-20 pieces 4-7 seconds
+
+19-14 pieces 3-6 seconds
+
+13-9 pieces 2-4 seconds
+
+8-2 pieces 1-2 seconds
+
+
+
+if time is under 60 seconds
+
+moves 1 second
+
+if under 30 seconds
+
+moves 0.5 seconds
+
+simulchesscode
+Custom Gem
+This refined timing logic creates a very sophisticated "Human" feel. By shifting from move-count to piece-count in the endgame, you simulate a player who calculates longer when the board is crowded but plays faster as the complexity simplifies.
+
+📊 Final Bot Timing Architecture
+This logic creates three distinct "Phases" for your bot's behavior.
+
+Phase 1: The Opening & Early Middlegame
+Based purely on the move count to simulate theoretical knowledge.
+
+Move Range	Delay Range	Human Context
+1 – 6	1 – 2s	Fast "Book" moves.
+7 – 12	2 – 3s	Developing a middlegame plan.
+13 – 20	2 – 7s	Peak Complexity: Deep calculation of trades.
+Phase 2: The Piece-Density Scaling (Move 21+)
+After move 20, the bot calculates based on how "crowded" the board is.
+
+Pieces Remaining	Delay Range	Reason
+32 – 26	4 – 8s	Massive calculation; many possibilities.
+25 – 20	4 – 7s	High complexity middlegame.
+19 – 14	3 – 6s	Simplified middlegame.
+13 – 9	2 – 4s	Transition to endgame.
+8 – 2	1 – 2s	Ending is clear; fast execution.
+Phase 3: The Time Scramble (Overrides)
+Simulates a human panicking as the clock runs out.
+
+Under 60s: All moves = 1 second.
+
+Under 30s: All moves = 0.5 seconds.
+
+🛠️ Implementation Strategy
+You can wrap this in a single function that checks your gameTime, moveCount, and pieceCount.
+
+TypeScript
+const getHumanDelay = (moveNumber: number, pieces: number, timeLeft: number): number => {
+  // 1. Check Time Scramble Overrides
+  if (timeLeft < 30) return 500;
+  if (timeLeft < 60) return 1000;
+
+  const getRandom = (min: number, max: number) => 
+    Math.floor(Math.random() * (max - min + 1) + min) * 1000;
+
+  // 2. Phase 1: Early Game
+  if (moveNumber <= 6) return getRandom(1, 2);
+  if (moveNumber <= 12) return getRandom(2, 3);
+  if (moveNumber <= 20) return getRandom(2, 7);
+
+  // 3. Phase 2: Piece-Density Scaling (Move 21+)
+  if (pieces >= 26) return getRandom(4, 8);
+  if (pieces >= 20) return getRandom(4, 7);
+  if (pieces >= 14) return getRandom(3, 6);
+  if (pieces >= 9) return getRandom(2, 4);
+  return getRandom(1, 2);
+};
+📱 Why this is "Pro" for your S10+ Build
+Immersion: A 4-8 second "think" when the board is full (30 pieces) creates a palpable sense of tension for the player.
+
+Realism: Seeing the bot suddenly speed up to 0.5s moves when its clock is low makes it feel like you are playing a person, not a static engine.
+
+Performance: Since this is a simple math check, it has zero impact on your phone's CPU.
+
+Once you've slept and finished your morning browser test, would you like me to help you integrate the piecesCount logic into your main game loop so the bot knows how many pieces are on the board at all times?
+
+The time will take priority over piece count and piece count will take priority after move 20 with this logic correct?
+
+simulchesscode
+Custom Gem
+That is exactly correct. By structuring the logic as a sequence of conditional checks, you create a clear priority system:
+
+Priority 1 (Time): The code first checks the bot's remaining time. If it’s under 60 or 30 seconds, it triggers the "panic" speed regardless of move number or board complexity.
+
+Priority 2 (Move Phase): If the clock is safe, it checks if the game is still in the "Opening/Early Middlegame" (Moves 1–20).
+
+Priority 3 (Board Density): Only after Move 20 and with a safe clock does it look at the piece count to determine how long the "Thinking" should last.
+
+🛠️ The Implementation Flow
+Here is how the logic will look in your code to ensure those priorities are respected:
+
+TypeScript
+const calculateBotThinkingDelay = (moveCount: number, pieceCount: number, botTimeRemaining: number) => {
+  // PRIORITY 1: TIME OVERRIDE (Panic Mode)
+  if (botTimeRemaining < 30) return 500; // 0.5s
+  if (botTimeRemaining < 60) return 1000; // 1s
+
+  const randomRange = (min: number, max: number) => 
+    (Math.random() * (max - min) + min) * 1000;
+
+  // PRIORITY 2: EARLY GAME (Moves 1-20)
+  if (moveCount <= 6) return randomRange(1, 2);
+  if (moveCount <= 12) return randomRange(2, 3);
+  if (moveCount <= 20) return randomRange(2, 7);
+
+  // PRIORITY 3: PIECE DENSITY (Move 21+)
+  if (pieceCount >= 26) return randomRange(4, 8);
+  if (pieceCount >= 20) return randomRange(4, 7);
+  if (pieceCount >= 14) return randomRange(3, 6);
+  if (pieceCount >= 9)  return randomRange(2, 4);
+  
+  return randomRange(1, 2); // Final Endgame (8-2 pieces)
+};
+🧠 Why this priorit

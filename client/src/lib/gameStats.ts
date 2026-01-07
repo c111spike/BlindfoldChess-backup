@@ -142,6 +142,7 @@ export interface GameStats {
 
 export interface BlindfoldSettings {
   boardReconstructionEnabled: boolean;
+  botThinkingTimeEnabled: boolean;
 }
 
 const STATS_KEY = 'blindfold-chess-stats-v2';
@@ -215,6 +216,7 @@ const DEFAULT_STATS: GameStats = {
 
 const DEFAULT_SETTINGS: BlindfoldSettings = {
   boardReconstructionEnabled: false,
+  botThinkingTimeEnabled: false,
 };
 
 // Helper to deep merge stats with defaults

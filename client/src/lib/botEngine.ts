@@ -117,6 +117,82 @@ export function getBotMoveDelay(
   return Math.max(300, Math.min(3000, baseDelay));
 }
 
+/**
+ * Count total pieces on the board from FEN string.
+ * Returns count of all pieces (both colors).
+ */
+export function countAllPieces(fen: string): number {
+  const board = fen.split(' ')[0];
+  let count = 0;
+  for (const char of board) {
+    if (/[pnbrqkPNBRQK]/.test(char)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Human-like bot thinking delay based on game phase and complexity.
+ * Creates realistic thinking patterns:
+ * - Moves 1-6: 1-2s (book moves)
+ * - Moves 7-12: 2-3s (development)
+ * - Moves 13-20: 2-7s (peak complexity)
+ * - Move 21+: Based on piece count (4-8s crowded, 1-2s endgame)
+ * - Time scramble overrides: Under 60s = 1s, under 30s = 0.5s (NO multiplier applied)
+ * 
+ * Time control scaling:
+ * - 5min/Practice: 1.0x (base delays)
+ * - 15min: 1.5x (longer thinks for rapid games)
+ * - 30min: 2.0x (classical-length pauses)
+ */
+export function getHumanBotThinkingDelay(
+  moveNumber: number,
+  pieceCount: number,
+  botTimeRemaining: number,
+  timeControl: 'blitz' | 'rapid' | 'classical' | 'practice' = 'blitz'
+): number {
+  // PRIORITY 1: TIME SCRAMBLE (Panic Mode) - NO multiplier applied!
+  if (botTimeRemaining < 30) return 500; // 0.5s
+  if (botTimeRemaining < 60) return 1000; // 1s
+
+  // Get time control multiplier
+  const getMultiplier = () => {
+    if (timeControl === 'classical') return 2.0;
+    if (timeControl === 'rapid') return 1.5;
+    return 1.0; // blitz and practice
+  };
+  const multiplier = getMultiplier();
+
+  const randomRange = (min: number, max: number) => 
+    (Math.random() * (max - min) + min) * 1000;
+
+  let baseDelay: number;
+
+  // PRIORITY 2: EARLY GAME (Moves 1-20)
+  if (moveNumber <= 6) {
+    baseDelay = randomRange(1, 2);
+  } else if (moveNumber <= 12) {
+    baseDelay = randomRange(2, 3);
+  } else if (moveNumber <= 20) {
+    baseDelay = randomRange(2, 7);
+  }
+  // PRIORITY 3: PIECE DENSITY (Move 21+)
+  else if (pieceCount >= 26) {
+    baseDelay = randomRange(4, 8);
+  } else if (pieceCount >= 20) {
+    baseDelay = randomRange(4, 7);
+  } else if (pieceCount >= 14) {
+    baseDelay = randomRange(3, 6);
+  } else if (pieceCount >= 9) {
+    baseDelay = randomRange(2, 4);
+  } else {
+    baseDelay = randomRange(1, 2); // Final Endgame (8-2 pieces)
+  }
+
+  return baseDelay * multiplier;
+}
+
 export interface BotMoveResult {
   move: string;
   evaluation?: number;
