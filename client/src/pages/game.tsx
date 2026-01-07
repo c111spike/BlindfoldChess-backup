@@ -195,6 +195,10 @@ export default function GamePage() {
   const [reconstructionFen, setReconstructionFen] = useState<string | null>(null);
   const pendingGameResultRef = useRef<{ result: "white_win" | "black_win" | "draw"; fen: string } | null>(null);
   
+  // Countdown state for reconstruction transition
+  const [reconstructionCountdown, setReconstructionCountdown] = useState<number | null>(null);
+  const countdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Post-mortem report state
   const [showPostMortem, setShowPostMortem] = useState(false);
   const [lastGameResponseTimes, setLastGameResponseTimes] = useState<number[]>([]);
@@ -214,6 +218,9 @@ export default function GamePage() {
       clientStockfish.stopAnalysis();
       if (clockIntervalRef.current) {
         clearInterval(clockIntervalRef.current);
+      }
+      if (countdownTimeoutRef.current) {
+        clearTimeout(countdownTimeoutRef.current);
       }
     };
   }, []);
@@ -264,6 +271,11 @@ export default function GamePage() {
     pendingGameResultRef.current = null;
     setLastReconstructionScore(null);
     setLastReconstructionVoicePurity(null);
+    setReconstructionCountdown(null);
+    if (countdownTimeoutRef.current) {
+      clearTimeout(countdownTimeoutRef.current);
+      countdownTimeoutRef.current = null;
+    }
   }, []);
 
   const finalizeGameResult = useCallback((result: "white_win" | "black_win" | "draw", clarityScore?: number, voicePurity?: number) => {
@@ -323,12 +335,34 @@ export default function GamePage() {
     if (blindfoldSettings.boardReconstructionEnabled && gameRef.current) {
       pendingGameResultRef.current = { result, fen: gameRef.current.fen() };
       setReconstructionFen(gameRef.current.fen());
-      setShowReconstruction(true);
+      // Start countdown before showing reconstruction challenge
+      setReconstructionCountdown(3);
     } else {
       // Finalize immediately without reconstruction
       finalizeGameResult(result);
     }
   }, [playerColor, voiceOutputEnabled, blindfoldSettings.boardReconstructionEnabled, finalizeGameResult]);
+  
+  // Countdown timer effect for reconstruction transition
+  useEffect(() => {
+    if (reconstructionCountdown === null) return;
+    
+    if (reconstructionCountdown > 0) {
+      countdownTimeoutRef.current = setTimeout(() => {
+        setReconstructionCountdown(prev => prev !== null ? prev - 1 : null);
+      }, 1000);
+    } else {
+      // Countdown finished, show reconstruction challenge
+      setShowReconstruction(true);
+      setReconstructionCountdown(null);
+    }
+    
+    return () => {
+      if (countdownTimeoutRef.current) {
+        clearTimeout(countdownTimeoutRef.current);
+      }
+    };
+  }, [reconstructionCountdown]);
 
   const handleReconstructionComplete = useCallback((score: number, voicePurity: number, voiceInputs: number, touchInputs: number) => {
     // Store reconstruction input counts for statistics
@@ -1398,6 +1432,23 @@ export default function GamePage() {
                   onSquareClick={handleSquareClick}
                   noCard={true}
                 />
+                
+                {reconstructionCountdown !== null && (
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 z-50"
+                    data-testid="overlay-reconstruction-countdown"
+                    aria-live="polite"
+                  >
+                    <div className="text-center">
+                      <div className="text-8xl md:text-9xl font-bold text-amber-400 animate-pulse" data-testid="text-countdown-number">
+                        {reconstructionCountdown}
+                      </div>
+                      <div className="text-lg md:text-xl text-white mt-4 font-medium">
+                        Memorize the position...
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {isBlindfold && !isPeeking && blindfoldDisplayMode === "empty_board" && (
                   <div className="absolute inset-0 pointer-events-none overflow-visible">
