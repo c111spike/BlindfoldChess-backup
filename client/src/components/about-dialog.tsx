@@ -40,18 +40,6 @@ export function AboutDialog() {
         
         <div className="space-y-4 pt-4">
           <div>
-            <h3 className="text-sm text-muted-foreground mb-1">Version</h3>
-            <p className="text-xs text-muted-foreground/70">1.0.0</p>
-          </div>
-          
-          <div>
-            <h3 className="text-sm text-muted-foreground mb-1">Age Rating</h3>
-            <p className="text-xs text-muted-foreground/70">
-              This app is intended for users ages 13 and older.
-            </p>
-          </div>
-          
-          <div>
             <h3 className="font-semibold mb-2">Chess Engine</h3>
             <p className="text-sm text-muted-foreground mb-2">
               Powered by the Stockfish Chess Engine, licensed under the GNU General Public License v3 (GPL v3).
@@ -109,6 +97,18 @@ export function AboutDialog() {
               View Full Privacy Policy
               <ExternalLink className="h-3 w-3" />
             </button>
+          </div>
+          
+          <div>
+            <h3 className="text-sm text-muted-foreground mb-1">Version</h3>
+            <p className="text-xs text-muted-foreground/70">1.0.0</p>
+          </div>
+          
+          <div>
+            <h3 className="text-sm text-muted-foreground mb-1">Age Rating</h3>
+            <p className="text-xs text-muted-foreground/70">
+              This app is intended for users ages 13 and older.
+            </p>
           </div>
           
           <div className="pt-4 border-t border-border">
