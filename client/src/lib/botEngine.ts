@@ -1,6 +1,6 @@
 import { Chess, Move } from 'chess.js';
 import { clientStockfish, TopMoveResult } from './stockfish';
-import { getLichessOpeningMoves, selectOpeningMoveByPersonality, isOpeningPhase } from './lichessOpenings';
+import { getBookMoves, selectBookMoveByPersonality, loadBook, isOpeningPhase } from './polyglotBook';
 import type { BotPersonality, BotDifficulty } from '@shared/botTypes';
 
 // Interface for tracking opponent's last move (for recapture detection)
@@ -3330,25 +3330,23 @@ export async function generateBotMoveClient(
   }
   
   try {
-    // Phase 1: Lichess Opening Book (fast, high quality)
+    // Phase 1: Local Opening Book (offline, fast)
     if (inOpening) {
       try {
-        const openingData = await getLichessOpeningMoves(fen);
+        const bookResult = await getBookMoves(fen);
         
-        if (openingData && openingData.moves.length > 0) {
-          const selectedOpening = selectOpeningMoveByPersonality(openingData.moves, personality);
+        if (bookResult.moves.length > 0) {
+          const selectedMove = selectBookMoveByPersonality(bookResult.moves, personality);
           
-          if (selectedOpening) {
+          if (selectedMove) {
             const matchingMove = moves.find(m => 
-              m.san === selectedOpening.san || 
-              (m.from + m.to + (m.promotion || '')) === selectedOpening.uci
+              m.from === selectedMove.from && 
+              m.to === selectedMove.to &&
+              (m.promotion || '') === (selectedMove.promotion || '')
             );
             
             if (matchingMove) {
-              console.log(`[ClientBot] Playing opening book move: ${matchingMove.san} (${personality})`);
-              if (openingData.opening) {
-                console.log(`[ClientBot] Opening: ${openingData.opening.eco} ${openingData.opening.name}`);
-              }
+              console.log(`[ClientBot] Playing opening book move: ${matchingMove.san} (${personality}, weight: ${selectedMove.weight})`);
               return {
                 move: matchingMove.san,
                 from: matchingMove.from,
@@ -3359,7 +3357,7 @@ export async function generateBotMoveClient(
           }
         }
       } catch (error) {
-        console.warn('[ClientBot] Lichess opening lookup failed, continuing to engine:', error);
+        console.warn('[ClientBot] Opening book lookup failed, continuing to engine:', error);
       }
     }
     

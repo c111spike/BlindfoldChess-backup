@@ -67,6 +67,21 @@ export function AboutDialog() {
           </div>
           
           <div>
+            <h3 className="font-semibold mb-2">Opening Book</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              Uses the gm2001 opening book (games 2001-2013, ELO 2530+) by Oliver Deville, freely distributed for chess engine use.
+            </p>
+            <button
+              onClick={() => openExternalLink("https://github.com/michaeldv/donna_opening_books")}
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              data-testid="link-opening-book"
+            >
+              View Opening Book Source
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+          
+          <div>
             <h3 className="font-semibold mb-2">Privacy Policy</h3>
             <p className="text-sm text-muted-foreground mb-2">
               This app operates entirely offline. It does not collect, store, or share any personal user data.

@@ -356,3 +356,8 @@ export async function isInBook(fen: string): Promise<boolean> {
   const result = await getBookMoves(fen);
   return result.moves.length > 0;
 }
+
+// Check if we're in opening phase (first 15 moves = 30 half-moves)
+export function isOpeningPhase(moveCount: number): boolean {
+  return moveCount < 30;
+}
