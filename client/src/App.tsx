@@ -7,7 +7,7 @@ import { AboutDialog } from "@/components/about-dialog";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { BarChart3, RefreshCw, Mic } from "lucide-react";
+import { BarChart3, RefreshCw, Mic, History } from "lucide-react";
 import { loadStats, resetStats, type GameStats } from "@/lib/gameStats";
 import { StatsDashboard } from "@/components/stats-dashboard";
 import GamePage from "@/pages/game";
@@ -16,6 +16,7 @@ export default function App() {
   const [showStatsDialog, setShowStatsDialog] = useState(false);
   const [showVoiceHelpDialog, setShowVoiceHelpDialog] = useState(false);
   const [stats, setStats] = useState<GameStats>(loadStats());
+  const [historyTrigger, setHistoryTrigger] = useState(0);
 
   useEffect(() => {
     const handleStatsUpdate = () => {
@@ -25,43 +26,16 @@ export default function App() {
     return () => window.removeEventListener('statsUpdated', handleStatsUpdate);
   }, []);
 
+  const handleOpenHistory = () => {
+    setHistoryTrigger(prev => prev + 1);
+  };
+
   return (
     <ThemeProvider defaultTheme="dark">
       <TooltipProvider>
         <div className="flex flex-col min-h-screen bg-background">
           <header className="grid grid-cols-3 items-center p-3 border-b border-border">
             <div className="flex justify-start">
-              <Dialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    data-testid="button-stats"
-                  >
-                    <BarChart3 className="h-5 w-5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden">
-                  <DialogHeader>
-                    <DialogTitle>Training Metrics</DialogTitle>
-                  </DialogHeader>
-                  <StatsDashboard stats={stats} />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-muted-foreground mt-4"
-                    onClick={() => {
-                      resetStats();
-                      setStats(loadStats());
-                    }}
-                    data-testid="button-reset-stats"
-                  >
-                    <RefreshCw className="mr-2 h-3 w-3" />
-                    Reset All Statistics
-                  </Button>
-                </DialogContent>
-              </Dialog>
-              
               <Dialog open={showVoiceHelpDialog} onOpenChange={setShowVoiceHelpDialog}>
                 <DialogTrigger asChild>
                   <Button
@@ -125,14 +99,60 @@ export default function App() {
             </div>
             <h1 className="text-lg font-bold text-foreground text-center whitespace-nowrap">Blindfold Chess</h1>
             <div className="flex items-center gap-1 justify-end">
-              <SettingsDialog />
-              <AboutDialog />
-              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleOpenHistory}
+                data-testid="button-game-history"
+              >
+                <History className="h-5 w-5" />
+              </Button>
+              <Dialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    data-testid="button-stats"
+                  >
+                    <BarChart3 className="h-5 w-5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden">
+                  <DialogHeader>
+                    <DialogTitle>Training Metrics</DialogTitle>
+                  </DialogHeader>
+                  <StatsDashboard stats={stats} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-muted-foreground mt-4"
+                    onClick={() => {
+                      resetStats();
+                      setStats(loadStats());
+                    }}
+                    data-testid="button-reset-stats"
+                  >
+                    <RefreshCw className="mr-2 h-3 w-3" />
+                    Reset All Statistics
+                  </Button>
+                </DialogContent>
+              </Dialog>
             </div>
           </header>
           <main className="flex-1 overflow-auto">
-            <GamePage />
+            <GamePage historyTrigger={historyTrigger} />
           </main>
+          <footer className="grid grid-cols-3 items-center p-2 border-t border-border">
+            <div className="flex justify-start">
+              <SettingsDialog />
+            </div>
+            <div className="flex justify-center">
+              <ThemeToggle />
+            </div>
+            <div className="flex justify-end">
+              <AboutDialog />
+            </div>
+          </footer>
         </div>
         <Toaster />
       </TooltipProvider>

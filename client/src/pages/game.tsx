@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw, History } from "lucide-react";
+import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -115,7 +115,11 @@ type BlindFoldDifficulty = keyof typeof BLINDFOLD_CONFIG;
 type TimeControlOption = "practice" | "blitz" | "rapid" | "classical";
 type BlindFoldDisplayMode = "empty_board" | "black_overlay" | "no_board";
 
-export default function GamePage() {
+interface GamePageProps {
+  historyTrigger?: number;
+}
+
+export default function GamePage({ historyTrigger }: GamePageProps) {
   const { toast } = useToast();
   
   const [showTitleScreen, setShowTitleScreen] = useState(true);
@@ -267,6 +271,12 @@ export default function GamePage() {
   useEffect(() => {
     localStorage.setItem('blindfold-settings-time', timeControl);
   }, [timeControl]);
+  
+  useEffect(() => {
+    if (historyTrigger && historyTrigger > 0) {
+      setShowGameHistory(true);
+    }
+  }, [historyTrigger]);
   
   useEffect(() => {
     gameRef.current = game;
@@ -1773,26 +1783,15 @@ export default function GamePage() {
               </div>
             </div>
             
-            <div className="flex gap-2">
-              <Button
-                size="lg"
-                className="flex-1 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-black"
-                onClick={handleStartGameClick}
-                data-testid="button-start-game"
-              >
-                <Play className="mr-2 h-5 w-5" />
-                Start Game
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-stone-300"
-                onClick={() => setShowGameHistory(true)}
-                data-testid="button-game-history"
-              >
-                <History className="h-5 w-5" />
-              </Button>
-            </div>
+            <Button
+              size="lg"
+              className="w-full bg-amber-400 hover:bg-amber-500 text-stone-900 border border-black"
+              onClick={handleStartGameClick}
+              data-testid="button-start-game"
+            >
+              <Play className="mr-2 h-5 w-5" />
+              Start Game
+            </Button>
           </CardContent>
         </Card>
       </div>
