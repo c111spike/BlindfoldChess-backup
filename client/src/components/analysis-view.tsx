@@ -206,15 +206,30 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
       setIsEvaluating(true);
       try {
         const result = await clientStockfish.analyzePosition(currentFen, 500000);
+        
+        // Stockfish returns eval from side-to-move perspective
+        // Normalize to White's perspective for consistent display
+        const sideToMove = currentFen.split(' ')[1]; // 'w' or 'b'
+        const isBlackToMove = sideToMove === 'b';
+        const whiteEval = isBlackToMove ? -result.evaluation : result.evaluation;
+        
+        // For mate scores: positive mateIn means side-to-move is winning
+        // Normalize so positive means White is winning
+        // If Black to move and mateIn > 0, Black is winning = White is losing (negate)
+        // If Black to move and mateIn < 0, Black is losing = White is winning (negate)
+        const normalizedMateIn = result.mateIn !== undefined && isBlackToMove 
+          ? -result.mateIn 
+          : result.mateIn;
+        
         const evalResult = {
-          eval: result.evaluation,
+          eval: whiteEval,
           isMate: result.isMate,
-          mateIn: result.mateIn
+          mateIn: normalizedMateIn !== undefined ? Math.abs(normalizedMateIn) : undefined
         };
         evalCacheRef.current.set(currentFen, evalResult);
-        setEvaluation(result.evaluation);
+        setEvaluation(whiteEval);
         setIsMate(result.isMate);
-        setMateIn(result.mateIn);
+        setMateIn(normalizedMateIn !== undefined ? Math.abs(normalizedMateIn) : undefined);
       } catch (error) {
         console.error('[Analysis] Evaluation error:', error);
         setEvaluation(null);
