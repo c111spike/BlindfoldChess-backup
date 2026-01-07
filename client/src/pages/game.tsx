@@ -1419,9 +1419,10 @@ export default function GamePage() {
         </Card>
         
         <div className="flex flex-col lg:flex-row gap-3">
-          <Card className={`aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${
-            isBlindfold && blindfoldDisplayMode === "no_board" && !isPeeking ? "invisible" : ""
-          }`}>
+          <div className="flex flex-col gap-2">
+            <Card className={`aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${
+              isBlindfold && blindfoldDisplayMode === "no_board" && !isPeeking ? "invisible" : ""
+            }`}>
             <div className="relative w-full h-full">
               <ChessBoard 
                   fen={fen}
@@ -1531,6 +1532,23 @@ export default function GamePage() {
                 )}
               </div>
             </Card>
+            
+            <Card className={`hidden lg:block ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
+              <CardContent className="py-2 px-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-white border border-gray-400" : "bg-black"}`} />
+                    <span className="font-medium text-sm" data-testid="text-player-name">You</span>
+                  </div>
+                  <div className={`text-2xl font-mono font-bold ${
+                    game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "text-foreground" : "text-muted-foreground"
+                  }`} data-testid="text-player-time">
+                    {formatTime(playerColor === "white" ? whiteTime : blackTime)}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
           
           <div className="flex flex-col gap-2 lg:w-48">
             {isBlindfold && blindfoldDifficulty !== 'grandmaster' && (
@@ -1594,16 +1612,16 @@ export default function GamePage() {
               </div>
             )}
             
-            <Card className={`${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
+            <Card className={`lg:hidden ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
               <CardContent className="py-2 px-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-white border border-gray-400" : "bg-black"}`} />
-                    <span className="font-medium text-sm" data-testid="text-player-name">You</span>
+                    <span className="font-medium text-sm">You</span>
                   </div>
                   <div className={`text-2xl font-mono font-bold ${
                     game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "text-foreground" : "text-muted-foreground"
-                  }`} data-testid="text-player-time">
+                  }`}>
                     {formatTime(playerColor === "white" ? whiteTime : blackTime)}
                   </div>
                 </div>
