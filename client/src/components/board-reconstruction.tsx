@@ -184,9 +184,11 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   const voicePlacementsRef = useRef(0);
   const touchPlacementsRef = useRef(0);
   const listenerRef = useRef<any>(null);
+  const stateListenerRef = useRef<any>(null);
   const webRecognitionRef = useRef<WebSpeechRecognitionLocal | null>(null);
   const submitRef = useRef<(() => void) | null>(null);
   const shouldBeListeningRef = useRef(false);
+  const isRestartingRef = useRef(false);
   
   const actualBoard = fenToBoard(actualFen);
   
@@ -326,11 +328,41 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
           return;
         }
         
-        listenerRef.current = await CapacitorSpeechRecognition.addListener('partialResults', (data: any) => {
-          if (data.matches && data.matches.length > 0 && shouldBeListeningRef.current) {
-            processVoiceCommand(data.matches[0]);
-          }
-        });
+        // Only add listeners once - check if they're already set up
+        if (!listenerRef.current) {
+          listenerRef.current = await CapacitorSpeechRecognition.addListener('partialResults', (data: any) => {
+            if (data.matches && data.matches.length > 0 && shouldBeListeningRef.current) {
+              processVoiceCommand(data.matches[0]);
+            }
+          });
+        }
+        
+        // Add listener for when native speech ends - auto-restart for continuous listening
+        if (!stateListenerRef.current) {
+          stateListenerRef.current = await CapacitorSpeechRecognition.addListener('listeningState', async (state: any) => {
+            if (state.status === 'stopped' && shouldBeListeningRef.current && !isRestartingRef.current) {
+              // Auto-restart after a brief pause with guard against double-restart
+              isRestartingRef.current = true;
+              setTimeout(async () => {
+                if (shouldBeListeningRef.current) {
+                  try {
+                    await CapacitorSpeechRecognition.start({
+                      language: 'en-US',
+                      partialResults: true,
+                      popup: false,
+                    });
+                    setIsListening(true);
+                    console.log('[Reconstruction] Native speech auto-restarted');
+                  } catch (e) {
+                    // Ignore "already listening" errors
+                    console.log('[Reconstruction] Auto-restart skipped:', e);
+                  }
+                }
+                isRestartingRef.current = false;
+              }, 300);
+            }
+          });
+        }
         
         await CapacitorSpeechRecognition.start({
           language: 'en-US',
@@ -339,7 +371,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
         });
         
         setIsListening(true);
-        console.log('[Reconstruction] Native speech started');
+        console.log('[Reconstruction] Native speech started (continuous mode)');
       } else {
         // WEB: Use Web Speech API for browser testing
         const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -416,6 +448,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   
   const stopListening = useCallback(async () => {
     shouldBeListeningRef.current = false;
+    isRestartingRef.current = false;
     
     try {
       if (Capacitor.isNativePlatform()) {
@@ -424,6 +457,10 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
         if (listenerRef.current) {
           await listenerRef.current.remove();
           listenerRef.current = null;
+        }
+        if (stateListenerRef.current) {
+          await stateListenerRef.current.remove();
+          stateListenerRef.current = null;
         }
       } else {
         // WEB: Stop Web Speech API
