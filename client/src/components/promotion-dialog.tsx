@@ -13,10 +13,10 @@ interface PromotionDialogProps {
 }
 
 const PROMOTION_PIECES = [
-  { key: "q" as const, name: "Queen", white: "♕", black: "♛" },
-  { key: "r" as const, name: "Rook", white: "♖", black: "♜" },
-  { key: "b" as const, name: "Bishop", white: "♗", black: "♝" },
-  { key: "n" as const, name: "Knight", white: "♘", black: "♞" },
+  { key: "q" as const, name: "Queen", white: "/pieces/wQ.svg", black: "/pieces/bQ.svg" },
+  { key: "r" as const, name: "Rook", white: "/pieces/wR.svg", black: "/pieces/bR.svg" },
+  { key: "b" as const, name: "Bishop", white: "/pieces/wB.svg", black: "/pieces/bB.svg" },
+  { key: "n" as const, name: "Knight", white: "/pieces/wN.svg", black: "/pieces/bN.svg" },
 ];
 
 export function PromotionDialog({ open, color, onSelect }: PromotionDialogProps) {
@@ -31,11 +31,16 @@ export function PromotionDialog({ open, color, onSelect }: PromotionDialogProps)
             <Button
               key={piece.key}
               variant="outline"
-              className="h-20 text-5xl hover-elevate"
+              className="h-20 hover-elevate"
               onClick={() => onSelect(piece.key)}
               data-testid={`button-promote-${piece.key}`}
             >
-              {color === "white" ? piece.white : piece.black}
+              <img 
+                src={color === "white" ? piece.white : piece.black} 
+                alt={piece.name}
+                className="w-12 h-12"
+                draggable={false}
+              />
             </Button>
           ))}
         </div>

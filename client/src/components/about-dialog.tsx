@@ -82,6 +82,21 @@ export function AboutDialog() {
           </div>
           
           <div>
+            <h3 className="font-semibold mb-2">Chess Pieces</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              Uses the Cburnett chess piece set by Colin M.L. Burnett, licensed under CC BY-SA 3.0.
+            </p>
+            <button
+              onClick={() => openExternalLink("https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces")}
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              data-testid="link-chess-pieces"
+            >
+              View Chess Pieces Source
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+          
+          <div>
             <h3 className="font-semibold mb-2">Privacy Policy</h3>
             <p className="text-sm text-muted-foreground mb-2">
               This app operates entirely offline. It does not collect, store, or share any personal user data.

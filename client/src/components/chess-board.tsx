@@ -84,9 +84,10 @@ const getKnightIntermediateSquare = (from: string, to: string): string => {
   }
 };
 
-const PIECE_SYMBOLS: Record<string, string> = {
-  K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙",
-  k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟",
+// Cburnett SVG pieces (CC BY-SA 3.0 - Colin M.L. Burnett)
+const PIECE_IMAGES: Record<string, string> = {
+  K: "/pieces/wK.svg", Q: "/pieces/wQ.svg", R: "/pieces/wR.svg", B: "/pieces/wB.svg", N: "/pieces/wN.svg", P: "/pieces/wP.svg",
+  k: "/pieces/bK.svg", q: "/pieces/bQ.svg", r: "/pieces/bR.svg", b: "/pieces/bB.svg", n: "/pieces/bN.svg", p: "/pieces/bP.svg",
 };
 
 export function ChessBoard({
@@ -530,11 +531,12 @@ export function ChessBoard({
                     />
                   )}
                   {piece && (
-                    <span className={`text-3xl sm:text-4xl md:text-5xl select-none relative z-10 ${
-                      piece === piece.toUpperCase() ? "text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]" : "text-black"
-                    }`}>
-                      {PIECE_SYMBOLS[piece]}
-                    </span>
+                    <img 
+                      src={PIECE_IMAGES[piece]} 
+                      alt={piece}
+                      className="w-[75%] h-[75%] select-none relative z-10 pointer-events-none"
+                      draggable={false}
+                    />
                   )}
                   
                   {isLegalMove && !isLegalCapture && (
