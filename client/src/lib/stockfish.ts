@@ -413,18 +413,42 @@ class ClientStockfish {
     // Skill Level mapping based on Elo for more human-like play
     // Skill Level controls move randomization and error frequency
     const getSkillLevel = (targetElo: number): number => {
-      if (targetElo <= 400) return 0;   // Frequent blunders
-      if (targetElo <= 600) return 2;   // Basic trades, misses forks
-      if (targetElo <= 800) return 4;   // Developing pieces, hangs pieces
-      if (targetElo <= 1000) return 6;  // Solid opening, weak endgame
-      if (targetElo <= 1200) return 8;  // Punishes blunders, human-like
-      if (targetElo <= 1400) return 10; // Tactical awareness
-      if (targetElo <= 1600) return 12; // Strong positional play
-      if (targetElo <= 1800) return 14; // Difficult, calculated
-      if (targetElo <= 2000) return 16; // Expert-level
-      if (targetElo <= 2200) return 18; // Master-level
-      if (targetElo <= 2400) return 19; // Grandmaster-level
-      return 20; // Max skill for 2600
+      if (targetElo <= 400) return 0;   // Pure chaos/blunders
+      if (targetElo <= 600) return 2;   // Basic hanging pieces
+      if (targetElo <= 800) return 4;   // Developing phase
+      if (targetElo <= 1000) return 6;  // 1-2 move tactics
+      if (targetElo <= 1200) return 8;  // Solid club player
+      if (targetElo <= 1400) return 11; // Stronger focus
+      if (targetElo <= 1600) return 14; // High positional pressure
+      if (targetElo <= 1800) return 17; // Deep calculation
+      if (targetElo <= 2000) return 18; // Elite phase
+      if (targetElo <= 2200) return 19; // Master precision
+      return 20; // GM/Boss level for 2400+
+    };
+
+    // MultiPV mapping - higher Elo uses fewer lines for deeper analysis
+    const getMultiPV = (targetElo: number): number => {
+      if (targetElo <= 600) return 5;   // Maximum chaos/variety
+      if (targetElo <= 1000) return 4;  // Starting to narrow options
+      if (targetElo <= 1400) return 3;  // Focus on best 3 lines
+      if (targetElo <= 1800) return 2;  // High focus, rarely blunders
+      return 1; // Elite: max depth, single best line for 2000+
+    };
+
+    // Nodes mapping - scales calculation depth with Elo
+    const getNodes = (targetElo: number): number => {
+      if (targetElo <= 400) return 500;      // Very low = pure chaos
+      if (targetElo <= 600) return 1000;     // See basic hanging pieces
+      if (targetElo <= 800) return 2000;     // Developing phase
+      if (targetElo <= 1000) return 5000;    // 1-2 move tactics
+      if (targetElo <= 1200) return 10000;   // Avoids simple mistakes
+      if (targetElo <= 1400) return 20000;   // Stronger focus
+      if (targetElo <= 1600) return 50000;   // Rarely blunders
+      if (targetElo <= 1800) return 100000;  // Punishes mistakes
+      if (targetElo <= 2000) return 250000;  // Elite calculation
+      if (targetElo <= 2200) return 500000;  // Master precision
+      if (targetElo <= 2400) return 1000000; // GM calculation
+      return 2000000; // Boss: focused, deep, relentless
     };
 
     const executeRequest = (): Promise<StockfishResult> => {
@@ -440,24 +464,16 @@ class ClientStockfish {
 
           // Configure Stockfish for limited strength play
           const skillLevel = getSkillLevel(elo);
+          const multiPV = getMultiPV(elo);
+          const nodes = getNodes(elo);
+          
           this.sendCommand(`setoption name Skill Level value ${skillLevel}`);
           this.sendCommand('setoption name UCI_LimitStrength value true');
           this.sendCommand(`setoption name UCI_Elo value ${Math.min(Math.max(elo, 400), 3200)}`);
-          
-          // Use MultiPV for move variation (get top 3-5 moves)
-          const multiPV = elo <= 1200 ? 5 : elo <= 1800 ? 4 : 3;
           this.sendCommand(`setoption name MultiPV value ${multiPV}`);
           
           this.sendCommand('ucinewgame');
           this.sendCommand(`position fen ${fen}`);
-
-          // Use nodes limit based on Elo for consistent timing across devices
-          // Lower Elo = fewer nodes = less accurate play
-          const nodes = elo <= 600 ? 5000 : 
-                        elo <= 1000 ? 20000 : 
-                        elo <= 1400 ? 50000 : 
-                        elo <= 1800 ? 100000 : 
-                        elo <= 2200 ? 500000 : 1000000;
           
           this.isSearching = true;
           this.sendCommand(`go nodes ${nodes}`);
