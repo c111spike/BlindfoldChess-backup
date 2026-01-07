@@ -98,6 +98,39 @@ const PIECE_TO_POLYGLOT: Record<string, number> = {
   'K': 11, // white king
 };
 
+// Helper to check if en-passant capture is actually possible
+// Polyglot spec: only include EP in hash if there's an opposing pawn that can capture
+function canEnPassantCapture(position: string, turn: string, epFile: number): boolean {
+  // Parse position into 8x8 board (0-indexed, rank 0 = rank 1)
+  const board: string[][] = [];
+  const ranks = position.split('/');
+  for (let r = 0; r < 8; r++) {
+    const rank = ranks[r];
+    const row: string[] = [];
+    for (const char of rank) {
+      if (char >= '1' && char <= '8') {
+        for (let i = 0; i < parseInt(char); i++) row.push('');
+      } else {
+        row.push(char);
+      }
+    }
+    board.push(row);
+  }
+  // board[0] is rank 8, board[7] is rank 1
+  
+  // EP square file (0-7), rank depends on whose turn:
+  // White to move: EP square is on rank 6 (index 2), capturing pawn must be on rank 5 (index 3)
+  // Black to move: EP square is on rank 3 (index 5), capturing pawn must be on rank 4 (index 4)
+  const capturingPawn = turn === 'w' ? 'P' : 'p';
+  const pawnRankIndex = turn === 'w' ? 3 : 4; // Where the capturing pawn would be
+  
+  // Check adjacent files for capturing pawn
+  if (epFile > 0 && board[pawnRankIndex][epFile - 1] === capturingPawn) return true;
+  if (epFile < 7 && board[pawnRankIndex][epFile + 1] === capturingPawn) return true;
+  
+  return false;
+}
+
 // Calculate Polyglot hash key from FEN
 export function polyglotKey(fen: string): bigint {
   initPolyglotRandom();
@@ -136,13 +169,14 @@ export function polyglotKey(fen: string): bigint {
   if (castling.includes('k')) key ^= POLYGLOT_RANDOM[770];
   if (castling.includes('q')) key ^= POLYGLOT_RANDOM[771];
   
-  // En passant (indices 772-779, only if capture is possible)
+  // En passant (indices 772-779, only if capture is actually possible per Polyglot spec)
   if (enpassant !== '-') {
     const file = enpassant.charCodeAt(0) - 'a'.charCodeAt(0);
     if (file >= 0 && file < 8) {
-      // Only include if there's actually a pawn that can capture
-      // For simplicity, we'll always include it (Polyglot specification)
-      key ^= POLYGLOT_RANDOM[772 + file];
+      // Only include if there's actually a pawn that can capture on this square
+      if (canEnPassantCapture(position, turn, file)) {
+        key ^= POLYGLOT_RANDOM[772 + file];
+      }
     }
   }
   
