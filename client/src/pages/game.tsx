@@ -1507,27 +1507,28 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
   if (showTitleScreen) {
     return (
       <div 
-        className="h-full w-full flex flex-col items-center relative overflow-hidden"
+        className="h-full w-full flex flex-col items-center overflow-hidden min-h-0"
         data-testid="screen-title"
       >
-        <img 
-          src={titleImage} 
-          alt="Blindfold Chess" 
-          className="absolute inset-0 w-full h-full object-cover object-center z-0"
-        />
-        <div className="relative z-10 flex flex-col items-center gap-1 p-4 pt-2 w-full">
+        <div className="flex-none flex flex-col items-center gap-1 p-4 pt-2 w-full">
           <h1 
-            className="text-3xl md:text-4xl font-bold text-black text-center tracking-tight"
+            className="text-3xl md:text-4xl font-bold text-black dark:text-white text-center tracking-tight"
             data-testid="text-title"
           >
             Blindfold Chess
           </h1>
-          <p className="text-black/70 text-center text-sm md:text-base">
+          <p className="text-black/70 dark:text-white/70 text-center text-sm md:text-base">
             Train your visualization and memory
           </p>
         </div>
-        <div className="flex-1" />
-        <div className="relative z-10 flex flex-col items-center p-4 pb-2 w-full max-w-sm">
+        <div className="flex-1 w-full max-w-sm flex flex-col items-center justify-center min-h-0 px-4">
+          <img 
+            src={titleImage} 
+            alt="Blindfold Chess" 
+            className="max-h-full w-full object-contain"
+          />
+        </div>
+        <div className="flex-none flex flex-col items-center p-4 pb-2 w-full max-w-sm">
           <Button 
             size="lg" 
             variant="ghost"

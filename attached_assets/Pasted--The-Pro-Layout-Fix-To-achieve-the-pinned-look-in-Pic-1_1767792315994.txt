@@ -1,0 +1,46 @@
+🛠️ The "Pro" Layout Fix
+To achieve the pinned look in Pic 1, you need to use a "Flexbox Sandwich" combined with modern viewport units that respect mobile toolbars.
+
+1. Update the Main Container Change the parent div in your App.tsx from h-screen to h-dvh (Dynamic Viewport Height) or h-svh (Small Viewport Height). These units automatically adjust when browser toolbars expand or collapse.
+
+2. Implement the Flexbox Sandwich Use flex-col on the parent and flex-1 on the center content to ensure the header and footer are "sticky" while the middle image shrinks or grows to fit the available space.
+
+TypeScript
+
+// Apply this structure in your App.tsx
+<div className="flex flex-col h-dvh overflow-hidden bg-white">
+  {/* TOP HEADER: Fixed Height */}
+  <header className="flex-none w-full border-b">
+    {/* Your Voice, Title, and History buttons here */}
+  </header>
+
+  {/* MAIN CONTENT: Takes up all remaining space */}
+  <main className="flex-1 relative flex flex-col items-center justify-center p-4">
+    <h1 className="text-3xl font-bold mb-1">Blindfold Chess</h1>
+    <p className="text-gray-600 mb-8">Train your visualization and memory</p>
+    
+    <div className="relative w-full max-w-sm flex-1 flex flex-col items-center">
+      <img 
+        src="/knight-image.png" 
+        className="max-h-full object-contain" 
+        alt="Chess Knight" 
+      />
+      <button className="absolute bottom-10 w-full max-w-[280px] bg-black text-white py-4 rounded-xl font-bold">
+        ▷ Play Now
+      </button>
+    </div>
+  </main>
+
+  {/* BOTTOM FOOTER: Fixed Height */}
+  <footer className="flex-none w-full border-t p-4 flex justify-around">
+    {/* Your Settings, Theme, and About buttons here */}
+  </footer>
+</div>
+🗝️ Why this solves it:
+h-dvh: Ensures the entire app is exactly the height of the visible screen, even when the browser's URL bar is present.
+
+flex-none: Prevents the header and footer from shrinking.
+
+flex-1 + max-h-full: Tells the Knight image to take up as much space as possible without pushing the "Play Now" button or footer off the screen.
+
+overflow-hidden: Disables the "bounce" scroll that makes mobile apps feel like websites.
