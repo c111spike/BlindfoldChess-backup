@@ -160,6 +160,12 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   
   const [draggedPiece, setDraggedPiece] = useState<string | null>(null);
   
+  // Sticky color for hybrid voice/touch input - defaults to white
+  const [stickyColor, setStickyColor] = useState<'w' | 'b'>('w');
+  
+  // Track recently voice-placed squares for animation
+  const [recentVoicePlacements, setRecentVoicePlacements] = useState<Set<string>>(new Set());
+  
   const voicePlacementsRef = useRef(0);
   const touchPlacementsRef = useRef(0);
   const listenerRef = useRef<any>(null);
@@ -179,8 +185,23 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
       newBoard[row][col] = piece;
       return newBoard;
     });
+    
+    // Update sticky color based on the piece color just placed
+    const pieceColor = piece.charAt(0) as 'w' | 'b';
+    setStickyColor(pieceColor);
+    
     if (isVoice) {
       voicePlacementsRef.current++;
+      // Track for animation - add square key and remove after animation
+      const squareKey = `${row}-${col}`;
+      setRecentVoicePlacements(prev => new Set(prev).add(squareKey));
+      setTimeout(() => {
+        setRecentVoicePlacements(prev => {
+          const next = new Set(prev);
+          next.delete(squareKey);
+          return next;
+        });
+      }, 300);
     } else {
       touchPlacementsRef.current++;
     }
@@ -218,6 +239,17 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
       return;
     }
     
+    // Handle color switching commands - "switch to white/black" or just "white/black"
+    if (normalized === 'white' || normalized === 'switch to white' || normalized === 'white pieces') {
+      setStickyColor('w');
+      return;
+    }
+    if (normalized === 'black' || normalized === 'switch to black' || normalized === 'black pieces') {
+      setStickyColor('b');
+      return;
+    }
+    
+    // Legacy disambiguation handling (still respond to color if user was in that state)
     if (disambiguation) {
       const color = parseColor(normalized);
       if (color) {
@@ -243,19 +275,14 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     const color = parseColor(normalized);
     
     if (pieceType && square) {
-      if (color) {
-        const piece = color + pieceType;
-        const { row, col } = squareToIndices(square.file, square.rank);
-        placePiece(piece, row, col, true);
-      } else {
-        setDisambiguation({
-          type: 'color',
-          pieceType,
-          square
-        });
-      }
+      // Use explicit color if provided, otherwise use sticky color
+      const finalColor = color || stickyColor;
+      const piece = finalColor + pieceType;
+      const { row, col } = squareToIndices(square.file, square.rank);
+      placePiece(piece, row, col, true);
+      setDisambiguation(null);
     }
-  }, [disambiguation, squareToIndices, placePiece, removePiece]);
+  }, [disambiguation, squareToIndices, placePiece, removePiece, stickyColor]);
   
   const startListening = useCallback(async () => {
     if (submitted) return;
@@ -424,23 +451,42 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
       </CardHeader>
       <CardContent className="space-y-3">
         {!submitted && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {disambiguation 
-                ? `Say "White" or "Black" for ${disambiguation.pieceType === 'K' ? 'King' : disambiguation.pieceType === 'Q' ? 'Queen' : disambiguation.pieceType === 'R' ? 'Rook' : disambiguation.pieceType === 'B' ? 'Bishop' : disambiguation.pieceType === 'N' ? 'Knight' : 'Pawn'} on ${disambiguation.square.file}${disambiguation.square.rank}`
-                : isListening 
-                  ? `Listening... "${lastVoiceCommand || 'Say piece + square'}"` 
-                  : 'Drag pieces or use voice commands'}
-            </p>
-            <Button
-              size="icon"
-              variant={isListening ? "destructive" : "outline"}
-              onClick={isListening ? stopListening : startListening}
-              className={isListening ? "animate-pulse" : ""}
-              data-testid="button-reconstruction-mic"
-            >
-              {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            </Button>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground">
+                {disambiguation 
+                  ? `Say "White" or "Black" for ${disambiguation.pieceType === 'K' ? 'King' : disambiguation.pieceType === 'Q' ? 'Queen' : disambiguation.pieceType === 'R' ? 'Rook' : disambiguation.pieceType === 'B' ? 'Bishop' : disambiguation.pieceType === 'N' ? 'Knight' : 'Pawn'} on ${disambiguation.square.file}${disambiguation.square.rank}`
+                  : isListening 
+                    ? `"${lastVoiceCommand || 'Knight f3'}"` 
+                    : 'Drag pieces or use voice commands'}
+              </p>
+            </div>
+            <div className="flex items-center gap-1">
+              {/* Sticky color indicator - shows which color next voice command will use */}
+              <button
+                onClick={() => setStickyColor(prev => prev === 'w' ? 'b' : 'w')}
+                className={`w-7 h-7 rounded flex items-center justify-center transition-all border-2 ${
+                  stickyColor === 'w' 
+                    ? 'bg-white border-stone-400' 
+                    : 'bg-stone-800 border-stone-600'
+                }`}
+                title={`Placing ${stickyColor === 'w' ? 'White' : 'Black'} pieces - tap to switch`}
+                data-testid="button-sticky-color"
+              >
+                <span className={`text-xs font-bold ${stickyColor === 'w' ? 'text-stone-800' : 'text-white'}`}>
+                  {stickyColor === 'w' ? 'W' : 'B'}
+                </span>
+              </button>
+              <Button
+                size="icon"
+                variant={isListening ? "destructive" : "outline"}
+                onClick={isListening ? stopListening : startListening}
+                className={isListening ? "animate-pulse" : ""}
+                data-testid="button-reconstruction-mic"
+              >
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
         )}
         
@@ -496,6 +542,8 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
               const isLight = (displayRow + displayCol) % 2 === 0;
               const userPiece = userBoard[boardRow][boardCol];
               const actualPiece = actualBoard[boardRow][boardCol];
+              const squareKey = `${boardRow}-${boardCol}`;
+              const isRecentVoicePlacement = recentVoicePlacements.has(squareKey);
               
               let squareClass = isLight ? 'bg-amber-100' : 'bg-amber-700';
               let indicator = null;
@@ -537,14 +585,14 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
                     />
                   )}
                   
-                  {/* User's piece - animate slide if wrong */}
+                  {/* User's piece - animate pop for voice placement, shake if wrong on submit */}
                   {userPiece && (
                     <img 
                       src={PIECE_IMAGES[userPiece]} 
                       alt={userPiece} 
-                      className={`w-[85%] h-[85%] pointer-events-none z-10 ${
-                        submitted && !isCorrect ? 'animate-[shake_0.5s_ease-in-out]' : ''
-                      }`} 
+                      className={`w-[85%] h-[85%] pointer-events-none z-10 transition-transform ${
+                        isRecentVoicePlacement ? 'animate-[voicePop_0.2s_ease-out]' : ''
+                      } ${submitted && !isCorrect ? 'animate-[shake_0.5s_ease-in-out]' : ''}`} 
                       draggable={false}
                     />
                   )}
