@@ -85,6 +85,21 @@ export function AboutDialog() {
           </div>
           
           <div>
+            <h3 className="font-semibold mb-2">Local Storage</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              Game history is stored locally using Capacitor SQLite, licensed under the MIT License.
+            </p>
+            <button
+              onClick={() => openExternalLink("https://github.com/capacitor-community/sqlite")}
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              data-testid="link-sqlite"
+            >
+              View Capacitor SQLite Source
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+          
+          <div>
             <h3 className="font-semibold mb-2">Privacy Policy</h3>
             <p className="text-sm text-muted-foreground mb-2">
               This app operates entirely offline. It does not collect, store, or share any personal user data.

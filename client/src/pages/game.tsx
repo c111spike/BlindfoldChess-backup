@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw } from "lucide-react";
+import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw, History } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,9 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
 import { getBotMove, countBotPieces, detectRecapture, getBotMoveDelay as botMoveDelay, type LastMoveInfo, type BotMoveResult } from "@/lib/botEngine";
 import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats, type BlindfoldSettings } from "@/lib/gameStats";
+import { initGameHistoryDB, saveGame, type SavedGame } from "@/lib/gameHistory";
+import { GameHistory } from "@/pages/game-history";
+import { HistoryGameReport } from "@/components/history-game-report";
 import { clientStockfish } from "@/lib/stockfish";
 import type { BotProfile } from "@shared/botTypes";
 import { 
@@ -179,6 +182,10 @@ export default function GamePage() {
   
   const [stats, setStats] = useState<GameStats>(() => loadStats());
   
+  useEffect(() => {
+    initGameHistoryDB();
+  }, []);
+  
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
   const [botThinking, setBotThinking] = useState(false);
   const [selectedBotElo, setSelectedBotElo] = useState<number>(() => {
@@ -226,6 +233,8 @@ export default function GamePage() {
   const [lastReconstructionVoicePurity, setLastReconstructionVoicePurity] = useState<number | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [lastGameMoveHistory, setLastGameMoveHistory] = useState<string[]>([]);
+  const [showGameHistory, setShowGameHistory] = useState(false);
+  const [viewingHistoryGame, setViewingHistoryGame] = useState<SavedGame | null>(null);
   
   const gameRef = useRef<Chess | null>(null);
   const whiteTimeRef = useRef(300);
@@ -355,7 +364,29 @@ export default function GamePage() {
     
     // Show post-mortem report after game ends
     setShowPostMortem(true);
-  }, [playerColor, bestPeekFreeStreak, isBlindfold]);
+    
+    // Auto-save game to history
+    if (selectedBot) {
+      const pgn = gameRef.current?.pgn() || "";
+      const gameToSave = {
+        date: new Date().toISOString(),
+        result: statsResult,
+        playerColor,
+        botName: selectedBot.name,
+        botElo: selectedBot.elo,
+        moveCount: totalMoves,
+        pgn,
+        clarityScore,
+        isFavorite: false,
+        timeControl: selectedTimeControl
+      };
+      saveGame(gameToSave).then(id => {
+        if (id) {
+          console.log('[Game] Saved game to history:', id);
+        }
+      });
+    }
+  }, [playerColor, bestPeekFreeStreak, isBlindfold, selectedBot, selectedTimeControl]);
 
   const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
     if (clockIntervalRef.current) {
@@ -1742,18 +1773,53 @@ export default function GamePage() {
               </div>
             </div>
             
-            <Button
-              size="lg"
-              className="w-full bg-amber-400 hover:bg-amber-500 text-stone-900 border border-black"
-              onClick={handleStartGameClick}
-              data-testid="button-start-game"
-            >
-              <Play className="mr-2 h-5 w-5" />
-              Start Game
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="lg"
+                className="flex-1 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-black"
+                onClick={handleStartGameClick}
+                data-testid="button-start-game"
+              >
+                <Play className="mr-2 h-5 w-5" />
+                Start Game
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-stone-300"
+                onClick={() => setShowGameHistory(true)}
+                data-testid="button-game-history"
+              >
+                <History className="h-5 w-5" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
+    );
+  }
+  
+  if (showGameHistory) {
+    return (
+      <>
+        <GameHistory
+          onBack={() => setShowGameHistory(false)}
+          onViewGame={(game) => {
+            setViewingHistoryGame(game);
+          }}
+        />
+        <HistoryGameReport
+          game={viewingHistoryGame}
+          open={viewingHistoryGame !== null}
+          onClose={() => setViewingHistoryGame(null)}
+          onAnalyze={(moves) => {
+            setLastGameMoveHistory(moves);
+            setViewingHistoryGame(null);
+            setShowGameHistory(false);
+            setShowAnalysis(true);
+          }}
+        />
+      </>
     );
   }
 
