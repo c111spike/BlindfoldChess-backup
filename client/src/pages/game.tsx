@@ -1536,7 +1536,7 @@ export default function GamePage() {
             {isBlindfold && blindfoldDifficulty !== 'grandmaster' && (
               <Button
                 variant={isPeeking ? "default" : "outline"}
-                className="w-full"
+                className={`w-full ${isPeeking ? "bg-amber-400 hover:bg-amber-500 text-black" : ""}`}
                 onMouseDown={handlePeekStart}
                 onMouseUp={handlePeekEnd}
                 onMouseLeave={handlePeekEnd}
