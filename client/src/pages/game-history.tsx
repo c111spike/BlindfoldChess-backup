@@ -145,8 +145,9 @@ export function GameHistory({ onBack, onViewGame }: GameHistoryProps) {
       getAllGames(),
       getFavoriteGames()
     ]);
-    setAllGames(all);
-    setFavoriteGames(favorites);
+    // Filter out 0-move games (cleanup for any existing ghost entries)
+    setAllGames(all.filter(g => g.moveCount > 0));
+    setFavoriteGames(favorites.filter(g => g.moveCount > 0));
     setIsLoading(false);
   };
 

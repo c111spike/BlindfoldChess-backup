@@ -376,8 +376,8 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
     // Show post-mortem report after game ends
     setShowPostMortem(true);
     
-    // Auto-save game to history
-    if (selectedBot) {
+    // Auto-save game to history (only if moves were made)
+    if (selectedBot && totalMoves > 0) {
       const pgn = gameRef.current?.pgn() || "";
       const gameToSave = {
         date: new Date().toISOString(),
@@ -396,6 +396,8 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
           console.log('[Game] Saved game to history:', id);
         }
       });
+    } else if (selectedBot && totalMoves === 0) {
+      console.log('[Game] Zero-move game detected. Not saving to history.');
     }
   }, [playerColor, bestPeekFreeStreak, isBlindfold, selectedBot, timeControl]);
 
