@@ -33,8 +33,8 @@ export default function App() {
   return (
     <ThemeProvider defaultTheme="dark">
       <TooltipProvider>
-        <div className="flex flex-col h-screen bg-background">
-          <header className="grid grid-cols-3 items-center p-3 border-b border-border">
+        <div className="flex flex-col h-dvh bg-background">
+          <header className="grid grid-cols-3 items-center p-3 border-b border-border pt-[var(--safe-area-top)]">
             <div className="flex justify-start">
               <Dialog open={showVoiceHelpDialog} onOpenChange={setShowVoiceHelpDialog}>
                 <DialogTrigger asChild>
@@ -142,7 +142,7 @@ export default function App() {
           <main className="flex-1 overflow-auto">
             <GamePage historyTrigger={historyTrigger} />
           </main>
-          <footer className="grid grid-cols-3 items-center p-2 border-t border-border">
+          <footer className="grid grid-cols-3 items-center p-2 border-t border-border pb-[var(--safe-area-bottom)]">
             <div className="flex justify-start">
               <SettingsDialog />
             </div>
