@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, X, RotateCcw, Send, Mic, MicOff, Trash2 } from "lucide-react";
 import { SpeechRecognition as CapacitorSpeechRecognition } from "@capacitor-community/speech-recognition";
 import { Capacitor } from "@capacitor/core";
-import { handleMicPermission, checkMicPermission } from "@/lib/voice";
+import { handleMicPermission, checkMicPermission, voiceRecognition } from "@/lib/voice";
 
 // Web Speech API types (local interface to avoid global conflicts)
 interface WebSpeechRecognitionLocal {
@@ -328,6 +328,22 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
           return;
         }
         
+        // Stop the game's voice singleton first and wait for cleanup to complete
+        try {
+          await voiceRecognition.stopAndWait();
+        } catch (e) {
+          // Ignore - may not be running
+        }
+        
+        // Defensively stop any lingering Capacitor session
+        try {
+          await CapacitorSpeechRecognition.stop();
+          // Wait for native layer to fully release the microphone
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (e) {
+          // Ignore - may not be listening
+        }
+        
         // Only add listeners once - check if they're already set up
         if (!listenerRef.current) {
           listenerRef.current = await CapacitorSpeechRecognition.addListener('partialResults', (data: any) => {
@@ -431,6 +447,20 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
           };
           
           webRecognitionRef.current = recognition;
+        }
+        
+        // Stop the game's voice singleton first for web mode too
+        try {
+          await voiceRecognition.stopAndWait();
+        } catch (e) {
+          // Ignore - may not be running
+        }
+        
+        // Defensively stop any existing session first
+        try {
+          webRecognitionRef.current.stop();
+        } catch (e) {
+          // Ignore - may not be running
         }
         
         try {

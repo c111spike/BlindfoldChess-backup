@@ -1050,6 +1050,33 @@ export class VoiceRecognition {
     }
   }
   
+  // Async stop that waits for native cleanup to complete
+  async stopAndWait(): Promise<void> {
+    this.shouldBeListening = false;
+    this.pendingStartAfterInit = false;
+    this.instanceId++;
+    
+    if (this.restartTimeout) {
+      clearTimeout(this.restartTimeout);
+      this.restartTimeout = null;
+    }
+    
+    if (isNative && this.nativeAvailable) {
+      await this.stopNative();
+    } else if (this.recognition && this.isListening) {
+      try {
+        this.recognition.stop();
+      } catch (e) {
+        console.log('Error stopping recognition:', e);
+      }
+    }
+    
+    this.isListening = false;
+    if (this.onListeningChange) {
+      this.onListeningChange(false);
+    }
+  }
+  
   abort() {
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);

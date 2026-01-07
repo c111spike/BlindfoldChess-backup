@@ -347,6 +347,8 @@ export default function GamePage() {
       clockIntervalRef.current = null;
     }
     setGameResult(result);
+    
+    // Stop voice recognition to prevent conflicts with reconstruction's own speech system
     voiceRecognition.stop();
     
     const playerWon = (result === "white_win" && playerColor === "white") || 
@@ -849,7 +851,12 @@ export default function GamePage() {
             console.error('[Voice] TTS error:', e);
           } finally {
             isTtsSpeaking.current = false;
+            // Restart voice to listen for disambiguation response
+            setVoiceRestartTrigger(prev => prev + 1);
           }
+        } else {
+          // Even without voice output, restart voice input to listen for response
+          setVoiceRestartTrigger(prev => prev + 1);
         }
         
         disambiguationTimeoutRef.current = setTimeout(async () => {
