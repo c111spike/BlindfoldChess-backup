@@ -114,7 +114,7 @@ function ChessBoard({
 }
 
 export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisViewProps) {
-  const [currentMoveIndex, setCurrentMoveIndex] = useState(moveHistory.length);
+  const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [evaluation, setEvaluation] = useState<number | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isMate, setIsMate] = useState(false);
