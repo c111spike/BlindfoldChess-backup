@@ -323,8 +323,8 @@ export default function GamePage() {
       speak(message);
     }
     
-    // Check if board reconstruction is enabled for blindfold games
-    if (isBlindfold && blindfoldSettings.boardReconstructionEnabled && gameRef.current) {
+    // Check if board reconstruction is enabled (available for all game modes)
+    if (blindfoldSettings.boardReconstructionEnabled && gameRef.current) {
       pendingGameResultRef.current = { result, fen: gameRef.current.fen() };
       setReconstructionFen(gameRef.current.fen());
       setShowReconstruction(true);
@@ -332,7 +332,7 @@ export default function GamePage() {
       // Finalize immediately without reconstruction
       finalizeGameResult(result);
     }
-  }, [playerColor, voiceOutputEnabled, isBlindfold, blindfoldSettings.boardReconstructionEnabled, finalizeGameResult]);
+  }, [playerColor, voiceOutputEnabled, blindfoldSettings.boardReconstructionEnabled, finalizeGameResult]);
 
   const handleReconstructionComplete = useCallback((score: number, voicePurity: number, voiceInputs: number, touchInputs: number) => {
     // Store reconstruction input counts for statistics
