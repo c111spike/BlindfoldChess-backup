@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Loader2 } from "lucide-react";
@@ -280,12 +280,11 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
         <Card className="mt-4 p-3 max-h-40 overflow-y-auto" data-testid="analysis-move-list">
           <div className="grid grid-cols-[auto_1fr_1fr] gap-x-3 gap-y-1 text-sm font-mono">
             {moveList.map((move) => (
-              <>
-                <span key={`num-${move.moveNumber}`} className="text-muted-foreground">
+              <Fragment key={move.moveNumber}>
+                <span className="text-muted-foreground">
                   {move.moveNumber}.
                 </span>
                 <button
-                  key={`white-${move.moveNumber}`}
                   onClick={() => goToMove(move.whiteIndex)}
                   className={`text-left px-1 rounded hover:bg-muted transition-colors ${
                     currentMoveIndex === move.whiteIndex ? 'bg-amber-400 text-black font-bold' : ''
@@ -296,7 +295,6 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
                 </button>
                 {move.black ? (
                   <button
-                    key={`black-${move.moveNumber}`}
                     onClick={() => goToMove(move.blackIndex!)}
                     className={`text-left px-1 rounded hover:bg-muted transition-colors ${
                       currentMoveIndex === move.blackIndex ? 'bg-amber-400 text-black font-bold' : ''
@@ -306,9 +304,9 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
                     {move.black}
                   </button>
                 ) : (
-                  <span key={`black-empty-${move.moveNumber}`} />
+                  <span />
                 )}
-              </>
+              </Fragment>
             ))}
           </div>
         </Card>

@@ -1,8 +1,8 @@
 import { Chess } from 'chess.js';
 import { clientStockfish, StockfishResult } from './stockfish';
 import { getBookMoves, isOpeningPhase } from './polyglotBook';
-import type { BotDifficulty, BotProfile } from '@shared/botTypes';
-import { BOT_DIFFICULTY_ELO } from '@shared/botTypes';
+import type { BotDifficulty } from '@shared/botTypes';
+import { BOT_CONFIG, BOT_DIFFICULTY_ELO } from '@shared/botTypes';
 
 // Interface for tracking opponent's last move (for recapture detection)
 export interface LastMoveInfo {
@@ -125,8 +125,28 @@ export interface BotMoveResult {
 }
 
 /**
- * Get a move from the bot using Stockfish with UCI_LimitStrength.
- * Uses opening book for early game, then Stockfish for the rest.
+ * Get a random legal move from the position.
+ */
+function getRandomMove(fen: string): string | null {
+  try {
+    const game = new Chess(fen);
+    const moves = game.moves({ verbose: true });
+    if (moves.length === 0) return null;
+    
+    const randomMove = moves[Math.floor(Math.random() * moves.length)];
+    return randomMove.from + randomMove.to + (randomMove.promotion || '');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get a move from the bot using depth-limited Stockfish search.
+ * Uses opening book for early game, then depth-limited search with random chance.
+ * 
+ * Bot difficulty is controlled by:
+ * - depth: How many moves ahead the engine looks (1-6, or 0 for unleashed)
+ * - randomPercent: Chance of playing a completely random legal move (0-50%)
  */
 export async function getBotMove(
   fen: string,
@@ -135,8 +155,21 @@ export async function getBotMove(
   lastMove?: LastMoveInfo
 ): Promise<BotMoveResult | null> {
   try {
-    // Get bot Elo from ID
+    // Get bot configuration
     const elo = BOT_DIFFICULTY_ELO[botId as BotDifficulty] || 1200;
+    const config = BOT_CONFIG[elo] || { depth: 4, randomPercent: 10 };
+    
+    // Random move chance (coin flip before any calculation)
+    if (config.randomPercent > 0 && Math.random() * 100 < config.randomPercent) {
+      const randomMove = getRandomMove(fen);
+      if (randomMove) {
+        console.log(`[BotEngine] Elo ${elo}: Playing random move (${config.randomPercent}% chance)`);
+        return {
+          move: randomMove,
+          isBookMove: false
+        };
+      }
+    }
     
     // Check opening book first (for variation in openings)
     if (isOpeningPhase(moveHistorySAN?.length || 0)) {
@@ -150,7 +183,6 @@ export async function getBotMove(
         for (const bookMove of bookMoves) {
           random -= bookMove.weight;
           if (random <= 0) {
-            // Convert book move to UCI format
             const moveUci = bookMove.from + bookMove.to + (bookMove.promotion || '');
             return {
               move: moveUci,
@@ -159,7 +191,6 @@ export async function getBotMove(
           }
         }
         
-        // Fallback to highest weight
         const bestMove = bookMoves[0];
         return {
           move: bestMove.from + bestMove.to + (bestMove.promotion || ''),
@@ -168,8 +199,18 @@ export async function getBotMove(
       }
     }
     
-    // Use Stockfish with UCI_LimitStrength
-    const result: StockfishResult = await clientStockfish.getBotMove(fen, elo);
+    // Use Stockfish with depth-limited or node-based search
+    let result: StockfishResult;
+    
+    if (config.depth > 0) {
+      // Depth-limited search for Elo <= 1600
+      result = await clientStockfish.getDepthLimitedMove(fen, config.depth);
+      console.log(`[BotEngine] Elo ${elo}: Depth ${config.depth} search`);
+    } else {
+      // Node-based unleashed search for Elo >= 1800
+      result = await clientStockfish.getBotMove(fen, elo);
+      console.log(`[BotEngine] Elo ${elo}: Unleashed node-based search`);
+    }
     
     // Check if it's a free capture
     const freeCapture = isFreeCapture(fen, result.bestMove);

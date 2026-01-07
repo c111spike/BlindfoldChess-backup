@@ -584,6 +584,95 @@ class ClientStockfish {
   }
 
   /**
+   * Get a move using depth-limited search.
+   * This provides more predictable difficulty than node-based search.
+   * @param fen - Current board position
+   * @param depth - Search depth (1-6)
+   * @returns Best move at that depth
+   */
+  async getDepthLimitedMove(
+    fen: string,
+    depth: number
+  ): Promise<StockfishResult> {
+    const executeRequest = (): Promise<StockfishResult> => {
+      return new Promise(async (resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('getDepthLimitedMove timeout'));
+        }, 30000);
+
+        try {
+          if (!this.isReady) {
+            await this.init();
+          }
+
+          // Reset to full strength for depth-limited search
+          this.sendCommand('setoption name UCI_LimitStrength value false');
+          this.sendCommand('setoption name Skill Level value 20');
+          this.sendCommand('setoption name MultiPV value 1');
+          
+          this.sendCommand('ucinewgame');
+          this.sendCommand(`position fen ${fen}`);
+          
+          this.isSearching = true;
+          this.sendCommand(`go depth ${depth}`);
+
+          let bestMove: string | undefined;
+          let evaluation: number | undefined;
+
+          const handler = (line: string) => {
+            if (line.startsWith('info depth') && line.includes(' pv ')) {
+              const pvMatch = line.match(/ pv (\S+)/);
+              const scoreMatch = line.match(/score cp (-?\d+)/);
+              const mateMatch = line.match(/score mate (-?\d+)/);
+
+              if (pvMatch) {
+                bestMove = pvMatch[1];
+              }
+              if (scoreMatch) {
+                evaluation = parseInt(scoreMatch[1]) / 100;
+              } else if (mateMatch) {
+                const mateValue = parseInt(mateMatch[1]);
+                evaluation = mateValue > 0 ? 100 : -100;
+              }
+            }
+
+            if (line.startsWith('bestmove')) {
+              clearTimeout(timeout);
+              this.removeHandler(handler);
+              this.isSearching = false;
+
+              const moveMatch = line.match(/bestmove (\S+)/);
+              if (moveMatch) {
+                bestMove = moveMatch[1];
+              }
+
+              if (bestMove) {
+                resolve({
+                  bestMove,
+                  evaluation,
+                  isFreeCapture: false
+                });
+              } else {
+                reject(new Error('Failed to get depth-limited move'));
+              }
+            }
+          };
+
+          this.addHandler(handler);
+        } catch (error) {
+          clearTimeout(timeout);
+          this.isSearching = false;
+          reject(error);
+        }
+      });
+    };
+
+    const thisRequest = this.requestQueue.then(executeRequest, executeRequest);
+    this.requestQueue = thisRequest.catch(() => {});
+    return thisRequest;
+  }
+
+  /**
    * Stop any active search immediately.
    * Call this before starting a new search or when navigating away from the game.
    * Keeps WASM module loaded for fast restart, just halts CPU-intensive calculation.
