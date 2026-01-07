@@ -1080,15 +1080,15 @@ export default function GamePage() {
           alt="Blindfold Chess" 
           className="absolute inset-0 w-full h-full object-cover object-center z-0"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-transparent to-white/90 z-[1]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-transparent to-background/95 z-[1]" />
         <div className="relative z-10 flex flex-col items-center gap-2 p-6 pt-12 w-full">
           <h1 
-            className="text-4xl md:text-5xl font-bold text-black text-center tracking-tight"
+            className="text-4xl md:text-5xl font-bold text-foreground text-center tracking-tight"
             data-testid="text-title"
           >
             Blindfold Chess
           </h1>
-          <p className="text-black/70 text-center text-base md:text-lg">
+          <p className="text-muted-foreground text-center text-base md:text-lg">
             Train your visualization and memory
           </p>
         </div>
@@ -1096,8 +1096,8 @@ export default function GamePage() {
         <div className="relative z-10 flex flex-col items-center p-6 pb-[120px] w-full max-w-sm">
           <Button 
             size="lg" 
-            variant="ghost"
-            className="w-full text-lg py-6 bg-black text-white hover:bg-black/90 !border-black"
+            variant="default"
+            className="w-full text-lg py-6"
             onClick={() => setShowTitleScreen(false)}
             data-testid="button-start-now"
           >
