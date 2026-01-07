@@ -258,7 +258,7 @@ function createZobristPRNG(seed: number): () => bigint {
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     const high = (t ^ t >>> 14) >>> 0;
     
-    return (BigInt(high) << 32n) | BigInt(low);
+    return (BigInt(high) << BigInt(32)) | BigInt(low);
   };
 }
 
@@ -296,7 +296,7 @@ function pieceToZobristIndex(piece: string, color: 'w' | 'b'): number {
 
 // Compute Zobrist hash for a chess position
 function computeZobristHash(game: Chess): bigint {
-  let hash = 0n;
+  let hash = BigInt(0);
   const board = game.board();
   
   // Hash all pieces on the board
