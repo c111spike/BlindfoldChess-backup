@@ -168,6 +168,92 @@ export function getIsBotSpeaking(): boolean {
 
 const isNative = Capacitor.isNativePlatform();
 
+// Permission status type for microphone access
+export type MicPermissionStatus = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale' | 'unknown';
+
+/**
+ * Check microphone permission status without requesting
+ */
+export async function checkMicPermission(): Promise<MicPermissionStatus> {
+  if (!isNative) {
+    // Web: Check using navigator.permissions if available
+    try {
+      if (navigator.permissions) {
+        const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (result.state === 'granted') return 'granted';
+        if (result.state === 'denied') return 'denied';
+        return 'prompt';
+      }
+    } catch (e) {
+      // Fallback - assume prompt is available
+    }
+    return 'prompt';
+  }
+  
+  try {
+    const status = await CapacitorSpeechRecognition.checkPermissions();
+    return status.speechRecognition as MicPermissionStatus;
+  } catch (e) {
+    console.error('[Voice] Error checking permissions:', e);
+    return 'unknown';
+  }
+}
+
+/**
+ * Handle microphone permission with 3-state flow:
+ * - granted: Returns true, proceed with voice
+ * - denied: Triggers permission popup, returns result
+ * - prompt-with-rationale (permanently denied): Shows guidance alert
+ */
+export async function handleMicPermission(): Promise<boolean> {
+  if (!isNative) {
+    // Web: Try to get permission via getUserMedia
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (e) {
+      console.warn('[Voice] Web microphone permission denied');
+      return false;
+    }
+  }
+  
+  try {
+    const status = await CapacitorSpeechRecognition.checkPermissions();
+    
+    if (status.speechRecognition === 'granted') {
+      return true;
+    }
+    
+    if (status.speechRecognition === 'denied' || status.speechRecognition === 'prompt') {
+      // Trigger the standard Android permission popup
+      const request = await CapacitorSpeechRecognition.requestPermissions();
+      return request.speechRecognition === 'granted';
+    }
+    
+    // If they clicked "Don't ask again" (permanently denied)
+    if (status.speechRecognition === 'prompt-with-rationale') {
+      // Return false - caller should show guidance to settings
+      return false;
+    }
+    
+    return false;
+  } catch (e) {
+    console.error('[Voice] Permission handling error:', e);
+    return false;
+  }
+}
+
+/**
+ * Request microphone permission (used from settings)
+ * Returns the new status after request attempt
+ */
+export async function requestMicPermission(): Promise<{ granted: boolean; status: MicPermissionStatus }> {
+  const granted = await handleMicPermission();
+  const status = await checkMicPermission();
+  return { granted, status };
+}
+
 function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   if (isNative) {
     return Promise.resolve([]);

@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Check, X, RotateCcw, Send, Mic, MicOff, Trash2 } from "lucide-react";
 import { SpeechRecognition as CapacitorSpeechRecognition } from "@capacitor-community/speech-recognition";
 import { Capacitor } from "@capacitor/core";
+import { handleMicPermission, checkMicPermission } from "@/lib/voice";
 
-// Web Speech API types
-interface WebSpeechRecognition extends EventTarget {
+// Web Speech API types (local interface to avoid global conflicts)
+interface WebSpeechRecognitionLocal {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
@@ -18,13 +19,6 @@ interface WebSpeechRecognition extends EventTarget {
   onerror: ((event: any) => void) | null;
   onend: (() => void) | null;
   onstart: (() => void) | null;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: new () => WebSpeechRecognition;
-    webkitSpeechRecognition: new () => WebSpeechRecognition;
-  }
 }
 
 const PIECE_IMAGES: Record<string, string> = {
@@ -190,7 +184,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   const voicePlacementsRef = useRef(0);
   const touchPlacementsRef = useRef(0);
   const listenerRef = useRef<any>(null);
-  const webRecognitionRef = useRef<WebSpeechRecognition | null>(null);
+  const webRecognitionRef = useRef<WebSpeechRecognitionLocal | null>(null);
   const submitRef = useRef<(() => void) | null>(null);
   const shouldBeListeningRef = useRef(false);
   
@@ -312,17 +306,23 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     shouldBeListeningRef.current = true;
     
     try {
+      // Use unified permission handler for both platforms
+      const hasPermission = await handleMicPermission();
+      if (!hasPermission) {
+        console.warn('[Reconstruction] Microphone permission not granted');
+        // Check if permanently denied
+        const status = await checkMicPermission();
+        if (status === 'prompt-with-rationale') {
+          alert("Voice control requires microphone access. Please enable it in your device Settings > Apps > Blindfold Chess > Permissions.");
+        }
+        return;
+      }
+      
       if (Capacitor.isNativePlatform()) {
         // NATIVE: Use Capacitor SDK
         const { available } = await CapacitorSpeechRecognition.available();
         if (!available) {
           console.warn('[Reconstruction] Native speech not available');
-          return;
-        }
-        
-        const permResult = await CapacitorSpeechRecognition.requestPermissions();
-        if (permResult.speechRecognition !== 'granted') {
-          console.warn('[Reconstruction] Permission denied');
           return;
         }
         

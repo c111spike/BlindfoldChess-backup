@@ -7,6 +7,20 @@ import type {
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
+const TOAST_ENABLED_KEY = 'simulchess_toasts_enabled'
+
+// Get toast preference from localStorage
+export function getToastsEnabled(): boolean {
+  if (typeof window === 'undefined') return true;
+  const stored = localStorage.getItem(TOAST_ENABLED_KEY);
+  return stored === null ? true : stored === 'true';
+}
+
+// Set toast preference in localStorage
+export function setToastsEnabled(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TOAST_ENABLED_KEY, String(enabled));
+}
 
 type ToasterToast = ToastProps & {
   id: string
@@ -140,6 +154,20 @@ function dispatch(action: Action) {
 type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
+  // Check if toasts are enabled (read from localStorage on each call for dynamic updates)
+  const enabled = typeof window !== 'undefined' 
+    ? localStorage.getItem(TOAST_ENABLED_KEY) !== 'false'
+    : true;
+    
+  if (!enabled) {
+    // Return a no-op object if toasts are disabled
+    return {
+      id: '',
+      dismiss: () => {},
+      update: () => {},
+    }
+  }
+
   const id = genId()
 
   const update = (props: ToasterToast) =>

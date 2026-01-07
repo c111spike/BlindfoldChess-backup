@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AboutDialog } from "@/components/about-dialog";
+import { SettingsDialog } from "@/components/settings-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { BarChart3, RefreshCw, Mic } from "lucide-react";
@@ -111,6 +112,7 @@ export default function App() {
             </div>
             <h1 className="text-lg font-bold text-foreground text-center whitespace-nowrap">Blindfold Chess</h1>
             <div className="flex items-center gap-1 justify-end">
+              <SettingsDialog />
               <AboutDialog />
               <ThemeToggle />
             </div>
