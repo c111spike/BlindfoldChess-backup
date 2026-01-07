@@ -331,6 +331,7 @@ export default function GamePage() {
         reconstructionVoiceInputs: reconstructionVoiceInputsRef.current,
         reconstructionTouchInputs: reconstructionTouchInputsRef.current,
         squareInquiries: squareInquiriesRef.current,
+        isBlindfold,
       }
     );
     setStats(newStats);
@@ -338,7 +339,7 @@ export default function GamePage() {
     
     // Show post-mortem report after game ends
     setShowPostMortem(true);
-  }, [playerColor, bestPeekFreeStreak]);
+  }, [playerColor, bestPeekFreeStreak, isBlindfold]);
 
   const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
     if (clockIntervalRef.current) {

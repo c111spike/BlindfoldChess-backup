@@ -175,7 +175,7 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
             <div className="flex items-center justify-between">
               <span className="text-2xl font-bold">{peekFreePercentage}%</span>
               <span className="text-sm text-muted-foreground">
-                {stats.totalPeekFreeGames} of {stats.totalGamesPlayed} games
+                {stats.totalPeekFreeGames} of {stats.blindfoldGamesPlayed || 0} blindfold games
               </span>
             </div>
             <Progress value={peekFreePercentage} className="h-2" />
@@ -402,6 +402,10 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
                 <p className="text-xs text-muted-foreground">Losses</p>
               </div>
             </div>
+            
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              {stats.blindfoldGamesPlayed || 0} of {stats.totalGamesPlayed} games were blindfold
+            </p>
             
             <Separator className="my-4" />
             

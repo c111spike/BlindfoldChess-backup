@@ -131,6 +131,9 @@ export interface GameStats {
   bestWinStreak: number;
   currentPeekFreeStreak: number; // Consecutive games without peeking
   bestPeekFreeGameStreak: number;
+  
+  // Blindfold vs standard game tracking
+  blindfoldGamesPlayed: number;
 }
 
 export interface BlindfoldSettings {
@@ -201,6 +204,7 @@ const DEFAULT_STATS: GameStats = {
   bestWinStreak: 0,
   currentPeekFreeStreak: 0,
   bestPeekFreeGameStreak: 0,
+  blindfoldGamesPlayed: 0,
 };
 
 const DEFAULT_SETTINGS: BlindfoldSettings = {
@@ -294,6 +298,7 @@ export interface GameResultData {
   reconstructionVoiceInputs: number; // Voice inputs during reconstruction
   reconstructionTouchInputs: number; // Touch inputs during reconstruction
   squareInquiries: string[]; // Squares inquired about during game
+  isBlindfold: boolean; // Whether this was a blindfold game
 }
 
 // Calculate which move count bucket a game falls into
@@ -394,6 +399,7 @@ export function recordGameResult(
   const reconstructionVoice = extendedData?.reconstructionVoiceInputs || 0;
   const reconstructionTouch = extendedData?.reconstructionTouchInputs || 0;
   const squareInquiries = extendedData?.squareInquiries || [];
+  const isBlindfold = extendedData?.isBlindfold ?? false;
   
   // Legacy global stats
   if (result === 'win') {
@@ -404,28 +410,39 @@ export function recordGameResult(
     stats.draws++;
   }
   
-  stats.lastGamePeekTime = peekTimeMs;
   stats.totalGamesPlayed++;
   
-  if (peekTimeMs > 0) {
-    stats.totalPeekTime += peekTimeMs;
-    stats.gamesWithPeeks++;
-  }
-  
-  if (wasPeekFree) {
-    stats.totalPeekFreeGames++;
-    stats.currentPeekFreeStreak++;
-    if (stats.currentPeekFreeStreak > stats.bestPeekFreeGameStreak) {
-      stats.bestPeekFreeGameStreak = stats.currentPeekFreeStreak;
+  // Track blindfold games separately
+  if (isBlindfold) {
+    stats.blindfoldGamesPlayed++;
+    stats.lastGamePeekTime = peekTimeMs;
+    
+    if (peekTimeMs > 0) {
+      stats.totalPeekTime += peekTimeMs;
+      stats.gamesWithPeeks++;
+    }
+    
+    if (wasPeekFree) {
+      stats.totalPeekFreeGames++;
+      stats.currentPeekFreeStreak++;
+      if (stats.currentPeekFreeStreak > stats.bestPeekFreeGameStreak) {
+        stats.bestPeekFreeGameStreak = stats.currentPeekFreeStreak;
+      }
+    } else {
+      stats.currentPeekFreeStreak = 0;
+    }
+    
+    // Peek-free move streak
+    stats.lastGamePeekFreeStreak = peekFreeStreak;
+    if (peekFreeStreak > stats.bestPeekFreeStreak) {
+      stats.bestPeekFreeStreak = peekFreeStreak;
     }
   } else {
+    // Standard game - reset last-game blindfold fields so UI knows this wasn't blindfold
+    stats.lastGamePeekTime = 0;
+    stats.lastGamePeekFreeStreak = 0;
+    // Reset peek-free game streak since playing a standard game breaks the blindfold streak
     stats.currentPeekFreeStreak = 0;
-  }
-  
-  // Peek-free move streak
-  stats.lastGamePeekFreeStreak = peekFreeStreak;
-  if (peekFreeStreak > stats.bestPeekFreeStreak) {
-    stats.bestPeekFreeStreak = peekFreeStreak;
   }
   
   // ============================================
@@ -447,7 +464,7 @@ export function recordGameResult(
   
   if (result === 'win') {
     tierStat.wins++;
-    if (wasPeekFree) {
+    if (isBlindfold && wasPeekFree) {
       tierStat.peekFreeWins++;
     }
     
@@ -468,7 +485,7 @@ export function recordGameResult(
     tierStat.draws++;
   }
   
-  if (!wasPeekFree) {
+  if (isBlindfold && !wasPeekFree) {
     tierStat.totalPeeks++;
   }
   
@@ -587,8 +604,10 @@ export function getAveragePeekTime(stats: GameStats): number {
 }
 
 export function getPeekFreePercentage(stats: GameStats): number {
-  if (stats.totalGamesPlayed === 0) return 0;
-  return Math.round((stats.totalPeekFreeGames / stats.totalGamesPlayed) * 100);
+  // Only calculate percentage based on blindfold games
+  const blindfoldGames = stats.blindfoldGamesPlayed || 0;
+  if (blindfoldGames === 0) return 0;
+  return Math.round((stats.totalPeekFreeGames / blindfoldGames) * 100);
 }
 
 export function getVoiceTouchRatio(stats: GameStats): { voice: number; touch: number } {
