@@ -1594,16 +1594,16 @@ export default function GamePage() {
               </div>
             )}
             
-            <Card className={`lg:hidden ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
+            <Card className={`${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
               <CardContent className="py-2 px-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-white border border-gray-400" : "bg-black"}`} />
-                    <span className="font-medium text-sm">You</span>
+                    <span className="font-medium text-sm" data-testid="text-player-name">You</span>
                   </div>
                   <div className={`text-2xl font-mono font-bold ${
                     game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "text-foreground" : "text-muted-foreground"
-                  }`}>
+                  }`} data-testid="text-player-time">
                     {formatTime(playerColor === "white" ? whiteTime : blackTime)}
                   </div>
                 </div>
@@ -1622,22 +1622,6 @@ export default function GamePage() {
                     ))}
                   </div>
                 </ScrollArea>
-              </CardContent>
-            </Card>
-            
-            <Card className={`hidden lg:block ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
-              <CardContent className="py-2 px-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-white border border-gray-400" : "bg-black"}`} />
-                    <span className="font-medium text-sm" data-testid="text-player-name">You</span>
-                  </div>
-                  <div className={`text-2xl font-mono font-bold ${
-                    game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "text-foreground" : "text-muted-foreground"
-                  }`} data-testid="text-player-time">
-                    {formatTime(playerColor === "white" ? whiteTime : blackTime)}
-                  </div>
-                </div>
               </CardContent>
             </Card>
             
