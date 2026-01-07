@@ -1082,12 +1082,12 @@ export default function GamePage() {
         />
         <div className="relative z-10 flex flex-col items-center gap-2 p-6 pt-12 w-full">
           <h1 
-            className="text-4xl md:text-5xl font-bold text-foreground text-center tracking-tight"
+            className="text-4xl md:text-5xl font-bold text-black dark:text-white text-center tracking-tight"
             data-testid="text-title"
           >
             Blindfold Chess
           </h1>
-          <p className="text-muted-foreground text-center text-base md:text-lg">
+          <p className="text-black/70 dark:text-white/70 text-center text-base md:text-lg">
             Train your visualization and memory
           </p>
         </div>
