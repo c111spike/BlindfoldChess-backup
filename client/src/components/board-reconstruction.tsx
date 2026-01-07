@@ -413,33 +413,40 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
           
           recognition.onerror = (event: any) => {
             console.log('[Reconstruction Web] Error:', event.error);
-            if (event.error === 'no-speech' || event.error === 'audio-capture') {
+            // Don't restart on 'aborted' (explicit stop) - all other errors should trigger restart
+            if (event.error !== 'aborted') {
               // Auto-restart on recoverable errors - check shouldBeListening inside timeout
               setTimeout(() => {
                 if (shouldBeListeningRef.current && webRecognitionRef.current) {
                   try {
                     webRecognitionRef.current.start();
+                    console.log('[Reconstruction Web] Auto-restarted after error');
                   } catch (e) {
                     // Already started
                   }
                 }
-              }, 500);
+              }, 300);
             }
           };
           
           recognition.onend = () => {
-            setIsListening(false);
+            console.log('[Reconstruction Web] Recognition ended, shouldBeListening:', shouldBeListeningRef.current);
             // Auto-restart if should still be listening - check inside timeout
+            // Don't set isListening to false here since we'll restart immediately
             setTimeout(() => {
               if (shouldBeListeningRef.current && webRecognitionRef.current) {
                 try {
                   webRecognitionRef.current.start();
                   setIsListening(true);
+                  console.log('[Reconstruction Web] Auto-restarted');
                 } catch (e) {
-                  // Already started
+                  // Already started - this is fine
+                  console.log('[Reconstruction Web] Already started or error:', e);
                 }
+              } else {
+                setIsListening(false);
               }
-            }, 300);
+            }, 200);
           };
           
           recognition.onstart = () => {

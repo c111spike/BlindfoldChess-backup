@@ -993,6 +993,20 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
         }
       }
       
+      // Handle "resign" / "quit" / "give up" voice command
+      if (lowerTranscript.includes("resign") || lowerTranscript.includes("quit") || 
+          lowerTranscript.includes("give up") || lowerTranscript.includes("i resign")) {
+        // Haptic confirmation
+        try {
+          Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+        } catch (e) {}
+        
+        // Trigger the resign confirmation dialog
+        setShowResignConfirm(true);
+        setVoiceTranscript(null);
+        return;
+      }
+      
       // Handle "show board" / "peek" / "show" voice command (5 second auto-hide)
       if ((lowerTranscript.includes("show") && lowerTranscript.includes("board")) || 
           lowerTranscript === "peek" || lowerTranscript === "peak" ||

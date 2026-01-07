@@ -394,8 +394,22 @@ export async function speak(text: string, rate: number = 0.9): Promise<void> {
   }
 }
 
+// Homophone corrections for common speech recognition errors
+function applyHomophoneCorrections(text: string): string {
+  let corrected = text;
+  // "rookie" → "rook e" (common speech recognition error)
+  corrected = corrected.replace(/\brookie\b/gi, 'rook e');
+  corrected = corrected.replace(/\brookies\b/gi, 'rook e');
+  // "rook he" → "rook e" (another common mishearing)
+  corrected = corrected.replace(/\brook\s+he\b/gi, 'rook e');
+  // "rock e" → "rook e"
+  corrected = corrected.replace(/\brock\s+([a-h])\b/gi, 'rook $1');
+  return corrected;
+}
+
 export function speechToMove(transcript: string, legalMoves: string[]): string | null {
-  const input = transcript.toLowerCase().trim();
+  // Apply homophone corrections before processing
+  const input = applyHomophoneCorrections(transcript.toLowerCase().trim());
   
   if (input.includes('castle') || input.includes('castles')) {
     if (input.includes('queen') || input.includes('long')) {
@@ -536,7 +550,8 @@ export interface AmbiguousMoveResult {
 }
 
 export function speechToMoveWithAmbiguity(transcript: string, legalMoves: string[]): AmbiguousMoveResult {
-  const input = transcript.toLowerCase().trim();
+  // Apply homophone corrections before processing
+  const input = applyHomophoneCorrections(transcript.toLowerCase().trim());
   
   if (input.includes('castle') || input.includes('castles')) {
     if (input.includes('queen') || input.includes('long')) {
