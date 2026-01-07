@@ -1607,6 +1607,20 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
     );
   }
 
+  // Analysis view - check BEFORE title screen so it works from game history
+  if (showAnalysis && lastGameMoveHistory.length > 0) {
+    return (
+      <AnalysisView
+        moveHistory={lastGameMoveHistory}
+        playerColor={playerColor}
+        onClose={() => {
+          setShowAnalysis(false);
+          setShowTitleScreen(true);
+        }}
+      />
+    );
+  }
+
   if (showTitleScreen) {
     return (
       <div 
