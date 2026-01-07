@@ -34,7 +34,7 @@ export function AboutDialog() {
         <DialogHeader>
           <DialogTitle>About Blindfold Chess</DialogTitle>
           <DialogDescription>
-            A minimalist blindfold chess trainer for Android
+            A blindfold chess trainer for Android
           </DialogDescription>
         </DialogHeader>
         
