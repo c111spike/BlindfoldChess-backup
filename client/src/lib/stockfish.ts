@@ -418,11 +418,13 @@ class ClientStockfish {
       if (targetElo <= 800) return 4;   // Developing pieces, hangs pieces
       if (targetElo <= 1000) return 6;  // Solid opening, weak endgame
       if (targetElo <= 1200) return 8;  // Punishes blunders, human-like
-      if (targetElo <= 1400) return 11; // Tactical awareness
-      if (targetElo <= 1600) return 14; // Strong positional play
-      if (targetElo <= 1800) return 17; // Difficult, calculated
-      if (targetElo <= 2000) return 19; // Expert-level
-      return 20; // Max skill for 2200+
+      if (targetElo <= 1400) return 10; // Tactical awareness
+      if (targetElo <= 1600) return 12; // Strong positional play
+      if (targetElo <= 1800) return 14; // Difficult, calculated
+      if (targetElo <= 2000) return 16; // Expert-level
+      if (targetElo <= 2200) return 18; // Master-level
+      if (targetElo <= 2400) return 19; // Grandmaster-level
+      return 20; // Max skill for 2600
     };
 
     const executeRequest = (): Promise<StockfishResult> => {
