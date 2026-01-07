@@ -1096,8 +1096,8 @@ export default function GamePage() {
         <div className="relative z-10 flex flex-col items-center p-6 pb-[120px] w-full max-w-sm">
           <Button 
             size="lg" 
-            variant="default"
-            className="w-full text-lg py-6"
+            variant="ghost"
+            className="w-full text-lg py-6 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-amber-500 dark:bg-black dark:hover:bg-black/90 dark:text-white dark:border-black"
             onClick={() => setShowTitleScreen(false)}
             data-testid="button-start-now"
           >
