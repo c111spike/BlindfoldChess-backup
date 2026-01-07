@@ -1577,8 +1577,8 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
 
     return (
       <div className={`h-full flex flex-col max-w-lg mx-auto px-4 py-2 transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
-        <Card className="flex-1 min-h-0 flex flex-col">
-          <CardContent className="flex-1 min-h-0 overflow-y-auto pt-4 pb-2 space-y-3">
+        <Card className="flex flex-col">
+          <CardContent className="overflow-y-auto pt-4 pb-2 space-y-3">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="blindfold-toggle">Blindfold Challenge</Label>
