@@ -32,6 +32,7 @@ import {
 import titleImage from "@assets/title_cropped.webp";
 import { BoardReconstruction } from "@/components/board-reconstruction";
 import { PostMortemReport } from "@/components/post-mortem-report";
+import { AnalysisView } from "@/components/analysis-view";
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, type AmbiguousMoveResult } from "@/lib/voice";
@@ -223,6 +224,8 @@ export default function GamePage() {
   const [lastGameSquareInquiries, setLastGameSquareInquiries] = useState<string[]>([]);
   const [lastReconstructionScore, setLastReconstructionScore] = useState<number | null>(null);
   const [lastReconstructionVoicePurity, setLastReconstructionVoicePurity] = useState<number | null>(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [lastGameMoveHistory, setLastGameMoveHistory] = useState<string[]>([]);
   
   const gameRef = useRef<Chess | null>(null);
   const whiteTimeRef = useRef(300);
@@ -324,6 +327,7 @@ export default function GamePage() {
     // Store response times and inquiries for post-mortem report
     setLastGameResponseTimes([...responseTimesRef.current]);
     setLastGameSquareInquiries([...squareInquiriesRef.current]);
+    setLastGameMoveHistory([...movesRef.current]);
     const totalMoves = movesRef.current.length;
     
     const newStats = recordGameResult(
@@ -1768,7 +1772,7 @@ export default function GamePage() {
       )}
       
       <PostMortemReport
-        open={showPostMortem && !showReconstruction}
+        open={showPostMortem && !showReconstruction && !showAnalysis}
         gameResult={gameResult}
         playerColor={playerColor}
         clarityScore={stats.lastClarityScore}
@@ -1781,15 +1785,28 @@ export default function GamePage() {
           if (selectedBot) {
             const newColor = playerColor === "white" ? "black" : "white";
             setShowPostMortem(false);
+            setShowAnalysis(false);
             resetGameState();
             setTimeout(() => handleStartGame(selectedBot, newColor), 100);
           }
         }}
         onMainMenu={() => {
           setShowPostMortem(false);
+          setShowAnalysis(false);
           resetGameState();
         }}
+        onAnalyze={() => {
+          setShowAnalysis(true);
+        }}
       />
+      
+      {showAnalysis && lastGameMoveHistory.length > 0 && (
+        <AnalysisView
+          moveHistory={lastGameMoveHistory}
+          playerColor={playerColor}
+          onClose={() => setShowAnalysis(false)}
+        />
+      )}
       
       {!showReconstruction && (
       <div className="space-y-2">

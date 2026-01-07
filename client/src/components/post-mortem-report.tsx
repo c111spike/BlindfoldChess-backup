@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Trophy, Brain, Clock, Grid3X3, TrendingUp, TrendingDown, RotateCcw, Home, Activity, X, PuzzleIcon, Mic } from "lucide-react";
+import { Trophy, Brain, Clock, Grid3X3, TrendingUp, TrendingDown, RotateCcw, Home, Activity, X, PuzzleIcon, Mic, Search } from "lucide-react";
 import { formatResponseTime } from "@/lib/gameStats";
 
 interface PostMortemReportProps {
@@ -18,6 +18,7 @@ interface PostMortemReportProps {
   reconstructionEnabled: boolean;
   onRematch: () => void;
   onMainMenu: () => void;
+  onAnalyze?: () => void;
 }
 
 function MentalStaminaGraph({ responseTimes }: { responseTimes: number[] }) {
@@ -181,6 +182,7 @@ export function PostMortemReport({
   reconstructionEnabled,
   onRematch,
   onMainMenu,
+  onAnalyze,
 }: PostMortemReportProps) {
   const playerWon = (gameResult === "white_win" && playerColor === "white") ||
                    (gameResult === "black_win" && playerColor === "black");
@@ -305,6 +307,17 @@ export function PostMortemReport({
           )}
           
           <Separator />
+          
+          {onAnalyze && (
+            <Button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={onAnalyze}
+              data-testid="button-postmortem-analyze"
+            >
+              <Search className="mr-2 h-4 w-4" />
+              Analyze Game
+            </Button>
+          )}
           
           <div className="flex gap-2">
             <Button
