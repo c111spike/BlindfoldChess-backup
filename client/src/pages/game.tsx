@@ -1602,7 +1602,6 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
         onBack={() => setShowGameHistory(false)}
         onViewGame={(game) => {
           setViewingHistoryGame(game);
-          setShowGameHistory(false);
         }}
       />
     );
