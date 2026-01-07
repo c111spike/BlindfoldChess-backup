@@ -699,6 +699,32 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
       setVoiceTranscript(transcript);
       
       const lowerTranscript = transcript.toLowerCase();
+      
+      // Handle resign confirmation dialog voice commands
+      if (showResignConfirm) {
+        if (lowerTranscript.includes("yes") || lowerTranscript.includes("confirm") || lowerTranscript.includes("i confirm")) {
+          // Confirm resignation
+          try {
+            Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+          } catch (e) {}
+          setShowResignConfirm(false);
+          handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
+          setVoiceTranscript(null);
+          return;
+        }
+        if (lowerTranscript.includes("no") || lowerTranscript.includes("cancel") || lowerTranscript.includes("never mind")) {
+          // Cancel resignation
+          try {
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+          } catch (e) {}
+          setShowResignConfirm(false);
+          setVoiceTranscript(null);
+          return;
+        }
+        // If dialog is open but command isn't yes/no, ignore and wait
+        return;
+      }
+      
       if (lowerTranscript.includes("repeat") || lowerTranscript.includes("say again") || lowerTranscript.includes("what was that") || lowerTranscript.includes("again")) {
         if (lastSpokenMove.current && voiceOutputEnabled) {
           isTtsSpeaking.current = true;
@@ -1214,6 +1240,25 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
         if (!gameRef.current) return;
         const moveObj = gameRef.current.move(result.move);
         if (moveObj) {
+          // Track response time for voice moves (universal stamina tracking)
+          if (botMoveTimestampRef.current !== null) {
+            const responseTime = Date.now() - botMoveTimestampRef.current;
+            responseTimesRef.current.push(responseTime);
+            botMoveTimestampRef.current = null;
+          }
+          
+          // Track peek-free streak for voice moves (blindfold only)
+          if (isBlindfold) {
+            if (!peekedSinceLastMoveRef.current) {
+              const newStreak = peekFreeStreak + 1;
+              setPeekFreeStreak(newStreak);
+              if (newStreak > bestPeekFreeStreak) {
+                setBestPeekFreeStreak(newStreak);
+              }
+            }
+            peekedSinceLastMoveRef.current = false;
+          }
+          
           // Haptic feedback for successful voice move (light tap)
           try {
             Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
@@ -1320,7 +1365,7 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
         disambiguationTimeoutRef.current = null;
       }
     };
-  }, [voiceInputEnabled, gameStarted, fen, playerColor, botThinking, pendingPromotion, gameResult, voiceOutputEnabled, toast, handleGameEnd, awaitingDisambiguation, voiceRestartTrigger]);
+  }, [voiceInputEnabled, gameStarted, fen, playerColor, botThinking, pendingPromotion, gameResult, voiceOutputEnabled, toast, handleGameEnd, awaitingDisambiguation, voiceRestartTrigger, showResignConfirm]);
 
   useEffect(() => {
     if (!selectedBot || !gameRef.current) return;
@@ -1419,16 +1464,15 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
       const move = game.move({ from, to, promotion });
       
       if (move) {
-        // Only track visualization performance if Blindfold is active
+        // Track response time for ALL games (universal stamina tracking)
+        if (botMoveTimestampRef.current !== null) {
+          const responseTime = Date.now() - botMoveTimestampRef.current;
+          responseTimesRef.current.push(responseTime);
+          botMoveTimestampRef.current = null;
+        }
+        
+        // Track peek-free streak (blindfold only)
         if (isBlindfold) {
-          // Track response time (time since bot moved)
-          if (botMoveTimestampRef.current !== null) {
-            const responseTime = Date.now() - botMoveTimestampRef.current;
-            responseTimesRef.current.push(responseTime);
-            botMoveTimestampRef.current = null;
-          }
-          
-          // Track peek-free streak
           if (!peekedSinceLastMoveRef.current) {
             const newStreak = peekFreeStreak + 1;
             setPeekFreeStreak(newStreak);

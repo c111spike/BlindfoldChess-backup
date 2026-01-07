@@ -73,11 +73,19 @@ export default function App() {
                     <div className="space-y-2">
                       <h3 className="font-semibold">Query Commands</h3>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li><span className="font-mono text-foreground">"say again"</span> or <span className="font-mono text-foreground">"repeat"</span> - Hear the last move</li>
+                        <li><span className="font-mono text-foreground">"say again"</span> / <span className="font-mono text-foreground">"repeat"</span> / <span className="font-mono text-foreground">"again"</span> - Hear the last move</li>
                         <li><span className="font-mono text-foreground">"what's on e4"</span> - Check what piece is on a square</li>
                         <li><span className="font-mono text-foreground">"where is my queen"</span> - Find your piece locations</li>
-                        <li><span className="font-mono text-foreground">"how much time"</span> or <span className="font-mono text-foreground">"clock"</span> - Hear remaining time</li>
-                        <li><span className="font-mono text-foreground">"resign"</span> - Resign the game</li>
+                        <li><span className="font-mono text-foreground">"how much time"</span> / <span className="font-mono text-foreground">"clock"</span> - Hear remaining time</li>
+                        <li><span className="font-mono text-foreground">"resign"</span> / <span className="font-mono text-foreground">"quit"</span> / <span className="font-mono text-foreground">"give up"</span> - Resign the game</li>
+                      </ul>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="font-semibold">Resign Confirmation</h3>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li><span className="font-mono text-foreground">"yes"</span> / <span className="font-mono text-foreground">"confirm"</span> - Confirm resignation</li>
+                        <li><span className="font-mono text-foreground">"no"</span> / <span className="font-mono text-foreground">"cancel"</span> - Cancel resignation</li>
                       </ul>
                     </div>
                     
@@ -86,8 +94,8 @@ export default function App() {
                       <ul className="space-y-1 text-muted-foreground">
                         <li><span className="font-mono text-foreground">"material"</span> - Hear material balance</li>
                         <li><span className="font-mono text-foreground">"legal moves for knight"</span> - List piece's legal moves</li>
-                        <li><span className="font-mono text-foreground">"show board"</span> or <span className="font-mono text-foreground">"peek"</span> - Show board for 5 seconds</li>
-                        <li><span className="font-mono text-foreground">"evaluate"</span> - Hear engine evaluation</li>
+                        <li><span className="font-mono text-foreground">"show board"</span> / <span className="font-mono text-foreground">"peek"</span> - Show board for 5 seconds</li>
+                        <li><span className="font-mono text-foreground">"evaluate"</span> / <span className="font-mono text-foreground">"eval"</span> - Hear engine evaluation</li>
                       </ul>
                       <p className="text-xs text-muted-foreground/70 mt-1">
                         Note: "show board" and "evaluate" mark the game as assisted

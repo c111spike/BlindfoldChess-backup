@@ -293,6 +293,11 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     const square = parseSquare(normalized);
     const color = parseColor(normalized);
     
+    // If a color is mentioned, update sticky color immediately (even in combined commands like "Black King E8")
+    if (color) {
+      setStickyColor(color);
+    }
+    
     if (pieceType && square) {
       // Use explicit color if provided, otherwise use sticky color
       const finalColor = color || stickyColor;
