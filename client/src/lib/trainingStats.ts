@@ -7,14 +7,17 @@ export interface TrainingSession {
   id: number;
   mode: 'color_blitz' | 'coordinate_sniper';
   score: number;
+  streak: number;
   achievedAt: string;
 }
 
 export interface TrainingStats {
   colorBlitzBest: number | null;
   colorBlitzBestDate: string | null;
+  colorBlitzBestStreak: number | null;
   coordinateSniperBest: number | null;
   coordinateSniperBestDate: string | null;
+  coordinateSniperBestStreak: number | null;
   totalSessions: number;
   recentSessions: TrainingSession[];
 }
@@ -61,11 +64,24 @@ async function doInitTrainingDB(): Promise<boolean> {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         mode TEXT NOT NULL,
         score REAL NOT NULL,
+        streak INTEGER NOT NULL DEFAULT 0,
         achieved_at TEXT NOT NULL
       );
     `;
     
     await db.execute(createTableQuery);
+    
+    // Migration: Add streak column if it doesn't exist (for existing installs)
+    try {
+      const tableInfo = await db.query("PRAGMA table_info(training_stats);");
+      const hasStreakColumn = tableInfo.values?.some((col: { name?: string }) => col.name === 'streak');
+      if (!hasStreakColumn) {
+        await db.execute('ALTER TABLE training_stats ADD COLUMN streak INTEGER NOT NULL DEFAULT 0;');
+        console.log('[TrainingStats] Migrated: Added streak column');
+      }
+    } catch (migrationError) {
+      console.warn('[TrainingStats] Migration check failed:', migrationError);
+    }
     
     console.log('[TrainingStats] Database initialized successfully');
     dbInitialized = true;
@@ -91,7 +107,7 @@ function setLocalStorageSessions(sessions: TrainingSession[]): void {
   localStorage.setItem('blindfold_training_stats', JSON.stringify(sessions));
 }
 
-export async function saveTrainingSession(mode: 'color_blitz' | 'coordinate_sniper', score: number): Promise<number | null> {
+export async function saveTrainingSession(mode: 'color_blitz' | 'coordinate_sniper', score: number, streak: number = 0): Promise<number | null> {
   await initTrainingDB();
   
   const achievedAt = new Date().toISOString();
@@ -100,7 +116,7 @@ export async function saveTrainingSession(mode: 'color_blitz' | 'coordinate_snip
     if (!isNative) {
       const sessions = getLocalStorageSessions();
       const newId = sessions.length > 0 ? Math.max(...sessions.map(s => s.id)) + 1 : 1;
-      const newSession: TrainingSession = { id: newId, mode, score, achievedAt };
+      const newSession: TrainingSession = { id: newId, mode, score, streak, achievedAt };
       sessions.unshift(newSession);
       setLocalStorageSessions(sessions);
       console.log('[TrainingStats] Session saved to localStorage:', newId);
@@ -113,11 +129,11 @@ export async function saveTrainingSession(mode: 'color_blitz' | 'coordinate_snip
     }
 
     const query = `
-      INSERT INTO training_stats (mode, score, achieved_at)
-      VALUES (?, ?, ?);
+      INSERT INTO training_stats (mode, score, streak, achieved_at)
+      VALUES (?, ?, ?, ?);
     `;
     
-    const result = await db.run(query, [mode, score, achievedAt]);
+    const result = await db.run(query, [mode, score, streak, achievedAt]);
     console.log('[TrainingStats] Session saved:', result.changes?.lastId);
     return result.changes?.lastId || null;
   } catch (error) {
@@ -132,8 +148,10 @@ export async function getTrainingStats(): Promise<TrainingStats> {
   const defaultStats: TrainingStats = {
     colorBlitzBest: null,
     colorBlitzBestDate: null,
+    colorBlitzBestStreak: null,
     coordinateSniperBest: null,
     coordinateSniperBestDate: null,
+    coordinateSniperBestStreak: null,
     totalSessions: 0,
     recentSessions: [],
   };
@@ -147,25 +165,33 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       
       let colorBlitzBest: number | null = null;
       let colorBlitzBestDate: string | null = null;
+      let colorBlitzBestStreak: number | null = null;
       if (colorBlitzSessions.length > 0) {
         const best = colorBlitzSessions.reduce((max, s) => s.score > max.score ? s : max);
         colorBlitzBest = best.score;
         colorBlitzBestDate = best.achievedAt;
+        const bestStreak = colorBlitzSessions.reduce((max, s) => (s.streak || 0) > (max.streak || 0) ? s : max);
+        colorBlitzBestStreak = bestStreak.streak || null;
       }
       
       let coordinateSniperBest: number | null = null;
       let coordinateSniperBestDate: string | null = null;
+      let coordinateSniperBestStreak: number | null = null;
       if (sniperSessions.length > 0) {
         const best = sniperSessions.reduce((min, s) => s.score < min.score ? s : min);
         coordinateSniperBest = best.score;
         coordinateSniperBestDate = best.achievedAt;
+        const bestStreak = sniperSessions.reduce((max, s) => (s.streak || 0) > (max.streak || 0) ? s : max);
+        coordinateSniperBestStreak = bestStreak.streak || null;
       }
       
       return {
         colorBlitzBest,
         colorBlitzBestDate,
+        colorBlitzBestStreak,
         coordinateSniperBest,
         coordinateSniperBestDate,
+        coordinateSniperBestStreak,
         totalSessions: sessions.length,
         recentSessions: sessions.slice(0, 10),
       };
@@ -175,43 +201,57 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       return defaultStats;
     }
 
-    const colorBlitzQuery = `
-      SELECT MAX(score) as best_score, achieved_at
+    const colorBlitzBestQuery = `
+      SELECT score as best_score, achieved_at
       FROM training_stats
       WHERE mode = 'color_blitz'
-      GROUP BY mode
       ORDER BY score DESC
       LIMIT 1;
     `;
     
-    const sniperQuery = `
-      SELECT MIN(score) as best_time, achieved_at
+    const colorBlitzStreakQuery = `
+      SELECT MAX(streak) as best_streak
+      FROM training_stats
+      WHERE mode = 'color_blitz';
+    `;
+    
+    const sniperBestQuery = `
+      SELECT score as best_time, achieved_at
       FROM training_stats
       WHERE mode = 'coordinate_sniper'
-      GROUP BY mode
       ORDER BY score ASC
       LIMIT 1;
+    `;
+    
+    const sniperStreakQuery = `
+      SELECT MAX(streak) as best_streak
+      FROM training_stats
+      WHERE mode = 'coordinate_sniper';
     `;
     
     const countQuery = `SELECT COUNT(*) as total FROM training_stats;`;
     
     const recentQuery = `
-      SELECT id, mode, score, achieved_at as achievedAt
+      SELECT id, mode, score, streak, achieved_at as achievedAt
       FROM training_stats
       ORDER BY achieved_at DESC
       LIMIT 10;
     `;
     
-    const colorResult = await db.query(colorBlitzQuery);
-    const sniperResult = await db.query(sniperQuery);
+    const colorResult = await db.query(colorBlitzBestQuery);
+    const colorStreakResult = await db.query(colorBlitzStreakQuery);
+    const sniperResult = await db.query(sniperBestQuery);
+    const sniperStreakResult = await db.query(sniperStreakQuery);
     const countResult = await db.query(countQuery);
     const recentResult = await db.query(recentQuery);
     
     return {
       colorBlitzBest: colorResult.values?.[0]?.best_score || null,
       colorBlitzBestDate: colorResult.values?.[0]?.achieved_at || null,
+      colorBlitzBestStreak: colorStreakResult.values?.[0]?.best_streak || null,
       coordinateSniperBest: sniperResult.values?.[0]?.best_time || null,
       coordinateSniperBestDate: sniperResult.values?.[0]?.achieved_at || null,
+      coordinateSniperBestStreak: sniperStreakResult.values?.[0]?.best_streak || null,
       totalSessions: countResult.values?.[0]?.total || 0,
       recentSessions: (recentResult.values || []) as TrainingSession[],
     };
@@ -237,4 +277,23 @@ export function getTodaySessionCount(): number {
 
 export function isDailyGoalMet(): boolean {
   return getTodaySessionCount() >= 2;
+}
+
+export async function resetTrainingStats(): Promise<void> {
+  await initTrainingDB();
+  
+  try {
+    if (!isNative) {
+      localStorage.removeItem('blindfold_training_stats');
+      console.log('[TrainingStats] LocalStorage training stats cleared');
+      return;
+    }
+    
+    if (db) {
+      await db.execute('DELETE FROM training_stats;');
+      console.log('[TrainingStats] Database training stats cleared');
+    }
+  } catch (error) {
+    console.error('[TrainingStats] Failed to reset stats:', error);
+  }
 }

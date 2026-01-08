@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Eye, Brain, Target, TrendingUp, TrendingDown, Mic, Hand, Clock, Grid3X3, Trophy, AlertTriangle, Lightbulb, CheckCircle, Dumbbell, Zap } from "lucide-react";
+import { Eye, Brain, Target, TrendingUp, TrendingDown, Mic, Hand, Clock, Grid3X3, Trophy, AlertTriangle, Lightbulb, CheckCircle, Dumbbell, Zap, Flame } from "lucide-react";
 import type { GameStats, Insight } from "@/lib/gameStats";
 import { getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
 import {
@@ -569,6 +569,16 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
                     <span className="text-sm text-muted-foreground">correct</span>
                   </div>
                 </div>
+                {trainingStats.colorBlitzBestStreak !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Best Streak</span>
+                    <div className="flex items-center gap-2">
+                      <Flame className="h-4 w-4 text-orange-500" />
+                      <span className="text-lg font-bold text-orange-500">{trainingStats.colorBlitzBestStreak}</span>
+                      <span className="text-sm text-muted-foreground">in a row</span>
+                    </div>
+                  </div>
+                )}
                 {trainingStats.colorBlitzBestDate && (
                   <p className="text-xs text-muted-foreground text-right">
                     Achieved {new Date(trainingStats.colorBlitzBestDate).toLocaleDateString()}
@@ -610,6 +620,16 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
                     <span className="text-2xl font-bold text-blue-500">{formatTrainingTime(trainingStats.coordinateSniperBest)}</span>
                   </div>
                 </div>
+                {trainingStats.coordinateSniperBestStreak !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Best Streak</span>
+                    <div className="flex items-center gap-2">
+                      <Flame className="h-4 w-4 text-orange-500" />
+                      <span className="text-lg font-bold text-orange-500">{trainingStats.coordinateSniperBestStreak}</span>
+                      <span className="text-sm text-muted-foreground">in a row</span>
+                    </div>
+                  </div>
+                )}
                 {trainingStats.coordinateSniperBestDate && (
                   <p className="text-xs text-muted-foreground text-right">
                     Achieved {new Date(trainingStats.coordinateSniperBestDate).toLocaleDateString()}

@@ -48,18 +48,18 @@ export default function TrainingPage({ onBack }: TrainingPageProps) {
     getTrainingStats().then(setStats);
   }, [mode]);
 
-  const handleGameComplete = async (gameMode: 'color_blitz' | 'coordinate_sniper', score: number) => {
-    await saveTrainingSession(gameMode, score);
+  const handleGameComplete = async (gameMode: 'color_blitz' | 'coordinate_sniper', score: number, streak: number) => {
+    await saveTrainingSession(gameMode, score, streak);
     setStats(await getTrainingStats());
     window.dispatchEvent(new CustomEvent('trainingStatsUpdated'));
   };
 
   if (mode === 'color_blitz') {
-    return <ColorBlitzGame onBack={() => setMode('menu')} onComplete={(score) => handleGameComplete('color_blitz', score)} stats={stats} />;
+    return <ColorBlitzGame onBack={() => setMode('menu')} onComplete={(score, streak) => handleGameComplete('color_blitz', score, streak)} stats={stats} />;
   }
 
   if (mode === 'coordinate_sniper') {
-    return <CoordinateSniperGame onBack={() => setMode('menu')} onComplete={(score) => handleGameComplete('coordinate_sniper', score)} stats={stats} />;
+    return <CoordinateSniperGame onBack={() => setMode('menu')} onComplete={(score, streak) => handleGameComplete('coordinate_sniper', score, streak)} stats={stats} />;
   }
 
   return (
@@ -130,7 +130,7 @@ export default function TrainingPage({ onBack }: TrainingPageProps) {
 
 interface ColorBlitzGameProps {
   onBack: () => void;
-  onComplete: (score: number) => void;
+  onComplete: (score: number, streak: number) => void;
   stats: TrainingStats | null;
 }
 
@@ -139,6 +139,7 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
   const [currentSquare, setCurrentSquare] = useState(() => getRandomSquare());
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [voiceMode, setVoiceMode] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -148,6 +149,7 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
     setGameState('playing');
     setScore(0);
     setStreak(0);
+    setBestStreak(0);
     setTimeLeft(60);
     setCurrentSquare(getRandomSquare());
   };
@@ -171,9 +173,9 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
 
   useEffect(() => {
     if (gameState === 'finished') {
-      onComplete(score);
+      onComplete(score, bestStreak);
     }
-  }, [gameState, score, onComplete]);
+  }, [gameState, score, bestStreak, onComplete]);
 
   const handleAnswer = useCallback((answer: 'light' | 'dark') => {
     if (gameState !== 'playing') return;
@@ -184,6 +186,7 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
       setScore(prev => prev + 1);
       setStreak(prev => {
         const newStreak = prev + 1;
+        setBestStreak(best => Math.max(best, newStreak));
         if (newStreak === 10) {
           Haptics.notification({ type: NotificationType.Success }).catch(() => {});
         } else {
@@ -324,7 +327,7 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
 
 interface CoordinateSniperGameProps {
   onBack: () => void;
-  onComplete: (score: number) => void;
+  onComplete: (score: number, streak: number) => void;
   stats: TrainingStats | null;
 }
 
@@ -332,6 +335,8 @@ function CoordinateSniperGame({ onBack, onComplete, stats }: CoordinateSniperGam
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'finished'>('ready');
   const [currentSquare, setCurrentSquare] = useState(() => getRandomSquare());
   const [foundCount, setFoundCount] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
   const [startTime, setStartTime] = useState<number>(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [flashSquare, setFlashSquare] = useState<{ square: string; correct: boolean } | null>(null);
@@ -342,6 +347,8 @@ function CoordinateSniperGame({ onBack, onComplete, stats }: CoordinateSniperGam
   const startGame = () => {
     setGameState('playing');
     setFoundCount(0);
+    setStreak(0);
+    setBestStreak(0);
     setStartTime(Date.now());
     setElapsedTime(0);
     const sq = getRandomSquare();
@@ -374,11 +381,16 @@ function CoordinateSniperGame({ onBack, onComplete, stats }: CoordinateSniperGam
       const newCount = foundCount + 1;
       setFoundCount(newCount);
       
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      const updatedBestStreak = Math.max(bestStreak, newStreak);
+      setBestStreak(updatedBestStreak);
+      
       if (newCount >= totalSquares) {
         const finalTime = Date.now() - startTime;
         setElapsedTime(finalTime);
         setGameState('finished');
-        onComplete(finalTime);
+        onComplete(finalTime, updatedBestStreak);
         speak("Complete!");
       } else {
         setTimeout(() => {
@@ -393,6 +405,7 @@ function CoordinateSniperGame({ onBack, onComplete, stats }: CoordinateSniperGam
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       setFlashSquare({ square: clickedSquare, correct: false });
       setCorrectSquareFlash(targetSquare);
+      setStreak(0);
       speak(`No, that's ${clickedFile} ${clickedRank}`);
       
       setTimeout(() => {
@@ -400,7 +413,7 @@ function CoordinateSniperGame({ onBack, onComplete, stats }: CoordinateSniperGam
         setCorrectSquareFlash(null);
       }, 1000);
     }
-  }, [gameState, currentSquare, foundCount, startTime, onComplete]);
+  }, [gameState, currentSquare, foundCount, streak, bestStreak, startTime, onComplete]);
 
   if (gameState === 'ready') {
     return (
