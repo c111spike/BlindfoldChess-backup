@@ -335,15 +335,38 @@ async function waitForTTSCompletion(): Promise<void> {
   }
 }
 
+// Phonetic mapping for TTS clarity - prevents "a" sounding like "uh"
+function toPhonetic(text: string): string {
+  // Map chess file letters to clearer pronunciations
+  const phoneticMap: Record<string, string> = {
+    'a': 'Ay',
+    'b': 'Bee', 
+    'c': 'See',
+    'd': 'Dee',
+    'g': 'Gee'
+  };
+  
+  // Replace standalone file letters followed by ranks (e.g., "a 8" -> "Ay 8")
+  let result = text;
+  for (const [letter, phonetic] of Object.entries(phoneticMap)) {
+    // Match "Find a 8" or "a8" patterns - letter followed by space and digit, or letter followed by digit
+    result = result.replace(new RegExp(`\\b${letter}\\s*(\\d)`, 'gi'), `${phonetic} $1`);
+  }
+  return result;
+}
+
 export async function speak(text: string, rate: number = 0.9): Promise<void> {
   isBotSpeaking = true;
   abortRecognitionIfReady();
   console.log('[Voice] Mic muted: Bot is speaking');
   
+  // Apply phonetic mapping for clearer TTS pronunciation
+  const phoneticText = toPhonetic(text);
+  
   try {
     if (isNative) {
       await CapacitorSpeechSynthesis.speak({
-        text,
+        text: phoneticText,
         language: 'en-US',
         rate,
         pitch: 1.0,
@@ -372,7 +395,7 @@ export async function speak(text: string, rate: number = 0.9): Promise<void> {
       console.log('[Voice] Loaded voices:', voices.length);
       
       await new Promise<void>((resolve) => {
-        const utterance = new SpeechSynthesisUtterance(text);
+        const utterance = new SpeechSynthesisUtterance(phoneticText);
         utterance.rate = rate;
         utterance.pitch = 1;
         utterance.volume = 1;
@@ -394,7 +417,7 @@ export async function speak(text: string, rate: number = 0.9): Promise<void> {
           resolve();
         };
         
-        console.log('[Voice] Speaking:', text);
+        console.log('[Voice] Speaking:', phoneticText);
         window.speechSynthesis.speak(utterance);
       });
     }
