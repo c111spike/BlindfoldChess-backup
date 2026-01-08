@@ -51,7 +51,14 @@ export default function App() {
       window.dispatchEvent(new CustomEvent('closeAllDialogs'));
       return;
     }
-    // Show confirmation dialog
+    if (gameViewState === 'setup') {
+      // On setup screen - just go back to title, no confirmation needed
+      if (returnToTitleRef.current) {
+        returnToTitleRef.current();
+      }
+      return;
+    }
+    // Show confirmation dialog for in_game and reconstruction
     setShowReturnConfirm(true);
   };
 

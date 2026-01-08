@@ -115,7 +115,7 @@ type BlindFoldDifficulty = keyof typeof BLINDFOLD_CONFIG;
 type TimeControlOption = "practice" | "blitz" | "rapid" | "classical";
 type BlindFoldDisplayMode = "empty_board" | "black_overlay" | "no_board";
 
-export type GameViewState = 'idle' | 'in_game' | 'reconstruction' | 'analysis';
+export type GameViewState = 'idle' | 'setup' | 'in_game' | 'reconstruction' | 'analysis';
 
 interface GamePageProps {
   historyTrigger?: number;
@@ -351,10 +351,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       onStateChange('analysis');
     } else if (gameStarted && !gameResult) {
       onStateChange('in_game');
+    } else if (!showTitleScreen) {
+      // On setup/configuration screen but game hasn't started
+      onStateChange('setup');
     } else {
       onStateChange('idle');
     }
-  }, [showReconstruction, showAnalysis, gameStarted, gameResult, onStateChange]);
+  }, [showReconstruction, showAnalysis, gameStarted, gameResult, showTitleScreen, onStateChange]);
 
   // Expose returnToTitle function to parent
   const returnToTitle = useCallback(() => {
