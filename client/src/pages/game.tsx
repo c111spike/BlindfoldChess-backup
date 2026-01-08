@@ -381,13 +381,13 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
       const pgn = gameRef.current?.pgn() || "";
       const gameToSave = {
         date: new Date().toISOString(),
-        result: statsResult,
+        result: statsResult as "win" | "loss" | "draw",
         playerColor,
-        botName: selectedBot.name,
+        botName: String(selectedBot.elo),
         botElo: selectedBot.elo,
         moveCount: totalMoves,
         pgn,
-        clarityScore,
+        clarityScore: clarityScore ?? 0,
         isFavorite: false,
         timeControl: timeControl
       };
