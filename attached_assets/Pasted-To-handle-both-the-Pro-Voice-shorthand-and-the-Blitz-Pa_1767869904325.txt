@@ -1,0 +1,84 @@
+To handle both the "Pro Voice" shorthand and the "Blitz Panic" tapping, your implementation needs to be a State-Driven Promotion Handler.
+
+Here is how you would structure the logic to ensure the bot, the UI, and Stockfish stay perfectly synced.
+
+1. The "Pending" State
+You need a way to track if the app is waiting for a piece selection.
+
+TypeScript
+
+// In your Game State
+interface PromotionState {
+  from: string;
+  to: string;
+  isWaiting: boolean;
+}
+
+const [pendingPromotion, setPendingPromotion] = useState<PromotionState | null>(null);
+2. The Voice Logic (The "Hybrid" Parser)
+Your voice processor needs to look for the promotion piece immediately or ask for it if it's missing.
+
+TypeScript
+
+const handleVoiceMove = (command: string) => {
+  // 1. Check if command includes a piece (e.g., "e8 queen")
+  const promotionMatch = command.match(/(queen|rook|knight|bishop)$/i);
+  
+  if (promotionMatch) {
+    const pieceChar = promotionMatch[0][0].toLowerCase(); // 'q', 'r', 'n', 'b'
+    executeMove(from, to, pieceChar); // Direct to Stockfish
+  } else {
+    // 2. If it's a pawn move to the back rank but NO piece mentioned
+    if (isPromotionSquare(to)) {
+      setPendingPromotion({ from, to, isWaiting: true });
+      speak("Which piece would you like?"); // Trigger the prompt
+    }
+  }
+};
+3. The UI Logic (The "Blitz" Pop-up)
+This component appears whenever pendingPromotion.isWaiting is true. It stays above any blindfold overlays.
+
+TypeScript
+
+{pendingPromotion?.isWaiting && (
+  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="bg-gray-800 p-6 rounded-xl border-2 border-primary-500 flex gap-4">
+      {['q', 'r', 'b', 'n'].map((p) => (
+        <button 
+          key={p}
+          className="w-16 h-16 bg-gray-700 rounded-lg hover:bg-primary-600 active:scale-95 transition-all"
+          onClick={() => handlePromotionSelection(p)}
+        >
+          <img src={`/assets/pieces/w${p.toUpperCase()}.svg`} alt={p} />
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+4. Completing the Move
+Whether the user speaks "Queen" or taps the Queen icon, the same final function is called:
+
+TypeScript
+
+const handlePromotionSelection = (pieceChar: string) => {
+  const moveUCI = `${pendingPromotion.from}${pendingPromotion.to}${pieceChar}`;
+  
+  // 1. Tell Stockfish
+  stockfish.postMessage(`go nodes ${nodes} move ${moveUCI}`); 
+  
+  // 2. Audio Confirmation
+  const pieceName = getFullName(pieceChar);
+  speak(`Promoted to ${pieceName}.`);
+  
+  // 3. Cleanup
+  setPendingPromotion(null);
+};
+📊 Why this works for the S10+ User:
+Voice Users: They can say "e8 Queen" and the move happens instantly without the UI even blinking.
+
+Blitz Users: If they tap the pawn to e8, the icons pop up instantly. Because the buttons are w-16 h-16 (64px), they are easy to hit with a thumb during a time scramble.
+
+Blindfold Integrity: The audio confirmation ("Promoted to Queen") ensures the player's mental board stays updated even if they aren't looking at the screen.
+
+📋 One Final S10+ Optimization
+When the promotion dialog appears, you might want to trigger a Haptic Vibration (Haptics.vibrate()). In a 5-minute game, that physical "buzz" tells the user "I need you to pick a piece now" without them having to look down if they are deep in thought.

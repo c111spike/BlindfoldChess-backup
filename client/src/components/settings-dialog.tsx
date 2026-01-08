@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Mic, MicOff, Bell, BellOff, ExternalLink } from "lucide-react";
+import { Settings, Mic, MicOff, Bell, BellOff, ExternalLink, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -13,17 +13,21 @@ import {
 } from "@/components/ui/dialog";
 import { Capacitor } from "@capacitor/core";
 import { checkMicPermission, requestMicPermission, type MicPermissionStatus } from "@/lib/voice";
-import { getToastsEnabled, setToastsEnabled } from "@/hooks/use-toast";
+import { getToastsEnabled, setToastsEnabled, useToast } from "@/hooks/use-toast";
+import { loadSettings, saveSettings, type BlindfoldSettings } from "@/lib/gameStats";
 
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
   const [micStatus, setMicStatus] = useState<MicPermissionStatus>('unknown');
   const [isRequestingMic, setIsRequestingMic] = useState(false);
   const [toastsEnabled, setToastsEnabledState] = useState(getToastsEnabled());
+  const [blindfoldSettings, setBlindFoldSettings] = useState<BlindfoldSettings>(loadSettings);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
       checkMicPermission().then(setMicStatus);
+      setBlindFoldSettings(loadSettings());
     }
   }, [open]);
 
@@ -113,6 +117,38 @@ export function SettingsDialog() {
             <p className="text-xs text-muted-foreground">
               Show brief pop-up messages for game events
             </p>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="font-semibold">Display</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4 text-muted-foreground" />
+                <div className="flex flex-col">
+                  <Label htmlFor="keep-awake-toggle" className="text-sm">
+                    Keep Screen Awake
+                  </Label>
+                  <span className="text-xs text-muted-foreground">Prevents auto-sleep during games</span>
+                </div>
+              </div>
+              <Switch
+                id="keep-awake-toggle"
+                checked={blindfoldSettings.keepAwakeEnabled}
+                onCheckedChange={(checked) => {
+                  const newSettings = { ...blindfoldSettings, keepAwakeEnabled: checked };
+                  setBlindFoldSettings(newSettings);
+                  saveSettings(newSettings);
+                  // Emit event to notify GamePage of settings change
+                  window.dispatchEvent(new CustomEvent('blindfoldSettingsChanged', { detail: newSettings }));
+                  toast({
+                    title: checked ? "Screen will stay active" : "Screen may auto-sleep",
+                    description: checked ? "Screen will stay active during matches" : "Normal screen timeout restored",
+                  });
+                }}
+                data-testid="switch-keep-awake"
+                className="data-[state=checked]:bg-amber-400"
+              />
+            </div>
           </div>
 
           <div className="space-y-3">

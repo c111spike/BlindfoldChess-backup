@@ -497,6 +497,15 @@ export function speechToMove(transcript: string, legalMoves: string[]): string |
     }
   }
   
+  // Shorthand promotion: detect piece at end of command when target is rank 1 or 8
+  // e.g. "e8 queen", "d1 knight", "takes d8 rook"
+  if (!promotion && (targetRank === '1' || targetRank === '8')) {
+    const lastWord = words[words.length - 1].toLowerCase();
+    if (['queen', 'rook', 'bishop', 'knight'].includes(lastWord)) {
+      promotion = PIECE_LETTERS[lastWord] || 'Q';
+    }
+  }
+  
   if (!targetFile || !targetRank) {
     return null;
   }
@@ -636,6 +645,15 @@ export function speechToMoveWithAmbiguity(transcript: string, legalMoves: string
       }
       targetFile = match[1].toLowerCase();
       targetRank = match[2];
+    }
+  }
+  
+  // Shorthand promotion: detect piece at end of command when target is rank 1 or 8
+  // e.g. "e8 queen", "d1 knight", "takes d8 rook"
+  if (!promotion && (targetRank === '1' || targetRank === '8')) {
+    const lastWord = words[words.length - 1].toLowerCase();
+    if (['queen', 'rook', 'bishop', 'knight'].includes(lastWord)) {
+      promotion = PIECE_LETTERS[lastWord] || 'Q';
     }
   }
   

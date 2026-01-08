@@ -194,6 +194,20 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     initGameHistoryDB();
   }, []);
   
+  // Listen for settings changes from Settings dialog
+  useEffect(() => {
+    const handleSettingsChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<BlindfoldSettings>;
+      if (customEvent.detail) {
+        setBlindFoldSettings(customEvent.detail);
+      }
+    };
+    window.addEventListener('blindfoldSettingsChanged', handleSettingsChanged);
+    return () => {
+      window.removeEventListener('blindfoldSettingsChanged', handleSettingsChanged);
+    };
+  }, []);
+  
   const [selectedBot, setSelectedBot] = useState<BotProfile | null>(null);
   const [botThinking, setBotThinking] = useState(false);
   const [extendedThinking, setExtendedThinking] = useState(false);
@@ -1129,6 +1143,27 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       if ((lowerTranscript.includes("show") && lowerTranscript.includes("board")) || 
           lowerTranscript === "peek" || lowerTranscript === "peak" ||
           lowerTranscript === "show") {
+        // Block peeking in No Board mode or Grandmaster difficulty
+        if (blindfoldDisplayMode === "no_board" || blindfoldDifficulty === "grandmaster") {
+          if (voiceOutputEnabled) {
+            isTtsSpeaking.current = true;
+            await voiceRecognition.stopAndWait();
+            try {
+              await speak("Peeking is not allowed in this mode");
+            } catch (e) {
+              console.error('[Voice] TTS error:', e);
+            } finally {
+              isTtsSpeaking.current = false;
+              setVoiceRestartTrigger(prev => prev + 1);
+            }
+          } else {
+            // Restart voice recognition even when TTS is off
+            setVoiceRestartTrigger(prev => prev + 1);
+          }
+          setVoiceTranscript(null);
+          return;
+        }
+        
         // Haptic confirmation
         try {
           Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
@@ -1899,23 +1934,6 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
                 />
               </div>
               
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-0.5">
-                  <Label htmlFor="keep-awake-toggle" className="text-sm">Keep Screen Awake</Label>
-                  <span className="text-xs text-muted-foreground">Prevents auto-sleep during games</span>
-                </div>
-                <Switch
-                  id="keep-awake-toggle"
-                  checked={blindfoldSettings.keepAwakeEnabled}
-                  onCheckedChange={(checked) => {
-                    const newSettings = { ...blindfoldSettings, keepAwakeEnabled: checked };
-                    setBlindFoldSettings(newSettings);
-                    saveSettings(newSettings);
-                  }}
-                  className="data-[state=checked]:bg-amber-400 data-[state=unchecked]:bg-white border border-stone-300"
-                  data-testid="switch-keep-awake"
-                />
-              </div>
             </div>
             
             <div className="space-y-2">
