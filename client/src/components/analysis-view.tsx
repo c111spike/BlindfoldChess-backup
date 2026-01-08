@@ -200,13 +200,17 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
             fen: game.fen(),
             lastMove: { from: move.from, to: move.to }
           });
+        } else {
+          console.warn(`[Analysis] Move returned null at index ${i}: ${moveHistory[i]}`);
+          // Continue processing remaining moves
         }
       } catch (error) {
-        console.error(`[Analysis] Invalid move at index ${i}: ${moveHistory[i]}`, error);
-        // Stop processing on error
-        break;
+        console.warn(`[Analysis] Skipping invalid move at index ${i}: ${moveHistory[i]}`, error);
+        // Continue processing remaining moves - don't break the loop
       }
     }
+    
+    console.log(`[Analysis] Built ${data.length} positions from ${moveHistory.length} moves`);
     
     return data;
   }, [moveHistory]);
@@ -258,6 +262,9 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
           setAnalysisProgress(Math.round(((i + 1) / totalPositions) * 100));
           setAnalysisResults(new Map(results));
         }
+        
+        // Yield to UI thread to prevent browser/Android ANR (App Not Responding)
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
       
       // Only update final state if not aborted

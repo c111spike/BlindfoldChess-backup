@@ -19,11 +19,14 @@ function parsePgnToMoves(pgn: string): string[] {
   const regex = /\d+\.\s*(\S+)(?:\s+(\S+))?/g;
   let match;
   
+  // Game result markers to exclude (not moves)
+  const resultMarkers = ['1-0', '0-1', '1/2-1/2', '*'];
+  
   while ((match = regex.exec(pgn)) !== null) {
-    if (match[1] && match[1] !== '*' && !match[1].includes('-')) {
+    if (match[1] && !resultMarkers.includes(match[1])) {
       moves.push(match[1]);
     }
-    if (match[2] && match[2] !== '*' && !match[2].includes('-')) {
+    if (match[2] && !resultMarkers.includes(match[2])) {
       moves.push(match[2]);
     }
   }
