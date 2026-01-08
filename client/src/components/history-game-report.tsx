@@ -150,7 +150,7 @@ export function HistoryGameReport({ game, open, onClose, onAnalyze }: HistoryGam
                 <p className="font-medium mt-1">{game.timeControl}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">Clarity Score</span>
+                <span className="text-muted-foreground">Reconstruction Score</span>
                 <p className="font-medium mt-1">{Math.round(game.clarityScore)}%</p>
               </div>
             </div>

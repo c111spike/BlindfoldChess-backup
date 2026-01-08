@@ -178,6 +178,9 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   // Sticky color for hybrid voice/touch input - defaults to white
   const [stickyColor, setStickyColor] = useState<'w' | 'b'>('w');
   
+  // Ref to avoid stale closure in voice command callback
+  const stickyColorRef = useRef<'w' | 'b'>('w');
+  
   // Track recently voice-placed squares for animation
   const [recentVoicePlacements, setRecentVoicePlacements] = useState<Set<string>>(new Set());
   
@@ -191,6 +194,11 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   const isRestartingRef = useRef(false);
   
   const actualBoard = fenToBoard(actualFen);
+  
+  // Keep ref in sync with state to avoid stale closures in voice callbacks
+  useEffect(() => {
+    stickyColorRef.current = stickyColor;
+  }, [stickyColor]);
   
   const squareToIndices = useCallback((file: string, rank: string): { row: number; col: number } => {
     const col = file.charCodeAt(0) - 'a'.charCodeAt(0);
@@ -208,6 +216,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     // Update sticky color based on the piece color just placed
     const pieceColor = piece.charAt(0) as 'w' | 'b';
     setStickyColor(pieceColor);
+    stickyColorRef.current = pieceColor;
     
     if (isVoice) {
       voicePlacementsRef.current++;
@@ -261,10 +270,12 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     // Handle color switching commands - "switch to white/black" or just "white/black"
     if (normalized === 'white' || normalized === 'switch to white' || normalized === 'white pieces') {
       setStickyColor('w');
+      stickyColorRef.current = 'w';
       return;
     }
     if (normalized === 'black' || normalized === 'switch to black' || normalized === 'black pieces') {
       setStickyColor('b');
+      stickyColorRef.current = 'b';
       return;
     }
     
@@ -296,17 +307,18 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     // If a color is mentioned, update sticky color immediately (even in combined commands like "Black King E8")
     if (color) {
       setStickyColor(color);
+      stickyColorRef.current = color;
     }
     
     if (pieceType && square) {
-      // Use explicit color if provided, otherwise use sticky color
-      const finalColor = color || stickyColor;
+      // Use explicit color if provided, otherwise use sticky color from ref (avoids stale closure)
+      const finalColor = color || stickyColorRef.current;
       const piece = finalColor + pieceType;
       const { row, col } = squareToIndices(square.file, square.rank);
       placePiece(piece, row, col, true);
       setDisambiguation(null);
     }
-  }, [disambiguation, squareToIndices, placePiece, removePiece, stickyColor]);
+  }, [disambiguation, squareToIndices, placePiece, removePiece]);
   
   const startListening = useCallback(async () => {
     if (submitted) return;

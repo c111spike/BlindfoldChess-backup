@@ -230,7 +230,7 @@ export function PostMortemReport({
               <CardContent className="p-3 text-center">
                 <Brain className="h-5 w-5 mx-auto mb-1 text-amber-500" />
                 <p className="text-2xl font-bold text-amber-500">{clarityScore}%</p>
-                <p className="text-xs text-muted-foreground">Clarity Score</p>
+                <p className="text-xs text-muted-foreground">Reconstruction Score</p>
               </CardContent>
             </Card>
             
