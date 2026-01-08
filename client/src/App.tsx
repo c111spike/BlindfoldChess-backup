@@ -149,7 +149,11 @@ export default function App() {
             </div>
             <button
               onClick={handleTitleClick}
-              className={`text-lg font-bold text-foreground text-center whitespace-nowrap bg-transparent border-none cursor-pointer hover:text-primary transition-colors ${gameViewState === 'idle' ? 'cursor-default hover:text-foreground' : ''}`}
+              className={`text-lg font-bold text-center whitespace-nowrap cursor-pointer transition-colors bg-transparent border-none p-0 m-0 font-inherit text-inherit outline-none select-none ${gameViewState === 'idle' ? 'cursor-default text-foreground' : 'text-foreground hover:text-primary'}`}
+              style={{
+                WebkitTapHighlightColor: 'transparent',
+                WebkitTouchCallout: 'none',
+              }}
               data-testid="button-title-home"
             >
               Blindfold Chess
