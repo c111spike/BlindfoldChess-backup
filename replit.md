@@ -40,6 +40,15 @@ The platform prioritizes authenticity for OTB play, memory training for blindfol
 - **Blindfold Challenge**: Memory and visualization training with a press-and-hold peek system.
 - **Simul Mode**: Multi-board management training for simultaneous exhibitions.
 
+### Training Gym (Coordinate Drills)
+Dedicated training page (`client/src/pages/training.tsx`) with two mini-games for coordinate mastery:
+- **Color Blitz**: 60-second timed mode - identify Light/Dark square colors as fast as possible. Uses parity formula: `(fileIndex + rankIndex) % 2 === 0` → Dark. Tracks streak with special haptics at 10-streak milestone.
+- **Coordinate Sniper**: Find 10 squares as fast as possible. Voice announces target squares, tap detection with green/red flash feedback, correction loop with voice. Lower times are better.
+- **Training Stats** (`client/src/lib/trainingStats.ts`): SQLite table with localStorage fallback. Tracks personal bests and session history.
+- **Trophy Tiers**: Color Blitz (Gold 40+, Silver 20+), Coordinate Sniper (Gold ≤10s, Silver ≤20s)
+- **Stats Dashboard Training Tab**: 4th tab shows personal bests with trophy badges
+- **Daily Goals**: Toggle in Settings with localStorage persistence
+
 ### Bot Engine
 A hybrid client-side bot engine leveraging Lichess opening database, Stockfish WASM, and custom minimax with personality-aware move selection. Supports 8 Elo levels (400-2500) and 7 distinct personalities (Fortress Defender, Positional Grandmaster, Bishop Specialist, Knight Specialist, Tal Attacker, Tactician, Balanced). Features tiered checkmate vision and draw-seeking behavior. Includes a human-like move delay system.
 
