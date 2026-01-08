@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Info, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,13 @@ const openExternalLink = async (url: string) => {
 
 export function AboutDialog() {
   const [open, setOpen] = useState(false);
+
+  // Listen for closeAllDialogs event from title click
+  useEffect(() => {
+    const handleCloseAll = () => setOpen(false);
+    window.addEventListener('closeAllDialogs', handleCloseAll);
+    return () => window.removeEventListener('closeAllDialogs', handleCloseAll);
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

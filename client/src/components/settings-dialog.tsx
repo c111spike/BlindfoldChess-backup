@@ -27,6 +27,13 @@ export function SettingsDialog() {
     }
   }, [open]);
 
+  // Listen for closeAllDialogs event from title click
+  useEffect(() => {
+    const handleCloseAll = () => setOpen(false);
+    window.addEventListener('closeAllDialogs', handleCloseAll);
+    return () => window.removeEventListener('closeAllDialogs', handleCloseAll);
+  }, []);
+
   const handleMicRequest = async () => {
     setIsRequestingMic(true);
     try {

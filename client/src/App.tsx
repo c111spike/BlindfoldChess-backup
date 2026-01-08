@@ -45,7 +45,10 @@ export default function App() {
 
   const handleTitleClick = () => {
     if (gameViewState === 'idle') {
-      // Already on title, do nothing
+      // Already on title - close any open dialogs and return to clean title screen
+      setShowVoiceHelpDialog(false);
+      setShowStatsDialog(false);
+      window.dispatchEvent(new CustomEvent('closeAllDialogs'));
       return;
     }
     // Show confirmation dialog
