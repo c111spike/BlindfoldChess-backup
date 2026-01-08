@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { BarChart3, RefreshCw, Mic, History, Dumbbell } from "lucide-react";
+import { BarChart3, RefreshCw, Mic, History } from "lucide-react";
 import { loadStats, resetStats, type GameStats } from "@/lib/gameStats";
 import { StatsDashboard } from "@/components/stats-dashboard";
 import GamePage, { type GameViewState } from "@/pages/game";
@@ -172,14 +172,6 @@ export default function App() {
               Blindfold Chess
             </button>
             <div className="flex items-center gap-1 justify-end">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowTraining(true)}
-                data-testid="button-training"
-              >
-                <Dumbbell className="h-5 w-5" />
-              </Button>
               <Button
                 variant="ghost"
                 size="icon"
