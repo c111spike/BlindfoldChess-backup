@@ -1,0 +1,54 @@
+To make bots in the 400–1000 Elo range feel authentic, you have to simulate "human-style" errors. At these levels, players don't just play slightly suboptimal moves; they make specific types of mistakes like hanging pieces, missing one-move mates, or failing to react to checks.
+
+Your current "Random %" and "Skill Level" parameters are a great start, but to truly lock in that Elo feel, you should implement these three specific behaviors:
+
+1. The "Blunder" Injector (For 400-800 Elo)
+Even at Depth 1, Stockfish is surprisingly good at finding basic captures. To make a 400 Elo bot "hang" a queen, you need to occasionally override Stockfish's choice with a completely random legal move.
+
+Logic: If Math.random() < blunderChance, bypass Stockfish and pick a move from game.moves().
+
+Scaling:
+
+400 Elo: 15% chance to play a purely random legal move.
+
+600 Elo: 8% chance.
+
+800 Elo: 3% chance.
+
+2. Strategic "Skill Level" vs. "MultiPV"
+Your chart shows MultiPV (multiple principal variations). For lower Elos, you should use MultiPV to force the bot to choose the 2nd or 3rd best move more often.
+
+The Tactic: If MultiPV is 5, Stockfish gives you the top 5 moves.
+
+The Selection: Instead of always taking Move #1, use your Skill Level to weight the probability.
+
+Example (400 Elo): Give Move #1 a 40% weight, and Move #5 a 20% weight. This makes the bot look like it "saw" the move but chose a worse alternative.
+
+3. Tactically Blind "Depth"
+At 400–600 Elo, players often miss hanging pieces if they are on the other side of the board.
+
+The Fix: You’ve set Depth to 1. This is perfect because the bot cannot see "if I take this, they take my Queen." It only sees "I can take a Pawn right now."
+
+Nodes vs. Depth: For your 400 Elo bot, capping Nodes at 500 is actually more effective than Depth. It forces the engine to stop thinking before it can even calculate a single full exchange.
+
+4. Implementation: The Bot Configuration Logic
+Here is how to integrate your chart into a function that configures the engine before it moves:
+
+TypeScript
+
+const configureEngineForElo = (elo) => {
+  const config = botChart[elo];
+  
+  // Set Skill Level (Stockfish built-in complexity limiter)
+  engine.postMessage(`setoption name Skill Level value ${config.skillLevel}`);
+  
+  // Set MultiPV (Allows us to pick from a list of 'okay' moves)
+  engine.postMessage(`setoption name MultiPV value ${config.multiPV}`);
+  
+  // Move Execution logic
+  if (config.mode === 'Depth-limited') {
+    engine.postMessage(`go depth ${config.depth} nodes ${config.nodes}`);
+  } else {
+    engine.postMessage(`go nodes ${config.nodes}`);
+  }
+};
