@@ -5,15 +5,30 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag } from "lucide-react";
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { saveTrainingSession, getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
 import { speak } from "@/lib/voice";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { SpeechRecognition } from '@capacitor-community/speech-recognition';
+import { Capacitor } from '@capacitor/core';
 
 type TrainingMode = 'menu' | 'color_blitz' | 'coordinate_sniper';
+export type TrainingGameState = 'menu' | 'ready' | 'playing' | 'finished';
 
 interface TrainingPageProps {
   onBack: () => void;
+  onStateChange?: (state: TrainingGameState) => void;
+  returnToMenuRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -40,13 +55,38 @@ function formatTime(ms: number): string {
   return `${seconds}.${tenths}s`;
 }
 
-export default function TrainingPage({ onBack }: TrainingPageProps) {
+export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }: TrainingPageProps) {
   const [mode, setMode] = useState<TrainingMode>('menu');
   const [stats, setStats] = useState<TrainingStats | null>(null);
+  const [currentGameState, setCurrentGameState] = useState<'ready' | 'playing' | 'finished'>('ready');
 
   useEffect(() => {
     getTrainingStats().then(setStats);
   }, [mode]);
+
+  // Report state changes to parent
+  useEffect(() => {
+    if (mode === 'menu') {
+      onStateChange?.('menu');
+    } else {
+      onStateChange?.(currentGameState);
+    }
+  }, [mode, currentGameState, onStateChange]);
+
+  // Expose return to menu function for header navigation
+  useEffect(() => {
+    if (returnToMenuRef) {
+      returnToMenuRef.current = () => {
+        setMode('menu');
+        setCurrentGameState('ready');
+      };
+    }
+    return () => {
+      if (returnToMenuRef) {
+        returnToMenuRef.current = null;
+      }
+    };
+  }, [returnToMenuRef]);
 
   const handleGameComplete = async (gameMode: 'color_blitz' | 'coordinate_sniper', score: number, streak: number) => {
     await saveTrainingSession(gameMode, score, streak);
@@ -55,11 +95,11 @@ export default function TrainingPage({ onBack }: TrainingPageProps) {
   };
 
   if (mode === 'color_blitz') {
-    return <ColorBlitzGame onBack={() => setMode('menu')} onComplete={(score, streak) => handleGameComplete('color_blitz', score, streak)} stats={stats} />;
+    return <ColorBlitzGame onBack={() => setMode('menu')} onComplete={(score, streak) => handleGameComplete('color_blitz', score, streak)} stats={stats} onGameStateChange={setCurrentGameState} />;
   }
 
   if (mode === 'coordinate_sniper') {
-    return <CoordinateSniperGame onBack={() => setMode('menu')} onComplete={(score, streak) => handleGameComplete('coordinate_sniper', score, streak)} stats={stats} />;
+    return <CoordinateSniperGame onBack={() => setMode('menu')} onComplete={(score, streak) => handleGameComplete('coordinate_sniper', score, streak)} stats={stats} onGameStateChange={setCurrentGameState} />;
   }
 
   return (
@@ -132,9 +172,10 @@ interface ColorBlitzGameProps {
   onBack: () => void;
   onComplete: (score: number, streak: number) => void;
   stats: TrainingStats | null;
+  onGameStateChange?: (state: 'ready' | 'playing' | 'finished') => void;
 }
 
-function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
+function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorBlitzGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'finished'>('ready');
   const [currentSquare, setCurrentSquare] = useState(() => getRandomSquare());
   const [score, setScore] = useState(0);
@@ -142,8 +183,11 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
   const [bestStreak, setBestStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.colorBlitzBest !== null && score > stats.colorBlitzBest;
+  const handleAnswerRef = useRef<((answer: 'light' | 'dark' | 'white' | 'black') => void) | null>(null);
 
   const startGame = () => {
     setGameState('playing');
@@ -153,6 +197,87 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
     setTimeLeft(60);
     setCurrentSquare(getRandomSquare());
   };
+
+  const handleResign = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    stopVoiceRecognition();
+    onBack();
+  };
+
+  const stopVoiceRecognition = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      await SpeechRecognition.removeAllListeners();
+      await SpeechRecognition.stop();
+      setIsListening(false);
+    } catch (e) {
+      console.log('[ColorBlitz] Stop voice recognition error:', e);
+    }
+  };
+
+  const startVoiceRecognition = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    
+    try {
+      const { available } = await SpeechRecognition.available();
+      if (!available) {
+        console.log('[ColorBlitz] Speech recognition not available');
+        return;
+      }
+
+      const permResult = await SpeechRecognition.requestPermissions();
+      if (permResult.speechRecognition !== 'granted') {
+        console.log('[ColorBlitz] Speech recognition permission denied');
+        return;
+      }
+
+      // Remove any existing listeners before adding new ones
+      await SpeechRecognition.removeAllListeners();
+      
+      setIsListening(true);
+      
+      await SpeechRecognition.start({
+        language: 'en-US',
+        partialResults: true,
+        popup: false,
+      });
+
+      SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
+        const transcript = data.matches?.[0]?.toLowerCase() || '';
+        console.log('[ColorBlitz] Voice:', transcript);
+        
+        // Check for color words
+        if (transcript.includes('light') || transcript.includes('white')) {
+          handleAnswerRef.current?.('light');
+          // Restart listening for next answer
+          SpeechRecognition.stop().then(() => {
+            setTimeout(() => startVoiceRecognition(), 100);
+          });
+        } else if (transcript.includes('dark') || transcript.includes('black')) {
+          handleAnswerRef.current?.('dark');
+          SpeechRecognition.stop().then(() => {
+            setTimeout(() => startVoiceRecognition(), 100);
+          });
+        }
+      });
+
+    } catch (e) {
+      console.error('[ColorBlitz] Voice recognition error:', e);
+      setIsListening(false);
+    }
+  };
+
+  // Start/stop voice recognition based on voiceMode and gameState
+  useEffect(() => {
+    if (voiceMode && gameState === 'playing') {
+      startVoiceRecognition();
+    } else {
+      stopVoiceRecognition();
+    }
+    return () => {
+      stopVoiceRecognition();
+    };
+  }, [voiceMode, gameState]);
 
   useEffect(() => {
     if (gameState === 'playing') {
@@ -176,6 +301,11 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
       onComplete(score, bestStreak);
     }
   }, [gameState, score, bestStreak, onComplete]);
+
+  // Notify parent of game state changes
+  useEffect(() => {
+    onGameStateChange?.(gameState);
+  }, [gameState, onGameStateChange]);
 
   const handleAnswer = useCallback((answer: 'light' | 'dark' | 'white' | 'black') => {
     if (gameState !== 'playing') return;
@@ -203,6 +333,11 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
     }
   }, [gameState, currentSquare]);
+
+  // Keep ref updated for voice recognition callback
+  useEffect(() => {
+    handleAnswerRef.current = handleAnswer;
+  }, [handleAnswer]);
 
   if (gameState === 'ready') {
     return (
@@ -282,48 +417,80 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
   }
 
   return (
-    <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold tabular-nums">{timeLeft}s</span>
+    <>
+      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold tabular-nums">{timeLeft}s</span>
+            {voiceMode && isListening && (
+              <Mic className="h-4 w-4 text-red-500 animate-pulse" />
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-semibold">{score}</span>
+              {streak >= 5 && (
+                <Badge variant="outline" className="text-amber-500 border-amber-500">
+                  {streak} streak
+                </Badge>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowResignConfirm(true)}
+              data-testid="button-colorblitz-resign"
+            >
+              <Flag className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-semibold">{score}</span>
-          {streak >= 5 && (
-            <Badge variant="outline" className="text-amber-500 border-amber-500">
-              {streak} streak
-            </Badge>
-          )}
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-8">
+          <div className="text-center">
+            <p className="text-6xl font-bold font-mono tracking-wider">
+              {currentSquare.file}{currentSquare.rank}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 w-full">
+            <Button
+              size="lg"
+              className="h-20 text-xl bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-100 dark:hover:bg-amber-200"
+              onClick={() => handleAnswer('light')}
+              data-testid="button-answer-light"
+            >
+              Light
+            </Button>
+            <Button
+              size="lg"
+              className="h-20 text-xl bg-amber-900 hover:bg-amber-800 text-amber-100"
+              onClick={() => handleAnswer('dark')}
+              data-testid="button-answer-dark"
+            >
+              Dark
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center gap-8">
-        <div className="text-center">
-          <p className="text-6xl font-bold font-mono tracking-wider">
-            {currentSquare.file}{currentSquare.rank}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 w-full">
-          <Button
-            size="lg"
-            className="h-20 text-xl bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-100 dark:hover:bg-amber-200"
-            onClick={() => handleAnswer('light')}
-            data-testid="button-answer-light"
-          >
-            Light
-          </Button>
-          <Button
-            size="lg"
-            className="h-20 text-xl bg-amber-900 hover:bg-amber-800 text-amber-100"
-            onClick={() => handleAnswer('dark')}
-            data-testid="button-answer-dark"
-          >
-            Dark
-          </Button>
-        </div>
-      </div>
-    </div>
+      <AlertDialog open={showResignConfirm} onOpenChange={setShowResignConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quit Game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your current score of {score} will not be saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-colorblitz-resign-cancel">Continue</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResign} data-testid="button-colorblitz-resign-confirm">
+              Quit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -331,9 +498,10 @@ interface CoordinateSniperGameProps {
   onBack: () => void;
   onComplete: (score: number, streak: number) => void;
   stats: TrainingStats | null;
+  onGameStateChange?: (state: 'ready' | 'playing' | 'finished') => void;
 }
 
-function CoordinateSniperGame({ onBack, onComplete, stats }: CoordinateSniperGameProps) {
+function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: CoordinateSniperGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'finished'>('ready');
   const [currentSquare, setCurrentSquare] = useState(() => getRandomSquare());
   const [foundCount, setFoundCount] = useState(0);
@@ -343,8 +511,13 @@ function CoordinateSniperGame({ onBack, onComplete, stats }: CoordinateSniperGam
   const [elapsedTime, setElapsedTime] = useState(0);
   const [flashSquare, setFlashSquare] = useState<{ square: string; correct: boolean } | null>(null);
   const [correctSquareFlash, setCorrectSquareFlash] = useState<string | null>(null);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
   const totalSquares = 10;
   const isNewBest = stats !== null && stats.coordinateSniperBest !== null && elapsedTime < stats.coordinateSniperBest && elapsedTime > 0;
+
+  const handleResign = () => {
+    onBack();
+  };
 
   const startGame = () => {
     setGameState('playing');
@@ -369,6 +542,11 @@ function CoordinateSniperGame({ onBack, onComplete, stats }: CoordinateSniperGam
       if (interval) clearInterval(interval);
     };
   }, [gameState, startTime]);
+
+  // Notify parent of game state changes
+  useEffect(() => {
+    onGameStateChange?.(gameState);
+  }, [gameState, onGameStateChange]);
 
   const handleSquareClick = useCallback((clickedFile: string, clickedRank: string) => {
     if (gameState !== 'playing') return;
@@ -482,45 +660,74 @@ function CoordinateSniperGame({ onBack, onComplete, stats }: CoordinateSniperGam
   }
 
   return (
-    <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-lg font-semibold">
-          Find: <span className="text-2xl font-mono">{currentSquare.file}{currentSquare.rank}</span>
-        </p>
-        <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
-      </div>
+    <>
+      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-lg font-semibold">
+            Find: <span className="text-2xl font-mono">{currentSquare.file}{currentSquare.rank}</span>
+          </p>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowResignConfirm(true)}
+              data-testid="button-sniper-resign"
+            >
+              <Flag className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
 
-      <Progress value={(foundCount / totalSquares) * 100} className="mb-4" />
-      <p className="text-sm text-muted-foreground text-center mb-4">{foundCount}/{totalSquares} found</p>
+        <Progress value={(foundCount / totalSquares) * 100} className="mb-4" />
+        <p className="text-sm text-muted-foreground text-center mb-4">{foundCount}/{totalSquares} found</p>
 
-      <div className="flex-1 flex items-center justify-center">
-        <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
-          {['8', '7', '6', '5', '4', '3', '2', '1'].map((rank, rankIdx) =>
-            FILES.map((file, fileIdx) => {
-              const square = `${file}${rank}`;
-              const isDark = (fileIdx + rankIdx) % 2 === 1;
-              const isFlashing = flashSquare?.square === square;
-              const isCorrectFlash = correctSquareFlash === square;
-              
-              let bgColor = isDark ? 'bg-amber-700' : 'bg-amber-100';
-              if (isFlashing) {
-                bgColor = flashSquare.correct ? 'bg-green-500' : 'bg-red-500';
-              } else if (isCorrectFlash) {
-                bgColor = 'bg-green-500';
-              }
-              
-              return (
-                <button
-                  key={square}
-                  className={`aspect-square ${bgColor} transition-colors duration-100`}
-                  onClick={() => handleSquareClick(file, rank)}
-                  data-testid={`square-${square}`}
-                />
-              );
-            })
-          )}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
+            {['8', '7', '6', '5', '4', '3', '2', '1'].map((rank, rankIdx) =>
+              FILES.map((file, fileIdx) => {
+                const square = `${file}${rank}`;
+                const isDark = (fileIdx + rankIdx) % 2 === 1;
+                const isFlashing = flashSquare?.square === square;
+                const isCorrectFlash = correctSquareFlash === square;
+                
+                let bgColor = isDark ? 'bg-amber-700' : 'bg-amber-100';
+                if (isFlashing) {
+                  bgColor = flashSquare.correct ? 'bg-green-500' : 'bg-red-500';
+                } else if (isCorrectFlash) {
+                  bgColor = 'bg-green-500';
+                }
+                
+                return (
+                  <button
+                    key={square}
+                    className={`aspect-square ${bgColor} transition-colors duration-100`}
+                    onClick={() => handleSquareClick(file, rank)}
+                    data-testid={`square-${square}`}
+                  />
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      <AlertDialog open={showResignConfirm} onOpenChange={setShowResignConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quit Game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your progress ({foundCount}/{totalSquares} found) will not be saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-sniper-resign-cancel">Continue</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResign} data-testid="button-sniper-resign-confirm">
+              Quit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -21,7 +21,7 @@ import { BarChart3, RefreshCw, Mic, History } from "lucide-react";
 import { loadStats, resetStats, type GameStats } from "@/lib/gameStats";
 import { StatsDashboard } from "@/components/stats-dashboard";
 import GamePage, { type GameViewState } from "@/pages/game";
-import TrainingPage from "@/pages/training";
+import TrainingPage, { type TrainingGameState } from "@/pages/training";
 import { getDailyGoalsEnabled, getTodaySessionCount, isDailyGoalMet } from "@/lib/trainingStats";
 
 export default function App() {
@@ -33,6 +33,8 @@ export default function App() {
   const [showReturnConfirm, setShowReturnConfirm] = useState(false);
   const returnToTitleRef = useRef<(() => void) | null>(null);
   const [showTraining, setShowTraining] = useState(false);
+  const [trainingGameState, setTrainingGameState] = useState<TrainingGameState>('menu');
+  const returnToTrainingMenuRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const handleStatsUpdate = () => {
@@ -47,6 +49,18 @@ export default function App() {
   };
 
   const handleTitleClick = () => {
+    // Handle training mode
+    if (showTraining) {
+      if (trainingGameState === 'menu' || trainingGameState === 'ready' || trainingGameState === 'finished') {
+        // Not in active game - just return to title
+        setShowTraining(false);
+        return;
+      }
+      // In active training game - show confirmation
+      setShowReturnConfirm(true);
+      return;
+    }
+    
     if (gameViewState === 'idle') {
       // Already on title - close any open dialogs and return to clean title screen
       setShowVoiceHelpDialog(false);
@@ -67,12 +81,27 @@ export default function App() {
 
   const handleConfirmReturn = () => {
     setShowReturnConfirm(false);
+    
+    // Handle training mode
+    if (showTraining) {
+      if (returnToTrainingMenuRef.current) {
+        returnToTrainingMenuRef.current();
+      }
+      setShowTraining(false);
+      return;
+    }
+    
     if (returnToTitleRef.current) {
       returnToTitleRef.current();
     }
   };
 
   const getConfirmMessage = () => {
+    // Handle training mode
+    if (showTraining && trainingGameState === 'playing') {
+      return "Quit this training game and return to title?";
+    }
+    
     switch (gameViewState) {
       case 'in_game':
         return "Resign this game and return to title?";
@@ -214,7 +243,11 @@ export default function App() {
           </header>
           <main className="flex-1 overflow-auto">
             {showTraining ? (
-              <TrainingPage onBack={() => setShowTraining(false)} />
+              <TrainingPage 
+                onBack={() => setShowTraining(false)} 
+                onStateChange={setTrainingGameState}
+                returnToMenuRef={returnToTrainingMenuRef}
+              />
             ) : (
               <GamePage 
                 historyTrigger={historyTrigger}
