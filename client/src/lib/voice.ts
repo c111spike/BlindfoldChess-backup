@@ -324,8 +324,8 @@ async function waitForTTSCompletion(): Promise<void> {
   
   while (Date.now() - startTime < maxWaitMs) {
     try {
-      const state = await CapacitorSpeechSynthesis.isPlaying();
-      if (!state.value) {
+      const state = await CapacitorSpeechSynthesis.isSpeaking();
+      if (!state.isSpeaking) {
         return;
       }
     } catch {
@@ -344,24 +344,32 @@ export async function speak(text: string, rate: number = 0.9): Promise<void> {
     if (isNative) {
       await CapacitorSpeechSynthesis.speak({
         text,
-        lang: 'en-US',
+        language: 'en-US',
         rate,
         pitch: 1.0,
-        volume: 1.0,
-        category: 'playback'
+        volume: 1.0
       });
       
       await waitForTTSCompletion();
     } else {
-      if (!('speechSynthesis' in window)) {
+      // Debug: check what speechSynthesis looks like
+      console.log('[Voice] speechSynthesis in window:', 'speechSynthesis' in window);
+      console.log('[Voice] window.speechSynthesis:', typeof window.speechSynthesis);
+      
+      if (!('speechSynthesis' in window) || !window.speechSynthesis) {
         console.warn('Speech synthesis not supported');
         return;
       }
       
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        console.warn('[Voice] Failed to cancel previous speech:', e);
+      }
       await new Promise(r => setTimeout(r, 50));
       
       const voices = await loadVoices();
+      console.log('[Voice] Loaded voices:', voices.length);
       
       await new Promise<void>((resolve) => {
         const utterance = new SpeechSynthesisUtterance(text);
@@ -377,9 +385,16 @@ export async function speak(text: string, rate: number = 0.9): Promise<void> {
           utterance.lang = 'en-US';
         }
         
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve();
+        utterance.onend = () => {
+          console.log('[Voice] Speech ended successfully');
+          resolve();
+        };
+        utterance.onerror = (e) => {
+          console.error('[Voice] Speech error:', e);
+          resolve();
+        };
         
+        console.log('[Voice] Speaking:', text);
         window.speechSynthesis.speak(utterance);
       });
     }
@@ -958,7 +973,7 @@ export class VoiceRecognition {
         this.removeNativeListener = null;
       }
       
-      const listener = await CapacitorSpeechRecognition.addListener('result', (data: { matches: string[] }) => {
+      const listener = await CapacitorSpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
         if (data.matches && data.matches.length > 0 && this.shouldBeListening) {
           const transcript = data.matches[0];
           console.log('[VoiceRecognition Native] Transcript:', transcript);
