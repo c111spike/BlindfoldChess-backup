@@ -448,7 +448,19 @@ class ClientStockfish {
       if (targetElo <= 2000) return 250000;  // Elite calculation
       if (targetElo <= 2200) return 500000;  // Master precision
       if (targetElo <= 2400) return 1000000; // GM calculation
-      return 2000000; // Boss: focused, deep, relentless
+      return 1500000; // Boss: focused, deep, relentless
+    };
+    
+    // Depth mapping for depth-limited bots (400-1600 Elo)
+    const getDepth = (targetElo: number): number => {
+      if (targetElo <= 400) return 1;
+      if (targetElo <= 600) return 1;
+      if (targetElo <= 800) return 2;
+      if (targetElo <= 1000) return 3;
+      if (targetElo <= 1200) return 4;
+      if (targetElo <= 1400) return 5;
+      if (targetElo <= 1600) return 6;
+      return 0; // Unleashed mode for 1800+
     };
 
     const executeRequest = (): Promise<StockfishResult> => {
@@ -466,6 +478,7 @@ class ClientStockfish {
           const skillLevel = getSkillLevel(elo);
           const multiPV = getMultiPV(elo);
           const nodes = getNodes(elo);
+          const depth = getDepth(elo);
           
           this.sendCommand(`setoption name Skill Level value ${skillLevel}`);
           this.sendCommand('setoption name UCI_LimitStrength value true');
@@ -476,7 +489,13 @@ class ClientStockfish {
           this.sendCommand(`position fen ${fen}`);
           
           this.isSearching = true;
-          this.sendCommand(`go nodes ${nodes}`);
+          // Depth-limited bots (400-1600): use depth + nodes, stops at whichever comes first
+          // Unleashed bots (1800+): use nodes only for full calculation
+          if (depth > 0) {
+            this.sendCommand(`go depth ${depth} nodes ${nodes}`);
+          } else {
+            this.sendCommand(`go nodes ${nodes}`);
+          }
 
           const results: Map<number, { move: string; eval?: number }> = new Map();
 

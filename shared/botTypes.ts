@@ -20,6 +20,7 @@ export interface BotConfig {
   depth: number;        // Search depth (1-6 for depth-limited, 0 = node-based unleashed)
   randomPercent: number; // Chance of playing a random legal move (0-50)
   description: string;
+  nodes?: number;       // Optional override for node limit
 }
 
 export interface BotProfile {
@@ -43,7 +44,7 @@ export const BOT_CONFIG: Record<number, BotConfig> = {
   2000: { elo: 2000, depth: 0, randomPercent: 0,  description: "Unleashed: Full node-based search." },
   2200: { elo: 2200, depth: 0, randomPercent: 0,  description: "Unleashed: Full node-based search." },
   2400: { elo: 2400, depth: 0, randomPercent: 0,  description: "Unleashed: Full node-based search." },
-  2600: { elo: 2600, depth: 0, randomPercent: 0,  description: "Unleashed: Full node-based search." },
+  2600: { elo: 2600, depth: 0, randomPercent: 0,  description: "Unleashed: Full node-based search.", nodes: 1500000 },
 };
 
 // Map difficulty to Elo rating
