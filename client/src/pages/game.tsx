@@ -21,7 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw, Info, ExternalLink, Moon } from "lucide-react";
+import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw, Info, ExternalLink, Moon, Settings2 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Dialog,
   DialogContent,
@@ -1738,15 +1739,32 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           </Button>
         </div>
         
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute bottom-4 right-4 z-10 bg-white/80 hover:bg-white text-stone-900"
-          onClick={() => setShowAboutDialog(true)}
-          data-testid="button-about"
-        >
-          <Info className="h-5 w-5" />
-        </Button>
+        <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-white/80 hover:bg-white text-stone-900"
+            onClick={() => setShowTitleScreen(false)}
+            data-testid="button-settings"
+          >
+            <Settings2 className="h-5 w-5" />
+          </Button>
+          
+          <div className="flex items-center gap-2">
+            <div className="bg-white/80 rounded-md">
+              <ThemeToggle />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="bg-white/80 hover:bg-white text-stone-900"
+              onClick={() => setShowAboutDialog(true)}
+              data-testid="button-about"
+            >
+              <Info className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
         
         <Dialog open={showAboutDialog} onOpenChange={setShowAboutDialog}>
           <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
