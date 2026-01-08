@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef, Fragment } from "react";
+import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Loader2 } from "lucide-react";
 import { Chess } from "chess.js";
 import { clientStockfish } from "@/lib/stockfish";
@@ -9,6 +10,18 @@ interface AnalysisViewProps {
   moveHistory: string[];
   playerColor: "white" | "black";
   onClose: () => void;
+}
+
+interface PositionData {
+  fen: string;
+  lastMove: { from: string; to: string } | null;
+}
+
+interface AnalysisResult {
+  eval: number;
+  isMate: boolean;
+  mateIn?: number;
+  bestMove?: string;
 }
 
 interface EvaluationBarProps {
@@ -126,12 +139,12 @@ function ChessBoard({
 
   return (
     <div className="aspect-square w-full" data-testid="analysis-board">
-      <div className="grid grid-cols-8 gap-0 border border-border rounded overflow-hidden">
-        {displayRanks.map((rank, rankIdx) =>
-          displayFiles.map((file, fileIdx) => {
+      <div className="grid grid-cols-8 grid-rows-8 w-full h-full border border-stone-400">
+        {displayRanks.map(rank =>
+          displayFiles.map(file => {
             const square = `${file}${rank}`;
             const piece = game.get(square as any);
-            const isLight = (rankIdx + fileIdx) % 2 === 0;
+            const isLight = (files.indexOf(file) + ranks.indexOf(rank)) % 2 === 0;
             const isHighlighted = lastMove && (lastMove.from === square || lastMove.to === square);
             const isBestMoveSquare = bestMoveSquares && (bestMoveSquares.from === square || bestMoveSquares.to === square);
             
@@ -161,101 +174,122 @@ function ChessBoard({
 
 export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisViewProps) {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
-  const [evaluation, setEvaluation] = useState<number | null>(null);
-  const [isEvaluating, setIsEvaluating] = useState(false);
-  const [isMate, setIsMate] = useState(false);
-  const [mateIn, setMateIn] = useState<number | undefined>(undefined);
-  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
-  const [bestMove, setBestMove] = useState<string | null>(null);
   const [showBestMove, setShowBestMove] = useState(true);
   
-  const evalCacheRef = useRef<Map<string, { eval: number; isMate: boolean; mateIn?: number; bestMove?: string }>>(new Map());
-  const gameRef = useRef(new Chess());
+  // Pre-analysis state
+  const [isAnalyzing, setIsAnalyzing] = useState(true);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisResults, setAnalysisResults] = useState<Map<number, AnalysisResult>>(new Map());
+  
+  const analysisAbortRef = useRef(false);
 
-  const getPositionAtMove = useCallback((moveIndex: number): string => {
+  // Pre-compute all position FENs and lastMoves on mount (O(n) once, then O(1) lookup)
+  const positionData = useMemo<PositionData[]>(() => {
+    const data: PositionData[] = [];
     const game = new Chess();
-    for (let i = 0; i < moveIndex && i < moveHistory.length; i++) {
-      game.move(moveHistory[i]);
-    }
-    return game.fen();
-  }, [moveHistory]);
-
-  const getLastMoveAtIndex = useCallback((moveIndex: number): { from: string; to: string } | null => {
-    if (moveIndex <= 0) return null;
-    const game = new Chess();
-    let lastMoveInfo: { from: string; to: string } | null = null;
-    for (let i = 0; i < moveIndex && i < moveHistory.length; i++) {
-      const move = game.move(moveHistory[i]);
-      if (move) {
-        lastMoveInfo = { from: move.from, to: move.to };
-      }
-    }
-    return lastMoveInfo;
-  }, [moveHistory]);
-
-  const currentFen = getPositionAtMove(currentMoveIndex);
-
-  useEffect(() => {
-    setLastMove(getLastMoveAtIndex(currentMoveIndex));
-  }, [currentMoveIndex, getLastMoveAtIndex]);
-
-  useEffect(() => {
-    const evaluatePosition = async () => {
-      const cached = evalCacheRef.current.get(currentFen);
-      if (cached) {
-        setEvaluation(cached.eval);
-        setIsMate(cached.isMate);
-        setMateIn(cached.mateIn);
-        setBestMove(cached.bestMove || null);
-        return;
-      }
-
-      setIsEvaluating(true);
+    
+    // Position 0: starting position
+    data.push({ fen: game.fen(), lastMove: null });
+    
+    // Build each position by replaying moves
+    for (let i = 0; i < moveHistory.length; i++) {
       try {
-        const result = await clientStockfish.analyzePosition(currentFen, 500000);
-        
-        // Stockfish returns eval from side-to-move perspective
-        // Normalize to White's perspective for consistent display
-        const sideToMove = currentFen.split(' ')[1]; // 'w' or 'b'
-        const isBlackToMove = sideToMove === 'b';
-        const whiteEval = isBlackToMove ? -result.evaluation : result.evaluation;
-        
-        // For mate scores: positive mateIn means side-to-move is winning
-        // Normalize so positive means White is winning
-        // If Black to move and mateIn > 0, Black is winning = White is losing (negate)
-        // If Black to move and mateIn < 0, Black is losing = White is winning (negate)
-        const normalizedMateIn = result.mateIn !== undefined && isBlackToMove 
-          ? -result.mateIn 
-          : result.mateIn;
-        
-        const evalResult = {
-          eval: whiteEval,
-          isMate: result.isMate,
-          mateIn: normalizedMateIn !== undefined ? Math.abs(normalizedMateIn) : undefined,
-          bestMove: result.bestMove
-        };
-        evalCacheRef.current.set(currentFen, evalResult);
-        setEvaluation(whiteEval);
-        setIsMate(result.isMate);
-        setMateIn(normalizedMateIn !== undefined ? Math.abs(normalizedMateIn) : undefined);
-        setBestMove(result.bestMove || null);
+        const move = game.move(moveHistory[i]);
+        if (move) {
+          data.push({
+            fen: game.fen(),
+            lastMove: { from: move.from, to: move.to }
+          });
+        }
       } catch (error) {
-        console.error('[Analysis] Evaluation error:', error);
-        setEvaluation(null);
-        setBestMove(null);
-      } finally {
-        setIsEvaluating(false);
+        console.error(`[Analysis] Invalid move at index ${i}: ${moveHistory[i]}`, error);
+        // Stop processing on error
+        break;
+      }
+    }
+    
+    return data;
+  }, [moveHistory]);
+
+  // Run pre-analysis on mount
+  useEffect(() => {
+    const runPreAnalysis = async () => {
+      setIsAnalyzing(true);
+      setAnalysisProgress(0);
+      analysisAbortRef.current = false;
+      
+      const results = new Map<number, AnalysisResult>();
+      const totalPositions = positionData.length;
+      
+      for (let i = 0; i < totalPositions; i++) {
+        if (analysisAbortRef.current) break;
+        
+        const { fen } = positionData[i];
+        
+        try {
+          const result = await clientStockfish.analyzePosition(fen, 500000);
+          
+          // Check abort flag after async operation
+          if (analysisAbortRef.current) break;
+          
+          // Normalize to White's perspective
+          const sideToMove = fen.split(' ')[1];
+          const isBlackToMove = sideToMove === 'b';
+          const whiteEval = isBlackToMove ? -result.evaluation : result.evaluation;
+          const normalizedMateIn = result.mateIn !== undefined && isBlackToMove 
+            ? -result.mateIn 
+            : result.mateIn;
+          
+          results.set(i, {
+            eval: whiteEval,
+            isMate: result.isMate,
+            mateIn: normalizedMateIn !== undefined ? Math.abs(normalizedMateIn) : undefined,
+            bestMove: result.bestMove
+          });
+        } catch (error) {
+          // Check abort flag after async operation (even on error)
+          if (analysisAbortRef.current) break;
+          console.error(`[Analysis] Error evaluating position ${i}:`, error);
+          // Continue with remaining positions
+        }
+        
+        // Only update state if not aborted
+        if (!analysisAbortRef.current) {
+          setAnalysisProgress(Math.round(((i + 1) / totalPositions) * 100));
+          setAnalysisResults(new Map(results));
+        }
+      }
+      
+      // Only update final state if not aborted
+      if (!analysisAbortRef.current) {
+        setIsAnalyzing(false);
       }
     };
+    
+    runPreAnalysis();
+    
+    return () => {
+      analysisAbortRef.current = true;
+    };
+  }, [positionData]);
 
-    evaluatePosition();
-  }, [currentFen]);
+  // Current position data (O(1) lookup)
+  const currentPosition = positionData[currentMoveIndex] || positionData[0];
+  const currentFen = currentPosition.fen;
+  const lastMove = currentPosition.lastMove;
+  
+  // Current analysis (O(1) lookup)
+  const currentAnalysis = analysisResults.get(currentMoveIndex);
+  const evaluation = currentAnalysis?.eval ?? null;
+  const isMate = currentAnalysis?.isMate ?? false;
+  const mateIn = currentAnalysis?.mateIn;
+  const bestMove = currentAnalysis?.bestMove ?? null;
 
   const goToStart = () => setCurrentMoveIndex(0);
   const goBack = () => setCurrentMoveIndex(Math.max(0, currentMoveIndex - 1));
-  const goForward = () => setCurrentMoveIndex(Math.min(moveHistory.length, currentMoveIndex + 1));
-  const goToEnd = () => setCurrentMoveIndex(moveHistory.length);
-  const goToMove = (index: number) => setCurrentMoveIndex(index);
+  const goForward = () => setCurrentMoveIndex(Math.min(positionData.length - 1, currentMoveIndex + 1));
+  const goToEnd = () => setCurrentMoveIndex(positionData.length - 1);
+  const goToMove = (index: number) => setCurrentMoveIndex(Math.min(index, positionData.length - 1));
 
   const formatMoveList = (): { moveNumber: number; white: string; black?: string; whiteIndex: number; blackIndex?: number }[] => {
     const moves: { moveNumber: number; white: string; black?: string; whiteIndex: number; blackIndex?: number }[] = [];
@@ -301,6 +335,43 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
   const bestMoveSquares = showBestMove ? parseBestMove(bestMove) : null;
   const formattedBestMove = formatBestMove(bestMove);
 
+  // Show loading overlay during pre-analysis
+  if (isAnalyzing && analysisProgress < 100) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex flex-col" data-testid="analysis-view">
+        <div className="flex items-center justify-between p-3 border-b border-border">
+          <h2 className="text-lg font-semibold">Game Analysis</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            data-testid="button-analysis-close"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        
+        <div className="flex-1 flex flex-col items-center justify-center p-8 gap-6">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+            <span className="text-lg font-medium">Analyzing game...</span>
+          </div>
+          
+          <div className="w-full max-w-xs space-y-2">
+            <Progress value={analysisProgress} className="h-3" />
+            <p className="text-center text-sm text-muted-foreground">
+              {analysisProgress}% complete ({Math.round((analysisProgress / 100) * positionData.length)} / {positionData.length} positions)
+            </p>
+          </div>
+          
+          <p className="text-sm text-muted-foreground text-center max-w-sm">
+            This will take a few seconds. Once complete, you can navigate through moves instantly.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col" data-testid="analysis-view">
       <div className="flex items-center justify-between p-3 border-b border-border">
@@ -321,7 +392,7 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
           <div className="grid grid-cols-[24px_1fr] gap-2 w-full max-w-[352px]">
             <EvaluationBar 
               evaluation={evaluation} 
-              isLoading={isEvaluating}
+              isLoading={false}
               isMate={isMate}
               mateIn={mateIn}
               playerColor={playerColor}
@@ -358,7 +429,7 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
                 variant="outline"
                 size="icon"
                 onClick={goForward}
-                disabled={currentMoveIndex === moveHistory.length}
+                disabled={currentMoveIndex === positionData.length - 1}
                 data-testid="button-analysis-forward"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -367,7 +438,7 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
                 variant="outline"
                 size="icon"
                 onClick={goToEnd}
-                disabled={currentMoveIndex === moveHistory.length}
+                disabled={currentMoveIndex === positionData.length - 1}
                 data-testid="button-analysis-end"
               >
                 <ChevronsRight className="h-4 w-4" />
@@ -388,12 +459,6 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
             {showBestMove && formattedBestMove && (
               <span className="font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded" data-testid="text-best-move">
                 Best: {formattedBestMove}
-              </span>
-            )}
-            {showBestMove && isEvaluating && !formattedBestMove && (
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Analyzing...
               </span>
             )}
           </div>
