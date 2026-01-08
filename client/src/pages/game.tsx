@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw } from "lucide-react";
+import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw, Dumbbell } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -121,9 +121,10 @@ interface GamePageProps {
   historyTrigger?: number;
   onStateChange?: (state: GameViewState) => void;
   returnToTitleRef?: React.MutableRefObject<(() => void) | null>;
+  onTrainNowClick?: () => void;
 }
 
-export default function GamePage({ historyTrigger, onStateChange, returnToTitleRef }: GamePageProps) {
+export default function GamePage({ historyTrigger, onStateChange, returnToTitleRef, onTrainNowClick }: GamePageProps) {
   const { toast } = useToast();
   
   const [showTitleScreen, setShowTitleScreen] = useState(true);
@@ -1759,7 +1760,17 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           </p>
         </div>
         <div className="flex-1" />
-        <div className="relative z-10 flex flex-col items-center p-6 pb-[120px] w-full max-w-sm">
+        <div className="relative z-10 flex flex-col items-center gap-3 p-6 pb-[120px] w-full max-w-sm">
+          <Button 
+            size="lg" 
+            variant="ghost"
+            className="w-full text-lg py-6 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-amber-500 dark:bg-black dark:hover:bg-black/90 dark:text-white dark:border-black"
+            onClick={() => onTrainNowClick?.()}
+            data-testid="button-train-now"
+          >
+            <Dumbbell className="mr-2 h-5 w-5" />
+            Train Now
+          </Button>
           <Button 
             size="lg" 
             variant="ghost"

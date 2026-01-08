@@ -177,10 +177,12 @@ function ColorBlitzGame({ onBack, onComplete, stats }: ColorBlitzGameProps) {
     }
   }, [gameState, score, bestStreak, onComplete]);
 
-  const handleAnswer = useCallback((answer: 'light' | 'dark') => {
+  const handleAnswer = useCallback((answer: 'light' | 'dark' | 'white' | 'black') => {
     if (gameState !== 'playing') return;
     
-    const isCorrect = (answer === 'dark') === isDarkSquare(currentSquare.fileIndex, currentSquare.rankIndex);
+    // Allow white/black as synonyms for light/dark
+    const normalizedAnswer = (answer === 'white' || answer === 'light') ? 'light' : 'dark';
+    const isCorrect = (normalizedAnswer === 'dark') === isDarkSquare(currentSquare.fileIndex, currentSquare.rankIndex);
     
     if (isCorrect) {
       setScore(prev => prev + 1);

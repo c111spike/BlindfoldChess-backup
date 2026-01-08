@@ -228,6 +228,7 @@ export default function App() {
                 historyTrigger={historyTrigger}
                 onStateChange={setGameViewState}
                 returnToTitleRef={returnToTitleRef}
+                onTrainNowClick={() => setShowTraining(true)}
               />
             )}
           </main>
