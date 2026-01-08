@@ -1,0 +1,54 @@
+🧩 1. The Core Logic: Color Blitz & Sniper
+Both games rely on the Parity Formula to calculate colors instantly without a heavy database.
+
+Color Formula: (fileIndex + rankIndex) % 2 === 0 → Dark Square.
+
+Coordinate Generation: Use a simple randomizer to pick a square (0-7) for both file and rank, then convert to algebraic (e.g., 0,0 becomes a1).
+
+🎨 2. UI/UX: The "Gym" Layout
+On the S10+, use large tap targets. In a 60-second Blitz, users will be tapping fast; small buttons will lead to frustrating "miss-taps."
+
+Color Blitz View
+Top: Large timer (60s) and current score.
+
+Center: Huge text (e.g., "d5").
+
+Bottom: Two full-width buttons: [ LIGHT ] and [ DARK ].
+
+Feedback: When "Light" is clicked for "d5", trigger a Haptics.impact({ style: ImpactStyle.Light }) and immediately show the next square.
+
+Coordinate Sniper View
+Top: "Find: g4" (Voice also says: "Find g4").
+
+Center: The 8x8 Board (Empty).
+
+Bottom: Progress bar (3/10 squares found).
+
+💾 3. SQLite Schema Update
+Add a new table for Training Stats to keep your Game History clean.
+
+SQL
+
+CREATE TABLE training_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mode TEXT,          -- 'color_blitz' or 'coordinate_sniper'
+    score REAL,         -- score (blitz) or time_ms (sniper)
+    achieved_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+Personal Best Logic: To display the PB on the dashboard, simply query: SELECT MAX(score) FROM training_stats WHERE mode = 'color_blitz' SELECT MIN(score) FROM training_stats WHERE mode = 'coordinate_sniper'
+
+📊 4. The "Money's Worth" Dashboard
+The Training Tab in your Stats Dashboard is where the "value" lives.
+
+Visual Progress: Show a simple line chart of their last 10 sessions.
+
+Trophy Room: Use icons for milestones (e.g., "Silver Trophy" for 20+ squares in 60s, "Gold" for 40+).
+
+Session Count: "Total Drills Completed: 154". This number makes the user feel like they are getting a return on their $4.99 investment.
+
+📋 S10+ Performance Note: Voice vs. Visual
+For Color Blitz, voice recognition might be too slow for a "Blitz" mode.
+
+Recommendation: Default to the Button UI for speed, but keep a "Voice Mode" toggle for people who want to practice saying the colors out loud.
+
+Snappiness: Ensure that as soon as a button is pressed, the next square appears. Any delay (even 100ms) will make the app feel "cheap."

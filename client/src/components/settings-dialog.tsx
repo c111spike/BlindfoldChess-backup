@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Mic, MicOff, Bell, BellOff, ExternalLink, Smartphone } from "lucide-react";
+import { Settings, Mic, MicOff, Bell, BellOff, ExternalLink, Smartphone, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { Capacitor } from "@capacitor/core";
 import { checkMicPermission, requestMicPermission, type MicPermissionStatus } from "@/lib/voice";
 import { getToastsEnabled, setToastsEnabled, useToast } from "@/hooks/use-toast";
 import { loadSettings, saveSettings, type BlindfoldSettings } from "@/lib/gameStats";
+import { getDailyGoalsEnabled, setDailyGoalsEnabled } from "@/lib/trainingStats";
 
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
@@ -22,6 +23,7 @@ export function SettingsDialog() {
   const [isRequestingMic, setIsRequestingMic] = useState(false);
   const [toastsEnabled, setToastsEnabledState] = useState(getToastsEnabled());
   const [blindfoldSettings, setBlindFoldSettings] = useState<BlindfoldSettings>(loadSettings);
+  const [dailyGoalsEnabled, setDailyGoalsEnabledState] = useState(getDailyGoalsEnabled());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -146,6 +148,35 @@ export function SettingsDialog() {
                   });
                 }}
                 data-testid="switch-keep-awake"
+                className="data-[state=checked]:bg-amber-400"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="font-semibold">Training</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-muted-foreground" />
+                <div className="flex flex-col">
+                  <Label htmlFor="daily-goals-toggle" className="text-sm">
+                    Daily Goals
+                  </Label>
+                  <span className="text-xs text-muted-foreground">Show daily training reminders</span>
+                </div>
+              </div>
+              <Switch
+                id="daily-goals-toggle"
+                checked={dailyGoalsEnabled}
+                onCheckedChange={(checked) => {
+                  setDailyGoalsEnabledState(checked);
+                  setDailyGoalsEnabled(checked);
+                  toast({
+                    title: checked ? "Daily goals enabled" : "Daily goals disabled",
+                    description: checked ? "You'll see training reminders" : "Training reminders hidden",
+                  });
+                }}
+                data-testid="switch-daily-goals"
                 className="data-[state=checked]:bg-amber-400"
               />
             </div>

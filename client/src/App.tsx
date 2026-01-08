@@ -17,10 +17,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { BarChart3, RefreshCw, Mic, History } from "lucide-react";
+import { BarChart3, RefreshCw, Mic, History, Dumbbell } from "lucide-react";
 import { loadStats, resetStats, type GameStats } from "@/lib/gameStats";
 import { StatsDashboard } from "@/components/stats-dashboard";
 import GamePage, { type GameViewState } from "@/pages/game";
+import TrainingPage from "@/pages/training";
+import { getDailyGoalsEnabled, getTodaySessionCount, isDailyGoalMet } from "@/lib/trainingStats";
 
 export default function App() {
   const [showStatsDialog, setShowStatsDialog] = useState(false);
@@ -30,6 +32,7 @@ export default function App() {
   const [gameViewState, setGameViewState] = useState<GameViewState>('idle');
   const [showReturnConfirm, setShowReturnConfirm] = useState(false);
   const returnToTitleRef = useRef<(() => void) | null>(null);
+  const [showTraining, setShowTraining] = useState(false);
 
   useEffect(() => {
     const handleStatsUpdate = () => {
@@ -172,6 +175,14 @@ export default function App() {
               <Button
                 variant="ghost"
                 size="icon"
+                onClick={() => setShowTraining(true)}
+                data-testid="button-training"
+              >
+                <Dumbbell className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleOpenHistory}
                 data-testid="button-game-history"
               >
@@ -210,11 +221,15 @@ export default function App() {
             </div>
           </header>
           <main className="flex-1 overflow-auto">
-            <GamePage 
-              historyTrigger={historyTrigger}
-              onStateChange={setGameViewState}
-              returnToTitleRef={returnToTitleRef}
-            />
+            {showTraining ? (
+              <TrainingPage onBack={() => setShowTraining(false)} />
+            ) : (
+              <GamePage 
+                historyTrigger={historyTrigger}
+                onStateChange={setGameViewState}
+                returnToTitleRef={returnToTitleRef}
+              />
+            )}
           </main>
           <footer className="grid grid-cols-3 items-center p-2 border-t border-border pb-[var(--safe-area-bottom)]">
             <div className="flex justify-start">

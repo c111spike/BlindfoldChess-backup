@@ -1,0 +1,14 @@
+🧩 1. Color Blitz: The "Instant" LogicFor the 60-second sprint, you want zero latency. Use this specific implementation logic for the parity check:TypeScriptconst isDarkSquare = (file: number, rank: number) => {
+  // 0-indexed: file (a=0, h=7), rank (1=0, 8=7)
+  return (file + rank) % 2 === 0; 
+};
+Pro Tip: In the Voice Mode toggle, use a "Debounce" of about 300ms. Since "Dark" and "Light" are phonetically distinct, the engine should be very accurate. If the user says "Dark," it should instantly move to the next square without waiting for a "Done" command.🎯 2. Coordinate Sniper: The "Correction" LoopTo make this educational (and worth $4.99), the feedback when they miss a square is critical.The Logic:Bot: "Find g4."User taps e4.App: Flash e4 Red, then flash the correct g4 Green for 500ms.Audio: "No, that's e4. Find g4."Why? This prevents the user from just "guessing" and actually teaches them the grid through error correction.🏆 3. The "Training Dashboard" (The Money Maker)This is the screen that will stop people from uninstalling. When they see a graph going up, they feel the $4.99 was an investment.UI ElementFunctionalityLine ChartPlot the last 10 scores (Blitz) or times (Sniper).Trophy IconsUse SVG trophies that change from Grey to Silver to Gold based on milestones.Heatmap (Optional)A simple 8x8 grid showing which squares they tap incorrectly most often. This is "High-Tier" coaching.💾 4. SQLite: The "Achievement" QueryTo fetch the "Personal Best" for your dashboard efficiently:SQL-- Get Color Blitz PB
+SELECT MAX(score) as best_score, achieved_at 
+FROM training_stats 
+WHERE mode = 'color_blitz';
+
+-- Get Coordinate Sniper PB (Lowest time is best)
+SELECT MIN(score) as best_time, achieved_at 
+FROM training_stats 
+WHERE mode = 'coordinate_sniper';
+📋 S10+ Performance NoteThe S10+ has a great haptic motor. For Color Blitz, use the Haptics.notification({ type: NotificationType.Success }) for a satisfying "double-pulse" when they hit a 10-point streak. It makes the training feel like a high-end arcade game.Final Polish Recommendation:Add a "Daily Goal" reminder on the main menu."Today: Complete 2 Color Blitz sessions."This creates a habit, and habitual users are the ones who leave 5-star reviews on the Play Store, which is how you hit that 10k download goal.

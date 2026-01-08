@@ -1,11 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Eye, Brain, Target, TrendingUp, TrendingDown, Mic, Hand, Clock, Grid3X3, Trophy, AlertTriangle, Lightbulb, CheckCircle } from "lucide-react";
+import { Eye, Brain, Target, TrendingUp, TrendingDown, Mic, Hand, Clock, Grid3X3, Trophy, AlertTriangle, Lightbulb, CheckCircle, Dumbbell, Zap } from "lucide-react";
 import type { GameStats, Insight } from "@/lib/gameStats";
+import { getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
 import {
   getPeekFreePercentage,
   getVoiceTouchRatio,
@@ -101,6 +102,12 @@ function CoordinateHeatmap({ stats }: { stats: GameStats }) {
   );
 }
 
+function formatTrainingTime(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const tenths = Math.floor((ms % 1000) / 100);
+  return `${seconds}.${tenths}s`;
+}
+
 export function StatsDashboard({ stats }: StatsDashboardProps) {
   const insights = useMemo(() => generateInsights(stats), [stats]);
   const peekFreePercentage = getPeekFreePercentage(stats);
@@ -110,6 +117,19 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
   const voiceCorrectionRate = getVoiceCorrectionRate(stats);
   const avgResponseTime = getAverageResponseTime(stats);
   const topConfused = getTopConfusedSquares(stats, 5);
+  const [trainingStats, setTrainingStats] = useState<TrainingStats | null>(null);
+  
+  useEffect(() => {
+    getTrainingStats().then(setTrainingStats);
+    
+    const handleTrainingUpdate = () => {
+      getTrainingStats().then(setTrainingStats);
+    };
+    window.addEventListener('trainingStatsUpdated', handleTrainingUpdate);
+    return () => {
+      window.removeEventListener('trainingStatsUpdated', handleTrainingUpdate);
+    };
+  }, []);
   
   const visualizationInsights = insights.filter(i => i.category === 'visualization');
   const cognitiveInsights = insights.filter(i => i.category === 'cognitive');
@@ -117,18 +137,22 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
   
   return (
     <Tabs defaultValue="visualization" className="w-full">
-      <TabsList className="grid w-full grid-cols-3 mb-4">
+      <TabsList className="grid w-full grid-cols-4 mb-4">
         <TabsTrigger value="visualization" className="flex items-center gap-1 text-xs">
           <Eye className="h-3 w-3" />
-          <span className="hidden sm:inline">Visualization</span>
+          <span className="hidden sm:inline">Vision</span>
         </TabsTrigger>
         <TabsTrigger value="cognitive" className="flex items-center gap-1 text-xs">
           <Brain className="h-3 w-3" />
-          <span className="hidden sm:inline">Cognitive</span>
+          <span className="hidden sm:inline">Mind</span>
         </TabsTrigger>
         <TabsTrigger value="tactical" className="flex items-center gap-1 text-xs">
           <Target className="h-3 w-3" />
-          <span className="hidden sm:inline">Tactical</span>
+          <span className="hidden sm:inline">Tactics</span>
+        </TabsTrigger>
+        <TabsTrigger value="training" className="flex items-center gap-1 text-xs">
+          <Dumbbell className="h-3 w-3" />
+          <span className="hidden sm:inline">Training</span>
         </TabsTrigger>
       </TabsList>
       
@@ -521,6 +545,118 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
             ))}
           </div>
         )}
+      </TabsContent>
+      
+      <TabsContent value="training" className="space-y-4 max-h-[60vh] overflow-y-auto">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Zap className="h-4 w-4 text-amber-500" />
+              Color Blitz
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Name square colors in 60 seconds
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {trainingStats && trainingStats.colorBlitzBest !== null ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Personal Best</span>
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-amber-500" />
+                    <span className="text-2xl font-bold text-amber-500">{trainingStats.colorBlitzBest}</span>
+                    <span className="text-sm text-muted-foreground">correct</span>
+                  </div>
+                </div>
+                {trainingStats.colorBlitzBestDate && (
+                  <p className="text-xs text-muted-foreground text-right">
+                    Achieved {new Date(trainingStats.colorBlitzBestDate).toLocaleDateString()}
+                  </p>
+                )}
+                {trainingStats.colorBlitzBest >= 40 ? (
+                  <Badge className="bg-amber-500 text-white">Gold Tier</Badge>
+                ) : trainingStats.colorBlitzBest >= 20 ? (
+                  <Badge variant="secondary">Silver Tier</Badge>
+                ) : (
+                  <Badge variant="outline">Bronze Tier</Badge>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Complete a Color Blitz session to set your first record!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Target className="h-4 w-4 text-blue-500" />
+              Coordinate Sniper
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Find 10 squares as fast as possible
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {trainingStats && trainingStats.coordinateSniperBest !== null ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Personal Best</span>
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-blue-500" />
+                    <span className="text-2xl font-bold text-blue-500">{formatTrainingTime(trainingStats.coordinateSniperBest)}</span>
+                  </div>
+                </div>
+                {trainingStats.coordinateSniperBestDate && (
+                  <p className="text-xs text-muted-foreground text-right">
+                    Achieved {new Date(trainingStats.coordinateSniperBestDate).toLocaleDateString()}
+                  </p>
+                )}
+                {trainingStats.coordinateSniperBest <= 10000 ? (
+                  <Badge className="bg-blue-500 text-white">Gold Tier</Badge>
+                ) : trainingStats.coordinateSniperBest <= 20000 ? (
+                  <Badge variant="secondary">Silver Tier</Badge>
+                ) : (
+                  <Badge variant="outline">Bronze Tier</Badge>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Complete a Coordinate Sniper session to set your first record!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Dumbbell className="h-4 w-4" />
+              Training Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {trainingStats && trainingStats.totalSessions > 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-muted-foreground">Total Sessions</span>
+                  <span className="font-bold text-lg">{trainingStats.totalSessions}</span>
+                </div>
+                <Separator />
+                <p className="text-xs text-muted-foreground">
+                  Keep training to improve your blindfold chess skills!
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Start training to track your progress!
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>
   );
