@@ -2,14 +2,17 @@ import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Loader2, Copy, Download, Check } from "lucide-react";
 import { Chess } from "chess.js";
 import { clientStockfish } from "@/lib/stockfish";
+import { useToast } from "@/hooks/use-toast";
 
 interface AnalysisViewProps {
   moveHistory: string[];
   playerColor: "white" | "black";
   onClose: () => void;
+  gameResult?: "white_win" | "black_win" | "draw" | null;
+  botElo?: number;
 }
 
 interface PositionData {
@@ -172,9 +175,11 @@ function ChessBoard({
   );
 }
 
-export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisViewProps) {
+export function AnalysisView({ moveHistory, playerColor, onClose, gameResult, botElo }: AnalysisViewProps) {
+  const { toast } = useToast();
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [showBestMove, setShowBestMove] = useState(true);
+  const [copiedPGN, setCopiedPGN] = useState(false);
   
   // Pre-analysis state
   const [isAnalyzing, setIsAnalyzing] = useState(true);
@@ -182,6 +187,106 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
   const [analysisResults, setAnalysisResults] = useState<Map<number, AnalysisResult>>(new Map());
   
   const analysisAbortRef = useRef(false);
+
+  // Auto-scroll to current move
+  useEffect(() => {
+    const activeMoveElement = document.getElementById(`move-${currentMoveIndex}`);
+    if (activeMoveElement) {
+      activeMoveElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [currentMoveIndex]);
+
+  // Generate PGN with Seven Tag Roster
+  const generatePGN = useMemo(() => {
+    const pgnChess = new Chess();
+    
+    const resultString = gameResult === "white_win" ? "1-0" 
+      : gameResult === "black_win" ? "0-1" 
+      : gameResult === "draw" ? "1/2-1/2" 
+      : "*";
+    
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+    
+    pgnChess.header(
+      'Event', 'Blindfold Chess Challenge',
+      'Site', 'Mobile App',
+      'Date', dateStr,
+      'Round', '?',
+      'White', playerColor === 'white' ? 'User' : `Stockfish (Elo ${botElo || '?'})`,
+      'Black', playerColor === 'black' ? 'User' : `Stockfish (Elo ${botElo || '?'})`,
+      'Result', resultString
+    );
+    
+    moveHistory.forEach(move => {
+      try {
+        pgnChess.move(move);
+      } catch (e) {
+        console.warn('[PGN] Could not add move:', move);
+      }
+    });
+    
+    return pgnChess.pgn();
+  }, [moveHistory, playerColor, gameResult, botElo]);
+
+  const copyPGN = async () => {
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(generatePGN);
+      } else {
+        // Fallback for older browsers/Android WebView
+        const textArea = document.createElement("textarea");
+        textArea.value = generatePGN;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setCopiedPGN(true);
+      toast({
+        title: "PGN Copied",
+        description: "Game notation copied to clipboard",
+        duration: 2000,
+      });
+      setTimeout(() => setCopiedPGN(false), 2000);
+    } catch (error) {
+      console.error('[PGN] Copy failed:', error);
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy to clipboard",
+        variant: "destructive",
+        duration: 2000,
+      });
+    }
+  };
+
+  const downloadPGN = () => {
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    const filename = `blindfold-game-${timestamp}.pgn.txt`;
+    
+    const element = document.createElement("a");
+    const file = new Blob([generatePGN], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    URL.revokeObjectURL(element.href);
+    
+    toast({
+      title: "PGN Downloaded",
+      description: filename,
+      duration: 2000,
+    });
+  };
 
   // Pre-compute all position FENs and lastMoves on mount (O(n) once, then O(1) lookup)
   const positionData = useMemo<PositionData[]>(() => {
@@ -471,7 +576,33 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
           </div>
         </div>
 
-        <Card className="mt-4 p-3 max-h-40 overflow-y-auto" data-testid="analysis-move-list">
+        <div className="flex items-center justify-between mt-4 mb-2">
+          <span className="text-sm font-medium text-muted-foreground">Move List</span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyPGN}
+              className="h-7 px-2"
+              data-testid="button-copy-pgn"
+            >
+              {copiedPGN ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+              {copiedPGN ? "Copied" : "Copy"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadPGN}
+              className="h-7 px-2"
+              data-testid="button-download-pgn"
+            >
+              <Download className="h-3 w-3 mr-1" />
+              Download
+            </Button>
+          </div>
+        </div>
+
+        <Card className="p-3 max-h-40 overflow-y-auto scroll-smooth" data-testid="analysis-move-list">
           <div className="grid grid-cols-[auto_1fr_1fr] gap-x-3 gap-y-1 text-sm font-mono">
             {moveList.map((move) => (
               <Fragment key={move.moveNumber}>
@@ -479,6 +610,7 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
                   {move.moveNumber}.
                 </span>
                 <button
+                  id={`move-${move.whiteIndex}`}
                   onClick={() => goToMove(move.whiteIndex)}
                   className={`text-left px-1 rounded hover:bg-muted transition-colors ${
                     currentMoveIndex === move.whiteIndex ? 'bg-amber-400 text-black font-bold' : ''
@@ -489,6 +621,7 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
                 </button>
                 {move.black ? (
                   <button
+                    id={`move-${move.blackIndex}`}
                     onClick={() => goToMove(move.blackIndex!)}
                     className={`text-left px-1 rounded hover:bg-muted transition-colors ${
                       currentMoveIndex === move.blackIndex ? 'bg-amber-400 text-black font-bold' : ''
