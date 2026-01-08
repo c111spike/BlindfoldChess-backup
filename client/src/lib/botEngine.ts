@@ -136,12 +136,13 @@ export function countAllPieces(fen: string): number {
  * Human-like bot thinking delay based on game phase and complexity.
  * Creates realistic thinking patterns:
  * - Moves 1-6: 1-2s (book moves)
- * - Moves 7-12: 2-3s (development)
- * - Moves 13-20: 2-7s (peak complexity)
+ * - Moves 7-10: 2-3s (development)
+ * - Moves 11-15: 3-8s (middlegame transition)
+ * - Moves 16-20: 4-8s (peak complexity)
  * - Move 21+: Based on piece count (4-8s crowded, 1-2s endgame)
  * - Time scramble overrides: Under 60s = 1s, under 30s = 0.5s (NO multiplier applied)
  * 
- * Time control scaling:
+ * Time control scaling (applied to all moves including first 20):
  * - 5min/Practice: 1.0x (base delays)
  * - 15min: 1.5x (longer thinks for rapid games)
  * - 30min: 2.0x (classical-length pauses)
@@ -172,10 +173,12 @@ export function getHumanBotThinkingDelay(
   // PRIORITY 2: EARLY GAME (Moves 1-20)
   if (moveNumber <= 6) {
     baseDelay = randomRange(1, 2);
-  } else if (moveNumber <= 12) {
+  } else if (moveNumber <= 10) {
     baseDelay = randomRange(2, 3);
+  } else if (moveNumber <= 15) {
+    baseDelay = randomRange(3, 8);
   } else if (moveNumber <= 20) {
-    baseDelay = randomRange(2, 7);
+    baseDelay = randomRange(4, 8);
   }
   // PRIORITY 3: PIECE DENSITY (Move 21+)
   else if (pieceCount >= 26) {
