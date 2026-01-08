@@ -86,7 +86,7 @@ The Tactician uses pattern recognition heuristics instead of extra search depth 
 **Philosophy**: "Tactics flow from a superior position" - Capablanca. But the Tactician creates that position by recognizing patterns and maintaining maximum tension.
 
 ### Post-Game Analysis System
-Provides two tabbed modes: Stockfish-powered engine analysis (`Analyze Tab`) and psychology-focused coaching analysis (`Review Tab`). Features interactive board, evaluation, move classification (Genius, Fantastic, Best, Good, Imprecise, Mistake, Blunder), accuracy scores, and tactical motif detection for personalized coaching.
+Provides client-side Stockfish-powered engine analysis with interactive board navigation, evaluation bar, and move-by-move review.
 
 ### User Systems
 - **Profile System**: User profiles with statistics and rating history.
