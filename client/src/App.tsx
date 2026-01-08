@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SettingsDialog } from "@/components/settings-dialog";
+import { AboutDialog } from "@/components/about-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -223,6 +224,7 @@ export default function App() {
               <ThemeToggle />
             </div>
             <div className="flex justify-end">
+              <AboutDialog />
             </div>
           </footer>
         </div>
