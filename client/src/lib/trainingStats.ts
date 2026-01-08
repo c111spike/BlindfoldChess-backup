@@ -5,7 +5,7 @@ const DB_NAME = 'blindfold_chess';
 
 export interface TrainingSession {
   id: number;
-  mode: 'color_blitz' | 'coordinate_sniper';
+  mode: 'color_blitz' | 'coordinate_sniper' | 'voice_move_master';
   score: number;
   streak: number;
   achievedAt: string;
@@ -18,6 +18,9 @@ export interface TrainingStats {
   coordinateSniperBest: number | null;
   coordinateSniperBestDate: string | null;
   coordinateSniperBestStreak: number | null;
+  voiceMoveMasterBest: number | null;
+  voiceMoveMasterBestDate: string | null;
+  voiceMoveMasterBestStreak: number | null;
   totalSessions: number;
   recentSessions: TrainingSession[];
 }
@@ -107,7 +110,7 @@ function setLocalStorageSessions(sessions: TrainingSession[]): void {
   localStorage.setItem('blindfold_training_stats', JSON.stringify(sessions));
 }
 
-export async function saveTrainingSession(mode: 'color_blitz' | 'coordinate_sniper', score: number, streak: number = 0): Promise<number | null> {
+export async function saveTrainingSession(mode: 'color_blitz' | 'coordinate_sniper' | 'voice_move_master', score: number, streak: number = 0): Promise<number | null> {
   await initTrainingDB();
   
   const achievedAt = new Date().toISOString();
@@ -152,6 +155,9 @@ export async function getTrainingStats(): Promise<TrainingStats> {
     coordinateSniperBest: null,
     coordinateSniperBestDate: null,
     coordinateSniperBestStreak: null,
+    voiceMoveMasterBest: null,
+    voiceMoveMasterBestDate: null,
+    voiceMoveMasterBestStreak: null,
     totalSessions: 0,
     recentSessions: [],
   };
@@ -162,6 +168,7 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       
       const colorBlitzSessions = sessions.filter(s => s.mode === 'color_blitz');
       const sniperSessions = sessions.filter(s => s.mode === 'coordinate_sniper');
+      const voiceMasterSessions = sessions.filter(s => s.mode === 'voice_move_master');
       
       let colorBlitzBest: number | null = null;
       let colorBlitzBestDate: string | null = null;
@@ -185,6 +192,17 @@ export async function getTrainingStats(): Promise<TrainingStats> {
         coordinateSniperBestStreak = bestStreak.streak || null;
       }
       
+      let voiceMoveMasterBest: number | null = null;
+      let voiceMoveMasterBestDate: string | null = null;
+      let voiceMoveMasterBestStreak: number | null = null;
+      if (voiceMasterSessions.length > 0) {
+        const best = voiceMasterSessions.reduce((max, s) => s.score > max.score ? s : max);
+        voiceMoveMasterBest = best.score;
+        voiceMoveMasterBestDate = best.achievedAt;
+        const bestStreak = voiceMasterSessions.reduce((max, s) => (s.streak || 0) > (max.streak || 0) ? s : max);
+        voiceMoveMasterBestStreak = bestStreak.streak || null;
+      }
+      
       return {
         colorBlitzBest,
         colorBlitzBestDate,
@@ -192,6 +210,9 @@ export async function getTrainingStats(): Promise<TrainingStats> {
         coordinateSniperBest,
         coordinateSniperBestDate,
         coordinateSniperBestStreak,
+        voiceMoveMasterBest,
+        voiceMoveMasterBestDate,
+        voiceMoveMasterBestStreak,
         totalSessions: sessions.length,
         recentSessions: sessions.slice(0, 10),
       };
@@ -229,6 +250,20 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       WHERE mode = 'coordinate_sniper';
     `;
     
+    const voiceMasterBestQuery = `
+      SELECT score as best_score, achieved_at
+      FROM training_stats
+      WHERE mode = 'voice_move_master'
+      ORDER BY score DESC
+      LIMIT 1;
+    `;
+    
+    const voiceMasterStreakQuery = `
+      SELECT MAX(streak) as best_streak
+      FROM training_stats
+      WHERE mode = 'voice_move_master';
+    `;
+    
     const countQuery = `SELECT COUNT(*) as total FROM training_stats;`;
     
     const recentQuery = `
@@ -242,6 +277,8 @@ export async function getTrainingStats(): Promise<TrainingStats> {
     const colorStreakResult = await db.query(colorBlitzStreakQuery);
     const sniperResult = await db.query(sniperBestQuery);
     const sniperStreakResult = await db.query(sniperStreakQuery);
+    const voiceMasterResult = await db.query(voiceMasterBestQuery);
+    const voiceMasterStreakResult = await db.query(voiceMasterStreakQuery);
     const countResult = await db.query(countQuery);
     const recentResult = await db.query(recentQuery);
     
@@ -252,6 +289,9 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       coordinateSniperBest: sniperResult.values?.[0]?.best_time || null,
       coordinateSniperBestDate: sniperResult.values?.[0]?.achieved_at || null,
       coordinateSniperBestStreak: sniperStreakResult.values?.[0]?.best_streak || null,
+      voiceMoveMasterBest: voiceMasterResult.values?.[0]?.best_score || null,
+      voiceMoveMasterBestDate: voiceMasterResult.values?.[0]?.achieved_at || null,
+      voiceMoveMasterBestStreak: voiceMasterStreakResult.values?.[0]?.best_streak || null,
       totalSessions: countResult.values?.[0]?.total || 0,
       recentSessions: (recentResult.values || []) as TrainingSession[],
     };

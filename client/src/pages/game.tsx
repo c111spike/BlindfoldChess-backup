@@ -885,6 +885,49 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         return;
       }
       
+      // Handle "last move" query - tells the player what opponent played
+      if (lowerTranscript.includes("last move") || lowerTranscript.includes("previous move") || lowerTranscript.includes("opponent's move")) {
+        // Haptic confirmation
+        try {
+          Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+        } catch (e) {}
+        
+        const history = currentGame.history({ verbose: true });
+        let response = '';
+        
+        if (history.length === 0) {
+          response = 'No moves have been made yet';
+        } else {
+          const lastMove = history[history.length - 1];
+          const pieceNames: Record<string, string> = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' };
+          const pieceName = pieceNames[lastMove.piece] || lastMove.piece;
+          const capture = lastMove.captured ? ' takes' : '';
+          const from = lastMove.from.toUpperCase();
+          const to = lastMove.to.toUpperCase();
+          
+          if (lastMove.piece === 'p') {
+            response = `${from}${capture} ${to}`;
+          } else {
+            response = `${pieceName}${capture} ${to}`;
+          }
+        }
+        
+        if (voiceOutputEnabled) {
+          isTtsSpeaking.current = true;
+          voiceRecognition.stop();
+          try {
+            await speak(response);
+          } catch (e) {
+            console.error('[Voice] TTS error:', e);
+          } finally {
+            isTtsSpeaking.current = false;
+            setVoiceRestartTrigger(prev => prev + 1);
+          }
+        }
+        setVoiceTranscript(null);
+        return;
+      }
+      
       // Handle "how much time" / "clock" / "time" query (strict matching to avoid collision with other commands)
       const isTimeQuery = /\b(how much time|what('?s| is) the time|time left|clock|my time)\b/.test(lowerTranscript);
       if (isTimeQuery) {

@@ -158,6 +158,7 @@ export default function App() {
                       <h3 className="font-semibold">Query Commands</h3>
                       <ul className="space-y-1 text-muted-foreground">
                         <li><span className="font-mono text-foreground">"say again"</span> / <span className="font-mono text-foreground">"repeat"</span> / <span className="font-mono text-foreground">"again"</span> - Hear the last move</li>
+                        <li><span className="font-mono text-foreground">"last move"</span> - Hear opponent's last move</li>
                         <li><span className="font-mono text-foreground">"what's on e4"</span> - Check what piece is on a square</li>
                         <li><span className="font-mono text-foreground">"where is my queen"</span> - Find your piece locations</li>
                         <li><span className="font-mono text-foreground">"how much time"</span> / <span className="font-mono text-foreground">"clock"</span> - Hear remaining time</li>

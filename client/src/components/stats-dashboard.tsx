@@ -654,6 +654,58 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
+              <Mic className="h-4 w-4 text-purple-500" />
+              Voice Move Master
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Announce chess moves by voice
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {trainingStats && trainingStats.voiceMoveMasterBest !== null ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Personal Best</span>
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-purple-500" />
+                    <span className="text-2xl font-bold text-purple-500">{trainingStats.voiceMoveMasterBest}</span>
+                    <span className="text-sm text-muted-foreground">moves</span>
+                  </div>
+                </div>
+                {trainingStats.voiceMoveMasterBestStreak !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Best Streak</span>
+                    <div className="flex items-center gap-2">
+                      <Flame className="h-4 w-4 text-orange-500" />
+                      <span className="text-lg font-bold text-orange-500">{trainingStats.voiceMoveMasterBestStreak}</span>
+                      <span className="text-sm text-muted-foreground">in a row</span>
+                    </div>
+                  </div>
+                )}
+                {trainingStats.voiceMoveMasterBestDate && (
+                  <p className="text-xs text-muted-foreground text-right">
+                    Achieved {new Date(trainingStats.voiceMoveMasterBestDate).toLocaleDateString()}
+                  </p>
+                )}
+                {trainingStats.voiceMoveMasterBest >= 15 ? (
+                  <Badge className="bg-purple-500 text-white">Gold Tier</Badge>
+                ) : trainingStats.voiceMoveMasterBest >= 8 ? (
+                  <Badge variant="secondary">Silver Tier</Badge>
+                ) : (
+                  <Badge variant="outline">Bronze Tier</Badge>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Complete a Voice Move Master session to set your first record!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
               <Dumbbell className="h-4 w-4" />
               Training Summary
             </CardTitle>
