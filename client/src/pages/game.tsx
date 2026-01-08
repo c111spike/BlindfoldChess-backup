@@ -115,11 +115,15 @@ type BlindFoldDifficulty = keyof typeof BLINDFOLD_CONFIG;
 type TimeControlOption = "practice" | "blitz" | "rapid" | "classical";
 type BlindFoldDisplayMode = "empty_board" | "black_overlay" | "no_board";
 
+export type GameViewState = 'idle' | 'in_game' | 'reconstruction' | 'analysis';
+
 interface GamePageProps {
   historyTrigger?: number;
+  onStateChange?: (state: GameViewState) => void;
+  returnToTitleRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-export default function GamePage({ historyTrigger }: GamePageProps) {
+export default function GamePage({ historyTrigger, onStateChange, returnToTitleRef }: GamePageProps) {
   const { toast } = useToast();
   
   const [showTitleScreen, setShowTitleScreen] = useState(true);
@@ -336,6 +340,75 @@ export default function GamePage({ historyTrigger }: GamePageProps) {
       countdownTimeoutRef.current = null;
     }
   }, []);
+
+  // Report state changes to parent component
+  useEffect(() => {
+    if (!onStateChange) return;
+    
+    if (showReconstruction) {
+      onStateChange('reconstruction');
+    } else if (showAnalysis) {
+      onStateChange('analysis');
+    } else if (gameStarted && !gameResult) {
+      onStateChange('in_game');
+    } else {
+      onStateChange('idle');
+    }
+  }, [showReconstruction, showAnalysis, gameStarted, gameResult, onStateChange]);
+
+  // Expose returnToTitle function to parent
+  const returnToTitle = useCallback(() => {
+    // If in a game with moves, save as resignation
+    if (gameStarted && gameRef.current && movesRef.current.length > 0 && !gameResult && selectedBot) {
+      // Stop the clock
+      if (clockIntervalRef.current) {
+        clearInterval(clockIntervalRef.current);
+        clockIntervalRef.current = null;
+      }
+      
+      // Save the game as a loss (resignation)
+      const pgn = gameRef.current.pgn() || "";
+      const gameToSave = {
+        date: new Date().toISOString(),
+        result: 'loss' as const,
+        playerColor,
+        botName: String(selectedBot.elo),
+        botElo: selectedBot.elo,
+        moveCount: movesRef.current.length,
+        pgn,
+        clarityScore: 0,
+        isFavorite: false,
+        timeControl: timeControl
+      };
+      saveGame(gameToSave).then(id => {
+        if (id) {
+          console.log('[Game] Saved resigned game to history:', id);
+        }
+      });
+    }
+    
+    // Clean up and return to title
+    voiceRecognition.stop();
+    setShowReconstruction(false);
+    setShowAnalysis(false);
+    setShowPostMortem(false);
+    setShowGameHistory(false);
+    setViewingHistoryGame(null);
+    resetGameState();
+    setShowTitleScreen(true);
+  }, [gameStarted, gameResult, selectedBot, playerColor, timeControl, resetGameState]);
+
+  // Attach to ref for parent access
+  useEffect(() => {
+    if (returnToTitleRef) {
+      returnToTitleRef.current = returnToTitle;
+    }
+    return () => {
+      if (returnToTitleRef) {
+        returnToTitleRef.current = null;
+      }
+    };
+  }, [returnToTitle, returnToTitleRef]);
 
   const finalizeGameResult = useCallback((result: "white_win" | "black_win" | "draw", clarityScore?: number, voicePurity?: number) => {
     const playerWon = (result === "white_win" && playerColor === "white") || 

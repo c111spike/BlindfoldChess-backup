@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -7,16 +7,29 @@ import { AboutDialog } from "@/components/about-dialog";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { BarChart3, RefreshCw, Mic, History } from "lucide-react";
 import { loadStats, resetStats, type GameStats } from "@/lib/gameStats";
 import { StatsDashboard } from "@/components/stats-dashboard";
-import GamePage from "@/pages/game";
+import GamePage, { type GameViewState } from "@/pages/game";
 
 export default function App() {
   const [showStatsDialog, setShowStatsDialog] = useState(false);
   const [showVoiceHelpDialog, setShowVoiceHelpDialog] = useState(false);
   const [stats, setStats] = useState<GameStats>(loadStats());
   const [historyTrigger, setHistoryTrigger] = useState(0);
+  const [gameViewState, setGameViewState] = useState<GameViewState>('idle');
+  const [showReturnConfirm, setShowReturnConfirm] = useState(false);
+  const returnToTitleRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const handleStatsUpdate = () => {
@@ -28,6 +41,35 @@ export default function App() {
 
   const handleOpenHistory = () => {
     setHistoryTrigger(prev => prev + 1);
+  };
+
+  const handleTitleClick = () => {
+    if (gameViewState === 'idle') {
+      // Already on title, do nothing
+      return;
+    }
+    // Show confirmation dialog
+    setShowReturnConfirm(true);
+  };
+
+  const handleConfirmReturn = () => {
+    setShowReturnConfirm(false);
+    if (returnToTitleRef.current) {
+      returnToTitleRef.current();
+    }
+  };
+
+  const getConfirmMessage = () => {
+    switch (gameViewState) {
+      case 'in_game':
+        return "Resign this game and return to title?";
+      case 'reconstruction':
+        return "Leave this challenge and return to title?";
+      case 'analysis':
+        return "Skip analysis and return to title?";
+      default:
+        return "Return to title?";
+    }
   };
 
   return (
@@ -105,7 +147,13 @@ export default function App() {
                 </DialogContent>
               </Dialog>
             </div>
-            <h1 className="text-lg font-bold text-foreground text-center whitespace-nowrap">Blindfold Chess</h1>
+            <button
+              onClick={handleTitleClick}
+              className={`text-lg font-bold text-foreground text-center whitespace-nowrap bg-transparent border-none cursor-pointer hover:text-primary transition-colors ${gameViewState === 'idle' ? 'cursor-default hover:text-foreground' : ''}`}
+              data-testid="button-title-home"
+            >
+              Blindfold Chess
+            </button>
             <div className="flex items-center gap-1 justify-end">
               <Button
                 variant="ghost"
@@ -148,7 +196,11 @@ export default function App() {
             </div>
           </header>
           <main className="flex-1 overflow-auto">
-            <GamePage historyTrigger={historyTrigger} />
+            <GamePage 
+              historyTrigger={historyTrigger}
+              onStateChange={setGameViewState}
+              returnToTitleRef={returnToTitleRef}
+            />
           </main>
           <footer className="grid grid-cols-3 items-center p-2 border-t border-border pb-[var(--safe-area-bottom)]">
             <div className="flex justify-start">
@@ -162,6 +214,25 @@ export default function App() {
             </div>
           </footer>
         </div>
+        
+        {/* Confirmation dialog for returning to title */}
+        <AlertDialog open={showReturnConfirm} onOpenChange={setShowReturnConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Return to Title</AlertDialogTitle>
+              <AlertDialogDescription>
+                {getConfirmMessage()}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-return">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmReturn} data-testid="button-confirm-return">
+                Confirm
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        
         <Toaster />
       </TooltipProvider>
     </ThemeProvider>
