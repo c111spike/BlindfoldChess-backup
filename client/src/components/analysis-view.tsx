@@ -317,8 +317,8 @@ export function AnalysisView({ moveHistory, playerColor, onClose }: AnalysisView
 
       <div className="flex-1 overflow-auto p-4">
         <div className="flex flex-col gap-3 items-center">
-          {/* Board and eval bar row - use grid to sync heights */}
-          <div className="grid grid-cols-[24px_1fr] gap-2 w-full max-w-[324px]">
+          {/* Board and eval bar row - use grid to sync heights. 24px bar + 8px gap + 320px board = 352px */}
+          <div className="grid grid-cols-[24px_1fr] gap-2 w-full max-w-[352px]">
             <EvaluationBar 
               evaluation={evaluation} 
               isLoading={isEvaluating}
