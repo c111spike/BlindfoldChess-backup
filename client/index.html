@@ -3,40 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>SimulChess: Chess Training | Master OTB, Blindfold & Simul Chess</title>
-    <!-- Static tags for crawlers that don't execute JS (Bing, Discord, etc.) -->
-    <!-- react-helmet-async handles description, og:title, og:description dynamically -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://simulchess.com/" />
-    <meta property="og:image" content="https://simulchess.com/og-image.jpg" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://simulchess.com/og-image.jpg" />
-    <!-- Favicon: Gold Standard 2025 Setup -->
-    <!-- High-res PNGs for modern browsers (prioritized first) -->
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <!-- Apple Touch Icon for iOS (180x180) -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <!-- Legacy ICO fallback for crawlers and old browsers -->
-    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-    <!-- Critical CSS for above-the-fold content - prevents white screen -->
+    <title>SimulChess</title>
     <style>
       :root{--background:210 6% 98%;--foreground:210 8% 12%}
       .dark{--background:207 20% 14%;--foreground:210 6% 96%}
       html,body{margin:0;padding:0;min-height:100vh;background:hsl(var(--background));color:hsl(var(--foreground));font-family:'Inter',system-ui,-apple-system,sans-serif}
       #root{min-height:100vh}
-      /* Hero skeleton - instant dark background before image loads */
-      .hero-container{min-height:80vh;display:flex;position:relative;background:linear-gradient(to bottom,rgba(0,0,0,0.7),rgba(0,0,0,0.6),rgba(0,0,0,0.8))}
-      .hero-title{color:#fff;font-weight:700;font-size:2.25rem;line-height:1.2}
-      .hero-subtitle{color:rgba(255,255,255,0.9);font-size:1.125rem;line-height:1.75}
-      @media(min-width:768px){.hero-title{font-size:3rem}.hero-subtitle{font-size:1.25rem}}
     </style>
-    <!-- Preload hero image for instant LCP (stable URL from public folder) -->
-    <link rel="preload" as="image" href="/hero-image.webp" fetchpriority="high">
-    <!-- Preload only Inter font (JetBrains Mono deferred to not compete with hero) -->
     <link rel="preload" href="/fonts/inter-subset.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-    <!-- Theme initialization (must run before render to prevent flash) -->
     <script>
       (function() {
         const theme = localStorage.getItem('simul-chess-theme') || 'dark';
@@ -47,22 +21,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- Delayed GTM loading - frees main thread for LCP rendering -->
-    <script>
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          var script = document.createElement('script');
-          script.src = 'https://www.googletagmanager.com/gtag/js?id=G-MRNQT1V5EY';
-          script.async = true;
-          document.head.appendChild(script);
-          script.onload = function() {
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-MRNQT1V5EY');
-          };
-        }, 2500);
-      });
-    </script>
   </body>
 </html>
