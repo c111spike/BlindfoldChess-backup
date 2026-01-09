@@ -541,9 +541,8 @@ function abortRecognitionIfReady() {
 }
 
 function resumeRecognitionAfterTTS() {
-  if (voiceRecognitionInstance) {
-    voiceRecognitionInstance.resumeAfterTTS();
-  }
+  // VoiceController handles resume via registered sessions
+  // This function is now a no-op - resume is handled by the session's resume() callback
 }
 
 async function waitForTTSCompletion(): Promise<void> {
@@ -1658,6 +1657,15 @@ class TrainingVoiceController {
   private isRegistered: boolean = false;
   private isPaused: boolean = false;
   
+  // Always-On mode for Color Blitz - mic stays open, uses echo filter during TTS
+  private alwaysOnMode: boolean = false;
+  private ignoreResults: boolean = false;
+  private echoFilterWords: string[] = []; // Words to ignore (coordinates spoken by TTS)
+  private echoFilterTimeout: ReturnType<typeof setTimeout> | null = null;
+  
+  // 3-Strike retry callback for UI
+  private onRetryNeeded: (() => void) | null = null;
+  
   async checkAvailability(): Promise<boolean> {
     if (this.availabilityChecked) {
       return this.isAvailable;
@@ -1722,9 +1730,100 @@ class TrainingVoiceController {
   }
   
   /**
+   * Set callback for when 3-strike retry is needed
+   */
+  setOnRetryNeeded(callback: (() => void) | null): void {
+    this.onRetryNeeded = callback;
+  }
+  
+  /**
+   * Enable/disable always-on mode (for Color Blitz)
+   * In always-on mode, mic stays open during TTS and uses echo filter
+   */
+  setAlwaysOnMode(enabled: boolean): void {
+    this.alwaysOnMode = enabled;
+    console.log('[TrainingVoice] Always-on mode:', enabled);
+  }
+  
+  /**
+   * Set words to ignore during echo filter (coordinates spoken by TTS)
+   * Call this before TTS speaks a coordinate
+   */
+  setEchoFilter(words: string[]): void {
+    this.echoFilterWords = words.map(w => w.toLowerCase());
+    this.ignoreResults = true;
+    console.log('[TrainingVoice] Echo filter active for:', words);
+    
+    // Clear any existing timeout
+    if (this.echoFilterTimeout) {
+      clearTimeout(this.echoFilterTimeout);
+    }
+  }
+  
+  /**
+   * Clear echo filter after TTS ends
+   * @param delayMs Delay before accepting results again (default 200ms)
+   */
+  clearEchoFilter(delayMs: number = 200): void {
+    if (this.echoFilterTimeout) {
+      clearTimeout(this.echoFilterTimeout);
+    }
+    
+    this.echoFilterTimeout = setTimeout(() => {
+      this.ignoreResults = false;
+      this.echoFilterWords = [];
+      console.log('[TrainingVoice] Echo filter cleared, listening for responses');
+    }, delayMs);
+  }
+  
+  /**
+   * Check if a transcript should be filtered (matches echo words)
+   * Uses exact matching for full coordinate only to avoid blocking valid answers like "dark" or "light"
+   */
+  private shouldFilterTranscript(transcript: string): boolean {
+    if (!this.ignoreResults) return false;
+    
+    const normalized = transcript.toLowerCase().trim();
+    
+    // Only filter exact matches of the full coordinate (e.g., "e4", "a 1", "c3")
+    // Don't filter single letters to avoid blocking answers like "dark" (contains 'a')
+    for (const word of this.echoFilterWords) {
+      // Only check words with 2+ characters (full coordinates like "e4", "a1")
+      if (word.length >= 2) {
+        // Check for exact match or match with space (e.g., "e 4" matches "e4")
+        const wordNoSpace = word.replace(/\s+/g, '');
+        const normalizedNoSpace = normalized.replace(/\s+/g, '');
+        
+        // Exact match of the coordinate
+        if (normalizedNoSpace === wordNoSpace) {
+          console.log('[TrainingVoice] Filtered echo (exact match):', transcript);
+          return true;
+        }
+        
+        // Match if transcript is just the spoken coordinate (with or without spaces)
+        // e.g., "e 4" or "echo 4" for "e4"
+        const coordPattern = new RegExp(`^(${word[0]}|echo|alpha|bravo|charlie|delta|foxtrot|golf|hotel)\\s*${word.slice(-1)}$`, 'i');
+        if (coordPattern.test(normalized)) {
+          console.log('[TrainingVoice] Filtered echo (coordinate pattern):', transcript);
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
    * Pause recognition (called by voiceController when TTS starts)
    */
   private pauseInternal(): void {
+    // In always-on mode, don't stop mic - just set ignore flag
+    if (this.alwaysOnMode) {
+      console.log('[TrainingVoice] Always-on mode: Setting ignore flag for TTS');
+      this.ignoreResults = true;
+      return;
+    }
+    
     if (!this.isListening) return;
     this.isPaused = true;
     console.log('[TrainingVoice] Pausing for TTS');
@@ -1745,6 +1844,14 @@ class TrainingVoiceController {
    * Resume recognition after TTS (called by voiceController when TTS ends)
    */
   private resumeInternal(): void {
+    // In always-on mode, just clear ignore flag after settling delay
+    if (this.alwaysOnMode) {
+      console.log('[TrainingVoice] Always-on mode: Clearing ignore flag after TTS');
+      // Use the echo filter clear with settling delay
+      this.clearEchoFilter(200);
+      return;
+    }
+    
     if (!this.isPaused || !this.shouldBeListening) return;
     this.isPaused = false;
     console.log('[TrainingVoice] Resuming after TTS');
@@ -1820,6 +1927,18 @@ class TrainingVoiceController {
         if (data.matches && data.matches.length > 0 && this.shouldBeListening && this.onTranscript) {
           const transcript = data.matches[0];
           console.log('[TrainingVoice] Heard:', transcript);
+          
+          // Echo filter: Skip if transcript matches TTS output (Color Blitz always-on mode)
+          if (this.shouldFilterTranscript(transcript)) {
+            return;
+          }
+          
+          // Skip if ignoring results during TTS
+          if (this.ignoreResults && !this.alwaysOnMode) {
+            console.log('[TrainingVoice] Ignoring result during TTS');
+            return;
+          }
+          
           // Reset failure count on successful result
           this.consecutiveFailures = 0;
           this.onTranscript(transcript);
@@ -1896,6 +2015,18 @@ class TrainingVoiceController {
         if (lastResult.isFinal && this.shouldBeListening && this.onTranscript) {
           const transcript = lastResult[0].transcript;
           console.log('[TrainingVoice] Heard:', transcript);
+          
+          // Echo filter: Skip if transcript matches TTS output
+          if (this.shouldFilterTranscript(transcript)) {
+            return;
+          }
+          
+          // Skip if ignoring results during TTS
+          if (this.ignoreResults && !this.alwaysOnMode) {
+            console.log('[TrainingVoice] Ignoring result during TTS');
+            return;
+          }
+          
           this.onTranscript(transcript);
         }
       };
@@ -1966,6 +2097,15 @@ class TrainingVoiceController {
     this.shouldBeListening = false;
     this.onTranscript = null;
     this.isPaused = false;
+    
+    // Reset always-on mode and echo filter
+    this.alwaysOnMode = false;
+    this.ignoreResults = false;
+    this.echoFilterWords = [];
+    if (this.echoFilterTimeout) {
+      clearTimeout(this.echoFilterTimeout);
+      this.echoFilterTimeout = null;
+    }
     
     // Unregister from voiceController to prevent stale session callbacks
     if (this.isRegistered) {

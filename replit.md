@@ -156,6 +156,22 @@ APK output: `android/app/build/outputs/apk/debug/app-debug.apk`
 - Uses `@capacitor-community/speech-recognition` v7.0.1
 - AndroidManifest.xml includes `<queries>` for speech services (required for Android 11+)
 - `TrainingVoiceController` in voice.ts provides continuous speech recognition that avoids rapid start/stop cycles
+- **Voice State Machine**: SPEAKING→SETTLING→LISTENING coordination via `VoiceSessionController`
+  - 250ms settling delay for Galaxy S9+ hardware after TTS ends
+  - Prevents Android beep loops from rapid mic start/stop
+- **Always-On Mode**: Color Blitz uses echo filter instead of pause/resume
+  - `setAlwaysOnMode(true)` keeps mic open during TTS
+  - `setEchoFilter(['e4', 'e', '4'])` ignores TTS playback of coordinates
+  - `clearEchoFilter(200ms)` re-enables recognition after TTS
+- **3-Strike Retry**: After 3 consecutive mic failures, shows "Tap to Retry" button
+  - `setOnRetryNeeded(callback)` triggers UI state for manual retry
+  - `resetMicBusy()` clears failure state for fresh start
+- **Clean Slate Pattern**: Call `SpeechRecognition.stop()` on component mount
+  - Clears lingering sessions from previous screens
+  - Prevents "recognizer busy" errors on Samsung devices
+- **Ready Screens**: Voice Move Master and Reconstruction have Ready screens
+  - Heartbeat animation indicates mic readiness
+  - Start button initiates voice recognition fresh
 
 ## External Dependencies
 - **Neon Database**: Serverless PostgreSQL.

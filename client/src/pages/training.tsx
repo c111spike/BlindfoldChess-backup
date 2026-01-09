@@ -208,13 +208,19 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
   const handleAnswerRef = useRef<((answer: 'light' | 'dark' | 'white' | 'black') => void) | null>(null);
   const hasSpokenFirstSquare = useRef(false);
 
-  const speakSquare = (square: { file: string; rank: string }) => {
+  // Speak square with echo filter for always-on mode
+  const speakSquareWithEcho = async (square: { file: string; rank: string }) => {
     if (voiceMode) {
-      speak(`${square.file} ${square.rank}`);
+      // Set echo filter before speaking to ignore the coordinate
+      // Only include full coordinate to avoid blocking valid answers like "dark"/"light"
+      const coordinate = `${square.file}${square.rank}`;
+      trainingVoice.setEchoFilter([coordinate]);
+      await speak(`${square.file} ${square.rank}`);
+      // Echo filter is cleared automatically by trainingVoice after TTS ends
     }
   };
 
-  const startGame = () => {
+  const startGame = async () => {
     setGameState('playing');
     setScore(0);
     setStreak(0);
@@ -223,10 +229,16 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     hasSpokenFirstSquare.current = false;
     const newSquare = getRandomSquare();
     setCurrentSquare(newSquare);
+    
+    // Enable always-on mode for Color Blitz voice
+    if (voiceMode) {
+      trainingVoice.setAlwaysOnMode(true);
+    }
+    
     // Speak first square after a brief delay
-    setTimeout(() => {
+    setTimeout(async () => {
       if (voiceMode) {
-        speak(`${newSquare.file} ${newSquare.rank}`);
+        await speakSquareWithEcho(newSquare);
         hasSpokenFirstSquare.current = true;
       }
     }, 300);
@@ -337,25 +349,25 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       });
       const newSquare = getRandomSquare();
       setCurrentSquare(newSquare);
-      // Voice feedback: Haptic ding + just the coordinate (not "Next:")
+      // Voice feedback: Haptic ding + just the coordinate with echo filter
       if (voiceMode) {
         // Haptic "ding" for correct answer
         Haptics.notification({ type: NotificationType.Success }).catch(() => {});
-        // Just say the coordinate clearly with a pause
-        setTimeout(() => {
-          speak(`${newSquare.file.toUpperCase()} ${newSquare.rank}`);
-        }, 300);
+        // Say the coordinate with echo filter (mic stays on, ignores this coordinate)
+        setTimeout(async () => {
+          await speakSquareWithEcho(newSquare);
+        }, 100);
       }
     } else {
       setStreak(0);
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
-      // Voice feedback: Wrong, try again
+      // Voice feedback: Wrong - no echo filter needed for "wrong"
       if (voiceMode) {
         speak('Wrong');
       }
     }
-  }, [gameState, currentSquare, voiceMode]);
+  }, [gameState, currentSquare, voiceMode, speakSquareWithEcho]);
 
   // Keep ref updated for voice recognition callback
   useEffect(() => {
@@ -848,17 +860,59 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   const [awaitingResignConfirm, setAwaitingResignConfirm] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; correct: boolean } | null>(null);
   const [textInput, setTextInput] = useState('');
+  const [micRetryNeeded, setMicRetryNeeded] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.voiceMoveMasterBest !== null && score > stats.voiceMoveMasterBest;
   const isNative = Capacitor.isNativePlatform();
+  
+  // Clean slate: Stop any lingering speech recognition when Ready screen mounts
+  useEffect(() => {
+    const cleanSlate = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
+          await SpeechRecognition.stop();
+          console.log('[VoiceMoveMaster] Clean slate: stopped lingering recognition');
+        } catch (e) {
+          // Ignore - may not be running
+        }
+      }
+    };
+    cleanSlate();
+    
+    // Set up 3-strike retry callback
+    trainingVoice.setOnRetryNeeded(() => {
+      setMicRetryNeeded(true);
+    });
+    
+    return () => {
+      trainingVoice.setOnRetryNeeded(null);
+    };
+  }, []);
+  
+  // Handle manual retry after 3-strike failure
+  const handleRetryMic = async () => {
+    setMicRetryNeeded(false);
+    trainingVoice.resetMicBusy();
+    const started = await trainingVoice.start((transcript) => {
+      if (transcript.length > 2) {
+        processVoiceInputRef.current?.(transcript);
+      }
+    });
+    setIsListening(started);
+  };
+  
+  const processVoiceInputRef = useRef<((transcript: string) => void) | null>(null);
 
-  const startGame = () => {
+  const startGame = async () => {
     setGameState('playing');
     setScore(0);
     setStreak(0);
     setBestStreak(0);
     setTimeLeft(60);
     setFeedback(null);
+    setMicRetryNeeded(false);
+    trainingVoice.resetMicBusy();
     const newPos = getRandomPosition();
     setPosition(newPos);
     setTimeout(() => {
@@ -1017,13 +1071,18 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
       setTimeout(() => setFeedback(null), 1000);
     }
   }, [position, gameState, score, streak, bestStreak, timeLeft, awaitingResignConfirm]);
+  
+  // Keep processVoiceInput ref updated
+  useEffect(() => {
+    processVoiceInputRef.current = processVoiceInput;
+  }, [processVoiceInput]);
 
   // Start/stop voice recognition based on gameState using trainingVoice
   useEffect(() => {
     if (gameState === 'playing') {
       trainingVoice.start((transcript) => {
         if (transcript.length > 2) {
-          processVoiceInput(transcript);
+          processVoiceInputRef.current?.(transcript);
         }
       }).then(started => {
         setIsListening(started);
@@ -1031,11 +1090,12 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     } else {
       trainingVoice.stop();
       setIsListening(false);
+      setMicRetryNeeded(false);
     }
     return () => {
       trainingVoice.stop();
     };
-  }, [gameState, processVoiceInput]);
+  }, [gameState]);
 
   // Timer
   useEffect(() => {
@@ -1146,8 +1206,11 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-2xl font-mono font-bold tabular-nums">{timeLeft}</span>
-            {isListening && (
+            {isListening && !micRetryNeeded && (
               <Mic className="h-5 w-5 text-red-500 animate-pulse" />
+            )}
+            {micRetryNeeded && (
+              <MicOff className="h-5 w-5 text-muted-foreground" />
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -1159,6 +1222,17 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
             )}
           </div>
         </div>
+        
+        {/* 3-Strike Retry Button */}
+        {micRetryNeeded && (
+          <div className="mb-4 p-3 bg-amber-500/20 rounded-lg text-center">
+            <p className="text-sm text-amber-600 mb-2">Microphone needs a fresh start</p>
+            <Button onClick={handleRetryMic} size="sm" data-testid="button-voicemaster-retry-mic">
+              <Mic className="h-4 w-4 mr-2" />
+              Tap to Retry
+            </Button>
+          </div>
+        )}
 
         {/* Feedback display */}
         {feedback && (

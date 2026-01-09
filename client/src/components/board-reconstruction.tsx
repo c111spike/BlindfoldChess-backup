@@ -162,6 +162,7 @@ type DisambiguationState = {
 } | null;
 
 export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip, onContinue, onViewReport }: BoardReconstructionProps) {
+  const [gameState, setGameState] = useState<'ready' | 'playing'>('ready');
   const [userBoard, setUserBoard] = useState<(string | null)[][]>(
     Array(8).fill(null).map(() => Array(8).fill(null))
   );
@@ -173,6 +174,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   const [isListening, setIsListening] = useState(false);
   const [disambiguation, setDisambiguation] = useState<DisambiguationState>(null);
   const [lastVoiceCommand, setLastVoiceCommand] = useState<string>('');
+  const [heartbeat, setHeartbeat] = useState(true); // For Ready screen pulse indicator
   
   const [draggedPiece, setDraggedPiece] = useState<string | null>(null);
   
@@ -713,10 +715,35 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     };
   }, [isListening, stopListening]);
   
-  // Auto-start voice recognition when component mounts (both native and web)
+  // Clean slate: Stop any lingering speech recognition when component mounts
+  useEffect(() => {
+    const cleanSlate = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await CapacitorSpeechRecognition.stop();
+          console.log('[Reconstruction] Clean slate: stopped lingering recognition');
+        } catch (e) {
+          // Ignore - may not be running
+        }
+      }
+    };
+    cleanSlate();
+  }, []);
+  
+  // Heartbeat animation for Ready screen
+  useEffect(() => {
+    if (gameState === 'ready') {
+      const interval = setInterval(() => {
+        setHeartbeat(prev => !prev);
+      }, 800);
+      return () => clearInterval(interval);
+    }
+  }, [gameState]);
+  
+  // Auto-start voice recognition when game starts (both native and web)
   const hasAutoStartedRef = useRef(false);
   useEffect(() => {
-    if (!submitted && !hasAutoStartedRef.current) {
+    if (gameState === 'playing' && !submitted && !hasAutoStartedRef.current) {
       hasAutoStartedRef.current = true;
       // Small delay to ensure component is fully mounted
       const timer = setTimeout(() => {
@@ -724,7 +751,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [submitted, startListening]);
+  }, [gameState, submitted, startListening]);
 
   const handleSquareClick = useCallback((row: number, col: number) => {
     if (submitted) return;
@@ -804,6 +831,48 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   const disambiguationBorderClass = disambiguation?.type === 'color' 
     ? 'animate-pulse ring-4 ring-amber-400' 
     : '';
+  
+  // Ready screen with heartbeat and start button
+  if (gameState === 'ready') {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center justify-between">
+            <span>Board Reconstruction</span>
+            <Button variant="ghost" size="sm" onClick={onSkip} data-testid="button-skip-reconstruction-ready">
+              Skip
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center py-12 gap-6">
+          <div className="relative">
+            <Mic className={`h-16 w-16 text-blue-500 transition-transform duration-300 ${heartbeat ? 'scale-110' : 'scale-100'}`} />
+            <div className={`absolute -top-1 -right-1 h-4 w-4 rounded-full ${heartbeat ? 'bg-green-500' : 'bg-green-400'} transition-colors duration-300`} />
+          </div>
+          
+          <div className="text-center space-y-2">
+            <h2 className="text-xl font-semibold">Ready to Reconstruct?</h2>
+            <p className="text-muted-foreground text-sm">
+              Rebuild the position from memory using voice commands
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Say pieces like "White Knight F3" or "Black Queen D8"
+            </p>
+          </div>
+          
+          <Button 
+            size="lg" 
+            onClick={() => setGameState('playing')} 
+            className="mt-4"
+            data-testid="button-start-reconstruction"
+          >
+            <Mic className="h-5 w-5 mr-2" />
+            Start
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <Card className="w-full max-w-md mx-auto">
