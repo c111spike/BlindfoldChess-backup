@@ -338,7 +338,7 @@ async function waitForTTSCompletion(): Promise<void> {
 // Phonetic mapping for TTS clarity - prevents "a" sounding like "uh"
 function toPhonetic(text: string): string {
   // Map chess file letters to clearer pronunciations
-  const phoneticMap: Record<string, string> = {
+  const filePhoneticMap: Record<string, string> = {
     'a': 'Ay',
     'b': 'Bee', 
     'c': 'See',
@@ -346,12 +346,48 @@ function toPhonetic(text: string): string {
     'g': 'Gee'
   };
   
-  // Replace standalone file letters followed by ranks (e.g., "a 8" -> "Ay 8")
+  // Map piece abbreviations to full names
+  const pieceMap: Record<string, string> = {
+    'N': 'Knight',
+    'B': 'Bishop',
+    'R': 'Rook',
+    'Q': 'Queen',
+    'K': 'King'
+  };
+  
   let result = text;
-  for (const [letter, phonetic] of Object.entries(phoneticMap)) {
-    // Match "Find a 8" or "a8" patterns - letter followed by space and digit, or letter followed by digit
-    result = result.replace(new RegExp(`\\b${letter}\\s*(\\d)`, 'gi'), `${phonetic} $1`);
+  
+  // First, handle chess notation symbols
+  // Replace 'x' with 'takes' (capture notation)
+  result = result.replace(/x/g, ' takes ');
+  // Replace '+' with 'check'
+  result = result.replace(/\+/g, ' check');
+  // Replace '#' with 'checkmate'
+  result = result.replace(/#/g, ' checkmate');
+  
+  // Handle piece abbreviations at start of moves (e.g., "Nf3" -> "Knight f3")
+  // Match piece letter followed by file and rank
+  for (const [piece, name] of Object.entries(pieceMap)) {
+    // Piece moves like Nf3, Be5, Qd8
+    result = result.replace(new RegExp(`\\b${piece}([a-h])([1-8])`, 'g'), `${name} $1$2`);
+    // Piece captures like Nxe5, Bxa3
+    result = result.replace(new RegExp(`\\b${piece}\\s*takes\\s*([a-h])([1-8])`, 'gi'), `${name} takes $1$2`);
+    // Disambiguation like Nbd2, R1a3
+    result = result.replace(new RegExp(`\\b${piece}([a-h1-8])([a-h])([1-8])`, 'g'), `${name} $1$2$3`);
   }
+  
+  // Handle castling
+  result = result.replace(/O-O-O/gi, 'queenside castle');
+  result = result.replace(/O-O/gi, 'kingside castle');
+  
+  // Replace file letters followed by ranks (e.g., "a8" -> "Ay 8", "e5" -> "e 5")
+  for (const [letter, phonetic] of Object.entries(filePhoneticMap)) {
+    result = result.replace(new RegExp(`\\b${letter}\\s*([1-8])`, 'gi'), `${phonetic} $1`);
+  }
+  
+  // Clean up extra spaces
+  result = result.replace(/\s+/g, ' ').trim();
+  
   return result;
 }
 
