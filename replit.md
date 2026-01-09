@@ -136,6 +136,27 @@ A TTL-based cache (`server/memoryCache.ts`) for frequently accessed data with ce
 ### Position Cache Architecture
 The engine layer uses FEN-only caching for "Pure Engine Truth" in `positionCache` (Stockfish analysis) and `syzygyCache` (endgame tablebase results).
 
+## Android Build Instructions
+The app uses Capacitor 7 for native Android builds. Build requirements:
+- **JDK 21**: Required by Android Gradle Plugin 8.9.1
+- **Android SDK 36**: Installed at `/home/runner/android-sdk`
+
+**Build commands:**
+```bash
+npm run build                    # Build web assets
+npx cap sync android             # Sync to Android
+JDK21_PATH=$(nix eval --raw nixpkgs#openjdk21.outPath)
+export JAVA_HOME="$JDK21_PATH"
+export ANDROID_HOME=/home/runner/android-sdk
+cd android && ./gradlew assembleDebug
+```
+APK output: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+**Voice Recognition (Android):**
+- Uses `@capacitor-community/speech-recognition` v7.0.1
+- AndroidManifest.xml includes `<queries>` for speech services (required for Android 11+)
+- `TrainingVoiceController` in voice.ts provides continuous speech recognition that avoids rapid start/stop cycles
+
 ## External Dependencies
 - **Neon Database**: Serverless PostgreSQL.
 - **Replit Auth**: OpenID Connect authentication.
