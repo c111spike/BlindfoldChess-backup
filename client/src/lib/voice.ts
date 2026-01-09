@@ -903,6 +903,11 @@ export class VoiceRecognition {
   private initializationComplete: boolean = false;
   private initializationPromise: Promise<void> | null = null;
   private pendingStartAfterInit: boolean = false;
+  private consecutiveFailures: number = 0;
+  private lastStartAttempt: number = 0;
+  private static readonly MAX_CONSECUTIVE_FAILURES = 5;
+  private static readonly MIN_RESTART_INTERVAL_MS = 2000;
+  private static readonly FAILURE_COOLDOWN_MS = 5000;
   
   constructor() {
     this.initializationPromise = this.initialize();
@@ -1016,6 +1021,23 @@ export class VoiceRecognition {
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);
     }
+    
+    // If we've had too many consecutive failures, wait longer before retrying
+    if (this.consecutiveFailures >= VoiceRecognition.MAX_CONSECUTIVE_FAILURES) {
+      console.warn('[VoiceRecognition] Too many consecutive failures, waiting before retry');
+      this.restartTimeout = setTimeout(() => {
+        this.consecutiveFailures = 0; // Reset after cooldown
+        if (this.shouldBeListening && !this.isListening && !isBotSpeaking) {
+          this.startInternal();
+        }
+      }, VoiceRecognition.FAILURE_COOLDOWN_MS);
+      return;
+    }
+    
+    // Use a longer minimum interval between restart attempts
+    const timeSinceLastAttempt = Date.now() - this.lastStartAttempt;
+    const delay = Math.max(VoiceRecognition.MIN_RESTART_INTERVAL_MS - timeSinceLastAttempt, 500);
+    
     this.restartTimeout = setTimeout(() => {
       if (isBotSpeaking) {
         return;
@@ -1023,17 +1045,24 @@ export class VoiceRecognition {
       if (this.shouldBeListening && !this.isListening) {
         this.startInternal();
       }
-    }, 500);
+    }, delay);
   }
   
   private startInternal() {
+    this.lastStartAttempt = Date.now();
+    
     if (isNative && this.nativeAvailable) {
       this.startNative();
     } else if (this.recognition) {
       try {
         this.recognition.start();
+        this.consecutiveFailures = 0; // Reset on successful start
       } catch (e) {
         console.log('Failed to start recognition:', e);
+        this.consecutiveFailures++;
+        if (this.shouldBeListening) {
+          this.scheduleRestart();
+        }
       }
     }
   }
@@ -1078,8 +1107,14 @@ export class VoiceRecognition {
         partialResults: false,
         popup: false
       });
+      
+      // Reset failure counter on successful start
+      this.consecutiveFailures = 0;
+      console.log('[VoiceRecognition Native] Started successfully');
     } catch (e) {
-      console.error('Error starting native speech recognition:', e);
+      console.error('[VoiceRecognition Native] Error starting:', e);
+      this.consecutiveFailures++;
+      console.log('[VoiceRecognition Native] Consecutive failures:', this.consecutiveFailures);
       this.isListening = false;
       if (this.onListeningChange) {
         this.onListeningChange(false);
