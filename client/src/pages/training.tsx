@@ -9,7 +9,7 @@ import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag, Volume2, HelpCircle 
 import { Chess } from 'chess.js';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { saveTrainingSession, getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
-import { speak } from "@/lib/voice";
+import { speak, trainingVoice } from "@/lib/voice";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,8 +20,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { SpeechRecognition } from '@capacitor-community/speech-recognition';
-import { Capacitor } from '@capacitor/core';
 
 type TrainingMode = 'menu' | 'color_blitz' | 'coordinate_sniper' | 'voice_move_master';
 export type TrainingGameState = 'menu' | 'ready' | 'playing' | 'finished';
@@ -207,6 +205,13 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.colorBlitzBest !== null && score > stats.colorBlitzBest;
   const handleAnswerRef = useRef<((answer: 'light' | 'dark' | 'white' | 'black') => void) | null>(null);
+  const hasSpokenFirstSquare = useRef(false);
+
+  const speakSquare = (square: { file: string; rank: string }) => {
+    if (voiceMode) {
+      speak(`${square.file} ${square.rank}`);
+    }
+  };
 
   const startGame = () => {
     setGameState('playing');
@@ -214,89 +219,50 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     setStreak(0);
     setBestStreak(0);
     setTimeLeft(60);
-    setCurrentSquare(getRandomSquare());
+    hasSpokenFirstSquare.current = false;
+    const newSquare = getRandomSquare();
+    setCurrentSquare(newSquare);
+    // Speak first square after a brief delay
+    setTimeout(() => {
+      if (voiceMode) {
+        speak(`${newSquare.file} ${newSquare.rank}`);
+        hasSpokenFirstSquare.current = true;
+      }
+    }, 300);
   };
 
   const handleResign = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    stopVoiceRecognition();
+    trainingVoice.stop();
     onBack();
   };
 
-  const stopVoiceRecognition = async () => {
-    if (!Capacitor.isNativePlatform()) return;
-    try {
-      await SpeechRecognition.removeAllListeners();
-      await SpeechRecognition.stop();
-      setIsListening(false);
-    } catch (e) {
-      console.log('[ColorBlitz] Stop voice recognition error:', e);
-    }
-  };
-
-  const startVoiceRecognition = async () => {
-    if (!Capacitor.isNativePlatform()) return;
+  // Handle voice input for color answers
+  const handleVoiceTranscript = useCallback((transcript: string) => {
+    const text = transcript.toLowerCase();
+    console.log('[ColorBlitz] Voice:', text);
     
-    try {
-      const { available } = await SpeechRecognition.available();
-      if (!available) {
-        console.log('[ColorBlitz] Speech recognition not available');
-        return;
-      }
-
-      const permResult = await SpeechRecognition.requestPermissions();
-      if (permResult.speechRecognition !== 'granted') {
-        console.log('[ColorBlitz] Speech recognition permission denied');
-        return;
-      }
-
-      // Remove any existing listeners before adding new ones
-      await SpeechRecognition.removeAllListeners();
-      
-      setIsListening(true);
-      
-      await SpeechRecognition.start({
-        language: 'en-US',
-        partialResults: true,
-        popup: false,
-      });
-
-      SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
-        const transcript = data.matches?.[0]?.toLowerCase() || '';
-        console.log('[ColorBlitz] Voice:', transcript);
-        
-        // Check for color words
-        if (transcript.includes('light') || transcript.includes('white')) {
-          handleAnswerRef.current?.('light');
-          // Restart listening for next answer
-          SpeechRecognition.stop().then(() => {
-            setTimeout(() => startVoiceRecognition(), 100);
-          });
-        } else if (transcript.includes('dark') || transcript.includes('black')) {
-          handleAnswerRef.current?.('dark');
-          SpeechRecognition.stop().then(() => {
-            setTimeout(() => startVoiceRecognition(), 100);
-          });
-        }
-      });
-
-    } catch (e) {
-      console.error('[ColorBlitz] Voice recognition error:', e);
-      setIsListening(false);
+    if (text.includes('light') || text.includes('white')) {
+      handleAnswerRef.current?.('light');
+    } else if (text.includes('dark') || text.includes('black')) {
+      handleAnswerRef.current?.('dark');
     }
-  };
+  }, []);
 
   // Start/stop voice recognition based on voiceMode and gameState
   useEffect(() => {
     if (voiceMode && gameState === 'playing') {
-      startVoiceRecognition();
+      trainingVoice.start(handleVoiceTranscript).then(started => {
+        setIsListening(started);
+      });
     } else {
-      stopVoiceRecognition();
+      trainingVoice.stop();
+      setIsListening(false);
     }
     return () => {
-      stopVoiceRecognition();
+      trainingVoice.stop();
     };
-  }, [voiceMode, gameState]);
+  }, [voiceMode, gameState, handleVoiceTranscript]);
 
   useEffect(() => {
     if (gameState === 'playing') {
@@ -345,13 +311,18 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
         }
         return newStreak;
       });
-      setCurrentSquare(getRandomSquare());
+      const newSquare = getRandomSquare();
+      setCurrentSquare(newSquare);
+      // Speak the next square in voice mode
+      if (voiceMode) {
+        speak(`${newSquare.file} ${newSquare.rank}`);
+      }
     } else {
       setStreak(0);
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
     }
-  }, [gameState, currentSquare]);
+  }, [gameState, currentSquare, voiceMode]);
 
   // Keep ref updated for voice recognition callback
   useEffect(() => {
@@ -842,7 +813,6 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   const [awaitingResignConfirm, setAwaitingResignConfirm] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; correct: boolean } | null>(null);
   const [textInput, setTextInput] = useState('');
-  const isNative = Capacitor.isNativePlatform();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.voiceMoveMasterBest !== null && score > stats.voiceMoveMasterBest;
 
@@ -862,19 +832,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
 
   const handleResign = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    stopVoiceRecognition();
+    trainingVoice.stop();
     onBack();
-  };
-
-  const stopVoiceRecognition = async () => {
-    if (!Capacitor.isNativePlatform()) return;
-    try {
-      await SpeechRecognition.removeAllListeners();
-      await SpeechRecognition.stop();
-      setIsListening(false);
-    } catch (e) {
-      console.log('[VoiceMoveMaster] Stop voice recognition error:', e);
-    }
   };
 
   const processVoiceInput = useCallback((transcript: string) => {
@@ -1023,51 +982,24 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     }
   }, [position, gameState, score, streak, bestStreak, timeLeft, awaitingResignConfirm]);
 
-  const startVoiceRecognition = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) return;
-    
-    try {
-      const { available } = await SpeechRecognition.available();
-      if (!available) return;
-
-      const permResult = await SpeechRecognition.requestPermissions();
-      if (permResult.speechRecognition !== 'granted') return;
-
-      await SpeechRecognition.removeAllListeners();
-      setIsListening(true);
-      
-      await SpeechRecognition.start({
-        language: 'en-US',
-        partialResults: true,
-        popup: false,
-      });
-
-      SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
-        const transcript = data.matches?.[0] || '';
-        if (transcript.length > 2) {
-          processVoiceInput(transcript);
-          SpeechRecognition.stop().then(() => {
-            setTimeout(() => startVoiceRecognition(), 100);
-          });
-        }
-      });
-    } catch (e) {
-      console.error('[VoiceMoveMaster] Voice recognition error:', e);
-      setIsListening(false);
-    }
-  }, [processVoiceInput]);
-
-  // Start/stop voice recognition based on gameState
+  // Start/stop voice recognition based on gameState using trainingVoice
   useEffect(() => {
     if (gameState === 'playing') {
-      startVoiceRecognition();
+      trainingVoice.start((transcript) => {
+        if (transcript.length > 2) {
+          processVoiceInput(transcript);
+        }
+      }).then(started => {
+        setIsListening(started);
+      });
     } else {
-      stopVoiceRecognition();
+      trainingVoice.stop();
+      setIsListening(false);
     }
     return () => {
-      stopVoiceRecognition();
+      trainingVoice.stop();
     };
-  }, [gameState, startVoiceRecognition]);
+  }, [gameState, processVoiceInput]);
 
   // Timer
   useEffect(() => {

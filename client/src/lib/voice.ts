@@ -1281,3 +1281,216 @@ export class VoiceRecognition {
 
 export const voiceRecognition = new VoiceRecognition();
 voiceRecognitionInstance = voiceRecognition;
+
+// Simple training voice API - keeps a single continuous listener
+// Avoids the rapid stop/start that causes Android beep loops
+class TrainingVoiceController {
+  private isListening: boolean = false;
+  private onTranscript: ((text: string) => void) | null = null;
+  private listenerHandle: { remove: () => Promise<void> } | null = null;
+  private webRecognition: SpeechRecognition | null = null;
+  private shouldBeListening: boolean = false;
+  private restartTimeout: ReturnType<typeof setTimeout> | null = null;
+  private availabilityChecked: boolean = false;
+  private isAvailable: boolean = false;
+  
+  async checkAvailability(): Promise<boolean> {
+    if (this.availabilityChecked) {
+      return this.isAvailable;
+    }
+    
+    if (isNative) {
+      try {
+        const { available } = await CapacitorSpeechRecognition.available();
+        if (!available) {
+          console.log('[TrainingVoice] Speech recognition not available on this device');
+          this.isAvailable = false;
+          this.availabilityChecked = true;
+          return false;
+        }
+        
+        const { speechRecognition } = await CapacitorSpeechRecognition.checkPermissions();
+        if (speechRecognition !== 'granted') {
+          const result = await CapacitorSpeechRecognition.requestPermissions();
+          if (result.speechRecognition !== 'granted') {
+            console.log('[TrainingVoice] Permission denied');
+            this.isAvailable = false;
+            this.availabilityChecked = true;
+            return false;
+          }
+        }
+        
+        this.isAvailable = true;
+        this.availabilityChecked = true;
+        return true;
+      } catch (e) {
+        console.error('[TrainingVoice] Error checking availability:', e);
+        this.isAvailable = false;
+        this.availabilityChecked = true;
+        return false;
+      }
+    } else {
+      // Web fallback
+      const SpeechRecognitionAPI = typeof window !== 'undefined' 
+        ? (window.SpeechRecognition || window.webkitSpeechRecognition) 
+        : null;
+      this.isAvailable = !!SpeechRecognitionAPI;
+      this.availabilityChecked = true;
+      return this.isAvailable;
+    }
+  }
+  
+  async start(onTranscript: (text: string) => void): Promise<boolean> {
+    const available = await this.checkAvailability();
+    if (!available) {
+      console.log('[TrainingVoice] Not available, cannot start');
+      return false;
+    }
+    
+    this.onTranscript = onTranscript;
+    this.shouldBeListening = true;
+    
+    if (isNative) {
+      return this.startNative();
+    } else {
+      return this.startWeb();
+    }
+  }
+  
+  private async startNative(): Promise<boolean> {
+    try {
+      // Clean up any existing listener
+      if (this.listenerHandle) {
+        await this.listenerHandle.remove();
+        this.listenerHandle = null;
+      }
+      
+      // Add listener for results
+      this.listenerHandle = await CapacitorSpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
+        if (data.matches && data.matches.length > 0 && this.shouldBeListening && this.onTranscript) {
+          const transcript = data.matches[0];
+          console.log('[TrainingVoice] Heard:', transcript);
+          this.onTranscript(transcript);
+        }
+      });
+      
+      // Start recognition with popup: false to reduce the beep
+      await CapacitorSpeechRecognition.start({
+        language: 'en-US',
+        partialResults: true,
+        popup: false,
+      });
+      
+      this.isListening = true;
+      console.log('[TrainingVoice] Started native');
+      return true;
+    } catch (e) {
+      console.error('[TrainingVoice] Failed to start native:', e);
+      // Schedule a retry after delay to avoid spam
+      if (this.shouldBeListening) {
+        this.scheduleRestart();
+      }
+      return false;
+    }
+  }
+  
+  private startWeb(): boolean {
+    try {
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognitionAPI) {
+        return false;
+      }
+      
+      this.webRecognition = new SpeechRecognitionAPI();
+      this.webRecognition.continuous = true;
+      this.webRecognition.interimResults = false;
+      this.webRecognition.lang = 'en-US';
+      
+      this.webRecognition.onresult = (event: SpeechRecognitionEvent) => {
+        const lastResult = event.results[event.results.length - 1];
+        if (lastResult.isFinal && this.shouldBeListening && this.onTranscript) {
+          const transcript = lastResult[0].transcript;
+          console.log('[TrainingVoice] Heard:', transcript);
+          this.onTranscript(transcript);
+        }
+      };
+      
+      this.webRecognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.log('[TrainingVoice] Web error:', event.error);
+        if (event.error !== 'aborted' && event.error !== 'not-allowed' && this.shouldBeListening) {
+          this.scheduleRestart();
+        }
+      };
+      
+      this.webRecognition.onend = () => {
+        this.isListening = false;
+        if (this.shouldBeListening) {
+          this.scheduleRestart();
+        }
+      };
+      
+      this.webRecognition.start();
+      this.isListening = true;
+      console.log('[TrainingVoice] Started web');
+      return true;
+    } catch (e) {
+      console.error('[TrainingVoice] Failed to start web:', e);
+      return false;
+    }
+  }
+  
+  private scheduleRestart() {
+    if (this.restartTimeout) {
+      clearTimeout(this.restartTimeout);
+    }
+    
+    // Use a longer delay (2s) to avoid rapid restart loops on Android
+    this.restartTimeout = setTimeout(async () => {
+      if (this.shouldBeListening) {
+        if (isNative) {
+          await this.startNative();
+        } else {
+          this.startWeb();
+        }
+      }
+    }, 2000);
+  }
+  
+  async stop(): Promise<void> {
+    this.shouldBeListening = false;
+    this.onTranscript = null;
+    
+    if (this.restartTimeout) {
+      clearTimeout(this.restartTimeout);
+      this.restartTimeout = null;
+    }
+    
+    if (isNative) {
+      try {
+        await CapacitorSpeechRecognition.stop();
+        if (this.listenerHandle) {
+          await this.listenerHandle.remove();
+          this.listenerHandle = null;
+        }
+      } catch (e) {
+        console.log('[TrainingVoice] Stop error:', e);
+      }
+    } else if (this.webRecognition) {
+      try {
+        this.webRecognition.stop();
+      } catch (e) {
+        console.log('[TrainingVoice] Web stop error:', e);
+      }
+      this.webRecognition = null;
+    }
+    
+    this.isListening = false;
+    console.log('[TrainingVoice] Stopped');
+  }
+  
+  getIsListening(): boolean {
+    return this.isListening;
+  }
+}
+
+export const trainingVoice = new TrainingVoiceController();
