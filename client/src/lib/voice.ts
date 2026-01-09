@@ -2,6 +2,35 @@ import { Capacitor } from '@capacitor/core';
 import { SpeechRecognition as CapacitorSpeechRecognition } from '@capacitor-community/speech-recognition';
 import { SpeechSynthesis as CapacitorSpeechSynthesis } from '@capgo/capacitor-speech-synthesis';
 
+// Cached Haptics module for efficient haptic feedback
+let cachedHapticsModule: typeof import('@capacitor/haptics') | null = null;
+
+async function pulseHaptic(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    if (!cachedHapticsModule) {
+      cachedHapticsModule = await import('@capacitor/haptics');
+    }
+    const { Haptics, NotificationType } = cachedHapticsModule;
+    await Haptics.notification({ type: NotificationType.Success });
+  } catch (e) {
+    // Haptics not available
+  }
+}
+
+export async function pulseHapticLight(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    if (!cachedHapticsModule) {
+      cachedHapticsModule = await import('@capacitor/haptics');
+    }
+    const { Haptics, ImpactStyle } = cachedHapticsModule;
+    await Haptics.impact({ style: ImpactStyle.Light });
+  } catch (e) {
+    // Haptics not available
+  }
+}
+
 type SpeechRecognitionEvent = Event & {
   results: SpeechRecognitionResultList;
   resultIndex: number;
@@ -1104,9 +1133,12 @@ export class VoiceRecognition {
         language: 'en-US',
         maxResults: 5,
         prompt: 'Say your chess move',
-        partialResults: false,
+        partialResults: true, // Use partial results for immediate move processing on S9+
         popup: false
       });
+      
+      // Haptic pulse to indicate mic is now active
+      await pulseHapticLight();
       
       // Reset failure counter on successful start
       this.consecutiveFailures = 0;
@@ -1288,11 +1320,17 @@ class TrainingVoiceController {
   private isListening: boolean = false;
   private onTranscript: ((text: string) => void) | null = null;
   private listenerHandle: { remove: () => Promise<void> } | null = null;
+  private stateListenerHandle: { remove: () => Promise<void> } | null = null;
   private webRecognition: SpeechRecognition | null = null;
   private shouldBeListening: boolean = false;
   private restartTimeout: ReturnType<typeof setTimeout> | null = null;
   private availabilityChecked: boolean = false;
   private isAvailable: boolean = false;
+  // Android beep loop prevention
+  private lastErrorTime: number = 0;
+  private consecutiveFailures: number = 0;
+  private micBusy: boolean = false;
+  private onMicBusyChange: ((busy: boolean) => void) | null = null;
   
   async checkAvailability(): Promise<boolean> {
     if (this.availabilityChecked) {
@@ -1340,7 +1378,28 @@ class TrainingVoiceController {
     }
   }
   
+  setOnMicBusyChange(callback: ((busy: boolean) => void) | null) {
+    this.onMicBusyChange = callback;
+  }
+  
+  isMicBusy(): boolean {
+    return this.micBusy;
+  }
+  
+  resetMicBusy(): void {
+    this.micBusy = false;
+    this.consecutiveFailures = 0;
+    this.lastErrorTime = 0;
+    if (this.onMicBusyChange) {
+      this.onMicBusyChange(false);
+    }
+  }
+  
   async start(onTranscript: (text: string) => void): Promise<boolean> {
+    // Reset failure counters on fresh start
+    this.consecutiveFailures = 0;
+    this.micBusy = false;
+    
     const available = await this.checkAvailability();
     if (!available) {
       console.log('[TrainingVoice] Not available, cannot start');
@@ -1358,6 +1417,23 @@ class TrainingVoiceController {
   }
   
   private async startNative(): Promise<boolean> {
+    // Check if mic is busy from too many failures
+    if (this.micBusy) {
+      console.log('[TrainingVoice] Mic is busy, not starting');
+      return false;
+    }
+    
+    // 3-second lockout: If last error was within 3 seconds, don't start yet
+    const timeSinceLastError = Date.now() - this.lastErrorTime;
+    if (timeSinceLastError < 3000 && this.lastErrorTime > 0) {
+      console.log(`[TrainingVoice] Lockout active in startNative: ${3000 - timeSinceLastError}ms remaining`);
+      // Schedule a restart after the lockout period
+      if (!this.restartTimeout) {
+        this.scheduleRestart();
+      }
+      return false;
+    }
+    
     try {
       // Clean up any existing listener
       if (this.listenerHandle) {
@@ -1370,7 +1446,23 @@ class TrainingVoiceController {
         if (data.matches && data.matches.length > 0 && this.shouldBeListening && this.onTranscript) {
           const transcript = data.matches[0];
           console.log('[TrainingVoice] Heard:', transcript);
+          // Reset failure count on successful result
+          this.consecutiveFailures = 0;
           this.onTranscript(transcript);
+        }
+      });
+      
+      // Add listener for listening state changes
+      if (this.stateListenerHandle) {
+        await this.stateListenerHandle.remove();
+        this.stateListenerHandle = null;
+      }
+      this.stateListenerHandle = await CapacitorSpeechRecognition.addListener('listeningState', async (state: { status: string }) => {
+        console.log('[TrainingVoice] State changed:', state.status);
+        if (state.status === 'stopped' && this.shouldBeListening && !this.micBusy) {
+          // Recognition stopped naturally, schedule restart
+          this.isListening = false;
+          this.scheduleRestart();
         }
       });
       
@@ -1382,10 +1474,29 @@ class TrainingVoiceController {
       });
       
       this.isListening = true;
+      this.consecutiveFailures = 0;
       console.log('[TrainingVoice] Started native');
+      
+      // Haptic pulse to indicate mic is now active
+      await pulseHapticLight();
+      
       return true;
     } catch (e) {
       console.error('[TrainingVoice] Failed to start native:', e);
+      this.lastErrorTime = Date.now();
+      this.consecutiveFailures++;
+      
+      // After 3 consecutive failures, stop trying and show mic busy
+      if (this.consecutiveFailures >= 3) {
+        console.log('[TrainingVoice] Too many failures, mic is busy');
+        this.micBusy = true;
+        this.isListening = false;
+        if (this.onMicBusyChange) {
+          this.onMicBusyChange(true);
+        }
+        return false;
+      }
+      
       // Schedule a retry after delay to avoid spam
       if (this.shouldBeListening) {
         this.scheduleRestart();
@@ -1440,20 +1551,41 @@ class TrainingVoiceController {
   }
   
   private scheduleRestart() {
+    // 3-second lockout: If last error was within 3 seconds, don't restart yet
+    const timeSinceLastError = Date.now() - this.lastErrorTime;
+    if (timeSinceLastError < 3000 && this.lastErrorTime > 0) {
+      console.log(`[TrainingVoice] Lockout: ${3000 - timeSinceLastError}ms remaining`);
+      // Schedule for after the lockout period
+      if (this.restartTimeout) {
+        clearTimeout(this.restartTimeout);
+      }
+      this.restartTimeout = setTimeout(() => {
+        this.scheduleRestart();
+      }, 3000 - timeSinceLastError + 100);
+      return;
+    }
+    
+    // If mic is busy from too many failures, don't restart
+    if (this.micBusy) {
+      console.log('[TrainingVoice] Mic busy, not scheduling restart');
+      return;
+    }
+    
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);
     }
     
-    // Use a longer delay (2s) to avoid rapid restart loops on Android
+    // Use a 3-second delay to avoid rapid restart loops on Android
     this.restartTimeout = setTimeout(async () => {
-      if (this.shouldBeListening) {
+      if (this.shouldBeListening && !this.micBusy) {
+        console.log('[TrainingVoice] Restarting after delay');
         if (isNative) {
           await this.startNative();
         } else {
           this.startWeb();
         }
       }
-    }, 2000);
+    }, 3000);
   }
   
   async stop(): Promise<void> {
@@ -1471,6 +1603,10 @@ class TrainingVoiceController {
         if (this.listenerHandle) {
           await this.listenerHandle.remove();
           this.listenerHandle = null;
+        }
+        if (this.stateListenerHandle) {
+          await this.stateListenerHandle.remove();
+          this.stateListenerHandle = null;
         }
       } catch (e) {
         console.log('[TrainingVoice] Stop error:', e);

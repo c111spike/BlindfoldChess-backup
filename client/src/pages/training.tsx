@@ -252,15 +252,38 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
 
   // Start/stop voice recognition based on voiceMode and gameState
   useEffect(() => {
-    if (voiceMode && gameState === 'playing') {
-      trainingVoice.start(handleVoiceTranscript).then(started => {
+    let mounted = true;
+    
+    const startVoice = async () => {
+      if (!voiceMode || gameState !== 'playing') {
+        trainingVoice.stop();
+        setIsListening(false);
+        return;
+      }
+      
+      // S9+ quirk: Force permission re-check before each game start
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
+          await SpeechRecognition.requestPermissions();
+        } catch (e) {
+          console.log('[ColorBlitz] Permission request failed:', e);
+        }
+      }
+      
+      // Reset mic busy state for fresh start
+      trainingVoice.resetMicBusy();
+      
+      const started = await trainingVoice.start(handleVoiceTranscript);
+      if (mounted) {
         setIsListening(started);
-      });
-    } else {
-      trainingVoice.stop();
-      setIsListening(false);
-    }
+      }
+    };
+    
+    startVoice();
+    
     return () => {
+      mounted = false;
       trainingVoice.stop();
     };
   }, [voiceMode, gameState, handleVoiceTranscript]);

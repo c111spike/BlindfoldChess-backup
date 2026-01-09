@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, X, RotateCcw, Send, Mic, MicOff, Trash2 } from "lucide-react";
 import { SpeechRecognition as CapacitorSpeechRecognition } from "@capacitor-community/speech-recognition";
 import { Capacitor } from "@capacitor/core";
-import { handleMicPermission, checkMicPermission, voiceRecognition } from "@/lib/voice";
+import { handleMicPermission, checkMicPermission, voiceRecognition, pulseHapticLight } from "@/lib/voice";
 
 // Web Speech API types (local interface to avoid global conflicts)
 interface WebSpeechRecognitionLocal {
@@ -192,6 +192,9 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   const submitRef = useRef<(() => void) | null>(null);
   const shouldBeListeningRef = useRef(false);
   const isRestartingRef = useRef(false);
+  // Android beep loop prevention
+  const lastErrorTimeRef = useRef(0);
+  const consecutiveFailuresRef = useRef(0);
   
   const actualBoard = fenToBoard(actualFen);
   
@@ -320,23 +323,66 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     }
   }, [disambiguation, squareToIndices, placePiece, removePiece]);
   
+  // Track the startup timeout for cleanup
+  const startupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (startupTimeoutRef.current) {
+        clearTimeout(startupTimeoutRef.current);
+        startupTimeoutRef.current = null;
+      }
+    };
+  }, []);
+  
   const startListening = useCallback(async () => {
     if (submitted) return;
     shouldBeListeningRef.current = true;
     
-    try {
-      // Use unified permission handler for both platforms
-      const hasPermission = await handleMicPermission();
-      if (!hasPermission) {
-        console.warn('[Reconstruction] Microphone permission not granted');
-        // Check if permanently denied
-        const status = await checkMicPermission();
-        if (status === 'prompt-with-rationale') {
-          alert("Voice control requires microphone access. Please enable it in your device Settings > Apps > Blindfold Chess > Permissions.");
-        }
-        return;
-      }
+    // Immediately update UI to show we're trying to listen
+    // This lets the UI turn red before the heavy speech engine starts
+    setIsListening(true);
+    
+    // Haptic feedback immediately on button press
+    await pulseHapticLight();
+    
+    // Clear any previous startup timeout
+    if (startupTimeoutRef.current) {
+      clearTimeout(startupTimeoutRef.current);
+    }
+    
+    // Use setTimeout to let the UI update before starting the speech engine
+    startupTimeoutRef.current = setTimeout(async () => {
+      if (!isMountedRef.current) return;
       
+      try {
+        // Use unified permission handler for both platforms
+        const hasPermission = await handleMicPermission();
+        if (!hasPermission) {
+          console.warn('[Reconstruction] Microphone permission not granted');
+          if (isMountedRef.current) setIsListening(false);
+          // Check if permanently denied
+          const status = await checkMicPermission();
+          if (status === 'prompt-with-rationale') {
+            alert("Voice control requires microphone access. Please enable it in your device Settings > Apps > Blindfold Chess > Permissions.");
+          }
+          return;
+        }
+        
+        await startListeningInternal();
+      } catch (e) {
+        console.error('[Reconstruction] Failed to start listening:', e);
+        if (isMountedRef.current) setIsListening(false);
+      }
+    }, 100);
+  }, [submitted]);
+  
+  const startListeningInternal = useCallback(async () => {
+    try {
       if (Capacitor.isNativePlatform()) {
         // NATIVE: Use Capacitor SDK
         const { available } = await CapacitorSpeechRecognition.available();
@@ -374,10 +420,25 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
         if (!stateListenerRef.current) {
           stateListenerRef.current = await CapacitorSpeechRecognition.addListener('listeningState', async (state: any) => {
             if (state.status === 'stopped' && shouldBeListeningRef.current && !isRestartingRef.current) {
+              // 3-second lockout: If last error was within 3 seconds, wait longer
+              const now = Date.now();
+              const timeSinceLastError = now - lastErrorTimeRef.current;
+              if (timeSinceLastError < 3000 && lastErrorTimeRef.current > 0) {
+                console.log(`[Reconstruction] Lockout active: ${3000 - timeSinceLastError}ms remaining`);
+                return;
+              }
+              
+              // Check consecutive failures - stop after 3
+              if (consecutiveFailuresRef.current >= 3) {
+                console.log('[Reconstruction] Too many failures, mic busy');
+                setIsListening(false);
+                return;
+              }
+              
               // Auto-restart after a brief pause with guard against double-restart
               isRestartingRef.current = true;
               setTimeout(async () => {
-                if (shouldBeListeningRef.current) {
+                if (shouldBeListeningRef.current && consecutiveFailuresRef.current < 3) {
                   try {
                     await CapacitorSpeechRecognition.start({
                       language: 'en-US',
@@ -385,14 +446,22 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
                       popup: false,
                     });
                     setIsListening(true);
+                    consecutiveFailuresRef.current = 0; // Reset on success
                     console.log('[Reconstruction] Native speech auto-restarted');
+                    // Haptic pulse on successful restart
+                    try {
+                      const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+                      await Haptics.impact({ style: ImpactStyle.Light });
+                    } catch (e) {}
                   } catch (e) {
-                    // Ignore "already listening" errors
-                    console.log('[Reconstruction] Auto-restart skipped:', e);
+                    // Track failure
+                    lastErrorTimeRef.current = Date.now();
+                    consecutiveFailuresRef.current++;
+                    console.log('[Reconstruction] Auto-restart failed:', e, 'Failures:', consecutiveFailuresRef.current);
                   }
                 }
                 isRestartingRef.current = false;
-              }, 300);
+              }, 3000); // Use 3-second delay to prevent beep loop
             }
           });
         }
@@ -497,8 +566,9 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
       }
     } catch (e) {
       console.error('[Reconstruction] Speech recognition error:', e);
+      setIsListening(false);
     }
-  }, [submitted, processVoiceCommand]);
+  }, [processVoiceCommand]);
   
   const stopListening = useCallback(async () => {
     shouldBeListeningRef.current = false;
