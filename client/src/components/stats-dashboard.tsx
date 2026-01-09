@@ -250,30 +250,38 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              Voice vs Touch
-              <Badge variant="secondary" className="text-xs">Reconstruction</Badge>
+              <Grid3X3 className="h-4 w-4" />
+              Confusion Heatmap
             </CardTitle>
             <CardDescription className="text-xs">
-              Voice-only reconstruction is "pure" blindfold training
+              Squares you inquire about most often - your mental "blind spots"
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Mic className="h-4 w-4 text-blue-500" />
-                <span className="font-medium">{voiceTouchRatio.voice}%</span>
-              </div>
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500" 
-                  style={{ width: `${voiceTouchRatio.voice}%` }} 
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{voiceTouchRatio.touch}%</span>
-                <Hand className="h-4 w-4 text-orange-500" />
-              </div>
-            </div>
+            {stats.totalSquareInquiries > 0 ? (
+              <>
+                <CoordinateHeatmap stats={stats} />
+                <p className="text-xs text-muted-foreground text-center mt-3">
+                  Red = frequently forgotten, Gray = clear
+                </p>
+                {topConfused.length > 0 && (
+                  <div className="mt-4 space-y-1">
+                    <p className="text-xs font-medium">Top Blind Spots:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {topConfused.map(({ square, count }) => (
+                        <Badge key={square} variant="secondary" className="text-xs">
+                          {square.toUpperCase()} ({count})
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Ask about squares during games to see which ones you forget!
+              </p>
+            )}
           </CardContent>
         </Card>
         
@@ -360,39 +368,28 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Grid3X3 className="h-4 w-4" />
-              Confusion Heatmap
-            </CardTitle>
+            <CardTitle className="text-sm">Voice vs Touch</CardTitle>
             <CardDescription className="text-xs">
-              Squares you inquire about most often - your mental "blind spots"
+              How you input your moves during games
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {stats.totalSquareInquiries > 0 ? (
-              <>
-                <CoordinateHeatmap stats={stats} />
-                <p className="text-xs text-muted-foreground text-center mt-3">
-                  Red = frequently forgotten, Gray = clear
-                </p>
-                {topConfused.length > 0 && (
-                  <div className="mt-4 space-y-1">
-                    <p className="text-xs font-medium">Top Blind Spots:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {topConfused.map(({ square, count }) => (
-                        <Badge key={square} variant="secondary" className="text-xs">
-                          {square.toUpperCase()} ({count})
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Ask about squares during games to see which ones you forget!
-              </p>
-            )}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Mic className="h-4 w-4 text-blue-500" />
+                <span className="font-medium">{voiceTouchRatio.voice}%</span>
+              </div>
+              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500" 
+                  style={{ width: `${voiceTouchRatio.voice}%` }} 
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{voiceTouchRatio.touch}%</span>
+                <Hand className="h-4 w-4 text-orange-500" />
+              </div>
+            </div>
           </CardContent>
         </Card>
         

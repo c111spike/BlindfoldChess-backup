@@ -174,6 +174,10 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   const reconstructionVoiceInputsRef = useRef<number>(0);
   const reconstructionTouchInputsRef = useRef<number>(0);
   
+  // In-game voice vs touch move tracking
+  const gameVoiceMovesRef = useRef<number>(0);
+  const gameTouchMovesRef = useRef<number>(0);
+  
   // Square inquiry tracking (for confusion heatmap)
   const squareInquiriesRef = useRef<string[]>([]);
   
@@ -338,6 +342,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     voiceCommandsRef.current = 0;
     reconstructionVoiceInputsRef.current = 0;
     reconstructionTouchInputsRef.current = 0;
+    gameVoiceMovesRef.current = 0;
+    gameTouchMovesRef.current = 0;
     squareInquiriesRef.current = [];
     wasAssistedRef.current = false;
     if (voicePeekTimeoutRef.current) {
@@ -456,6 +462,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         voiceCommands: voiceCommandsRef.current,
         reconstructionVoiceInputs: reconstructionVoiceInputsRef.current,
         reconstructionTouchInputs: reconstructionTouchInputsRef.current,
+        gameVoiceMoves: gameVoiceMovesRef.current,
+        gameTouchMoves: gameTouchMovesRef.current,
         squareInquiries: squareInquiriesRef.current,
         isBlindfold,
         wasAssisted: wasAssistedRef.current,
@@ -1332,6 +1340,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             if (!gameRef.current) return;
             const moveObj = gameRef.current.move(matchingMove);
             if (moveObj) {
+              // Track voice move for stats
+              gameVoiceMovesRef.current++;
+              
               setFen(gameRef.current.fen());
               setLastMove({ from: moveObj.from, to: moveObj.to });
               
@@ -1429,6 +1440,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             }
             peekedSinceLastMoveRef.current = false;
           }
+          
+          // Track voice move for stats
+          gameVoiceMovesRef.current++;
           
           // Haptic feedback for successful voice move (light tap)
           try {
@@ -1635,6 +1649,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       const move = game.move({ from, to, promotion });
       
       if (move) {
+        // Track touch move for stats
+        gameTouchMovesRef.current++;
+        
         // Track response time for ALL games (universal stamina tracking)
         if (botMoveTimestampRef.current !== null) {
           const responseTime = Date.now() - botMoveTimestampRef.current;

@@ -93,6 +93,10 @@ export interface GameStats {
   reconstructionVoiceInputs: number;
   reconstructionTouchInputs: number;
   
+  // Voice vs Touch ratio for game moves
+  gameVoiceMoves: number;
+  gameTouchMoves: number;
+  
   // ============================================
   // 2. COGNITIVE PERFORMANCE METRICS
   // ============================================
@@ -191,6 +195,8 @@ const DEFAULT_STATS: GameStats = {
   totalGamesPlayed: 0,
   reconstructionVoiceInputs: 0,
   reconstructionTouchInputs: 0,
+  gameVoiceMoves: 0,
+  gameTouchMoves: 0,
   
   // Cognitive metrics
   responseTimeByPhase: { ...DEFAULT_RESPONSE_BY_PHASE },
@@ -307,6 +313,8 @@ export interface GameResultData {
   voiceCommands: number; // Total voice commands
   reconstructionVoiceInputs: number; // Voice inputs during reconstruction
   reconstructionTouchInputs: number; // Touch inputs during reconstruction
+  gameVoiceMoves: number; // Voice moves during game
+  gameTouchMoves: number; // Touch/click moves during game
   squareInquiries: string[]; // Squares inquired about during game
   isBlindfold: boolean; // Whether this was a blindfold game
   wasAssisted: boolean; // Whether user used "evaluate" or "show board" voice commands
@@ -409,6 +417,8 @@ export function recordGameResult(
   const voiceCommands = extendedData?.voiceCommands || 0;
   const reconstructionVoice = extendedData?.reconstructionVoiceInputs || 0;
   const reconstructionTouch = extendedData?.reconstructionTouchInputs || 0;
+  const gameVoice = extendedData?.gameVoiceMoves || 0;
+  const gameTouch = extendedData?.gameTouchMoves || 0;
   const squareInquiries = extendedData?.squareInquiries || [];
   const isBlindfold = extendedData?.isBlindfold ?? false;
   const wasAssisted = extendedData?.wasAssisted ?? false;
@@ -595,6 +605,8 @@ export function recordGameResult(
   
   stats.reconstructionVoiceInputs += reconstructionVoice;
   stats.reconstructionTouchInputs += reconstructionTouch;
+  stats.gameVoiceMoves += gameVoice;
+  stats.gameTouchMoves += gameTouch;
   
   // ============================================
   // Square inquiry heatmap tracking
@@ -634,12 +646,12 @@ export function getPeekFreePercentage(stats: GameStats): number {
 }
 
 export function getVoiceTouchRatio(stats: GameStats): { voice: number; touch: number } {
-  const total = stats.reconstructionVoiceInputs + stats.reconstructionTouchInputs;
+  const total = stats.gameVoiceMoves + stats.gameTouchMoves;
   if (total === 0) return { voice: 0, touch: 0 };
   
   return {
-    voice: Math.round((stats.reconstructionVoiceInputs / total) * 100),
-    touch: Math.round((stats.reconstructionTouchInputs / total) * 100),
+    voice: Math.round((stats.gameVoiceMoves / total) * 100),
+    touch: Math.round((stats.gameTouchMoves / total) * 100),
   };
 }
 
