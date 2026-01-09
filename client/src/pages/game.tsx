@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Eye, Bot, ChevronLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw, Dumbbell } from "lucide-react";
+import { Clock, Play, Eye, Bot, ChevronLeft, ArrowLeft, Shuffle, Crown, Trophy, RotateCcw, Mic, MicOff, Volume2, VolumeX, Infinity as InfinityIcon, Flag, Home, BarChart3, RefreshCw, Dumbbell } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -472,8 +472,11 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     setStats(newStats);
     window.dispatchEvent(new CustomEvent('statsUpdated'));
     
-    // Show post-mortem report after game ends
-    setShowPostMortem(true);
+    // Show post-mortem report after game ends (only auto-show if reconstruction is NOT enabled)
+    // If reconstruction is enabled, user can click "View Report" button after reviewing heatmap
+    if (!blindfoldSettings.boardReconstructionEnabled) {
+      setShowPostMortem(true);
+    }
     
     // Auto-save game to history (only if moves were made)
     if (selectedBot && totalMoves > 0) {
@@ -1866,6 +1869,12 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
 
     return (
       <div className={`h-full flex flex-col max-w-lg mx-auto px-4 py-2 transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+        <div className="flex items-center gap-3 mb-4">
+          <Button variant="ghost" size="icon" onClick={() => setShowTitleScreen(true)} data-testid="button-setup-back">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Game Set-up</h1>
+        </div>
         <Card className="flex flex-col">
           <CardContent className="overflow-y-auto pt-4 pb-2 space-y-3">
             <div className="space-y-3">
@@ -2132,12 +2141,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             onComplete={handleReconstructionComplete}
             onSkip={handleReconstructionSkip}
             onContinue={handleReconstructionContinue}
+            onViewReport={() => setShowPostMortem(true)}
           />
         </div>
       )}
       
       <PostMortemReport
-        open={showPostMortem && !showReconstruction && !showAnalysis}
+        open={showPostMortem && !showAnalysis}
         gameResult={gameResult}
         playerColor={playerColor}
         clarityScore={stats.lastClarityScore}

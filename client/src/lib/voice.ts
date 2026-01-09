@@ -31,6 +31,91 @@ export async function pulseHapticLight(): Promise<void> {
   }
 }
 
+// ========================================
+// CENTRALIZED VOICE SESSION CONTROLLER
+// Coordinates mic and TTS to prevent beep loops and overlapping audio
+// ========================================
+
+interface VoiceSession {
+  id: string;
+  pause: () => void;
+  resume: () => void;
+  shouldBeActive: boolean;
+}
+
+class VoiceSessionController {
+  private sessions: Map<string, VoiceSession> = new Map();
+  private isSpeaking = false;
+  private resumeDelayMs = 30;
+  
+  /**
+   * Register a voice session (game voice, training voice, reconstruction, etc.)
+   */
+  register(session: VoiceSession): void {
+    this.sessions.set(session.id, session);
+    console.log(`[VoiceController] Registered session: ${session.id}`);
+  }
+  
+  /**
+   * Unregister a voice session
+   */
+  unregister(id: string): void {
+    this.sessions.delete(id);
+    console.log(`[VoiceController] Unregistered session: ${id}`);
+  }
+  
+  /**
+   * Mark a session as should be active (will resume after TTS)
+   */
+  setActive(id: string, active: boolean): void {
+    const session = this.sessions.get(id);
+    if (session) {
+      session.shouldBeActive = active;
+    }
+  }
+  
+  /**
+   * Called when TTS is about to start - pauses all active sessions
+   */
+  onTTSStart(): void {
+    this.isSpeaking = true;
+    console.log('[VoiceController] TTS starting, pausing all voice sessions');
+    Array.from(this.sessions.values()).forEach(session => {
+      if (session.shouldBeActive) {
+        session.pause();
+      }
+    });
+  }
+  
+  /**
+   * Called when TTS ends - resumes sessions that should be active
+   */
+  onTTSEnd(): void {
+    this.isSpeaking = false;
+    console.log(`[VoiceController] TTS ended, resuming after ${this.resumeDelayMs}ms delay`);
+    setTimeout(() => {
+      if (!this.isSpeaking) {
+        Array.from(this.sessions.values()).forEach(session => {
+          if (session.shouldBeActive) {
+            console.log(`[VoiceController] Resuming session: ${session.id}`);
+            session.resume();
+          }
+        });
+      }
+    }, this.resumeDelayMs);
+  }
+  
+  /**
+   * Check if TTS is currently speaking
+   */
+  getIsSpeaking(): boolean {
+    return this.isSpeaking;
+  }
+}
+
+// Global singleton instance
+export const voiceController = new VoiceSessionController();
+
 type SpeechRecognitionEvent = Event & {
   results: SpeechRecognitionResultList;
   resultIndex: number;
@@ -423,6 +508,7 @@ function toPhonetic(text: string): string {
 export async function speak(text: string, rate: number = 0.9): Promise<void> {
   isBotSpeaking = true;
   abortRecognitionIfReady();
+  voiceController.onTTSStart(); // Pause all registered voice sessions
   console.log('[Voice] Mic muted: Bot is speaking');
   
   // Apply phonetic mapping for clearer TTS pronunciation
@@ -488,6 +574,7 @@ export async function speak(text: string, rate: number = 0.9): Promise<void> {
     }
   } finally {
     isBotSpeaking = false;
+    voiceController.onTTSEnd(); // Resume all registered voice sessions
     setTimeout(() => {
       if (!isBotSpeaking) {
         resumeRecognitionAfterTTS();
@@ -1331,6 +1418,10 @@ class TrainingVoiceController {
   private consecutiveFailures: number = 0;
   private micBusy: boolean = false;
   private onMicBusyChange: ((busy: boolean) => void) | null = null;
+  // Voice session ID for coordinator
+  private sessionId: string = 'training';
+  private isRegistered: boolean = false;
+  private isPaused: boolean = false;
   
   async checkAvailability(): Promise<boolean> {
     if (this.availabilityChecked) {
@@ -1395,16 +1486,64 @@ class TrainingVoiceController {
     }
   }
   
+  /**
+   * Pause recognition (called by voiceController when TTS starts)
+   */
+  private pauseInternal(): void {
+    if (!this.isListening) return;
+    this.isPaused = true;
+    console.log('[TrainingVoice] Pausing for TTS');
+    
+    if (isNative) {
+      CapacitorSpeechRecognition.stop().catch(e => console.log('[TrainingVoice] Pause stop error:', e));
+    } else if (this.webRecognition) {
+      try {
+        this.webRecognition.stop();
+      } catch (e) {
+        console.log('[TrainingVoice] Web pause error:', e);
+      }
+    }
+    this.isListening = false;
+  }
+  
+  /**
+   * Resume recognition after TTS (called by voiceController when TTS ends)
+   */
+  private resumeInternal(): void {
+    if (!this.isPaused || !this.shouldBeListening) return;
+    this.isPaused = false;
+    console.log('[TrainingVoice] Resuming after TTS');
+    
+    if (isNative) {
+      this.startNative();
+    } else {
+      this.startWeb();
+    }
+  }
+  
   async start(onTranscript: (text: string) => void): Promise<boolean> {
     // Reset failure counters on fresh start
     this.consecutiveFailures = 0;
     this.micBusy = false;
+    this.isPaused = false;
     
     const available = await this.checkAvailability();
     if (!available) {
       console.log('[TrainingVoice] Not available, cannot start');
       return false;
     }
+    
+    // Register with voiceController for TTS coordination
+    if (!this.isRegistered) {
+      voiceController.register({
+        id: this.sessionId,
+        pause: () => this.pauseInternal(),
+        resume: () => this.resumeInternal(),
+        shouldBeActive: true
+      });
+      this.isRegistered = true;
+    }
+    voiceController.setActive(this.sessionId, true);
     
     this.onTranscript = onTranscript;
     this.shouldBeListening = true;
@@ -1591,6 +1730,13 @@ class TrainingVoiceController {
   async stop(): Promise<void> {
     this.shouldBeListening = false;
     this.onTranscript = null;
+    this.isPaused = false;
+    
+    // Unregister from voiceController to prevent stale session callbacks
+    if (this.isRegistered) {
+      voiceController.unregister(this.sessionId);
+      this.isRegistered = false;
+    }
     
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);

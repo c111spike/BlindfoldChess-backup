@@ -2,10 +2,10 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, RotateCcw, Send, Mic, MicOff, Trash2 } from "lucide-react";
+import { Check, X, RotateCcw, Send, Mic, MicOff, Trash2, BarChart3 } from "lucide-react";
 import { SpeechRecognition as CapacitorSpeechRecognition } from "@capacitor-community/speech-recognition";
 import { Capacitor } from "@capacitor/core";
-import { handleMicPermission, checkMicPermission, voiceRecognition, pulseHapticLight } from "@/lib/voice";
+import { handleMicPermission, checkMicPermission, voiceRecognition, pulseHapticLight, voiceController } from "@/lib/voice";
 
 // Web Speech API types (local interface to avoid global conflicts)
 interface WebSpeechRecognitionLocal {
@@ -64,6 +64,7 @@ interface BoardReconstructionProps {
   onComplete: (score: number, voicePurity: number, voiceInputs: number, touchInputs: number) => void;
   onSkip: () => void;
   onContinue?: () => void;
+  onViewReport?: () => void;
 }
 
 function fenToBoard(fen: string): (string | null)[][] {
@@ -160,7 +161,7 @@ type DisambiguationState = {
   square: { file: string; rank: string };
 } | null;
 
-export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip, onContinue }: BoardReconstructionProps) {
+export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip, onContinue, onViewReport }: BoardReconstructionProps) {
   const [userBoard, setUserBoard] = useState<(string | null)[][]>(
     Array(8).fill(null).map(() => Array(8).fill(null))
   );
@@ -195,6 +196,9 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   // Android beep loop prevention
   const lastErrorTimeRef = useRef(0);
   const consecutiveFailuresRef = useRef(0);
+  // TTS coordination
+  const isPausedByTTSRef = useRef(false);
+  const voiceSessionId = 'reconstruction';
   
   const actualBoard = fenToBoard(actualFen);
   
@@ -339,6 +343,80 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     };
   }, []);
   
+  // Register with voiceController for TTS coordination (pause mic during speech)
+  useEffect(() => {
+    // Create pause/resume handlers for this component
+    const pauseReconstruction = () => {
+      if (!shouldBeListeningRef.current || isPausedByTTSRef.current) return;
+      isPausedByTTSRef.current = true;
+      console.log('[Reconstruction] Pausing for TTS');
+      
+      if (Capacitor.isNativePlatform()) {
+        CapacitorSpeechRecognition.stop().catch(e => 
+          console.log('[Reconstruction] Pause stop error:', e)
+        );
+      } else if (webRecognitionRef.current) {
+        try {
+          webRecognitionRef.current.stop();
+        } catch (e) {
+          console.log('[Reconstruction Web] Pause error:', e);
+        }
+      }
+      setIsListening(false);
+    };
+    
+    const resumeReconstruction = async () => {
+      // Guard against unmounted component
+      if (!isMountedRef.current) {
+        console.log('[Reconstruction] Component unmounted, skipping resume');
+        return;
+      }
+      if (!shouldBeListeningRef.current || !isPausedByTTSRef.current) return;
+      isPausedByTTSRef.current = false;
+      console.log('[Reconstruction] Resuming after TTS');
+      
+      // Small delay before restarting to let Android audio system settle
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Double-check mounted state after delay
+      if (!isMountedRef.current) return;
+      
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await CapacitorSpeechRecognition.start({
+            language: 'en-US',
+            partialResults: true,
+            popup: false,
+          });
+          if (isMountedRef.current) setIsListening(true);
+          console.log('[Reconstruction] Resumed after TTS');
+        } catch (e) {
+          console.log('[Reconstruction] Resume failed:', e);
+        }
+      } else if (webRecognitionRef.current) {
+        try {
+          webRecognitionRef.current.start();
+          if (isMountedRef.current) setIsListening(true);
+        } catch (e) {
+          console.log('[Reconstruction Web] Resume error:', e);
+        }
+      }
+    };
+    
+    // Register this session with the voice controller
+    voiceController.register({
+      id: voiceSessionId,
+      pause: pauseReconstruction,
+      resume: resumeReconstruction,
+      shouldBeActive: false
+    });
+    
+    return () => {
+      // Fully unregister on cleanup to prevent stale callbacks
+      voiceController.unregister(voiceSessionId);
+    };
+  }, []);
+  
   const startListening = useCallback(async () => {
     if (submitted) return;
     shouldBeListeningRef.current = true;
@@ -420,6 +498,12 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
         if (!stateListenerRef.current) {
           stateListenerRef.current = await CapacitorSpeechRecognition.addListener('listeningState', async (state: any) => {
             if (state.status === 'stopped' && shouldBeListeningRef.current && !isRestartingRef.current) {
+              // Don't auto-restart if paused by TTS - voiceController will handle resume
+              if (isPausedByTTSRef.current) {
+                console.log('[Reconstruction] Paused by TTS, skipping auto-restart');
+                return;
+              }
+              
               // 3-second lockout: If last error was within 3 seconds, wait longer
               const now = Date.now();
               const timeSinceLastError = now - lastErrorTimeRef.current;
@@ -438,7 +522,8 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
               // Auto-restart after a brief pause with guard against double-restart
               isRestartingRef.current = true;
               setTimeout(async () => {
-                if (shouldBeListeningRef.current && consecutiveFailuresRef.current < 3) {
+                // Also check TTS at restart time
+                if (shouldBeListeningRef.current && consecutiveFailuresRef.current < 3 && !isPausedByTTSRef.current) {
                   try {
                     await CapacitorSpeechRecognition.start({
                       language: 'en-US',
@@ -473,6 +558,8 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
         });
         
         setIsListening(true);
+        // Mark as active for TTS coordination
+        voiceController.setActive(voiceSessionId, true);
         console.log('[Reconstruction] Native speech started (continuous mode)');
       } else {
         // WEB: Use Web Speech API for browser testing
@@ -503,7 +590,8 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
             if (event.error !== 'aborted') {
               // Auto-restart on recoverable errors - check shouldBeListening inside timeout
               setTimeout(() => {
-                if (shouldBeListeningRef.current && webRecognitionRef.current) {
+                // Don't restart if paused by TTS
+                if (shouldBeListeningRef.current && webRecognitionRef.current && !isPausedByTTSRef.current) {
                   try {
                     webRecognitionRef.current.start();
                     console.log('[Reconstruction Web] Auto-restarted after error');
@@ -520,7 +608,8 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
             // Auto-restart if should still be listening - check inside timeout
             // Don't set isListening to false here since we'll restart immediately
             setTimeout(() => {
-              if (shouldBeListeningRef.current && webRecognitionRef.current) {
+              // Don't restart if paused by TTS - voiceController handles resume
+              if (shouldBeListeningRef.current && webRecognitionRef.current && !isPausedByTTSRef.current) {
                 try {
                   webRecognitionRef.current.start();
                   setIsListening(true);
@@ -529,7 +618,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
                   // Already started - this is fine
                   console.log('[Reconstruction Web] Already started or error:', e);
                 }
-              } else {
+              } else if (!isPausedByTTSRef.current) {
                 setIsListening(false);
               }
             }, 200);
@@ -559,6 +648,8 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
         try {
           webRecognitionRef.current.start();
           setIsListening(true);
+          // Mark as active for TTS coordination
+          voiceController.setActive(voiceSessionId, true);
           console.log('[Reconstruction] Web speech started');
         } catch (e) {
           console.log('[Reconstruction] Web speech already running');
@@ -573,6 +664,10 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   const stopListening = useCallback(async () => {
     shouldBeListeningRef.current = false;
     isRestartingRef.current = false;
+    isPausedByTTSRef.current = false;
+    
+    // Mark as inactive for TTS coordination
+    voiceController.setActive(voiceSessionId, false);
     
     try {
       if (Capacitor.isNativePlatform()) {
@@ -924,14 +1019,28 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
               </Button>
             </>
           ) : (
-            <Button 
-              size="sm" 
-              onClick={onContinue || onSkip}
-              className="w-full bg-amber-400 hover:bg-amber-500 text-stone-900"
-              data-testid="button-reconstruction-continue"
-            >
-              Continue
-            </Button>
+            <div className="flex gap-2 w-full">
+              {onViewReport && (
+                <Button 
+                  variant="outline"
+                  size="sm" 
+                  onClick={onViewReport}
+                  className="flex-1"
+                  data-testid="button-reconstruction-view-report"
+                >
+                  <BarChart3 className="mr-1 h-4 w-4" />
+                  View Report
+                </Button>
+              )}
+              <Button 
+                size="sm" 
+                onClick={onContinue || onSkip}
+                className="flex-1 bg-amber-400 hover:bg-amber-500 text-stone-900"
+                data-testid="button-reconstruction-continue"
+              >
+                Continue
+              </Button>
+            </div>
           )}
         </div>
         
