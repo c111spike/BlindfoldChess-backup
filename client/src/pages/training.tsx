@@ -10,6 +10,7 @@ import { Chess } from 'chess.js';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { saveTrainingSession, getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
 import { speak, trainingVoice } from "@/lib/voice";
+import { Capacitor } from "@capacitor/core";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -815,6 +816,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   const [textInput, setTextInput] = useState('');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.voiceMoveMasterBest !== null && score > stats.voiceMoveMasterBest;
+  const isNative = Capacitor.isNativePlatform();
 
   const startGame = () => {
     setGameState('playing');
