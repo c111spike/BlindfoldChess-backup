@@ -383,15 +383,24 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
       
       if (Capacitor.isNativePlatform()) {
         try {
+          // Hardware reset: stop first to kick Android audio system
+          try {
+            await CapacitorSpeechRecognition.stop();
+            await new Promise(resolve => setTimeout(resolve, 50));
+          } catch (e) {
+            // Ignore - might not be running
+          }
+          
           await CapacitorSpeechRecognition.start({
             language: 'en-US',
             partialResults: true,
             popup: false,
           });
           if (isMountedRef.current) setIsListening(true);
-          console.log('[Reconstruction] Resumed after TTS');
+          console.log('[Reconstruction] Resumed after TTS with hardware reset');
         } catch (e) {
           console.log('[Reconstruction] Resume failed:', e);
+          if (isMountedRef.current) setIsListening(false); // Sync state on failure
         }
       } else if (webRecognitionRef.current) {
         try {
@@ -399,6 +408,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
           if (isMountedRef.current) setIsListening(true);
         } catch (e) {
           console.log('[Reconstruction Web] Resume error:', e);
+          if (isMountedRef.current) setIsListening(false); // Sync state on failure
         }
       }
     };

@@ -43,9 +43,19 @@ interface VoiceSession {
   shouldBeActive: boolean;
 }
 
+// Mic state machine to prevent beep loops
+enum MicState {
+  SPEAKING = 'SPEAKING',   // TTS active, mic hard-locked OFF
+  SETTLING = 'SETTLING',   // TTS ended, waiting 250ms for audio system
+  LISTENING = 'LISTENING', // Mic ON, ready to receive
+}
+
 class VoiceSessionController {
   private sessions: Map<string, VoiceSession> = new Map();
   private isSpeaking = false;
+  private micState: MicState = MicState.LISTENING;
+  private pendingRestarts: string[] = []; // Session IDs queued for restart after TTS
+  private settlingTimeout: ReturnType<typeof setTimeout> | null = null;
   private resumeDelayMs = 250; // 250ms delay for Galaxy S9+ audio system to settle
   
   /**
@@ -76,10 +86,18 @@ class VoiceSessionController {
   
   /**
    * Called when TTS is about to start - pauses all active sessions
+   * State: LISTENING/SETTLING -> SPEAKING
    */
   onTTSStart(): void {
+    // Clear any pending settling timeout
+    if (this.settlingTimeout) {
+      clearTimeout(this.settlingTimeout);
+      this.settlingTimeout = null;
+    }
+    
     this.isSpeaking = true;
-    console.log('[VoiceController] TTS starting, pausing all voice sessions');
+    this.micState = MicState.SPEAKING;
+    console.log('[VoiceController] TTS starting, state -> SPEAKING, pausing all voice sessions');
     Array.from(this.sessions.values()).forEach(session => {
       if (session.shouldBeActive) {
         session.pause();
@@ -88,17 +106,48 @@ class VoiceSessionController {
   }
   
   /**
-   * Called when TTS ends - resumes sessions that should be active
+   * Called when TTS ends - transitions to SETTLING then LISTENING
+   * State: SPEAKING -> SETTLING -> LISTENING
    */
   onTTSEnd(): void {
     this.isSpeaking = false;
-    console.log(`[VoiceController] TTS ended, resuming after ${this.resumeDelayMs}ms delay`);
-    setTimeout(() => {
+    this.micState = MicState.SETTLING;
+    console.log(`[VoiceController] TTS ended, state -> SETTLING, waiting ${this.resumeDelayMs}ms`);
+    
+    this.settlingTimeout = setTimeout(() => {
       if (!this.isSpeaking) {
-        const sessionsToResume = Array.from(this.sessions.values()).filter(s => s.shouldBeActive);
-        if (sessionsToResume.length > 0) {
-          // Play mic-live click sound before resuming
+        this.micState = MicState.LISTENING;
+        console.log('[VoiceController] Settling complete, state -> LISTENING');
+        
+        // Process pending restarts first (these are non-session restarts like VoiceRecognition)
+        // Track which sessions have been resumed to avoid double-resume
+        const resumedSessionIds = new Set<string>();
+        const hadPendingRestarts = this.pendingRestarts.length > 0;
+        
+        if (hadPendingRestarts) {
+          console.log(`[VoiceController] Processing ${this.pendingRestarts.length} pending restarts`);
           this.playMicLiveClick();
+          // Signal that pending restarts should execute
+          this.pendingRestarts.forEach(id => {
+            const session = this.sessions.get(id);
+            if (session && session.shouldBeActive) {
+              console.log(`[VoiceController] Executing pending restart for: ${id}`);
+              session.resume();
+              resumedSessionIds.add(id);
+            }
+          });
+          this.pendingRestarts = [];
+        }
+        
+        // Resume remaining active sessions (exclude those already resumed from pending restarts)
+        const sessionsToResume = Array.from(this.sessions.values()).filter(
+          s => s.shouldBeActive && !resumedSessionIds.has(s.id)
+        );
+        if (sessionsToResume.length > 0) {
+          // Play mic-live click sound before resuming (if not already played)
+          if (!hadPendingRestarts) {
+            this.playMicLiveClick();
+          }
           sessionsToResume.forEach(session => {
             console.log(`[VoiceController] Resuming session: ${session.id}`);
             session.resume();
@@ -106,6 +155,41 @@ class VoiceSessionController {
         }
       }
     }, this.resumeDelayMs);
+  }
+  
+  /**
+   * Queue a restart request - will execute immediately if LISTENING, otherwise queued
+   */
+  queueRestart(sessionId: string): void {
+    if (this.micState === MicState.LISTENING) {
+      // Safe to restart immediately
+      const session = this.sessions.get(sessionId);
+      if (session && session.shouldBeActive) {
+        console.log(`[VoiceController] Instant restart for session: ${sessionId}`);
+        this.playMicLiveClick();
+        session.resume();
+      }
+    } else {
+      // Queue for after TTS ends
+      if (!this.pendingRestarts.includes(sessionId)) {
+        this.pendingRestarts.push(sessionId);
+        console.log(`[VoiceController] Queued restart for session: ${sessionId} (state: ${this.micState})`);
+      }
+    }
+  }
+  
+  /**
+   * Get current mic state
+   */
+  getMicState(): MicState {
+    return this.micState;
+  }
+  
+  /**
+   * Check if it's safe to start the mic (not in SPEAKING or SETTLING state)
+   */
+  canStartMic(): boolean {
+    return this.micState === MicState.LISTENING;
   }
   
   /**
@@ -201,12 +285,26 @@ const PIECE_LETTERS: Record<string, string> = {
   'queen': 'Q',
   'rook': 'R',
   'bishop': 'B',
+  'bish': 'B',
+  'bishup': 'B',
+  'bishep': 'B',
+  'bashop': 'B',
   'knight': 'N',
   'night': 'N',
   'horse': 'N',
   'pawn': '',
   'castle': 'R',
 };
+
+// Filler words to strip from voice input
+const FILLER_WORDS = ['um', 'uh', 'the', 'a', 'an', 'like', 'so', 'well', 'just', 'actually', 'basically'];
+
+// Strip filler words from transcript
+function stripFillerWords(transcript: string): string {
+  const words = transcript.toLowerCase().split(/\s+/);
+  const filtered = words.filter(word => !FILLER_WORDS.includes(word));
+  return filtered.join(' ');
+}
 
 const FILE_NAMES: Record<string, string> = {
   'a': 'a', 'alpha': 'a', 'able': 'a', 'apple': 'a', 'ay': 'a',
@@ -619,8 +717,9 @@ function applyHomophoneCorrections(text: string): string {
 }
 
 export function speechToMove(transcript: string, legalMoves: string[]): string | null {
-  // Apply homophone corrections before processing
-  const input = applyHomophoneCorrections(transcript.toLowerCase().trim());
+  // Strip filler words and apply homophone corrections before processing
+  const cleaned = stripFillerWords(transcript);
+  const input = applyHomophoneCorrections(cleaned.toLowerCase().trim());
   
   if (input.includes('castle') || input.includes('castles')) {
     if (input.includes('queen') || input.includes('long')) {
@@ -1051,6 +1150,10 @@ export class VoiceRecognition {
   private pendingCaptureTranscript: string = '';
   private static readonly CAPTURE_DEBOUNCE_MS = 600; // Wait 600ms after hearing "takes" for target square
   
+  // Session registration for voiceController TTS coordination
+  private static readonly SESSION_ID = 'voiceRecognition';
+  private isRegistered: boolean = false;
+  
   constructor() {
     this.initializationPromise = this.initialize();
   }
@@ -1169,23 +1272,33 @@ export class VoiceRecognition {
       console.warn('[VoiceRecognition] Too many consecutive failures, waiting before retry');
       this.restartTimeout = setTimeout(() => {
         this.consecutiveFailures = 0; // Reset after cooldown
-        if (this.shouldBeListening && !this.isListening && !isBotSpeaking) {
-          this.startInternal();
+        if (this.shouldBeListening && !this.isListening) {
+          // Use the state machine - queue if TTS playing, otherwise start
+          if (voiceController.canStartMic()) {
+            this.startInternal();
+          } else {
+            // Will be resumed by voiceController after TTS ends
+            console.log('[VoiceRecognition] TTS active, restart will happen after TTS ends');
+          }
         }
       }, VoiceRecognition.FAILURE_COOLDOWN_MS);
       return;
     }
     
-    // Use a longer minimum interval between restart attempts
-    const timeSinceLastAttempt = Date.now() - this.lastStartAttempt;
-    const delay = Math.max(VoiceRecognition.MIN_RESTART_INTERVAL_MS - timeSinceLastAttempt, 500);
+    // Instant restart with minimal delay - use state machine to guard against TTS
+    const delay = 500; // Minimal cooldown between attempts
     
     this.restartTimeout = setTimeout(() => {
-      if (isBotSpeaking) {
-        return;
-      }
       if (this.shouldBeListening && !this.isListening) {
-        this.startInternal();
+        // Check state machine - only start if mic is safe to start
+        if (voiceController.canStartMic()) {
+          console.log('[VoiceRecognition] Instant restart - mic state LISTENING');
+          this.startInternal();
+        } else {
+          // TTS is active or settling - queue restart for after TTS ends
+          console.log('[VoiceRecognition] TTS active, queueing restart for after TTS ends');
+          voiceController.queueRestart('voiceRecognition');
+        }
       }
     }, delay);
   }
@@ -1341,6 +1454,18 @@ export class VoiceRecognition {
   start() {
     this.shouldBeListening = true;
     
+    // Register with voiceController for TTS coordination (once)
+    if (!this.isRegistered) {
+      voiceController.register({
+        id: VoiceRecognition.SESSION_ID,
+        pause: () => this.pauseForTTS(),
+        resume: () => this.resumeAfterTTS(),
+        shouldBeActive: true
+      });
+      this.isRegistered = true;
+    }
+    voiceController.setActive(VoiceRecognition.SESSION_ID, true);
+    
     if (!this.initializationComplete) {
       this.pendingStartAfterInit = true;
       return;
@@ -1351,10 +1476,45 @@ export class VoiceRecognition {
     }
   }
   
+  private pauseForTTS(): void {
+    if (!this.shouldBeListening) return;
+    console.log('[VoiceRecognition] Pausing for TTS');
+    
+    if (isNative && this.nativeAvailable) {
+      this.stopNative();
+    } else if (this.recognition && this.isListening) {
+      try {
+        this.recognition.stop();
+      } catch (e) {
+        console.log('[VoiceRecognition] Error pausing:', e);
+      }
+    }
+    this.isListening = false;
+    if (this.onListeningChange) {
+      this.onListeningChange(false);
+    }
+  }
+  
+  private resumeAfterTTS(): void {
+    if (!this.shouldBeListening) return;
+    // Guard: don't start if already listening
+    if (this.isListening) {
+      console.log('[VoiceRecognition] Already listening, skipping resume');
+      return;
+    }
+    console.log('[VoiceRecognition] Resuming after TTS');
+    this.startInternal();
+  }
+  
   stop() {
     this.shouldBeListening = false;
     this.pendingStartAfterInit = false;
     this.instanceId++;
+    
+    // Mark session as inactive
+    if (this.isRegistered) {
+      voiceController.setActive(VoiceRecognition.SESSION_ID, false);
+    }
     
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);
@@ -1389,6 +1549,11 @@ export class VoiceRecognition {
     this.shouldBeListening = false;
     this.pendingStartAfterInit = false;
     this.instanceId++;
+    
+    // Mark session as inactive
+    if (this.isRegistered) {
+      voiceController.setActive(VoiceRecognition.SESSION_ID, false);
+    }
     
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);
@@ -1437,16 +1602,6 @@ export class VoiceRecognition {
     this.isListening = false;
     if (this.onListeningChange) {
       this.onListeningChange(false);
-    }
-  }
-  
-  resumeAfterTTS() {
-    if (this.shouldBeListening && !this.isListening) {
-      if (this.initializationComplete) {
-        this.startInternal();
-      } else {
-        this.pendingStartAfterInit = true;
-      }
     }
   }
   

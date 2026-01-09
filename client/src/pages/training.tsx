@@ -337,11 +337,14 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       });
       const newSquare = getRandomSquare();
       setCurrentSquare(newSquare);
-      // Voice feedback with double-chirp: Haptic ding + "Correct. Next: [square]"
+      // Voice feedback: Haptic ding + just the coordinate (not "Next:")
       if (voiceMode) {
         // Haptic "ding" for correct answer
         Haptics.notification({ type: NotificationType.Success }).catch(() => {});
-        speak(`Correct. Next: ${newSquare.file} ${newSquare.rank}`);
+        // Just say the coordinate clearly with a pause
+        setTimeout(() => {
+          speak(`${newSquare.file.toUpperCase()} ${newSquare.rank}`);
+        }, 300);
       }
     } else {
       setStreak(0);
@@ -349,7 +352,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       // Voice feedback: Wrong, try again
       if (voiceMode) {
-        speak('Wrong, try again');
+        speak('Wrong');
       }
     }
   }, [gameState, currentSquare, voiceMode]);
@@ -859,7 +862,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     const newPos = getRandomPosition();
     setPosition(newPos);
     setTimeout(() => {
-      speak(`${moveToSpeechText(newPos.move)}. Say the move.`);
+      speak("Say the move.");
     }, 300);
   };
 
@@ -895,9 +898,9 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
       }
     }
     
-    // Command: repeat/again
+    // Command: repeat/again - tell user to look at the board
     if (input.includes('repeat') || input.includes('again') || input.includes('say again')) {
-      speak(moveToSpeechText(position.move));
+      speak("Look at the highlighted squares on the board.");
       return;
     }
     
@@ -1004,7 +1007,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
         setFeedback(null);
         const newPos = getRandomPosition();
         setPosition(newPos);
-        setTimeout(() => speak(moveToSpeechText(newPos.move)), 200);
+        setTimeout(() => speak("Next move."), 200);
       }, 500);
     } else {
       Haptics.notification({ type: NotificationType.Error }).catch(() => {});
