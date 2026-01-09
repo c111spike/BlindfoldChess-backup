@@ -551,6 +551,9 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
           });
         }
         
+        // Mark as active for TTS coordination BEFORE starting - prevents race condition
+        voiceController.setActive(voiceSessionId, true);
+        
         await CapacitorSpeechRecognition.start({
           language: 'en-US',
           partialResults: true,
@@ -558,8 +561,6 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
         });
         
         setIsListening(true);
-        // Mark as active for TTS coordination
-        voiceController.setActive(voiceSessionId, true);
         console.log('[Reconstruction] Native speech started (continuous mode)');
       } else {
         // WEB: Use Web Speech API for browser testing
@@ -1038,7 +1039,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
                 className="flex-1 bg-amber-400 hover:bg-amber-500 text-stone-900"
                 data-testid="button-reconstruction-continue"
               >
-                Continue
+                Main Menu
               </Button>
             </div>
           )}

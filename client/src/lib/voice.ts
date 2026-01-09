@@ -46,7 +46,7 @@ interface VoiceSession {
 class VoiceSessionController {
   private sessions: Map<string, VoiceSession> = new Map();
   private isSpeaking = false;
-  private resumeDelayMs = 30;
+  private resumeDelayMs = 250; // 250ms delay for Galaxy S9+ audio system to settle
   
   /**
    * Register a voice session (game voice, training voice, reconstruction, etc.)
@@ -95,14 +95,33 @@ class VoiceSessionController {
     console.log(`[VoiceController] TTS ended, resuming after ${this.resumeDelayMs}ms delay`);
     setTimeout(() => {
       if (!this.isSpeaking) {
-        Array.from(this.sessions.values()).forEach(session => {
-          if (session.shouldBeActive) {
+        const sessionsToResume = Array.from(this.sessions.values()).filter(s => s.shouldBeActive);
+        if (sessionsToResume.length > 0) {
+          // Play mic-live click sound before resuming
+          this.playMicLiveClick();
+          sessionsToResume.forEach(session => {
             console.log(`[VoiceController] Resuming session: ${session.id}`);
             session.resume();
-          }
-        });
+          });
+        }
       }
     }, this.resumeDelayMs);
+  }
+  
+  /**
+   * Play a subtle click sound to indicate mic is live (green light audio cue)
+   */
+  private async playMicLiveClick(): Promise<void> {
+    try {
+      // Use haptic feedback as the "click" - more reliable than audio
+      if (Capacitor.isNativePlatform()) {
+        const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+        await Haptics.impact({ style: ImpactStyle.Light });
+      }
+      console.log('[VoiceController] Mic live click');
+    } catch (e) {
+      // Haptics not available, that's okay
+    }
   }
   
   /**
@@ -506,9 +525,11 @@ function toPhonetic(text: string): string {
 }
 
 export async function speak(text: string, rate: number = 0.9): Promise<void> {
+  // CRITICAL: Pause all mics SYNCHRONOUSLY BEFORE any TTS is queued
+  // This prevents the Android beep loop where mic hears TTS output
+  voiceController.onTTSStart(); // Pause all registered voice sessions FIRST
   isBotSpeaking = true;
   abortRecognitionIfReady();
-  voiceController.onTTSStart(); // Pause all registered voice sessions
   console.log('[Voice] Mic muted: Bot is speaking');
   
   // Apply phonetic mapping for clearer TTS pronunciation
@@ -1025,6 +1046,11 @@ export class VoiceRecognition {
   private static readonly MIN_RESTART_INTERVAL_MS = 2000;
   private static readonly FAILURE_COOLDOWN_MS = 5000;
   
+  // Capture debounce: Wait for full phrase when "takes"/"captures" detected
+  private captureDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
+  private pendingCaptureTranscript: string = '';
+  private static readonly CAPTURE_DEBOUNCE_MS = 600; // Wait 600ms after hearing "takes" for target square
+  
   constructor() {
     this.initializationPromise = this.initialize();
   }
@@ -1199,6 +1225,46 @@ export class VoiceRecognition {
         if (data.matches && data.matches.length > 0 && this.shouldBeListening) {
           const transcript = data.matches[0];
           console.log('[VoiceRecognition Native] Transcript:', transcript);
+          
+          // Check if this is a capture move - wait for full phrase
+          const lowerTranscript = transcript.toLowerCase();
+          const hasCaptureWord = lowerTranscript.includes('takes') || lowerTranscript.includes('captures');
+          const hasTargetSquare = /[a-h][1-8]/.test(lowerTranscript);
+          
+          // If we hear "takes" but no target square yet, debounce and wait for more
+          if (hasCaptureWord && !hasTargetSquare) {
+            console.log('[VoiceRecognition Native] Capture phrase detected, waiting for target square...');
+            this.pendingCaptureTranscript = transcript;
+            
+            // Clear any existing debounce timer
+            if (this.captureDebounceTimeout) {
+              clearTimeout(this.captureDebounceTimeout);
+            }
+            
+            // Wait for target square to complete
+            this.captureDebounceTimeout = setTimeout(() => {
+              // Timeout expired without target square - process what we have
+              console.log('[VoiceRecognition Native] Capture debounce timeout, processing:', this.pendingCaptureTranscript);
+              const move = speechToMove(this.pendingCaptureTranscript, this.legalMoves);
+              if (this.onResult) {
+                this.onResult(move, this.pendingCaptureTranscript);
+              }
+              this.pendingCaptureTranscript = '';
+            }, VoiceRecognition.CAPTURE_DEBOUNCE_MS);
+            return;
+          }
+          
+          // If we have a pending capture phrase and now got target square, process it
+          if (this.pendingCaptureTranscript && hasTargetSquare) {
+            console.log('[VoiceRecognition Native] Complete capture phrase received:', transcript);
+            if (this.captureDebounceTimeout) {
+              clearTimeout(this.captureDebounceTimeout);
+              this.captureDebounceTimeout = null;
+            }
+            this.pendingCaptureTranscript = '';
+          }
+          
+          // Normal processing - immediate for non-captures or complete captures
           const move = speechToMove(transcript, this.legalMoves);
           console.log('[VoiceRecognition Native] Matched move:', move);
           if (this.onResult) {
@@ -1295,6 +1361,13 @@ export class VoiceRecognition {
       this.restartTimeout = null;
     }
     
+    // Clear capture debounce timer
+    if (this.captureDebounceTimeout) {
+      clearTimeout(this.captureDebounceTimeout);
+      this.captureDebounceTimeout = null;
+    }
+    this.pendingCaptureTranscript = '';
+    
     if (isNative && this.nativeAvailable) {
       this.stopNative();
     } else if (this.recognition && this.isListening) {
@@ -1321,6 +1394,13 @@ export class VoiceRecognition {
       clearTimeout(this.restartTimeout);
       this.restartTimeout = null;
     }
+    
+    // Clear capture debounce timer
+    if (this.captureDebounceTimeout) {
+      clearTimeout(this.captureDebounceTimeout);
+      this.captureDebounceTimeout = null;
+    }
+    this.pendingCaptureTranscript = '';
     
     if (isNative && this.nativeAvailable) {
       await this.stopNative();

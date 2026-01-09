@@ -576,7 +576,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     setShowReconstruction(false);
     setReconstructionFen(null);
     pendingGameResultRef.current = null;
-  }, []);
+    // Navigate to main menu (title screen)
+    returnToTitle();
+  }, [returnToTitle]);
 
   const handleReconstructionSkip = useCallback(() => {
     // Clear reconstruction stats since we're skipping
@@ -589,6 +591,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     setShowReconstruction(false);
     setReconstructionFen(null);
     pendingGameResultRef.current = null;
+    // Open the post-mortem report instead of just closing
+    setShowPostMortem(true);
   }, [finalizeGameResult]);
 
   const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[], lastMoveInfo?: LastMoveInfo) => {

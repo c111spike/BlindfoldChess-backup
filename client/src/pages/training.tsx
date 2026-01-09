@@ -337,14 +337,20 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       });
       const newSquare = getRandomSquare();
       setCurrentSquare(newSquare);
-      // Speak the next square in voice mode
+      // Voice feedback with double-chirp: Haptic ding + "Correct. Next: [square]"
       if (voiceMode) {
-        speak(`${newSquare.file} ${newSquare.rank}`);
+        // Haptic "ding" for correct answer
+        Haptics.notification({ type: NotificationType.Success }).catch(() => {});
+        speak(`Correct. Next: ${newSquare.file} ${newSquare.rank}`);
       }
     } else {
       setStreak(0);
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+      // Voice feedback: Wrong, try again
+      if (voiceMode) {
+        speak('Wrong, try again');
+      }
     }
   }, [gameState, currentSquare, voiceMode]);
 
@@ -440,23 +446,13 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
               <Mic className="h-4 w-4 text-red-500 animate-pulse" />
             )}
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-semibold">{score}</span>
-              {streak >= 5 && (
-                <Badge variant="outline" className="text-amber-500 border-amber-500">
-                  {streak} streak
-                </Badge>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowResignConfirm(true)}
-              data-testid="button-colorblitz-resign"
-            >
-              <Flag className="h-5 w-5" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-semibold">{score}</span>
+            {streak >= 5 && (
+              <Badge variant="outline" className="text-amber-500 border-amber-500">
+                {streak} streak
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -485,6 +481,17 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
               Dark
             </Button>
           </div>
+          
+          {/* Resign button underneath the answer buttons */}
+          <Button
+            variant="outline"
+            onClick={() => setShowResignConfirm(true)}
+            className="mt-4"
+            data-testid="button-colorblitz-resign"
+          >
+            <Flag className="h-4 w-4 mr-2" />
+            Resign
+          </Button>
         </div>
       </div>
 
@@ -680,23 +687,13 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
           <p className="text-lg font-semibold">
             Find: <span className="text-2xl font-mono">{currentSquare.file}{currentSquare.rank}</span>
           </p>
-          <div className="flex items-center gap-3">
-            <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowResignConfirm(true)}
-              data-testid="button-sniper-resign"
-            >
-              <Flag className="h-5 w-5" />
-            </Button>
-          </div>
+          <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
         </div>
 
         <Progress value={(foundCount / totalSquares) * 100} className="mb-4" />
         <p className="text-sm text-muted-foreground text-center mb-4">{foundCount}/{totalSquares} found</p>
 
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center">
           <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
             {['8', '7', '6', '5', '4', '3', '2', '1'].map((rank, rankIdx) =>
               FILES.map((file, fileIdx) => {
@@ -723,6 +720,17 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
               })
             )}
           </div>
+          
+          {/* Resign button underneath the board */}
+          <Button
+            variant="outline"
+            onClick={() => setShowResignConfirm(true)}
+            className="mt-4"
+            data-testid="button-sniper-resign"
+          >
+            <Flag className="h-4 w-4 mr-2" />
+            Resign
+          </Button>
         </div>
       </div>
 
@@ -1139,23 +1147,13 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
               <Mic className="h-5 w-5 text-red-500 animate-pulse" />
             )}
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-semibold">{score}</span>
-              {streak >= 3 && (
-                <Badge variant="outline" className="text-purple-500 border-purple-500">
-                  {streak} streak
-                </Badge>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowResignConfirm(true)}
-              data-testid="button-voicemaster-resign"
-            >
-              <Flag className="h-5 w-5" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-semibold">{score}</span>
+            {streak >= 3 && (
+              <Badge variant="outline" className="text-purple-500 border-purple-500">
+                {streak} streak
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -1235,6 +1233,17 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
             </Button>
           </form>
         )}
+
+        {/* Resign button underneath the board */}
+        <Button
+          variant="outline"
+          onClick={() => setShowResignConfirm(true)}
+          className="mx-auto mb-4"
+          data-testid="button-voicemaster-resign"
+        >
+          <Flag className="h-4 w-4 mr-2" />
+          Resign
+        </Button>
 
         {/* Voice Commands Key */}
         <div className="bg-muted/50 rounded-lg p-3">
