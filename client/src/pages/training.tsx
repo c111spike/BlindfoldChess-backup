@@ -208,18 +208,6 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
   const handleAnswerRef = useRef<((answer: 'light' | 'dark' | 'white' | 'black') => void) | null>(null);
   const hasSpokenFirstSquare = useRef(false);
 
-  // Speak square with echo filter for always-on mode
-  const speakSquareWithEcho = async (square: { file: string; rank: string }) => {
-    if (voiceMode) {
-      // Set echo filter before speaking to ignore the coordinate
-      // Only include full coordinate to avoid blocking valid answers like "dark"/"light"
-      const coordinate = `${square.file}${square.rank}`;
-      trainingVoice.setEchoFilter([coordinate]);
-      await speak(`${square.file} ${square.rank}`);
-      // Echo filter is cleared automatically by trainingVoice after TTS ends
-    }
-  };
-
   const startGame = async () => {
     setGameState('playing');
     setScore(0);
@@ -230,15 +218,10 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     const newSquare = getRandomSquare();
     setCurrentSquare(newSquare);
     
-    // Enable always-on mode for Color Blitz voice
-    if (voiceMode) {
-      trainingVoice.setAlwaysOnMode(true);
-    }
-    
-    // Speak first square after a brief delay
+    // Speak first square after a brief delay (using standard pause/resume via speak())
     setTimeout(async () => {
       if (voiceMode) {
-        await speakSquareWithEcho(newSquare);
+        await speak(`${newSquare.file} ${newSquare.rank}`);
         hasSpokenFirstSquare.current = true;
       }
     }, 300);
@@ -349,13 +332,13 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       });
       const newSquare = getRandomSquare();
       setCurrentSquare(newSquare);
-      // Voice feedback: Haptic ding + just the coordinate with echo filter
+      // Voice feedback: Haptic ding + just the coordinate (standard pause/resume via speak())
       if (voiceMode) {
         // Haptic "ding" for correct answer
         Haptics.notification({ type: NotificationType.Success }).catch(() => {});
-        // Say the coordinate with echo filter (mic stays on, ignores this coordinate)
+        // Say the coordinate (speak() handles pause/resume automatically)
         setTimeout(async () => {
-          await speakSquareWithEcho(newSquare);
+          await speak(`${newSquare.file} ${newSquare.rank}`);
         }, 100);
       }
     } else {
@@ -367,7 +350,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
         speak('Wrong');
       }
     }
-  }, [gameState, currentSquare, voiceMode, speakSquareWithEcho]);
+  }, [gameState, currentSquare, voiceMode]);
 
   // Keep ref updated for voice recognition callback
   useEffect(() => {

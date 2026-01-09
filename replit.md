@@ -159,13 +159,16 @@ APK output: `android/app/build/outputs/apk/debug/app-debug.apk`
 - **Voice State Machine**: SPEAKING→SETTLING→LISTENING coordination via `VoiceSessionController`
   - 250ms settling delay for Galaxy S9+ hardware after TTS ends
   - Prevents Android beep loops from rapid mic start/stop
-- **Always-On Mode**: Color Blitz uses echo filter instead of pause/resume
-  - `setAlwaysOnMode(true)` keeps mic open during TTS
-  - `setEchoFilter(['e4', 'e', '4'])` ignores TTS playback of coordinates
-  - `clearEchoFilter(200ms)` re-enables recognition after TTS
+- **Color Blitz Voice Mode**: Uses standard pause/resume via `speak()` function
+  - voiceController automatically pauses mic during TTS and resumes after 250ms settling delay
+  - Simple and reliable - no echo filtering needed
 - **3-Strike Retry**: After 3 consecutive mic failures, shows "Tap to Retry" button
   - `setOnRetryNeeded(callback)` triggers UI state for manual retry
   - `resetMicBusy()` clears failure state for fresh start
+- **In-Game Voice Debouncing**: 2-second timeout for piece moves (knight, bishop, rook, queen, king)
+  - Prevents truncation of phrases like "knight c3" - waits for complete phrase
+  - Pawn moves process immediately when coordinate pattern detected
+  - Applies to both captures ("takes") and piece moves
 - **Clean Slate Pattern**: Call `SpeechRecognition.stop()` on component mount
   - Clears lingering sessions from previous screens
   - Prevents "recognizer busy" errors on Samsung devices

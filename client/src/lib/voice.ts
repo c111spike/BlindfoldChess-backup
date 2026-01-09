@@ -1144,10 +1144,10 @@ export class VoiceRecognition {
   private static readonly MIN_RESTART_INTERVAL_MS = 2000;
   private static readonly FAILURE_COOLDOWN_MS = 5000;
   
-  // Capture debounce: Wait for full phrase when "takes"/"captures" detected
+  // Capture debounce: Wait for full phrase when piece keyword or "takes"/"captures" detected
   private captureDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
   private pendingCaptureTranscript: string = '';
-  private static readonly CAPTURE_DEBOUNCE_MS = 600; // Wait 600ms after hearing "takes" for target square
+  private static readonly CAPTURE_DEBOUNCE_MS = 2000; // Wait 2s for complete phrase (piece + square)
   
   // Session registration for voiceController TTS coordination
   private static readonly SESSION_ID = 'voiceRecognition';
@@ -1338,14 +1338,15 @@ export class VoiceRecognition {
           const transcript = data.matches[0];
           console.log('[VoiceRecognition Native] Transcript:', transcript);
           
-          // Check if this is a capture move - wait for full phrase
+          // Check if this needs debouncing - piece keywords or capture words need more time
           const lowerTranscript = transcript.toLowerCase();
           const hasCaptureWord = lowerTranscript.includes('takes') || lowerTranscript.includes('captures');
-          const hasTargetSquare = /[a-h][1-8]/.test(lowerTranscript);
+          const hasPieceKeyword = /\b(knight|bishop|rook|queen|king|horse|castle)\b/.test(lowerTranscript);
+          const hasTargetSquare = /[a-h]\s*[1-8]/.test(lowerTranscript);
           
-          // If we hear "takes" but no target square yet, debounce and wait for more
-          if (hasCaptureWord && !hasTargetSquare) {
-            console.log('[VoiceRecognition Native] Capture phrase detected, waiting for target square...');
+          // If we hear a piece keyword or "takes" but no target square yet, debounce and wait for more
+          if ((hasPieceKeyword || hasCaptureWord) && !hasTargetSquare) {
+            console.log('[VoiceRecognition Native] Piece/capture phrase detected, waiting for target square...');
             this.pendingCaptureTranscript = transcript;
             
             // Clear any existing debounce timer
@@ -1353,10 +1354,10 @@ export class VoiceRecognition {
               clearTimeout(this.captureDebounceTimeout);
             }
             
-            // Wait for target square to complete
+            // Wait for target square to complete (2 seconds for full phrase)
             this.captureDebounceTimeout = setTimeout(() => {
               // Timeout expired without target square - process what we have
-              console.log('[VoiceRecognition Native] Capture debounce timeout, processing:', this.pendingCaptureTranscript);
+              console.log('[VoiceRecognition Native] Debounce timeout, processing:', this.pendingCaptureTranscript);
               const move = speechToMove(this.pendingCaptureTranscript, this.legalMoves);
               if (this.onResult) {
                 this.onResult(move, this.pendingCaptureTranscript);
@@ -1366,9 +1367,9 @@ export class VoiceRecognition {
             return;
           }
           
-          // If we have a pending capture phrase and now got target square, process it
+          // If we have a pending phrase and now got target square, process the complete phrase
           if (this.pendingCaptureTranscript && hasTargetSquare) {
-            console.log('[VoiceRecognition Native] Complete capture phrase received:', transcript);
+            console.log('[VoiceRecognition Native] Complete phrase received:', transcript);
             if (this.captureDebounceTimeout) {
               clearTimeout(this.captureDebounceTimeout);
               this.captureDebounceTimeout = null;
@@ -1376,7 +1377,7 @@ export class VoiceRecognition {
             this.pendingCaptureTranscript = '';
           }
           
-          // Normal processing - immediate for non-captures or complete captures
+          // Normal processing - immediate for pawn moves or complete piece/capture phrases
           const move = speechToMove(transcript, this.legalMoves);
           console.log('[VoiceRecognition Native] Matched move:', move);
           if (this.onResult) {
@@ -1852,7 +1853,16 @@ class TrainingVoiceController {
       return;
     }
     
-    if (!this.isPaused || !this.shouldBeListening) return;
+    // Resume if we should be listening, regardless of isPaused state
+    // This handles the timing race where TTS starts before listener fully spins up
+    if (!this.shouldBeListening) return;
+    
+    // Skip if already listening (no need to restart)
+    if (this.isListening) {
+      console.log('[TrainingVoice] Already listening, skipping resume');
+      return;
+    }
+    
     this.isPaused = false;
     console.log('[TrainingVoice] Resuming after TTS');
     

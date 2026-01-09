@@ -928,7 +928,7 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
                 className={isListening ? "animate-pulse" : ""}
                 data-testid="button-reconstruction-mic"
               >
-                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {isListening ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
               </Button>
             </div>
           </div>
