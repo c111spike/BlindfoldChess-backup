@@ -140,7 +140,7 @@ export async function saveTrainingSession(mode: 'color_blitz' | 'coordinate_snip
     console.log('[TrainingStats] Session saved:', result.changes?.lastId);
     return result.changes?.lastId || null;
   } catch (error) {
-    console.error('[TrainingStats] Failed to save session:', error);
+    console.error('[TrainingStats] Failed to save session:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }

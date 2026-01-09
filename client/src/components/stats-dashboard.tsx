@@ -136,19 +136,19 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
   const tacticalInsights = insights.filter(i => i.category === 'tactical');
   
   return (
-    <Tabs defaultValue="visualization" className="w-full">
+    <Tabs defaultValue="tactical" className="w-full">
       <TabsList className="grid w-full grid-cols-4 mb-4">
-        <TabsTrigger value="visualization" className="flex items-center gap-1 text-xs">
-          <Eye className="h-3 w-3" />
-          <span className="hidden sm:inline">Vision</span>
+        <TabsTrigger value="tactical" className="flex items-center gap-1 text-xs">
+          <Target className="h-3 w-3" />
+          <span className="hidden sm:inline">Tactics</span>
         </TabsTrigger>
         <TabsTrigger value="cognitive" className="flex items-center gap-1 text-xs">
           <Brain className="h-3 w-3" />
           <span className="hidden sm:inline">Mind</span>
         </TabsTrigger>
-        <TabsTrigger value="tactical" className="flex items-center gap-1 text-xs">
-          <Target className="h-3 w-3" />
-          <span className="hidden sm:inline">Tactics</span>
+        <TabsTrigger value="visualization" className="flex items-center gap-1 text-xs">
+          <Eye className="h-3 w-3" />
+          <span className="hidden sm:inline">Vision</span>
         </TabsTrigger>
         <TabsTrigger value="training" className="flex items-center gap-1 text-xs">
           <Dumbbell className="h-3 w-3" />
@@ -220,7 +220,7 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Clarity by Game Length</CardTitle>
+            <CardTitle className="text-sm">Reconstruction by Game Length</CardTitle>
             <CardDescription className="text-xs">
               How well you remember the board position as games get longer
             </CardDescription>
@@ -291,41 +291,6 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Mean Response Time
-            </CardTitle>
-            <CardDescription className="text-xs">
-              How quickly you find moves - faster often means clearer visualization
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center mb-4">
-              <p className="text-3xl font-bold">{formatResponseTime(avgResponseTime)}</p>
-            </div>
-            
-            <Separator className="my-4" />
-            
-            <div className="space-y-3">
-              <p className="text-xs font-medium text-muted-foreground">By Game Phase</p>
-              <StatRow 
-                label="Opening (moves 1-10)" 
-                value={formatResponseTime(phaseResponse.opening)} 
-              />
-              <StatRow 
-                label="Middlegame (moves 11-30)" 
-                value={formatResponseTime(phaseResponse.middlegame)} 
-              />
-              <StatRow 
-                label="Endgame (moves 31+)" 
-                value={formatResponseTime(phaseResponse.endgame)} 
-              />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
               Endgame Drift
               {stats.lastGameEndgameDrift > 30 ? (
                 <TrendingDown className="h-4 w-4 text-red-500" />
@@ -390,6 +355,44 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
               label="Mental Blur Events" 
               value={stats.mentalBlurCount} 
             />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Grid3X3 className="h-4 w-4" />
+              Confusion Heatmap
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Squares you inquire about most often - your mental "blind spots"
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats.totalSquareInquiries > 0 ? (
+              <>
+                <CoordinateHeatmap stats={stats} />
+                <p className="text-xs text-muted-foreground text-center mt-3">
+                  Red = frequently forgotten, Gray = clear
+                </p>
+                {topConfused.length > 0 && (
+                  <div className="mt-4 space-y-1">
+                    <p className="text-xs font-medium">Top Blind Spots:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {topConfused.map(({ square, count }) => (
+                        <Badge key={square} variant="secondary" className="text-xs">
+                          {square.toUpperCase()} ({count})
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Ask about squares during games to see which ones you forget!
+              </p>
+            )}
           </CardContent>
         </Card>
         
@@ -467,38 +470,35 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Grid3X3 className="h-4 w-4" />
-              Confusion Heatmap
+              <Clock className="h-4 w-4" />
+              Mean Response Time
             </CardTitle>
             <CardDescription className="text-xs">
-              Squares you inquire about most often - your mental "blind spots"
+              How quickly you find moves - faster often means clearer visualization
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {stats.totalSquareInquiries > 0 ? (
-              <>
-                <CoordinateHeatmap stats={stats} />
-                <p className="text-xs text-muted-foreground text-center mt-3">
-                  Red = frequently forgotten, Gray = clear
-                </p>
-                {topConfused.length > 0 && (
-                  <div className="mt-4 space-y-1">
-                    <p className="text-xs font-medium">Top Blind Spots:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {topConfused.map(({ square, count }) => (
-                        <Badge key={square} variant="secondary" className="text-xs">
-                          {square.toUpperCase()} ({count})
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Ask about squares during games to see which ones you forget!
-              </p>
-            )}
+            <div className="text-center mb-4">
+              <p className="text-3xl font-bold">{formatResponseTime(avgResponseTime)}</p>
+            </div>
+            
+            <Separator className="my-4" />
+            
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground">By Game Phase</p>
+              <StatRow 
+                label="Opening (moves 1-10)" 
+                value={formatResponseTime(phaseResponse.opening)} 
+              />
+              <StatRow 
+                label="Middlegame (moves 11-30)" 
+                value={formatResponseTime(phaseResponse.middlegame)} 
+              />
+              <StatRow 
+                label="Endgame (moves 31+)" 
+                value={formatResponseTime(phaseResponse.endgame)} 
+              />
+            </div>
           </CardContent>
         </Card>
         
@@ -548,6 +548,58 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
       </TabsContent>
       
       <TabsContent value="training" className="space-y-4 max-h-[60vh] overflow-y-auto">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Mic className="h-4 w-4 text-purple-500" />
+              Voice Move Master
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Announce chess moves by voice
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {trainingStats && trainingStats.voiceMoveMasterBest !== null ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Personal Best</span>
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-purple-500" />
+                    <span className="text-2xl font-bold text-purple-500">{trainingStats.voiceMoveMasterBest}</span>
+                    <span className="text-sm text-muted-foreground">moves</span>
+                  </div>
+                </div>
+                {trainingStats.voiceMoveMasterBestStreak !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Best Streak</span>
+                    <div className="flex items-center gap-2">
+                      <Flame className="h-4 w-4 text-orange-500" />
+                      <span className="text-lg font-bold text-orange-500">{trainingStats.voiceMoveMasterBestStreak}</span>
+                      <span className="text-sm text-muted-foreground">in a row</span>
+                    </div>
+                  </div>
+                )}
+                {trainingStats.voiceMoveMasterBestDate && (
+                  <p className="text-xs text-muted-foreground text-right">
+                    Achieved {new Date(trainingStats.voiceMoveMasterBestDate).toLocaleDateString()}
+                  </p>
+                )}
+                {trainingStats.voiceMoveMasterBest >= 15 ? (
+                  <Badge className="bg-purple-500 text-white">Gold Tier</Badge>
+                ) : trainingStats.voiceMoveMasterBest >= 8 ? (
+                  <Badge variant="secondary">Silver Tier</Badge>
+                ) : (
+                  <Badge variant="outline">Bronze Tier</Badge>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Complete a Voice Move Master session to set your first record!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -651,84 +703,6 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
           </CardContent>
         </Card>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Mic className="h-4 w-4 text-purple-500" />
-              Voice Move Master
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Announce chess moves by voice
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {trainingStats && trainingStats.voiceMoveMasterBest !== null ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Personal Best</span>
-                  <div className="flex items-center gap-2">
-                    <Trophy className="h-4 w-4 text-purple-500" />
-                    <span className="text-2xl font-bold text-purple-500">{trainingStats.voiceMoveMasterBest}</span>
-                    <span className="text-sm text-muted-foreground">moves</span>
-                  </div>
-                </div>
-                {trainingStats.voiceMoveMasterBestStreak !== null && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Best Streak</span>
-                    <div className="flex items-center gap-2">
-                      <Flame className="h-4 w-4 text-orange-500" />
-                      <span className="text-lg font-bold text-orange-500">{trainingStats.voiceMoveMasterBestStreak}</span>
-                      <span className="text-sm text-muted-foreground">in a row</span>
-                    </div>
-                  </div>
-                )}
-                {trainingStats.voiceMoveMasterBestDate && (
-                  <p className="text-xs text-muted-foreground text-right">
-                    Achieved {new Date(trainingStats.voiceMoveMasterBestDate).toLocaleDateString()}
-                  </p>
-                )}
-                {trainingStats.voiceMoveMasterBest >= 15 ? (
-                  <Badge className="bg-purple-500 text-white">Gold Tier</Badge>
-                ) : trainingStats.voiceMoveMasterBest >= 8 ? (
-                  <Badge variant="secondary">Silver Tier</Badge>
-                ) : (
-                  <Badge variant="outline">Bronze Tier</Badge>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Complete a Voice Move Master session to set your first record!
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Dumbbell className="h-4 w-4" />
-              Training Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {trainingStats && trainingStats.totalSessions > 0 ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-muted-foreground">Total Sessions</span>
-                  <span className="font-bold text-lg">{trainingStats.totalSessions}</span>
-                </div>
-                <Separator />
-                <p className="text-xs text-muted-foreground">
-                  Keep training to improve your blindfold chess skills!
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Start training to track your progress!
-              </p>
-            )}
-          </CardContent>
-        </Card>
       </TabsContent>
     </Tabs>
   );

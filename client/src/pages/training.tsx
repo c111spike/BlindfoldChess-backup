@@ -117,6 +117,28 @@ export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }:
       </div>
 
       <div className="space-y-4 flex-1">
+        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('voice_move_master')} data-testid="card-voice-move-master">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-purple-500/20">
+                <Volume2 className="h-5 w-5 text-purple-500" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Voice Move Master</CardTitle>
+                <CardDescription>Announce moves by voice in 60 seconds</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {stats !== null && stats.voiceMoveMasterBest !== null && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Trophy className="h-4 w-4 text-amber-500" />
+                <span>Best: {stats.voiceMoveMasterBest} correct</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="hover-elevate cursor-pointer" onClick={() => setMode('color_blitz')} data-testid="card-color-blitz">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
@@ -156,28 +178,6 @@ export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }:
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Trophy className="h-4 w-4 text-amber-500" />
                 <span>Best: {formatTime(stats.coordinateSniperBest)}</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('voice_move_master')} data-testid="card-voice-move-master">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-purple-500/20">
-                <Volume2 className="h-5 w-5 text-purple-500" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Voice Move Master</CardTitle>
-                <CardDescription>Announce moves by voice in 60 seconds</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {stats !== null && stats.voiceMoveMasterBest !== null && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                <span>Best: {stats.voiceMoveMasterBest} correct</span>
               </div>
             )}
           </CardContent>
