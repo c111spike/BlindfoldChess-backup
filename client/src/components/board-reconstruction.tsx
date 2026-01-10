@@ -3,23 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, RotateCcw, Send, Mic, MicOff, Trash2, BarChart3 } from "lucide-react";
-import { SpeechRecognition as CapacitorSpeechRecognition } from "@capacitor-community/speech-recognition";
-import { Capacitor } from "@capacitor/core";
-import { handleMicPermission, checkMicPermission, voiceRecognition, pulseHapticLight, voiceController } from "@/lib/voice";
-
-// Web Speech API types (local interface to avoid global conflicts)
-interface WebSpeechRecognitionLocal {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onresult: ((event: any) => void) | null;
-  onerror: ((event: any) => void) | null;
-  onend: (() => void) | null;
-  onstart: (() => void) | null;
-}
+import { handleMicPermission, checkMicPermission, voiceMaster, pulseHapticLight } from "@/lib/voice";
 
 const PIECE_IMAGES: Record<string, string> = {
   'wK': '/pieces/wK.svg',
@@ -189,18 +173,8 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   
   const voicePlacementsRef = useRef(0);
   const touchPlacementsRef = useRef(0);
-  const listenerRef = useRef<any>(null);
-  const stateListenerRef = useRef<any>(null);
-  const webRecognitionRef = useRef<WebSpeechRecognitionLocal | null>(null);
   const submitRef = useRef<(() => void) | null>(null);
-  const shouldBeListeningRef = useRef(false);
-  const isRestartingRef = useRef(false);
-  // Android beep loop prevention
-  const lastErrorTimeRef = useRef(0);
-  const consecutiveFailuresRef = useRef(0);
-  // TTS coordination
-  const isPausedByTTSRef = useRef(false);
-  const voiceSessionId = 'reconstruction';
+  const isMountedRef = useRef(true);
   
   const actualBoard = fenToBoard(actualFen);
   
@@ -329,405 +303,59 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
     }
   }, [disambiguation, squareToIndices, placePiece, removePiece]);
   
-  // Track the startup timeout for cleanup
-  const startupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isMountedRef = useRef(true);
+  // Store processVoiceCommand in a ref to avoid stale closures
+  const processVoiceCommandRef = useRef(processVoiceCommand);
+  useEffect(() => {
+    processVoiceCommandRef.current = processVoiceCommand;
+  }, [processVoiceCommand]);
+  
+  // Simplified voice handling using unified voiceMaster
+  const startListening = useCallback(async () => {
+    if (submitted) return;
+    
+    // Haptic feedback immediately
+    await pulseHapticLight();
+    
+    // Check permissions
+    const hasPermission = await handleMicPermission();
+    if (!hasPermission) {
+      console.warn('[Reconstruction] Microphone permission not granted');
+      const status = await checkMicPermission();
+      if (status === 'prompt-with-rationale') {
+        alert("Voice control requires microphone access. Please enable it in your device Settings > Apps > Blindfold Chess > Permissions.");
+      }
+      return;
+    }
+    
+    // Start voiceMaster in placement mode
+    const started = await voiceMaster.start({
+      mode: 'placement',
+      onTranscript: (transcript) => {
+        processVoiceCommandRef.current(transcript);
+      },
+      onListeningChange: (listening) => {
+        setIsListening(listening);
+      }
+    });
+    
+    if (started) {
+      console.log('[Reconstruction] Voice started via voiceMaster');
+    }
+  }, [submitted]);
+  
+  const stopListening = useCallback(async () => {
+    await voiceMaster.stop();
+    setIsListening(false);
+    setDisambiguation(null);
+  }, []);
   
   // Cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      if (startupTimeoutRef.current) {
-        clearTimeout(startupTimeoutRef.current);
-        startupTimeoutRef.current = null;
-      }
+      voiceMaster.stop();
     };
-  }, []);
-  
-  // Register with voiceController for TTS coordination (pause mic during speech)
-  useEffect(() => {
-    // Create pause/resume handlers for this component
-    const pauseReconstruction = () => {
-      if (!shouldBeListeningRef.current || isPausedByTTSRef.current) return;
-      isPausedByTTSRef.current = true;
-      console.log('[Reconstruction] Pausing for TTS');
-      
-      if (Capacitor.isNativePlatform()) {
-        CapacitorSpeechRecognition.stop().catch(e => 
-          console.log('[Reconstruction] Pause stop error:', e)
-        );
-      } else if (webRecognitionRef.current) {
-        try {
-          webRecognitionRef.current.stop();
-        } catch (e) {
-          console.log('[Reconstruction Web] Pause error:', e);
-        }
-      }
-      setIsListening(false);
-    };
-    
-    const resumeReconstruction = async () => {
-      // Guard against unmounted component
-      if (!isMountedRef.current) {
-        console.log('[Reconstruction] Component unmounted, skipping resume');
-        return;
-      }
-      if (!shouldBeListeningRef.current || !isPausedByTTSRef.current) return;
-      isPausedByTTSRef.current = false;
-      console.log('[Reconstruction] Resuming after TTS');
-      
-      // Small delay before restarting to let Android audio system settle
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Double-check mounted state after delay
-      if (!isMountedRef.current) return;
-      
-      if (Capacitor.isNativePlatform()) {
-        try {
-          // Hardware reset: stop first to kick Android audio system
-          try {
-            await CapacitorSpeechRecognition.stop();
-            await new Promise(resolve => setTimeout(resolve, 50));
-          } catch (e) {
-            // Ignore - might not be running
-          }
-          
-          await CapacitorSpeechRecognition.start({
-            language: 'en-US',
-            partialResults: true,
-            popup: false,
-          });
-          if (isMountedRef.current) setIsListening(true);
-          console.log('[Reconstruction] Resumed after TTS with hardware reset');
-        } catch (e) {
-          console.log('[Reconstruction] Resume failed:', e);
-          if (isMountedRef.current) setIsListening(false); // Sync state on failure
-        }
-      } else if (webRecognitionRef.current) {
-        try {
-          webRecognitionRef.current.start();
-          if (isMountedRef.current) setIsListening(true);
-        } catch (e) {
-          console.log('[Reconstruction Web] Resume error:', e);
-          if (isMountedRef.current) setIsListening(false); // Sync state on failure
-        }
-      }
-    };
-    
-    // Register this session with the voice controller
-    voiceController.register({
-      id: voiceSessionId,
-      pause: pauseReconstruction,
-      resume: resumeReconstruction,
-      shouldBeActive: false
-    });
-    
-    return () => {
-      // Fully unregister on cleanup to prevent stale callbacks
-      voiceController.unregister(voiceSessionId);
-    };
-  }, []);
-  
-  const startListening = useCallback(async () => {
-    if (submitted) return;
-    shouldBeListeningRef.current = true;
-    
-    // Immediately update UI to show we're trying to listen
-    // This lets the UI turn red before the heavy speech engine starts
-    setIsListening(true);
-    
-    // Haptic feedback immediately on button press
-    await pulseHapticLight();
-    
-    // Clear any previous startup timeout
-    if (startupTimeoutRef.current) {
-      clearTimeout(startupTimeoutRef.current);
-    }
-    
-    // Use setTimeout to let the UI update before starting the speech engine
-    startupTimeoutRef.current = setTimeout(async () => {
-      if (!isMountedRef.current) return;
-      
-      try {
-        // Use unified permission handler for both platforms
-        const hasPermission = await handleMicPermission();
-        if (!hasPermission) {
-          console.warn('[Reconstruction] Microphone permission not granted');
-          if (isMountedRef.current) setIsListening(false);
-          // Check if permanently denied
-          const status = await checkMicPermission();
-          if (status === 'prompt-with-rationale') {
-            alert("Voice control requires microphone access. Please enable it in your device Settings > Apps > Blindfold Chess > Permissions.");
-          }
-          return;
-        }
-        
-        await startListeningInternal();
-      } catch (e) {
-        console.error('[Reconstruction] Failed to start listening:', e);
-        if (isMountedRef.current) setIsListening(false);
-      }
-    }, 100);
-  }, [submitted]);
-  
-  const startListeningInternal = useCallback(async () => {
-    try {
-      if (Capacitor.isNativePlatform()) {
-        // NATIVE: Use Capacitor SDK
-        const { available } = await CapacitorSpeechRecognition.available();
-        if (!available) {
-          console.warn('[Reconstruction] Native speech not available');
-          return;
-        }
-        
-        // Stop the game's voice singleton first and wait for cleanup to complete
-        try {
-          await voiceRecognition.stopAndWait();
-        } catch (e) {
-          // Ignore - may not be running
-        }
-        
-        // Defensively stop any lingering Capacitor session
-        try {
-          await CapacitorSpeechRecognition.stop();
-          // Wait for native layer to fully release the microphone
-          await new Promise(resolve => setTimeout(resolve, 200));
-        } catch (e) {
-          // Ignore - may not be listening
-        }
-        
-        // Only add listeners once - check if they're already set up
-        if (!listenerRef.current) {
-          listenerRef.current = await CapacitorSpeechRecognition.addListener('partialResults', (data: any) => {
-            if (data.matches && data.matches.length > 0 && shouldBeListeningRef.current) {
-              processVoiceCommand(data.matches[0]);
-            }
-          });
-        }
-        
-        // Add listener for when native speech ends - auto-restart for continuous listening
-        if (!stateListenerRef.current) {
-          stateListenerRef.current = await CapacitorSpeechRecognition.addListener('listeningState', async (state: any) => {
-            if (state.status === 'stopped' && shouldBeListeningRef.current && !isRestartingRef.current) {
-              // Don't auto-restart if paused by TTS - voiceController will handle resume
-              if (isPausedByTTSRef.current) {
-                console.log('[Reconstruction] Paused by TTS, skipping auto-restart');
-                return;
-              }
-              
-              // 3-second lockout: If last error was within 3 seconds, wait longer
-              const now = Date.now();
-              const timeSinceLastError = now - lastErrorTimeRef.current;
-              if (timeSinceLastError < 3000 && lastErrorTimeRef.current > 0) {
-                console.log(`[Reconstruction] Lockout active: ${3000 - timeSinceLastError}ms remaining`);
-                return;
-              }
-              
-              // Check consecutive failures - stop after 3
-              if (consecutiveFailuresRef.current >= 3) {
-                console.log('[Reconstruction] Too many failures, mic busy');
-                setIsListening(false);
-                return;
-              }
-              
-              // Auto-restart after a brief pause with guard against double-restart
-              isRestartingRef.current = true;
-              setTimeout(async () => {
-                // Also check TTS at restart time
-                if (shouldBeListeningRef.current && consecutiveFailuresRef.current < 3 && !isPausedByTTSRef.current) {
-                  try {
-                    await CapacitorSpeechRecognition.start({
-                      language: 'en-US',
-                      partialResults: true,
-                      popup: false,
-                    });
-                    setIsListening(true);
-                    consecutiveFailuresRef.current = 0; // Reset on success
-                    console.log('[Reconstruction] Native speech auto-restarted');
-                    // Haptic pulse on successful restart
-                    try {
-                      const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
-                      await Haptics.impact({ style: ImpactStyle.Light });
-                    } catch (e) {}
-                  } catch (e) {
-                    // Track failure
-                    lastErrorTimeRef.current = Date.now();
-                    consecutiveFailuresRef.current++;
-                    console.log('[Reconstruction] Auto-restart failed:', e, 'Failures:', consecutiveFailuresRef.current);
-                  }
-                }
-                isRestartingRef.current = false;
-              }, 3000); // Use 3-second delay to prevent beep loop
-            }
-          });
-        }
-        
-        // Mark as active for TTS coordination BEFORE starting - prevents race condition
-        voiceController.setActive(voiceSessionId, true);
-        
-        await CapacitorSpeechRecognition.start({
-          language: 'en-US',
-          partialResults: true,
-          popup: false,
-        });
-        
-        setIsListening(true);
-        console.log('[Reconstruction] Native speech started (continuous mode)');
-      } else {
-        // WEB: Use Web Speech API for browser testing
-        const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognitionAPI) {
-          console.warn('[Reconstruction] Speech Recognition not supported in this browser');
-          return;
-        }
-        
-        if (!webRecognitionRef.current) {
-          const recognition = new SpeechRecognitionAPI();
-          recognition.continuous = true;
-          recognition.interimResults = false;
-          recognition.lang = 'en-US';
-          
-          recognition.onresult = (event: any) => {
-            const lastResult = event.results[event.results.length - 1];
-            if (lastResult.isFinal && shouldBeListeningRef.current) {
-              const transcript = lastResult[0].transcript;
-              console.log('[Reconstruction Web] Transcript:', transcript);
-              processVoiceCommand(transcript);
-            }
-          };
-          
-          recognition.onerror = (event: any) => {
-            console.log('[Reconstruction Web] Error:', event.error);
-            // Don't restart on 'aborted' (explicit stop) - all other errors should trigger restart
-            if (event.error !== 'aborted') {
-              // Auto-restart on recoverable errors - check shouldBeListening inside timeout
-              setTimeout(() => {
-                // Don't restart if paused by TTS
-                if (shouldBeListeningRef.current && webRecognitionRef.current && !isPausedByTTSRef.current) {
-                  try {
-                    webRecognitionRef.current.start();
-                    console.log('[Reconstruction Web] Auto-restarted after error');
-                  } catch (e) {
-                    // Already started
-                  }
-                }
-              }, 300);
-            }
-          };
-          
-          recognition.onend = () => {
-            console.log('[Reconstruction Web] Recognition ended, shouldBeListening:', shouldBeListeningRef.current);
-            // Auto-restart if should still be listening - check inside timeout
-            // Don't set isListening to false here since we'll restart immediately
-            setTimeout(() => {
-              // Don't restart if paused by TTS - voiceController handles resume
-              if (shouldBeListeningRef.current && webRecognitionRef.current && !isPausedByTTSRef.current) {
-                try {
-                  webRecognitionRef.current.start();
-                  setIsListening(true);
-                  console.log('[Reconstruction Web] Auto-restarted');
-                } catch (e) {
-                  // Already started - this is fine
-                  console.log('[Reconstruction Web] Already started or error:', e);
-                }
-              } else if (!isPausedByTTSRef.current) {
-                setIsListening(false);
-              }
-            }, 200);
-          };
-          
-          recognition.onstart = () => {
-            setIsListening(true);
-          };
-          
-          webRecognitionRef.current = recognition;
-        }
-        
-        // Stop the game's voice singleton first for web mode too
-        try {
-          await voiceRecognition.stopAndWait();
-        } catch (e) {
-          // Ignore - may not be running
-        }
-        
-        // Defensively stop any existing session first
-        try {
-          webRecognitionRef.current.stop();
-        } catch (e) {
-          // Ignore - may not be running
-        }
-        
-        try {
-          webRecognitionRef.current.start();
-          setIsListening(true);
-          // Mark as active for TTS coordination
-          voiceController.setActive(voiceSessionId, true);
-          console.log('[Reconstruction] Web speech started');
-        } catch (e) {
-          console.log('[Reconstruction] Web speech already running');
-        }
-      }
-    } catch (e) {
-      console.error('[Reconstruction] Speech recognition error:', e);
-      setIsListening(false);
-    }
-  }, [processVoiceCommand]);
-  
-  const stopListening = useCallback(async () => {
-    shouldBeListeningRef.current = false;
-    isRestartingRef.current = false;
-    isPausedByTTSRef.current = false;
-    
-    // Mark as inactive for TTS coordination
-    voiceController.setActive(voiceSessionId, false);
-    
-    try {
-      if (Capacitor.isNativePlatform()) {
-        // NATIVE: Stop Capacitor SDK
-        await CapacitorSpeechRecognition.stop();
-        if (listenerRef.current) {
-          await listenerRef.current.remove();
-          listenerRef.current = null;
-        }
-        if (stateListenerRef.current) {
-          await stateListenerRef.current.remove();
-          stateListenerRef.current = null;
-        }
-      } else {
-        // WEB: Stop Web Speech API
-        if (webRecognitionRef.current) {
-          webRecognitionRef.current.stop();
-        }
-      }
-      setIsListening(false);
-      setDisambiguation(null);
-    } catch (e) {
-      console.error('[Reconstruction] Stop listening error:', e);
-    }
-  }, []);
-  
-  useEffect(() => {
-    return () => {
-      if (isListening) {
-        stopListening();
-      }
-    };
-  }, [isListening, stopListening]);
-  
-  // Clean slate: Stop any lingering speech recognition when component mounts
-  useEffect(() => {
-    const cleanSlate = async () => {
-      if (Capacitor.isNativePlatform()) {
-        try {
-          await CapacitorSpeechRecognition.stop();
-          console.log('[Reconstruction] Clean slate: stopped lingering recognition');
-        } catch (e) {
-          // Ignore - may not be running
-        }
-      }
-    };
-    cleanSlate();
   }, []);
   
   // Heartbeat animation for Ready screen

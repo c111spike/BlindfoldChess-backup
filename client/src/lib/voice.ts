@@ -532,7 +532,8 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   return voicesLoadPromise;
 }
 
-let voiceRecognitionInstance: VoiceRecognition | null = null;
+// voiceRecognitionInstance is set after VoiceRecognitionWrapper is created (below)
+let voiceRecognitionInstance: { abort: () => void } | null = null;
 
 function abortRecognitionIfReady() {
   if (voiceRecognitionInstance) {
@@ -1124,323 +1125,20 @@ export function getSourceSquaresFromCandidates(candidates: string[]): string[] {
   return sources;
 }
 
-export class VoiceRecognition {
-  private recognition: SpeechRecognition | null = null;
-  private isListening: boolean = false;
+// VoiceRecognition class - now a wrapper around voiceMaster for unified mic handling
+// Maintains backward-compatible API for game.tsx
+class VoiceRecognitionWrapper {
   private onResult: ((move: string | null, transcript: string) => void) | null = null;
   private onListeningChange: ((listening: boolean) => void) | null = null;
   private legalMoves: string[] = [];
-  private restartTimeout: ReturnType<typeof setTimeout> | null = null;
-  private shouldBeListening: boolean = false;
-  private instanceId: number = 0;
-  private removeNativeListener: (() => Promise<void>) | null = null;
-  private nativeAvailable: boolean = false;
-  private initializationComplete: boolean = false;
-  private initializationPromise: Promise<void> | null = null;
-  private pendingStartAfterInit: boolean = false;
-  private consecutiveFailures: number = 0;
-  private lastStartAttempt: number = 0;
-  private static readonly MAX_CONSECUTIVE_FAILURES = 5;
-  private static readonly MIN_RESTART_INTERVAL_MS = 2000;
-  private static readonly FAILURE_COOLDOWN_MS = 5000;
-  
-  // Capture debounce: Wait for full phrase when piece keyword or "takes"/"captures" detected
-  private captureDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
-  private pendingCaptureTranscript: string = '';
-  private static readonly CAPTURE_DEBOUNCE_MS = 2000; // Wait 2s for complete phrase (piece + square)
-  
-  // Session registration for voiceController TTS coordination
-  private static readonly SESSION_ID = 'voiceRecognition';
-  private isRegistered: boolean = false;
-  
-  constructor() {
-    this.initializationPromise = this.initialize();
-  }
-  
-  private async initialize(): Promise<void> {
-    if (isNative) {
-      await this.setupNativeRecognitionAsync();
-    } else {
-      this.setupWebRecognition();
-    }
-    this.initializationComplete = true;
-    
-    if (this.pendingStartAfterInit && this.shouldBeListening) {
-      this.pendingStartAfterInit = false;
-      this.startInternal();
-    }
-  }
-  
-  private setupWebRecognition(): boolean {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognitionAPI) {
-        this.recognition = new SpeechRecognitionAPI();
-        this.recognition.continuous = true;
-        this.recognition.interimResults = false;
-        this.recognition.lang = 'en-US';
-        
-        this.recognition.onresult = (event: SpeechRecognitionEvent) => {
-          console.log('[VoiceRecognition] onresult triggered, results count:', event.results.length);
-          const lastResult = event.results[event.results.length - 1];
-          console.log('[VoiceRecognition] isFinal:', lastResult.isFinal, 'shouldBeListening:', this.shouldBeListening);
-          if (lastResult.isFinal && this.shouldBeListening) {
-            const transcript = lastResult[0].transcript;
-            console.log('[VoiceRecognition] Transcript:', transcript);
-            console.log('[VoiceRecognition] Legal moves:', this.legalMoves.slice(0, 10), '...');
-            const move = speechToMove(transcript, this.legalMoves);
-            console.log('[VoiceRecognition] Matched move:', move);
-            if (this.onResult) {
-              this.onResult(move, transcript);
-            }
-          }
-        };
-        
-        this.recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-          console.log('Speech recognition error:', event.error);
-          if (event.error === 'no-speech' || event.error === 'audio-capture' || event.error === 'network') {
-            if (this.shouldBeListening) {
-              this.scheduleRestart();
-            }
-          } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            console.warn('Microphone access denied');
-            this.shouldBeListening = false;
-          }
-        };
-        
-        this.recognition.onend = () => {
-          this.isListening = false;
-          if (this.onListeningChange) {
-            this.onListeningChange(false);
-          }
-          if (this.shouldBeListening) {
-            this.scheduleRestart();
-          }
-        };
-        
-        this.recognition.onstart = () => {
-          this.isListening = true;
-          if (this.onListeningChange) {
-            this.onListeningChange(true);
-          }
-        };
-        
-        return true;
-      }
-    }
-    return false;
-  }
-  
-  private async setupNativeRecognitionAsync(): Promise<void> {
-    try {
-      const { available } = await CapacitorSpeechRecognition.available();
-      if (!available) {
-        console.warn('Native speech recognition not available, falling back to web');
-        this.nativeAvailable = false;
-        this.setupWebRecognition();
-        return;
-      }
-      
-      const { speechRecognition } = await CapacitorSpeechRecognition.checkPermissions();
-      if (speechRecognition !== 'granted') {
-        const result = await CapacitorSpeechRecognition.requestPermissions();
-        if (result.speechRecognition !== 'granted') {
-          console.warn('Speech recognition permission denied, falling back to web');
-          this.nativeAvailable = false;
-          this.setupWebRecognition();
-          return;
-        }
-      }
-      
-      this.nativeAvailable = true;
-      console.log('[VoiceRecognition] Native speech recognition initialized');
-    } catch (e) {
-      console.error('Error setting up native speech recognition, falling back to web:', e);
-      this.nativeAvailable = false;
-      this.setupWebRecognition();
-    }
-  }
-  
-  private scheduleRestart() {
-    if (this.restartTimeout) {
-      clearTimeout(this.restartTimeout);
-    }
-    
-    // If we've had too many consecutive failures, wait longer before retrying
-    if (this.consecutiveFailures >= VoiceRecognition.MAX_CONSECUTIVE_FAILURES) {
-      console.warn('[VoiceRecognition] Too many consecutive failures, waiting before retry');
-      this.restartTimeout = setTimeout(() => {
-        this.consecutiveFailures = 0; // Reset after cooldown
-        if (this.shouldBeListening && !this.isListening) {
-          // Use the state machine - queue if TTS playing, otherwise start
-          if (voiceController.canStartMic()) {
-            this.startInternal();
-          } else {
-            // Will be resumed by voiceController after TTS ends
-            console.log('[VoiceRecognition] TTS active, restart will happen after TTS ends');
-          }
-        }
-      }, VoiceRecognition.FAILURE_COOLDOWN_MS);
-      return;
-    }
-    
-    // Instant restart with minimal delay - use state machine to guard against TTS
-    const delay = 500; // Minimal cooldown between attempts
-    
-    this.restartTimeout = setTimeout(() => {
-      if (this.shouldBeListening && !this.isListening) {
-        // Check state machine - only start if mic is safe to start
-        if (voiceController.canStartMic()) {
-          console.log('[VoiceRecognition] Instant restart - mic state LISTENING');
-          this.startInternal();
-        } else {
-          // TTS is active or settling - queue restart for after TTS ends
-          console.log('[VoiceRecognition] TTS active, queueing restart for after TTS ends');
-          voiceController.queueRestart('voiceRecognition');
-        }
-      }
-    }, delay);
-  }
-  
-  private startInternal() {
-    this.lastStartAttempt = Date.now();
-    
-    if (isNative && this.nativeAvailable) {
-      this.startNative();
-    } else if (this.recognition) {
-      try {
-        this.recognition.start();
-        this.consecutiveFailures = 0; // Reset on successful start
-      } catch (e) {
-        console.log('Failed to start recognition:', e);
-        this.consecutiveFailures++;
-        if (this.shouldBeListening) {
-          this.scheduleRestart();
-        }
-      }
-    }
-  }
-  
-  private async startNative() {
-    if (!this.nativeAvailable) {
-      console.warn('Native speech recognition not available');
-      return;
-    }
-    
-    try {
-      if (this.removeNativeListener) {
-        await this.removeNativeListener();
-        this.removeNativeListener = null;
-      }
-      
-      const listener = await CapacitorSpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
-        if (data.matches && data.matches.length > 0 && this.shouldBeListening) {
-          const transcript = data.matches[0];
-          console.log('[VoiceRecognition Native] Transcript:', transcript);
-          
-          // Check if this needs debouncing - piece keywords or capture words need more time
-          const lowerTranscript = transcript.toLowerCase();
-          const hasCaptureWord = lowerTranscript.includes('takes') || lowerTranscript.includes('captures');
-          const hasPieceKeyword = /\b(knight|bishop|rook|queen|king|horse|castle)\b/.test(lowerTranscript);
-          const hasTargetSquare = /[a-h]\s*[1-8]/.test(lowerTranscript);
-          
-          // If we hear a piece keyword or "takes" but no target square yet, debounce and wait for more
-          if ((hasPieceKeyword || hasCaptureWord) && !hasTargetSquare) {
-            console.log('[VoiceRecognition Native] Piece/capture phrase detected, waiting for target square...');
-            this.pendingCaptureTranscript = transcript;
-            
-            // Clear any existing debounce timer
-            if (this.captureDebounceTimeout) {
-              clearTimeout(this.captureDebounceTimeout);
-            }
-            
-            // Wait for target square to complete (2 seconds for full phrase)
-            this.captureDebounceTimeout = setTimeout(() => {
-              // Timeout expired without target square - process what we have
-              console.log('[VoiceRecognition Native] Debounce timeout, processing:', this.pendingCaptureTranscript);
-              const move = speechToMove(this.pendingCaptureTranscript, this.legalMoves);
-              if (this.onResult) {
-                this.onResult(move, this.pendingCaptureTranscript);
-              }
-              this.pendingCaptureTranscript = '';
-            }, VoiceRecognition.CAPTURE_DEBOUNCE_MS);
-            return;
-          }
-          
-          // If we have a pending phrase and now got target square, process the complete phrase
-          if (this.pendingCaptureTranscript && hasTargetSquare) {
-            console.log('[VoiceRecognition Native] Complete phrase received:', transcript);
-            if (this.captureDebounceTimeout) {
-              clearTimeout(this.captureDebounceTimeout);
-              this.captureDebounceTimeout = null;
-            }
-            this.pendingCaptureTranscript = '';
-          }
-          
-          // Normal processing - immediate for pawn moves or complete piece/capture phrases
-          const move = speechToMove(transcript, this.legalMoves);
-          console.log('[VoiceRecognition Native] Matched move:', move);
-          if (this.onResult) {
-            this.onResult(move, transcript);
-          }
-        }
-      });
-      
-      this.removeNativeListener = async () => {
-        await listener.remove();
-      };
-      
-      this.isListening = true;
-      if (this.onListeningChange) {
-        this.onListeningChange(true);
-      }
-      
-      await CapacitorSpeechRecognition.start({
-        language: 'en-US',
-        maxResults: 5,
-        prompt: 'Say your chess move',
-        partialResults: true, // Use partial results for immediate move processing on S9+
-        popup: false
-      });
-      
-      // Haptic pulse to indicate mic is now active
-      await pulseHapticLight();
-      
-      // Reset failure counter on successful start
-      this.consecutiveFailures = 0;
-      console.log('[VoiceRecognition Native] Started successfully');
-    } catch (e) {
-      console.error('[VoiceRecognition Native] Error starting:', e);
-      this.consecutiveFailures++;
-      console.log('[VoiceRecognition Native] Consecutive failures:', this.consecutiveFailures);
-      this.isListening = false;
-      if (this.onListeningChange) {
-        this.onListeningChange(false);
-      }
-      if (this.shouldBeListening) {
-        this.scheduleRestart();
-      }
-    }
-  }
-  
-  private async stopNative() {
-    try {
-      await CapacitorSpeechRecognition.stop();
-      if (this.removeNativeListener) {
-        await this.removeNativeListener();
-        this.removeNativeListener = null;
-      }
-    } catch (e) {
-      console.log('Error stopping native speech recognition:', e);
-    }
-    this.isListening = false;
-    if (this.onListeningChange) {
-      this.onListeningChange(false);
-    }
-  }
+  private isStarted: boolean = false;
   
   setLegalMoves(moves: string[]) {
     this.legalMoves = moves;
+    // Update voiceMaster if it's already running in 'move' mode
+    if (this.isStarted) {
+      voiceMaster.setLegalMoves(moves);
+    }
   }
   
   setOnResult(callback: (move: string | null, transcript: string) => void) {
@@ -1451,161 +1149,44 @@ export class VoiceRecognition {
     this.onListeningChange = callback;
   }
   
-  start() {
-    this.shouldBeListening = true;
+  async start(): Promise<void> {
+    if (this.isStarted) return;
     
-    // Register with voiceController for TTS coordination (once)
-    if (!this.isRegistered) {
-      voiceController.register({
-        id: VoiceRecognition.SESSION_ID,
-        pause: () => this.pauseForTTS(),
-        resume: () => this.resumeAfterTTS(),
-        shouldBeActive: true
-      });
-      this.isRegistered = true;
-    }
-    voiceController.setActive(VoiceRecognition.SESSION_ID, true);
-    
-    if (!this.initializationComplete) {
-      this.pendingStartAfterInit = true;
-      return;
-    }
-    
-    if (!this.isListening) {
-      this.startInternal();
-    }
-  }
-  
-  private pauseForTTS(): void {
-    if (!this.shouldBeListening) return;
-    console.log('[VoiceRecognition] Pausing for TTS');
-    
-    if (isNative && this.nativeAvailable) {
-      this.stopNative();
-    } else if (this.recognition && this.isListening) {
-      try {
-        this.recognition.stop();
-      } catch (e) {
-        console.log('[VoiceRecognition] Error pausing:', e);
+    const started = await voiceMaster.start({
+      mode: 'move',
+      legalMoves: this.legalMoves,
+      onTranscript: (transcript, parsedMove) => {
+        if (this.onResult) {
+          this.onResult(parsedMove || null, transcript);
+        }
+      },
+      onListeningChange: (listening) => {
+        if (this.onListeningChange) {
+          this.onListeningChange(listening);
+        }
       }
-    }
-    this.isListening = false;
-    if (this.onListeningChange) {
-      this.onListeningChange(false);
-    }
+    });
+    
+    this.isStarted = started;
   }
   
-  private resumeAfterTTS(): void {
-    if (!this.shouldBeListening) return;
-    // Guard: don't start if already listening
-    if (this.isListening) {
-      console.log('[VoiceRecognition] Already listening, skipping resume');
-      return;
-    }
-    console.log('[VoiceRecognition] Resuming after TTS');
-    this.startInternal();
+  stop(): void {
+    if (!this.isStarted) return;
+    this.isStarted = false;
+    voiceMaster.stop();
   }
   
-  stop() {
-    this.shouldBeListening = false;
-    this.pendingStartAfterInit = false;
-    this.instanceId++;
-    
-    // Mark session as inactive
-    if (this.isRegistered) {
-      voiceController.setActive(VoiceRecognition.SESSION_ID, false);
-    }
-    
-    if (this.restartTimeout) {
-      clearTimeout(this.restartTimeout);
-      this.restartTimeout = null;
-    }
-    
-    // Clear capture debounce timer
-    if (this.captureDebounceTimeout) {
-      clearTimeout(this.captureDebounceTimeout);
-      this.captureDebounceTimeout = null;
-    }
-    this.pendingCaptureTranscript = '';
-    
-    if (isNative && this.nativeAvailable) {
-      this.stopNative();
-    } else if (this.recognition && this.isListening) {
-      try {
-        this.recognition.stop();
-      } catch (e) {
-        console.log('Error stopping recognition:', e);
-      }
-    }
-    
-    this.isListening = false;
-    if (this.onListeningChange) {
-      this.onListeningChange(false);
-    }
-  }
-  
-  // Async stop that waits for native cleanup to complete
   async stopAndWait(): Promise<void> {
-    this.shouldBeListening = false;
-    this.pendingStartAfterInit = false;
-    this.instanceId++;
-    
-    // Mark session as inactive
-    if (this.isRegistered) {
-      voiceController.setActive(VoiceRecognition.SESSION_ID, false);
-    }
-    
-    if (this.restartTimeout) {
-      clearTimeout(this.restartTimeout);
-      this.restartTimeout = null;
-    }
-    
-    // Clear capture debounce timer
-    if (this.captureDebounceTimeout) {
-      clearTimeout(this.captureDebounceTimeout);
-      this.captureDebounceTimeout = null;
-    }
-    this.pendingCaptureTranscript = '';
-    
-    if (isNative && this.nativeAvailable) {
-      await this.stopNative();
-    } else if (this.recognition && this.isListening) {
-      try {
-        this.recognition.stop();
-      } catch (e) {
-        console.log('Error stopping recognition:', e);
-      }
-    }
-    
-    this.isListening = false;
-    if (this.onListeningChange) {
-      this.onListeningChange(false);
-    }
+    if (!this.isStarted) return;
+    this.isStarted = false;
+    await voiceMaster.stop();
   }
   
-  abort() {
-    if (this.restartTimeout) {
-      clearTimeout(this.restartTimeout);
-      this.restartTimeout = null;
-    }
-    
-    if (isNative && this.nativeAvailable) {
-      this.stopNative();
-    } else if (this.recognition && this.isListening) {
-      try {
-        this.recognition.abort();
-      } catch (e) {
-        console.log('Error aborting recognition:', e);
-      }
-    }
-    
-    this.isListening = false;
-    if (this.onListeningChange) {
-      this.onListeningChange(false);
-    }
+  abort(): void {
+    this.stop();
   }
   
-  reset() {
+  reset(): void {
     this.stop();
     this.onResult = null;
     this.onListeningChange = null;
@@ -1613,59 +1194,67 @@ export class VoiceRecognition {
   }
   
   isSupported(): boolean {
-    if (!this.initializationComplete) {
-      return true;
-    }
-    if (isNative) {
-      return this.nativeAvailable;
-    }
-    return this.recognition !== null;
+    return true; // voiceMaster handles availability checking
   }
   
   getIsListening(): boolean {
-    return this.isListening;
+    return voiceMaster.getIsListening() && voiceMaster.getMode() === 'move';
   }
   
   async waitForInitialization(): Promise<void> {
-    if (this.initializationPromise) {
-      await this.initializationPromise;
-    }
+    // voiceMaster handles initialization internally
+    await voiceMaster.checkAvailability();
   }
 }
 
-export const voiceRecognition = new VoiceRecognition();
+// Backward-compatible export
+export const voiceRecognition = new VoiceRecognitionWrapper();
+// Set the instance for abortRecognitionIfReady() (declared earlier in file)
 voiceRecognitionInstance = voiceRecognition;
 
-// Simple training voice API - keeps a single continuous listener
-// Avoids the rapid stop/start that causes Android beep loops
-class TrainingVoiceController {
+// ========================================
+// UNIFIED VOICE MASTER ENGINE
+// Single mic handler with mode-based parsing
+// Modes: 'move' (game), 'raw' (training), 'placement' (reconstruction)
+// ========================================
+
+export type VoiceMode = 'move' | 'raw' | 'placement';
+
+export interface VoiceMasterConfig {
+  mode: VoiceMode;
+  onTranscript: (transcript: string, parsed?: string | null) => void;
+  onListeningChange?: (listening: boolean) => void;
+  legalMoves?: string[]; // Required for 'move' mode
+}
+
+class VoiceMasterEngine {
   private isListening: boolean = false;
-  private onTranscript: ((text: string) => void) | null = null;
+  private shouldBeListening: boolean = false;
+  private config: VoiceMasterConfig | null = null;
   private listenerHandle: { remove: () => Promise<void> } | null = null;
   private stateListenerHandle: { remove: () => Promise<void> } | null = null;
   private webRecognition: SpeechRecognition | null = null;
-  private shouldBeListening: boolean = false;
   private restartTimeout: ReturnType<typeof setTimeout> | null = null;
   private availabilityChecked: boolean = false;
   private isAvailable: boolean = false;
-  // Android beep loop prevention
+  
+  // Android S9+ stability
   private lastErrorTime: number = 0;
   private consecutiveFailures: number = 0;
   private micBusy: boolean = false;
   private onMicBusyChange: ((busy: boolean) => void) | null = null;
-  // Voice session ID for coordinator
-  private sessionId: string = 'training';
+  private onRetryNeeded: (() => void) | null = null;
+  
+  // Session management
+  private sessionId: string = 'master';
   private isRegistered: boolean = false;
   private isPaused: boolean = false;
   
-  // Always-On mode for Color Blitz - mic stays open, uses echo filter during TTS
-  private alwaysOnMode: boolean = false;
-  private ignoreResults: boolean = false;
-  private echoFilterWords: string[] = []; // Words to ignore (coordinates spoken by TTS)
-  private echoFilterTimeout: ReturnType<typeof setTimeout> | null = null;
-  
-  // 3-Strike retry callback for UI
-  private onRetryNeeded: (() => void) | null = null;
+  // Move mode debouncing (2s for piece keywords)
+  private captureDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
+  private pendingCaptureTranscript: string = '';
+  private static readonly CAPTURE_DEBOUNCE_MS = 2000;
+  private static readonly MAX_CONSECUTIVE_FAILURES = 3;
   
   async checkAvailability(): Promise<boolean> {
     if (this.availabilityChecked) {
@@ -1676,7 +1265,7 @@ class TrainingVoiceController {
       try {
         const { available } = await CapacitorSpeechRecognition.available();
         if (!available) {
-          console.log('[TrainingVoice] Speech recognition not available on this device');
+          console.log('[VoiceMaster] Speech recognition not available');
           this.isAvailable = false;
           this.availabilityChecked = true;
           return false;
@@ -1686,7 +1275,7 @@ class TrainingVoiceController {
         if (speechRecognition !== 'granted') {
           const result = await CapacitorSpeechRecognition.requestPermissions();
           if (result.speechRecognition !== 'granted') {
-            console.log('[TrainingVoice] Permission denied');
+            console.log('[VoiceMaster] Permission denied');
             this.isAvailable = false;
             this.availabilityChecked = true;
             return false;
@@ -1697,13 +1286,12 @@ class TrainingVoiceController {
         this.availabilityChecked = true;
         return true;
       } catch (e) {
-        console.error('[TrainingVoice] Error checking availability:', e);
+        console.error('[VoiceMaster] Error checking availability:', e);
         this.isAvailable = false;
         this.availabilityChecked = true;
         return false;
       }
     } else {
-      // Web fallback
       const SpeechRecognitionAPI = typeof window !== 'undefined' 
         ? (window.SpeechRecognition || window.webkitSpeechRecognition) 
         : null;
@@ -1715,6 +1303,10 @@ class TrainingVoiceController {
   
   setOnMicBusyChange(callback: ((busy: boolean) => void) | null) {
     this.onMicBusyChange = callback;
+  }
+  
+  setOnRetryNeeded(callback: (() => void) | null): void {
+    this.onRetryNeeded = callback;
   }
   
   isMicBusy(): boolean {
@@ -1731,157 +1323,28 @@ class TrainingVoiceController {
   }
   
   /**
-   * Set callback for when 3-strike retry is needed
+   * Start the unified voice engine
+   * Clean session handoff: stops any previous session before starting
+   * Respects voiceController state machine for TTS coordination (S9+ 250ms settling)
    */
-  setOnRetryNeeded(callback: (() => void) | null): void {
-    this.onRetryNeeded = callback;
-  }
-  
-  /**
-   * Enable/disable always-on mode (for Color Blitz)
-   * In always-on mode, mic stays open during TTS and uses echo filter
-   */
-  setAlwaysOnMode(enabled: boolean): void {
-    this.alwaysOnMode = enabled;
-    console.log('[TrainingVoice] Always-on mode:', enabled);
-  }
-  
-  /**
-   * Set words to ignore during echo filter (coordinates spoken by TTS)
-   * Call this before TTS speaks a coordinate
-   */
-  setEchoFilter(words: string[]): void {
-    this.echoFilterWords = words.map(w => w.toLowerCase());
-    this.ignoreResults = true;
-    console.log('[TrainingVoice] Echo filter active for:', words);
-    
-    // Clear any existing timeout
-    if (this.echoFilterTimeout) {
-      clearTimeout(this.echoFilterTimeout);
-    }
-  }
-  
-  /**
-   * Clear echo filter after TTS ends
-   * @param delayMs Delay before accepting results again (default 200ms)
-   */
-  clearEchoFilter(delayMs: number = 200): void {
-    if (this.echoFilterTimeout) {
-      clearTimeout(this.echoFilterTimeout);
+  async start(config: VoiceMasterConfig): Promise<boolean> {
+    // Clean handoff: stop any existing session first
+    if (this.isListening || this.shouldBeListening) {
+      console.log('[VoiceMaster] Clean handoff: stopping previous session');
+      await this.stop();
+      // Small delay for Android audio flinger to release
+      await new Promise(r => setTimeout(r, 100));
     }
     
-    this.echoFilterTimeout = setTimeout(() => {
-      this.ignoreResults = false;
-      this.echoFilterWords = [];
-      console.log('[TrainingVoice] Echo filter cleared, listening for responses');
-    }, delayMs);
-  }
-  
-  /**
-   * Check if a transcript should be filtered (matches echo words)
-   * Uses exact matching for full coordinate only to avoid blocking valid answers like "dark" or "light"
-   */
-  private shouldFilterTranscript(transcript: string): boolean {
-    if (!this.ignoreResults) return false;
-    
-    const normalized = transcript.toLowerCase().trim();
-    
-    // Only filter exact matches of the full coordinate (e.g., "e4", "a 1", "c3")
-    // Don't filter single letters to avoid blocking answers like "dark" (contains 'a')
-    for (const word of this.echoFilterWords) {
-      // Only check words with 2+ characters (full coordinates like "e4", "a1")
-      if (word.length >= 2) {
-        // Check for exact match or match with space (e.g., "e 4" matches "e4")
-        const wordNoSpace = word.replace(/\s+/g, '');
-        const normalizedNoSpace = normalized.replace(/\s+/g, '');
-        
-        // Exact match of the coordinate
-        if (normalizedNoSpace === wordNoSpace) {
-          console.log('[TrainingVoice] Filtered echo (exact match):', transcript);
-          return true;
-        }
-        
-        // Match if transcript is just the spoken coordinate (with or without spaces)
-        // e.g., "e 4" or "echo 4" for "e4"
-        const coordPattern = new RegExp(`^(${word[0]}|echo|alpha|bravo|charlie|delta|foxtrot|golf|hotel)\\s*${word.slice(-1)}$`, 'i');
-        if (coordPattern.test(normalized)) {
-          console.log('[TrainingVoice] Filtered echo (coordinate pattern):', transcript);
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  }
-  
-  /**
-   * Pause recognition (called by voiceController when TTS starts)
-   */
-  private pauseInternal(): void {
-    // In always-on mode, don't stop mic - just set ignore flag
-    if (this.alwaysOnMode) {
-      console.log('[TrainingVoice] Always-on mode: Setting ignore flag for TTS');
-      this.ignoreResults = true;
-      return;
-    }
-    
-    if (!this.isListening) return;
-    this.isPaused = true;
-    console.log('[TrainingVoice] Pausing for TTS');
-    
-    if (isNative) {
-      CapacitorSpeechRecognition.stop().catch(e => console.log('[TrainingVoice] Pause stop error:', e));
-    } else if (this.webRecognition) {
-      try {
-        this.webRecognition.stop();
-      } catch (e) {
-        console.log('[TrainingVoice] Web pause error:', e);
-      }
-    }
-    this.isListening = false;
-  }
-  
-  /**
-   * Resume recognition after TTS (called by voiceController when TTS ends)
-   */
-  private resumeInternal(): void {
-    // In always-on mode, just clear ignore flag after settling delay
-    if (this.alwaysOnMode) {
-      console.log('[TrainingVoice] Always-on mode: Clearing ignore flag after TTS');
-      // Use the echo filter clear with settling delay
-      this.clearEchoFilter(200);
-      return;
-    }
-    
-    // Resume if we should be listening, regardless of isPaused state
-    // This handles the timing race where TTS starts before listener fully spins up
-    if (!this.shouldBeListening) return;
-    
-    // Skip if already listening (no need to restart)
-    if (this.isListening) {
-      console.log('[TrainingVoice] Already listening, skipping resume');
-      return;
-    }
-    
-    this.isPaused = false;
-    console.log('[TrainingVoice] Resuming after TTS');
-    
-    if (isNative) {
-      this.startNative();
-    } else {
-      this.startWeb();
-    }
-  }
-  
-  async start(onTranscript: (text: string) => void): Promise<boolean> {
-    // Reset failure counters on fresh start
+    // Reset state
     this.consecutiveFailures = 0;
     this.micBusy = false;
     this.isPaused = false;
+    this.config = config;
     
     const available = await this.checkAvailability();
     if (!available) {
-      console.log('[TrainingVoice] Not available, cannot start');
+      console.log('[VoiceMaster] Not available, cannot start');
       return false;
     }
     
@@ -1897,8 +1360,17 @@ class TrainingVoiceController {
     }
     voiceController.setActive(this.sessionId, true);
     
-    this.onTranscript = onTranscript;
     this.shouldBeListening = true;
+    console.log(`[VoiceMaster] Starting in '${config.mode}' mode`);
+    
+    // S9+ critical fix: Check voiceController state machine before starting mic
+    // If TTS is speaking or in settling phase, queue the start for after TTS ends
+    if (!voiceController.canStartMic()) {
+      console.log('[VoiceMaster] TTS active or settling, queueing start for after TTS');
+      voiceController.queueRestart(this.sessionId);
+      // Return true because we've queued the start - it will happen after TTS
+      return true;
+    }
     
     if (isNative) {
       return this.startNative();
@@ -1907,18 +1379,134 @@ class TrainingVoiceController {
     }
   }
   
+  /**
+   * Update legal moves (for 'move' mode)
+   */
+  setLegalMoves(moves: string[]): void {
+    if (this.config) {
+      this.config.legalMoves = moves;
+    }
+  }
+  
+  /**
+   * Process transcript based on mode
+   */
+  private processTranscript(transcript: string): void {
+    if (!this.config || !this.shouldBeListening) return;
+    
+    const mode = this.config.mode;
+    console.log(`[VoiceMaster] Processing in '${mode}' mode:`, transcript);
+    
+    switch (mode) {
+      case 'raw':
+        // Raw mode: immediate callback with transcript only
+        this.config.onTranscript(transcript);
+        break;
+        
+      case 'move':
+        // Move mode: parse with legal moves, handle debouncing
+        this.processMoveMode(transcript);
+        break;
+        
+      case 'placement':
+        // Placement mode: parse piece + square for reconstruction
+        this.processPlacementMode(transcript);
+        break;
+    }
+  }
+  
+  private processMoveMode(transcript: string): void {
+    if (!this.config) return;
+    
+    const lowerTranscript = transcript.toLowerCase();
+    const hasCaptureWord = lowerTranscript.includes('takes') || lowerTranscript.includes('captures');
+    const hasPieceKeyword = /\b(knight|bishop|rook|queen|king|horse|castle)\b/.test(lowerTranscript);
+    const hasTargetSquare = /[a-h]\s*[1-8]/.test(lowerTranscript);
+    
+    // Debounce for piece/capture phrases without target square
+    if ((hasPieceKeyword || hasCaptureWord) && !hasTargetSquare) {
+      console.log('[VoiceMaster] Piece/capture detected, waiting for target square...');
+      this.pendingCaptureTranscript = transcript;
+      
+      if (this.captureDebounceTimeout) {
+        clearTimeout(this.captureDebounceTimeout);
+      }
+      
+      this.captureDebounceTimeout = setTimeout(() => {
+        console.log('[VoiceMaster] Debounce timeout, processing:', this.pendingCaptureTranscript);
+        const move = speechToMove(this.pendingCaptureTranscript, this.config?.legalMoves || []);
+        this.config?.onTranscript(this.pendingCaptureTranscript, move);
+        this.pendingCaptureTranscript = '';
+      }, VoiceMasterEngine.CAPTURE_DEBOUNCE_MS);
+      return;
+    }
+    
+    // Complete phrase or pawn move - process immediately
+    if (this.pendingCaptureTranscript && hasTargetSquare) {
+      if (this.captureDebounceTimeout) {
+        clearTimeout(this.captureDebounceTimeout);
+        this.captureDebounceTimeout = null;
+      }
+      this.pendingCaptureTranscript = '';
+    }
+    
+    const move = speechToMove(transcript, this.config.legalMoves || []);
+    this.config.onTranscript(transcript, move);
+  }
+  
+  private processPlacementMode(transcript: string): void {
+    if (!this.config) return;
+    // For placement mode, just pass transcript - caller handles parsing
+    this.config.onTranscript(transcript);
+  }
+  
+  private pauseInternal(): void {
+    if (!this.isListening) return;
+    this.isPaused = true;
+    console.log('[VoiceMaster] Pausing for TTS');
+    
+    if (isNative) {
+      CapacitorSpeechRecognition.stop().catch(e => console.log('[VoiceMaster] Pause stop error:', e));
+    } else if (this.webRecognition) {
+      try {
+        this.webRecognition.stop();
+      } catch (e) {
+        console.log('[VoiceMaster] Web pause error:', e);
+      }
+    }
+    this.isListening = false;
+    if (this.config?.onListeningChange) {
+      this.config.onListeningChange(false);
+    }
+  }
+  
+  private resumeInternal(): void {
+    if (!this.shouldBeListening) return;
+    if (this.isListening) {
+      console.log('[VoiceMaster] Already listening, skipping resume');
+      return;
+    }
+    
+    this.isPaused = false;
+    console.log('[VoiceMaster] Resuming after TTS');
+    
+    if (isNative) {
+      this.startNative();
+    } else {
+      this.startWeb();
+    }
+  }
+  
   private async startNative(): Promise<boolean> {
-    // Check if mic is busy from too many failures
     if (this.micBusy) {
-      console.log('[TrainingVoice] Mic is busy, not starting');
+      console.log('[VoiceMaster] Mic is busy, not starting');
       return false;
     }
     
-    // 3-second lockout: If last error was within 3 seconds, don't start yet
+    // 3-second lockout after errors
     const timeSinceLastError = Date.now() - this.lastErrorTime;
     if (timeSinceLastError < 3000 && this.lastErrorTime > 0) {
-      console.log(`[TrainingVoice] Lockout active in startNative: ${3000 - timeSinceLastError}ms remaining`);
-      // Schedule a restart after the lockout period
+      console.log(`[VoiceMaster] Lockout: ${3000 - timeSinceLastError}ms remaining`);
       if (!this.restartTimeout) {
         this.scheduleRestart();
       }
@@ -1926,50 +1514,37 @@ class TrainingVoiceController {
     }
     
     try {
-      // Clean up any existing listener
+      // Clean up existing listeners
       if (this.listenerHandle) {
         await this.listenerHandle.remove();
         this.listenerHandle = null;
       }
       
-      // Add listener for results
+      // Add result listener
       this.listenerHandle = await CapacitorSpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
-        if (data.matches && data.matches.length > 0 && this.shouldBeListening && this.onTranscript) {
+        if (data.matches && data.matches.length > 0 && this.shouldBeListening) {
           const transcript = data.matches[0];
-          console.log('[TrainingVoice] Heard:', transcript);
-          
-          // Echo filter: Skip if transcript matches TTS output (Color Blitz always-on mode)
-          if (this.shouldFilterTranscript(transcript)) {
-            return;
-          }
-          
-          // Skip if ignoring results during TTS
-          if (this.ignoreResults && !this.alwaysOnMode) {
-            console.log('[TrainingVoice] Ignoring result during TTS');
-            return;
-          }
-          
-          // Reset failure count on successful result
           this.consecutiveFailures = 0;
-          this.onTranscript(transcript);
+          this.processTranscript(transcript);
         }
       });
       
-      // Add listener for listening state changes
+      // Add state listener
       if (this.stateListenerHandle) {
         await this.stateListenerHandle.remove();
         this.stateListenerHandle = null;
       }
-      this.stateListenerHandle = await CapacitorSpeechRecognition.addListener('listeningState', async (state: { status: string }) => {
-        console.log('[TrainingVoice] State changed:', state.status);
+      this.stateListenerHandle = await CapacitorSpeechRecognition.addListener('listeningState', (state: { status: string }) => {
+        console.log('[VoiceMaster] State changed:', state.status);
         if (state.status === 'stopped' && this.shouldBeListening && !this.micBusy) {
-          // Recognition stopped naturally, schedule restart
           this.isListening = false;
+          if (this.config?.onListeningChange) {
+            this.config.onListeningChange(false);
+          }
           this.scheduleRestart();
         }
       });
       
-      // Start recognition with popup: false to reduce the beep
       await CapacitorSpeechRecognition.start({
         language: 'en-US',
         partialResults: true,
@@ -1978,29 +1553,32 @@ class TrainingVoiceController {
       
       this.isListening = true;
       this.consecutiveFailures = 0;
-      console.log('[TrainingVoice] Started native');
+      console.log('[VoiceMaster] Started native');
       
-      // Haptic pulse to indicate mic is now active
+      if (this.config?.onListeningChange) {
+        this.config.onListeningChange(true);
+      }
+      
       await pulseHapticLight();
-      
       return true;
     } catch (e) {
-      console.error('[TrainingVoice] Failed to start native:', e);
+      console.error('[VoiceMaster] Failed to start native:', e);
       this.lastErrorTime = Date.now();
       this.consecutiveFailures++;
       
-      // After 3 consecutive failures, stop trying and show mic busy
-      if (this.consecutiveFailures >= 3) {
-        console.log('[TrainingVoice] Too many failures, mic is busy');
+      if (this.consecutiveFailures >= VoiceMasterEngine.MAX_CONSECUTIVE_FAILURES) {
+        console.log('[VoiceMaster] Too many failures, mic is busy');
         this.micBusy = true;
         this.isListening = false;
         if (this.onMicBusyChange) {
           this.onMicBusyChange(true);
         }
+        if (this.onRetryNeeded) {
+          this.onRetryNeeded();
+        }
         return false;
       }
       
-      // Schedule a retry after delay to avoid spam
       if (this.shouldBeListening) {
         this.scheduleRestart();
       }
@@ -2022,27 +1600,14 @@ class TrainingVoiceController {
       
       this.webRecognition.onresult = (event: SpeechRecognitionEvent) => {
         const lastResult = event.results[event.results.length - 1];
-        if (lastResult.isFinal && this.shouldBeListening && this.onTranscript) {
+        if (lastResult.isFinal && this.shouldBeListening) {
           const transcript = lastResult[0].transcript;
-          console.log('[TrainingVoice] Heard:', transcript);
-          
-          // Echo filter: Skip if transcript matches TTS output
-          if (this.shouldFilterTranscript(transcript)) {
-            return;
-          }
-          
-          // Skip if ignoring results during TTS
-          if (this.ignoreResults && !this.alwaysOnMode) {
-            console.log('[TrainingVoice] Ignoring result during TTS');
-            return;
-          }
-          
-          this.onTranscript(transcript);
+          this.processTranscript(transcript);
         }
       };
       
       this.webRecognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.log('[TrainingVoice] Web error:', event.error);
+        console.log('[VoiceMaster] Web error:', event.error);
         if (event.error !== 'aborted' && event.error !== 'not-allowed' && this.shouldBeListening) {
           this.scheduleRestart();
         }
@@ -2050,27 +1615,33 @@ class TrainingVoiceController {
       
       this.webRecognition.onend = () => {
         this.isListening = false;
+        if (this.config?.onListeningChange) {
+          this.config.onListeningChange(false);
+        }
         if (this.shouldBeListening) {
           this.scheduleRestart();
         }
       };
       
+      this.webRecognition.onstart = () => {
+        this.isListening = true;
+        if (this.config?.onListeningChange) {
+          this.config.onListeningChange(true);
+        }
+      };
+      
       this.webRecognition.start();
-      this.isListening = true;
-      console.log('[TrainingVoice] Started web');
+      console.log('[VoiceMaster] Started web');
       return true;
     } catch (e) {
-      console.error('[TrainingVoice] Failed to start web:', e);
+      console.error('[VoiceMaster] Failed to start web:', e);
       return false;
     }
   }
   
-  private scheduleRestart() {
-    // 3-second lockout: If last error was within 3 seconds, don't restart yet
+  private scheduleRestart(): void {
     const timeSinceLastError = Date.now() - this.lastErrorTime;
     if (timeSinceLastError < 3000 && this.lastErrorTime > 0) {
-      console.log(`[TrainingVoice] Lockout: ${3000 - timeSinceLastError}ms remaining`);
-      // Schedule for after the lockout period
       if (this.restartTimeout) {
         clearTimeout(this.restartTimeout);
       }
@@ -2080,9 +1651,8 @@ class TrainingVoiceController {
       return;
     }
     
-    // If mic is busy from too many failures, don't restart
     if (this.micBusy) {
-      console.log('[TrainingVoice] Mic busy, not scheduling restart');
+      console.log('[VoiceMaster] Mic busy, not scheduling restart');
       return;
     }
     
@@ -2090,34 +1660,30 @@ class TrainingVoiceController {
       clearTimeout(this.restartTimeout);
     }
     
-    // Use a 3-second delay to avoid rapid restart loops on Android
     this.restartTimeout = setTimeout(async () => {
       if (this.shouldBeListening && !this.micBusy) {
-        console.log('[TrainingVoice] Restarting after delay');
+        console.log('[VoiceMaster] Restarting after delay');
         if (isNative) {
           await this.startNative();
         } else {
           this.startWeb();
         }
       }
-    }, 3000);
+    }, 500); // Faster restart than before (500ms vs 3s)
   }
   
   async stop(): Promise<void> {
     this.shouldBeListening = false;
-    this.onTranscript = null;
     this.isPaused = false;
     
-    // Reset always-on mode and echo filter
-    this.alwaysOnMode = false;
-    this.ignoreResults = false;
-    this.echoFilterWords = [];
-    if (this.echoFilterTimeout) {
-      clearTimeout(this.echoFilterTimeout);
-      this.echoFilterTimeout = null;
+    // Clear debounce
+    if (this.captureDebounceTimeout) {
+      clearTimeout(this.captureDebounceTimeout);
+      this.captureDebounceTimeout = null;
     }
+    this.pendingCaptureTranscript = '';
     
-    // Unregister from voiceController to prevent stale session callbacks
+    // Unregister from voiceController
     if (this.isRegistered) {
       voiceController.unregister(this.sessionId);
       this.isRegistered = false;
@@ -2140,24 +1706,64 @@ class TrainingVoiceController {
           this.stateListenerHandle = null;
         }
       } catch (e) {
-        console.log('[TrainingVoice] Stop error:', e);
+        console.log('[VoiceMaster] Stop error:', e);
       }
     } else if (this.webRecognition) {
       try {
         this.webRecognition.stop();
       } catch (e) {
-        console.log('[TrainingVoice] Web stop error:', e);
+        console.log('[VoiceMaster] Web stop error:', e);
       }
       this.webRecognition = null;
     }
     
     this.isListening = false;
-    console.log('[TrainingVoice] Stopped');
+    if (this.config?.onListeningChange) {
+      this.config.onListeningChange(false);
+    }
+    this.config = null;
+    console.log('[VoiceMaster] Stopped');
   }
   
   getIsListening(): boolean {
     return this.isListening;
   }
+  
+  getMode(): VoiceMode | null {
+    return this.config?.mode || null;
+  }
 }
 
-export const trainingVoice = new TrainingVoiceController();
+// Singleton instance
+export const voiceMaster = new VoiceMasterEngine();
+
+// Legacy compatibility - trainingVoice is now an alias for voiceMaster in 'raw' mode
+export const trainingVoice = {
+  async start(onTranscript: (text: string) => void): Promise<boolean> {
+    return voiceMaster.start({
+      mode: 'raw',
+      onTranscript
+    });
+  },
+  async stop(): Promise<void> {
+    return voiceMaster.stop();
+  },
+  async checkAvailability(): Promise<boolean> {
+    return voiceMaster.checkAvailability();
+  },
+  getIsListening(): boolean {
+    return voiceMaster.getIsListening();
+  },
+  setOnMicBusyChange(callback: ((busy: boolean) => void) | null): void {
+    voiceMaster.setOnMicBusyChange(callback);
+  },
+  setOnRetryNeeded(callback: (() => void) | null): void {
+    voiceMaster.setOnRetryNeeded(callback);
+  },
+  isMicBusy(): boolean {
+    return voiceMaster.isMicBusy();
+  },
+  resetMicBusy(): void {
+    voiceMaster.resetMicBusy();
+  }
+};
