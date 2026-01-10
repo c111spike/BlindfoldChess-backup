@@ -1380,6 +1380,11 @@ class VoiceMasterEngine {
     if (!voiceController.canStartMic()) {
       console.log('[VoiceMaster] TTS active or settling, queueing start for after TTS');
       voiceController.queueRestart(this.sessionId);
+      // FIX: Notify UI to show mic as "queued" (red indicator) while waiting for TTS
+      // But do NOT set isListening=true - that would cause resumeInternal() to skip
+      if (config.onListeningChange) {
+        config.onListeningChange(true);
+      }
       // Return true because we've queued the start - it will happen after TTS
       return true;
     }

@@ -1088,7 +1088,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     if (gameState === 'playing') {
       trainingVoice.start(
         (transcript) => {
-          if (transcript.length > 2) {
+          // FIX: Allow 2-char bare coordinates like "c4" for pawn moves
+          if (transcript.length >= 2) {
             processVoiceInputRef.current?.(transcript);
           }
         },
