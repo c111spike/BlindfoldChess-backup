@@ -152,26 +152,32 @@ cd android && ./gradlew assembleDebug
 ```
 APK output: `android/app/build/outputs/apk/debug/app-debug.apk`
 
-**Voice Recognition (Android):**
+**Unified Voice System (Android):**
 - Uses `@capacitor-community/speech-recognition` v7.0.1
 - AndroidManifest.xml includes `<queries>` for speech services (required for Android 11+)
-- `TrainingVoiceController` in voice.ts provides continuous speech recognition that avoids rapid start/stop cycles
-- **Voice State Machine**: SPEAKING→SETTLING→LISTENING coordination via `VoiceSessionController`
-  - 250ms settling delay for Galaxy S9+ hardware after TTS ends
-  - Prevents Android beep loops from rapid mic start/stop
-- **Color Blitz Voice Mode**: Uses standard pause/resume via `speak()` function
-  - voiceController automatically pauses mic during TTS and resumes after 250ms settling delay
-  - Simple and reliable - no echo filtering needed
-- **3-Strike Retry**: After 3 consecutive mic failures, shows "Tap to Retry" button
+
+**VoiceMasterEngine** (`client/src/lib/voice.ts`): Single unified mic handler with mode-based parsing
+- All voice recognition routes through one engine to eliminate code duplication
+- **Modes**: 'move' (in-game chess moves), 'raw' (training drills), 'placement' (board reconstruction)
+- **Clean Session Handoff**: `voiceMaster.start()` stops previous sessions before starting
+- **Compatibility Wrappers**:
+  - `voiceRecognition`: Wrapper for game.tsx (maintains existing API)
+  - `trainingVoice`: Wrapper for training.tsx
+
+**Voice State Machine**: SPEAKING→SETTLING→LISTENING coordination via `voiceController`
+- 250ms settling delay for Galaxy S9+ hardware after TTS ends
+- `voiceMaster.start()` checks `voiceController.canStartMic()` before starting
+- If TTS active, queues start via `voiceController.queueRestart()`
+- Prevents Android beep loops from rapid mic start/stop
+
+**S9+ Stability Fixes** (applied universally via VoiceMasterEngine):
+- **3-Strike Retry**: After 3 consecutive mic failures, `micBusy` flag set
   - `setOnRetryNeeded(callback)` triggers UI state for manual retry
   - `resetMicBusy()` clears failure state for fresh start
 - **In-Game Voice Debouncing**: 2-second timeout for piece moves (knight, bishop, rook, queen, king)
   - Prevents truncation of phrases like "knight c3" - waits for complete phrase
   - Pawn moves process immediately when coordinate pattern detected
-  - Applies to both captures ("takes") and piece moves
-- **Clean Slate Pattern**: Call `SpeechRecognition.stop()` on component mount
-  - Clears lingering sessions from previous screens
-  - Prevents "recognizer busy" errors on Samsung devices
+- **Clean Slate Pattern**: `voiceMaster.start()` stops any previous session
 - **Ready Screens**: Voice Move Master and Reconstruction have Ready screens
   - Heartbeat animation indicates mic readiness
   - Start button initiates voice recognition fresh
