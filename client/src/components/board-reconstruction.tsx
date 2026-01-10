@@ -344,17 +344,19 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   }, [submitted]);
   
   const stopListening = useCallback(async () => {
-    await voiceMaster.stop();
+    // NAVIGATION INTERCEPTOR: Use stopAndWait for clean hardware release
+    await voiceMaster.stopAndWait();
     setIsListening(false);
     setDisambiguation(null);
   }, []);
   
-  // Cleanup on unmount
+  // Cleanup on unmount - use stopAndWait for proper hardware release
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      voiceMaster.stop();
+      // Use stopAndWait to prevent Session Zombies
+      voiceMaster.stopAndWait();
     };
   }, []);
   
@@ -371,6 +373,12 @@ export function BoardReconstruction({ actualFen, playerColor, onComplete, onSkip
   // Auto-start voice recognition when game starts (both native and web)
   const hasAutoStartedRef = useRef(false);
   useEffect(() => {
+    // Reset auto-start flag when returning to ready state (for Play Again)
+    if (gameState === 'ready') {
+      hasAutoStartedRef.current = false;
+      return;
+    }
+    
     if (gameState === 'playing' && !submitted && !hasAutoStartedRef.current) {
       hasAutoStartedRef.current = true;
       // Small delay to ensure component is fully mounted

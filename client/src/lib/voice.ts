@@ -567,7 +567,30 @@ async function waitForTTSCompletion(): Promise<void> {
 }
 
 // Phonetic mapping for TTS clarity - prevents "a" sounding like "uh"
+// FEEDBACK GUARD: Protected words that should NOT be transformed by chess logic
+const PROTECTED_FEEDBACK_WORDS = new Set([
+  'correct', 'wrong', 'next', 'say', 'the', 'move', 'look', 'okay', 'continue',
+  'seconds', 'remaining', 'are', 'you', 'sure', 'want', 'resign', 'yes', 'no',
+  'can', 'play', 'legal', 'moves', 'for', 'material', 'is', 'equal', 'white',
+  'black', 'up', 'point', 'points', 'at', 'highlighted', 'squares', 'on', 'board'
+]);
+
 function toPhonetic(text: string): string {
+  // FEEDBACK GUARD: If all words in the input are protected, return immediately
+  // This prevents "Correct!" from becoming "knee takes to moov"
+  const words = text.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(w => w.length > 0);
+  const allProtected = words.length > 0 && words.every(w => PROTECTED_FEEDBACK_WORDS.has(w));
+  if (allProtected) {
+    return text;
+  }
+  
+  // Also check if it's a simple feedback phrase (no chess coordinates)
+  const hasChessCoordinate = /[a-h][1-8]/.test(text);
+  const hasChessNotation = /[NBRQK][a-h]?[1-8]?x?[a-h][1-8]/.test(text) || /O-O/.test(text);
+  if (!hasChessCoordinate && !hasChessNotation) {
+    return text;
+  }
+  
   // Map chess file letters to clearer pronunciations
   const filePhoneticMap: Record<string, string> = {
     'a': 'Ay',
@@ -1191,15 +1214,17 @@ class VoiceRecognitionWrapper {
   async stopAndWait(): Promise<void> {
     if (!this.isStarted) return;
     this.isStarted = false;
-    await voiceMaster.stop();
+    // NAVIGATION INTERCEPTOR: Use stopAndWait for clean hardware release
+    await voiceMaster.stopAndWait();
   }
   
   abort(): void {
     this.stop();
   }
   
-  reset(): void {
-    this.stop();
+  async reset(): Promise<void> {
+    // Use stopAndWait for clean hardware release during cleanup
+    await this.stopAndWait();
     this.onResult = null;
     this.onListeningChange = null;
     this.legalMoves = [];
@@ -1691,8 +1716,12 @@ class VoiceMasterEngine {
   }
   
   async stop(): Promise<void> {
+    // FULL STATE RESET - prevent Session Zombies
     this.shouldBeListening = false;
     this.isPaused = false;
+    this.micBusy = false;
+    this.consecutiveFailures = 0;
+    this.lastErrorTime = 0;
     
     // Clear debounce
     if (this.captureDebounceTimeout) {
@@ -1740,7 +1769,20 @@ class VoiceMasterEngine {
       this.config.onListeningChange(false);
     }
     this.config = null;
-    console.log('[VoiceMaster] Stopped');
+    console.log('[VoiceMaster] Stopped - all state reset');
+  }
+  
+  /**
+   * NAVIGATION INTERCEPTOR: Stop and wait for hardware release
+   * Call this BEFORE screen transitions to prevent Session Zombies
+   */
+  async stopAndWait(): Promise<void> {
+    await this.stop();
+    // Wait for Android audio flinger to fully release hardware
+    if (isNative) {
+      await new Promise(r => setTimeout(r, 150));
+    }
+    console.log('[VoiceMaster] stopAndWait complete - hardware released');
   }
   
   getIsListening(): boolean {
@@ -1766,6 +1808,13 @@ export const trainingVoice = {
   },
   async stop(): Promise<void> {
     return voiceMaster.stop();
+  },
+  /**
+   * NAVIGATION INTERCEPTOR: Stop and wait for hardware release
+   * Call this BEFORE screen transitions to prevent Session Zombies
+   */
+  async stopAndWait(): Promise<void> {
+    return voiceMaster.stopAndWait();
   },
   async checkAvailability(): Promise<boolean> {
     return voiceMaster.checkAvailability();

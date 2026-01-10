@@ -208,6 +208,13 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
   const handleAnswerRef = useRef<((answer: 'light' | 'dark' | 'white' | 'black') => void) | null>(null);
   const hasSpokenFirstSquare = useRef(false);
 
+  // NAVIGATION INTERCEPTOR: Safe back handler for all navigation paths
+  const handleBack = async () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    await trainingVoice.stopAndWait();
+    onBack();
+  };
+
   const startGame = async () => {
     setGameState('playing');
     setScore(0);
@@ -227,9 +234,10 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     }, 300);
   };
 
-  const handleResign = () => {
+  const handleResign = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    trainingVoice.stop();
+    // NAVIGATION INTERCEPTOR: Wait for hardware release before navigation
+    await trainingVoice.stopAndWait();
     onBack();
   };
 
@@ -279,7 +287,8 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     
     return () => {
       mounted = false;
-      trainingVoice.stop();
+      // NAVIGATION INTERCEPTOR: Use stopAndWait for clean hardware release on unmount
+      trainingVoice.stopAndWait();
     };
   }, [voiceMode, gameState, handleVoiceTranscript]);
 
@@ -323,33 +332,32 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       setStreak(prev => {
         const newStreak = prev + 1;
         setBestStreak(best => Math.max(best, newStreak));
-        if (newStreak === 10) {
-          Haptics.notification({ type: NotificationType.Success }).catch(() => {});
-        } else {
-          Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
-        }
+        // HAPTIC CALIBRATION: Use Success notification for all correct answers (distinct "ding")
+        Haptics.notification({ type: NotificationType.Success }).catch(() => {});
         return newStreak;
       });
       const newSquare = getRandomSquare();
       setCurrentSquare(newSquare);
-      // Voice feedback: Haptic ding + just the coordinate (standard pause/resume via speak())
+      // Voice feedback: Say the coordinate after haptic settles
       if (voiceMode) {
-        // Haptic "ding" for correct answer
-        Haptics.notification({ type: NotificationType.Success }).catch(() => {});
-        // Say the coordinate (speak() handles pause/resume automatically)
+        // HAPTIC CALIBRATION: Wait 300ms for haptic to finish before TTS to avoid mic interference
         setTimeout(async () => {
           await speak(`${newSquare.file} ${newSquare.rank}`);
-        }, 100);
+        }, 300);
       }
     } else {
       setStreak(0);
+      // HAPTIC CALIBRATION: Double heavy buzz for wrong answers (distinct from correct)
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
-      Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
-      // Voice feedback: Wrong (speak() handles pause/resume automatically)
+      setTimeout(() => {
+        Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+      }, 100);
+      // Voice feedback: Wrong (wait for haptic to settle)
       if (voiceMode) {
+        // HAPTIC CALIBRATION: Wait 300ms for haptic to finish before TTS
         setTimeout(async () => {
           await speak('Wrong');
-        }, 100);
+        }, 300);
       }
     }
   }, [gameState, currentSquare, voiceMode]);
@@ -363,7 +371,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     return (
       <div className="flex flex-col h-full p-4 max-w-md mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-colorblitz-back">
+          <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-colorblitz-back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Color Blitz</h1>
@@ -407,7 +415,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     return (
       <div className="flex flex-col h-full p-4 max-w-md mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-colorblitz-back-finished">
+          <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-colorblitz-back-finished">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Color Blitz</h1>
@@ -424,7 +432,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
           </div>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={onBack} data-testid="button-colorblitz-menu">
+            <Button variant="outline" onClick={handleBack} data-testid="button-colorblitz-menu">
               Menu
             </Button>
             <Button onClick={startGame} data-testid="button-colorblitz-retry">
@@ -850,6 +858,14 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.voiceMoveMasterBest !== null && score > stats.voiceMoveMasterBest;
   const isNative = Capacitor.isNativePlatform();
+
+  // NAVIGATION INTERCEPTOR: Safe back handler for all navigation paths
+  const handleBack = async () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+    await trainingVoice.stopAndWait();
+    onBack();
+  };
   
   // Clean slate: Stop any lingering speech recognition when Ready screen mounts
   useEffect(() => {
@@ -909,10 +925,11 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     }, 300);
   };
 
-  const handleResign = () => {
+  const handleResign = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
-    trainingVoice.stop();
+    // NAVIGATION INTERCEPTOR: Wait for hardware release before navigation
+    await trainingVoice.stopAndWait();
     onBack();
   };
 
@@ -1103,7 +1120,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
       setMicRetryNeeded(false);
     }
     return () => {
-      trainingVoice.stop();
+      // NAVIGATION INTERCEPTOR: Use stopAndWait for clean hardware release on unmount
+      trainingVoice.stopAndWait();
     };
   }, [gameState]);
 
@@ -1141,7 +1159,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     return (
       <div className="flex flex-col h-full p-4 max-w-md mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-voicemaster-back">
+          <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-voicemaster-back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Voice Move Master</h1>
@@ -1173,7 +1191,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     return (
       <div className="flex flex-col h-full p-4 max-w-md mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-voicemaster-back-finished">
+          <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-voicemaster-back-finished">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Voice Move Master</h1>
@@ -1193,7 +1211,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
           </div>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={onBack} data-testid="button-voicemaster-menu">
+            <Button variant="outline" onClick={handleBack} data-testid="button-voicemaster-menu">
               Menu
             </Button>
             <Button onClick={startGame} data-testid="button-voicemaster-retry">
@@ -1413,9 +1431,18 @@ function calculateMaterialValue(chess: Chess): number {
   return diff;
 }
 
+// CONNECTOR WORDS: Treat "to", "takes", "captures", "moves", "x" as equivalent
+// User can say any of these interchangeably regardless of whether move is a capture
+const CONNECTOR_WORDS = ['to', 'takes', 'captures', 'moves', 'x', 'move'];
+
 function matchesMove(input: string, target: TargetMove): boolean {
-  const normalized = input.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+  // Normalize and strip connector words for flexible matching
+  let normalized = input.toLowerCase().replace(/[^a-z0-9\s]/g, '');
   const words = normalized.split(/\s+/);
+  
+  // Strip connector words for core matching (but keep original for bare coord check)
+  const wordsWithoutConnectors = words.filter(w => !CONNECTOR_WORDS.includes(w));
+  const strippedNormalized = wordsWithoutConnectors.join(' ');
   
   // FIX: Bare coordinate check for pawn moves (e.g., user says "c4" for pawn to c4)
   const bareCoord = normalized.replace(/\s+/g, '').match(/^([a-h])([1-8])$/);
@@ -1424,35 +1451,36 @@ function matchesMove(input: string, target: TargetMove): boolean {
     if (target.to === targetSquare) return true;
   }
   
-  // Direct SAN match (e.g., "Nf3", "e4", "Bxc6")
-  const sanLower = target.san.toLowerCase().replace(/[+#]/g, '');
-  if (normalized.includes(sanLower)) return true;
+  // Also check stripped version for bare coord (after removing "to" etc)
+  const strippedBareCoord = strippedNormalized.replace(/\s+/g, '').match(/^([a-h])([1-8])$/);
+  if (strippedBareCoord && target.piece === 'p') {
+    const targetSquare = strippedBareCoord[1] + strippedBareCoord[2];
+    if (target.to === targetSquare) return true;
+  }
   
-  // Check for piece + destination
+  // Direct SAN match (e.g., "Nf3", "e4", "Bxc6")
+  const sanLower = target.san.toLowerCase().replace(/[+#x]/g, '');
+  if (strippedNormalized.replace(/\s+/g, '').includes(sanLower)) return true;
+  
+  // Check for piece + destination (flexible matching)
   const pieceNames = ['knight', 'night', 'bishop', 'rook', 'queen', 'king', 'pawn'];
   const targetPieceName = PIECE_NAMES[target.piece];
   
-  const hasCorrectPiece = words.some(w => 
-    (targetPieceName === 'pawn' && !pieceNames.some(p => p !== 'pawn' && normalized.includes(p))) ||
-    normalized.includes(targetPieceName) ||
-    (targetPieceName === 'knight' && normalized.includes('night'))
+  const hasCorrectPiece = wordsWithoutConnectors.some(w => 
+    (targetPieceName === 'pawn' && !pieceNames.some(p => p !== 'pawn' && strippedNormalized.includes(p))) ||
+    strippedNormalized.includes(targetPieceName) ||
+    (targetPieceName === 'knight' && strippedNormalized.includes('night'))
   );
   
-  // Check for destination square
+  // Check for destination square (flexible - look in stripped version)
   const destFile = target.to[0];
   const destRank = target.to[1];
-  const hasDestination = normalized.includes(target.to) || 
-    (normalized.includes(destFile) && normalized.includes(destRank));
+  const hasDestination = strippedNormalized.includes(target.to) || 
+    (strippedNormalized.includes(destFile) && strippedNormalized.includes(destRank));
   
-  // Check for capture
-  const hasCapture = normalized.includes('takes') || normalized.includes('captures');
-  const needsCapture = !!target.captured;
-  
+  // If we have the correct piece and destination, it's a match!
+  // We don't care whether they said "to", "takes", or nothing - all are valid
   if (hasCorrectPiece && hasDestination) {
-    if (needsCapture && !hasCapture) {
-      // Allow capture moves without saying "takes"
-      return true;
-    }
     return true;
   }
   
