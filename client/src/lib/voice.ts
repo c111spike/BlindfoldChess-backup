@@ -112,12 +112,19 @@ class VoiceSessionController {
   onTTSEnd(): void {
     this.isSpeaking = false;
     this.micState = MicState.SETTLING;
-    console.log(`[VoiceController] TTS ended, state -> SETTLING, waiting ${this.resumeDelayMs}ms`);
+    const sessionCount = this.sessions.size;
+    const sessionIds = Array.from(this.sessions.keys()).join(', ');
+    console.log(`[VoiceController] TTS ended, state -> SETTLING, waiting ${this.resumeDelayMs}ms, sessions: [${sessionIds}] (${sessionCount})`);
     
     this.settlingTimeout = setTimeout(() => {
       if (!this.isSpeaking) {
         this.micState = MicState.LISTENING;
         console.log('[VoiceController] Settling complete, state -> LISTENING');
+        
+        // Log session states for debugging
+        Array.from(this.sessions.entries()).forEach(([id, session]) => {
+          console.log(`[VoiceController] Session '${id}' shouldBeActive=${session.shouldBeActive}`);
+        });
         
         // Process pending restarts first (these are non-session restarts like VoiceRecognition)
         // Track which sessions have been resumed to avoid double-resume
@@ -125,7 +132,7 @@ class VoiceSessionController {
         const hadPendingRestarts = this.pendingRestarts.length > 0;
         
         if (hadPendingRestarts) {
-          console.log(`[VoiceController] Processing ${this.pendingRestarts.length} pending restarts`);
+          console.log(`[VoiceController] Processing ${this.pendingRestarts.length} pending restarts: ${this.pendingRestarts.join(', ')}`);
           this.playMicLiveClick();
           // Signal that pending restarts should execute
           this.pendingRestarts.forEach(id => {
@@ -134,6 +141,8 @@ class VoiceSessionController {
               console.log(`[VoiceController] Executing pending restart for: ${id}`);
               session.resume();
               resumedSessionIds.add(id);
+            } else {
+              console.log(`[VoiceController] Skipping pending restart for '${id}' - session=${!!session}, shouldBeActive=${session?.shouldBeActive}`);
             }
           });
           this.pendingRestarts = [];
@@ -143,6 +152,7 @@ class VoiceSessionController {
         const sessionsToResume = Array.from(this.sessions.values()).filter(
           s => s.shouldBeActive && !resumedSessionIds.has(s.id)
         );
+        console.log(`[VoiceController] Sessions to resume: ${sessionsToResume.length}`);
         if (sessionsToResume.length > 0) {
           // Play mic-live click sound before resuming (if not already played)
           if (!hadPendingRestarts) {
@@ -152,7 +162,11 @@ class VoiceSessionController {
             console.log(`[VoiceController] Resuming session: ${session.id}`);
             session.resume();
           });
+        } else {
+          console.log('[VoiceController] No sessions to resume');
         }
+      } else {
+        console.log('[VoiceController] Skipping resume - TTS started again during settling');
       }
     }, this.resumeDelayMs);
   }
@@ -1503,12 +1517,18 @@ class VoiceMasterEngine {
   }
   
   private pauseInternal(): void {
-    if (!this.isListening) return;
+    console.log(`[VoiceMaster] pauseInternal called - isListening=${this.isListening}, shouldBeListening=${this.shouldBeListening}`);
+    if (!this.isListening) {
+      console.log('[VoiceMaster] Not pausing - already not listening');
+      return;
+    }
     this.isPaused = true;
     console.log('[VoiceMaster] Pausing for TTS');
     
     if (isNative) {
-      CapacitorSpeechRecognition.stop().catch(e => console.log('[VoiceMaster] Pause stop error:', e));
+      CapacitorSpeechRecognition.stop()
+        .then(() => console.log('[VoiceMaster] Native stop succeeded during pause'))
+        .catch(e => console.log('[VoiceMaster] Pause stop error:', e));
     } else if (this.webRecognition) {
       try {
         this.webRecognition.stop();
@@ -1520,10 +1540,16 @@ class VoiceMasterEngine {
     if (this.config?.onListeningChange) {
       this.config.onListeningChange(false);
     }
+    console.log('[VoiceMaster] pauseInternal complete - isListening now false');
   }
   
-  private resumeInternal(): void {
-    if (!this.shouldBeListening) return;
+  private async resumeInternal(): Promise<void> {
+    console.log(`[VoiceMaster] resumeInternal called - shouldBeListening=${this.shouldBeListening}, isListening=${this.isListening}, isPaused=${this.isPaused}`);
+    
+    if (!this.shouldBeListening) {
+      console.log('[VoiceMaster] Not resuming - shouldBeListening is false');
+      return;
+    }
     if (this.isListening) {
       console.log('[VoiceMaster] Already listening, skipping resume');
       return;
@@ -1533,7 +1559,8 @@ class VoiceMasterEngine {
     console.log('[VoiceMaster] Resuming after TTS');
     
     if (isNative) {
-      this.startNative();
+      const started = await this.startNative();
+      console.log(`[VoiceMaster] Resume startNative result: ${started}`);
     } else {
       this.startWeb();
     }
@@ -1588,6 +1615,7 @@ class VoiceMasterEngine {
         }
       });
       
+      console.log('[VoiceMaster] Calling CapacitorSpeechRecognition.start()...');
       await CapacitorSpeechRecognition.start({
         language: 'en-US',
         partialResults: true,
@@ -1596,7 +1624,7 @@ class VoiceMasterEngine {
       
       this.isListening = true;
       this.consecutiveFailures = 0;
-      console.log('[VoiceMaster] Started native');
+      console.log('[VoiceMaster] Started native - isListening=true, shouldBeListening=' + this.shouldBeListening);
       
       if (this.config?.onListeningChange) {
         this.config.onListeningChange(true);
