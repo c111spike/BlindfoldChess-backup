@@ -721,6 +721,18 @@ export function speechToMove(transcript: string, legalMoves: string[]): string |
   const cleaned = stripFillerWords(transcript);
   const input = applyHomophoneCorrections(cleaned.toLowerCase().trim());
   
+  // FIX: Bare coordinate detection for pawn moves (e.g., "c4", "e 4")
+  const bareCoord = input.replace(/\s+/g, '').match(/^([a-h])([1-8])$/);
+  if (bareCoord) {
+    const targetSquare = bareCoord[1] + bareCoord[2];
+    // Find a legal pawn move to this square (no piece letter = pawn)
+    const pawnMove = legalMoves.find(m => 
+      !/^[KQRBN]/i.test(m) && // No piece letter = pawn move
+      m.includes(targetSquare)
+    );
+    if (pawnMove) return pawnMove;
+  }
+  
   if (input.includes('castle') || input.includes('castles')) {
     if (input.includes('queen') || input.includes('long')) {
       if (legalMoves.includes('O-O-O')) return 'O-O-O';
@@ -1506,11 +1518,12 @@ class VoiceMasterEngine {
     // 3-second lockout after errors
     const timeSinceLastError = Date.now() - this.lastErrorTime;
     if (timeSinceLastError < 3000 && this.lastErrorTime > 0) {
-      console.log(`[VoiceMaster] Lockout: ${3000 - timeSinceLastError}ms remaining`);
+      console.log(`[VoiceMaster] Lockout: ${3000 - timeSinceLastError}ms remaining, queueing restart`);
       if (!this.restartTimeout) {
         this.scheduleRestart();
       }
-      return false;
+      // Return true so UI shows "listening" while we wait for lockout to expire
+      return true;
     }
     
     try {

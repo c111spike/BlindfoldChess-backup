@@ -847,6 +847,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   const [textInput, setTextInput] = useState('');
   const [micRetryNeeded, setMicRetryNeeded] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.voiceMoveMasterBest !== null && score > stats.voiceMoveMasterBest;
   const isNative = Capacitor.isNativePlatform();
   
@@ -910,6 +911,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
 
   const handleResign = () => {
     if (timerRef.current) clearInterval(timerRef.current);
+    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     trainingVoice.stop();
     onBack();
   };
@@ -1034,6 +1036,12 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     
     // Check if it matches the target move
     if (matchesMove(input, position.move)) {
+      // Clear any pending "Try Again" feedback
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+        feedbackTimeoutRef.current = null;
+      }
+      
       Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
       setFeedback({ text: 'Correct!', correct: true });
       const newScore = score + 1;
@@ -1052,11 +1060,21 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
         setTimeout(() => speak("Next move."), 200);
       }, 500);
     } else {
-      Haptics.notification({ type: NotificationType.Error }).catch(() => {});
-      setFeedback({ text: 'Try again', correct: false });
+      // Reset streak immediately on wrong answer (don't delay this)
       setStreak(0);
       
-      setTimeout(() => setFeedback(null), 1000);
+      // FIX: Debounce "Try Again" UI feedback to wait 1s before showing
+      // This prevents double feedback from partial speech recognition
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+      
+      feedbackTimeoutRef.current = setTimeout(() => {
+        Haptics.notification({ type: NotificationType.Error }).catch(() => {});
+        setFeedback({ text: 'Try again', correct: false });
+        
+        setTimeout(() => setFeedback(null), 1000);
+      }, 1000);
     }
   }, [position, gameState, score, streak, bestStreak, timeLeft, awaitingResignConfirm]);
   
@@ -1397,6 +1415,13 @@ function calculateMaterialValue(chess: Chess): number {
 function matchesMove(input: string, target: TargetMove): boolean {
   const normalized = input.toLowerCase().replace(/[^a-z0-9\s]/g, '');
   const words = normalized.split(/\s+/);
+  
+  // FIX: Bare coordinate check for pawn moves (e.g., user says "c4" for pawn to c4)
+  const bareCoord = normalized.replace(/\s+/g, '').match(/^([a-h])([1-8])$/);
+  if (bareCoord && target.piece === 'p') {
+    const targetSquare = bareCoord[1] + bareCoord[2];
+    if (target.to === targetSquare) return true;
+  }
   
   // Direct SAN match (e.g., "Nf3", "e4", "Bxc6")
   const sanLower = target.san.toLowerCase().replace(/[+#]/g, '');
