@@ -850,14 +850,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       if (lowerTranscript.includes("repeat") || lowerTranscript.includes("say again") || lowerTranscript.includes("what was that") || lowerTranscript.includes("again")) {
         if (lastSpokenMove.current && voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          voiceRecognition.stop();
+          // Don't call stop() - speak() handles pause/resume via voiceController
           try {
             await speak(lastSpokenMove.current);
           } catch (e) {
             console.error('[Voice] TTS error:', e);
           } finally {
             isTtsSpeaking.current = false;
-            setVoiceRestartTrigger(prev => prev + 1);
           }
         }
         return;
@@ -886,14 +885,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          voiceRecognition.stop();
+          // Don't call stop() - speak() handles pause/resume via voiceController
           try {
             await speak(response);
           } catch (e) {
             console.error('[Voice] TTS error:', e);
           } finally {
             isTtsSpeaking.current = false;
-            setVoiceRestartTrigger(prev => prev + 1);
           }
         }
         setVoiceTranscript(null);
@@ -929,14 +927,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          voiceRecognition.stop();
+          // Don't call stop() - speak() handles pause/resume via voiceController
           try {
             await speak(response);
           } catch (e) {
             console.error('[Voice] TTS error:', e);
           } finally {
             isTtsSpeaking.current = false;
-            setVoiceRestartTrigger(prev => prev + 1);
           }
         }
         setVoiceTranscript(null);
@@ -970,14 +967,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          await voiceRecognition.stopAndWait();
+          // Don't call stopAndWait() - speak() handles pause/resume via voiceController
           try {
             await speak(response);
           } catch (e) {
             console.error('[Voice] TTS error:', e);
           } finally {
             isTtsSpeaking.current = false;
-            setVoiceRestartTrigger(prev => prev + 1);
           }
         }
         setVoiceTranscript(null);
@@ -1032,14 +1028,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           
           if (voiceOutputEnabled) {
             isTtsSpeaking.current = true;
-            await voiceRecognition.stopAndWait();
+            // Don't call stopAndWait() - speak() handles pause/resume via voiceController
             try {
               await speak(response);
             } catch (e) {
               console.error('[Voice] TTS error:', e);
             } finally {
               isTtsSpeaking.current = false;
-              setVoiceRestartTrigger(prev => prev + 1);
             }
           }
           setVoiceTranscript(null);
@@ -1115,14 +1110,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          await voiceRecognition.stopAndWait();
+          // Don't call stopAndWait() - speak() handles pause/resume via voiceController
           try {
             await speak(response);
           } catch (e) {
             console.error('[Voice] TTS error:', e);
           } finally {
             isTtsSpeaking.current = false;
-            setVoiceRestartTrigger(prev => prev + 1);
           }
         }
         setVoiceTranscript(null);
@@ -1169,14 +1163,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           
           if (voiceOutputEnabled) {
             isTtsSpeaking.current = true;
-            await voiceRecognition.stopAndWait();
+            // Don't call stopAndWait() - speak() handles pause/resume via voiceController
             try {
               await speak(response);
             } catch (e) {
               console.error('[Voice] TTS error:', e);
             } finally {
               isTtsSpeaking.current = false;
-              setVoiceRestartTrigger(prev => prev + 1);
             }
           }
           setVoiceTranscript(null);
@@ -1206,18 +1199,14 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         if (blindfoldDisplayMode === "no_board" || blindfoldDifficulty === "grandmaster") {
           if (voiceOutputEnabled) {
             isTtsSpeaking.current = true;
-            await voiceRecognition.stopAndWait();
+            // Don't call stopAndWait() - speak() handles pause/resume via voiceController
             try {
               await speak("Peeking is not allowed in this mode");
             } catch (e) {
               console.error('[Voice] TTS error:', e);
             } finally {
               isTtsSpeaking.current = false;
-              setVoiceRestartTrigger(prev => prev + 1);
             }
-          } else {
-            // Restart voice recognition even when TTS is off
-            setVoiceRestartTrigger(prev => prev + 1);
           }
           setVoiceTranscript(null);
           return;
@@ -1247,17 +1236,14 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          await voiceRecognition.stopAndWait();
+          // Don't call stopAndWait() - speak() handles pause/resume via voiceController
           try {
             await speak("Board visible for 5 seconds");
           } catch (e) {
             console.error('[Voice] TTS error:', e);
           } finally {
             isTtsSpeaking.current = false;
-            setVoiceRestartTrigger(prev => prev + 1);
           }
-        } else {
-          setVoiceRestartTrigger(prev => prev + 1);
         }
         setVoiceTranscript(null);
         return;
@@ -1275,7 +1261,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          await voiceRecognition.stopAndWait();
+          // Don't call stopAndWait() - speak() handles pause/resume via voiceController
           
           try {
             // Get quick evaluation from Stockfish
@@ -1307,10 +1293,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             } catch (e2) {}
           } finally {
             isTtsSpeaking.current = false;
-            setVoiceRestartTrigger(prev => prev + 1);
+            // Voice will auto-resume via voiceController.onTTSEnd()
           }
-        } else {
-          setVoiceRestartTrigger(prev => prev + 1);
         }
         setVoiceTranscript(null);
         return;
@@ -1332,7 +1316,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             
             if (voiceOutputEnabled) {
               isTtsSpeaking.current = true;
-              voiceRecognition.stop();
+              // Don't call stop() - speak() handles pause/resume via voiceController
               const spokenMove = moveToSpeech(matchingMove, matchingMove.includes('x'), false, false);
               lastSpokenMove.current = spokenMove;
               try {
@@ -1377,7 +1361,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          voiceRecognition.stop();
+          // Don't call stop() - speak() handles pause/resume via voiceController
           try {
             await speak("I didn't catch that. Which piece?");
           } catch (e) {
@@ -1392,17 +1376,14 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           setVoiceTranscript(null);
           if (voiceOutputEnabled) {
             isTtsSpeaking.current = true;
-            voiceRecognition.stop();
+            // Don't call stop() - speak() handles pause/resume via voiceController
             try {
               await speak("Move cancelled");
             } catch (e) {
               console.error('[Voice] TTS error:', e);
             } finally {
               isTtsSpeaking.current = false;
-              setVoiceRestartTrigger(prev => prev + 1);
             }
-          } else {
-            setVoiceRestartTrigger(prev => prev + 1);
           }
         }, 10000);
         return;
@@ -1414,7 +1395,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       if (result.move) {
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          voiceRecognition.stop();
+          // Don't call stop() - speak() handles pause/resume via voiceController
           const spokenMove = moveToSpeech(result.move, result.move.includes('x'), false, false);
           lastSpokenMove.current = spokenMove;
           try {
@@ -1490,19 +1471,14 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         
         if (voiceOutputEnabled) {
           isTtsSpeaking.current = true;
-          voiceRecognition.stop();
+          // Don't call stop() - speak() handles pause/resume via voiceController
           try {
             await speak(prompt);
           } catch (e) {
             console.error('[Voice] TTS error:', e);
           } finally {
             isTtsSpeaking.current = false;
-            // Restart voice to listen for disambiguation response
-            setVoiceRestartTrigger(prev => prev + 1);
           }
-        } else {
-          // Even without voice output, restart voice input to listen for response
-          setVoiceRestartTrigger(prev => prev + 1);
         }
         
         disambiguationTimeoutRef.current = setTimeout(async () => {
@@ -1510,17 +1486,14 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           setVoiceTranscript(null);
           if (voiceOutputEnabled) {
             isTtsSpeaking.current = true;
-            voiceRecognition.stop();
+            // Don't call stop() - speak() handles pause/resume via voiceController
             try {
               await speak("Move cancelled");
             } catch (e) {
               console.error('[Voice] TTS error:', e);
             } finally {
               isTtsSpeaking.current = false;
-              setVoiceRestartTrigger(prev => prev + 1);
             }
-          } else {
-            setVoiceRestartTrigger(prev => prev + 1);
           }
         }, 10000);
       } else {
@@ -1597,7 +1570,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           
           if (voiceOutputEnabled) {
             isTtsSpeaking.current = true;
-            voiceRecognition.stop();
+            // Don't call stop() - speak() handles pause/resume via voiceController
+            // Voice will auto-resume after TTS ends via voiceController.onTTSEnd()
             
             const isCheck = gameRef.current.isCheck();
             const isCheckmate = gameRef.current.isCheckmate();
@@ -1611,15 +1585,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               console.error('[Voice] TTS error:', e);
             } finally {
               isTtsSpeaking.current = false;
-              
-              if (gameRef.current && !gameRef.current.isGameOver() && voiceInputEnabled) {
-                const currentTurn = gameRef.current.turn();
-                const isMyTurn = (currentTurn === "w" && playerColor === "white") || (currentTurn === "b" && playerColor === "black");
-                if (isMyTurn) {
-                  voiceRecognition.setLegalMoves(gameRef.current.moves());
-                  voiceRecognition.start();
-                }
-              }
+              // Voice will auto-resume via voiceController.onTTSEnd() - no manual restart needed
             }
           }
           

@@ -269,7 +269,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       // Reset mic busy state for fresh start
       trainingVoice.resetMicBusy();
       
-      const started = await trainingVoice.start(handleVoiceTranscript);
+      const started = await trainingVoice.start(handleVoiceTranscript, setIsListening);
       if (mounted) {
         setIsListening(started);
       }
@@ -345,9 +345,11 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       setStreak(0);
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
-      // Voice feedback: Wrong - no echo filter needed for "wrong"
+      // Voice feedback: Wrong (speak() handles pause/resume automatically)
       if (voiceMode) {
-        speak('Wrong');
+        setTimeout(async () => {
+          await speak('Wrong');
+        }, 100);
       }
     }
   }, [gameState, currentSquare, voiceMode]);
@@ -877,11 +879,14 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   const handleRetryMic = async () => {
     setMicRetryNeeded(false);
     trainingVoice.resetMicBusy();
-    const started = await trainingVoice.start((transcript) => {
-      if (transcript.length > 2) {
-        processVoiceInputRef.current?.(transcript);
-      }
-    });
+    const started = await trainingVoice.start(
+      (transcript) => {
+        if (transcript.length > 2) {
+          processVoiceInputRef.current?.(transcript);
+        }
+      },
+      setIsListening  // Sync mic icon during TTS pause/resume
+    );
     setIsListening(started);
   };
   
@@ -1063,11 +1068,14 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   // Start/stop voice recognition based on gameState using trainingVoice
   useEffect(() => {
     if (gameState === 'playing') {
-      trainingVoice.start((transcript) => {
-        if (transcript.length > 2) {
-          processVoiceInputRef.current?.(transcript);
-        }
-      }).then(started => {
+      trainingVoice.start(
+        (transcript) => {
+          if (transcript.length > 2) {
+            processVoiceInputRef.current?.(transcript);
+          }
+        },
+        setIsListening  // Sync mic icon during TTS pause/resume
+      ).then(started => {
         setIsListening(started);
       });
     } else {

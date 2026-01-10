@@ -1739,10 +1739,11 @@ export const voiceMaster = new VoiceMasterEngine();
 
 // Legacy compatibility - trainingVoice is now an alias for voiceMaster in 'raw' mode
 export const trainingVoice = {
-  async start(onTranscript: (text: string) => void): Promise<boolean> {
+  async start(onTranscript: (text: string) => void, onListeningChange?: (listening: boolean) => void): Promise<boolean> {
     return voiceMaster.start({
       mode: 'raw',
-      onTranscript
+      onTranscript,
+      onListeningChange
     });
   },
   async stop(): Promise<void> {
