@@ -56,6 +56,12 @@ export function AboutDialog() {
               <li>
                 <strong>Capacitor Runtime:</strong> Licensed under the MIT License.
               </li>
+              <li>
+                <strong>Vosk Speech Recognition:</strong> Offline voice recognition by Alpha Cephei, licensed under Apache 2.0.
+                <a href="https://alphacephei.com/vosk" target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:underline ml-1 inline-flex items-center gap-1">
+                  alphacephei.com/vosk <ExternalLink className="h-3 w-3" />
+                </a>
+              </li>
             </ul>
           </div>
           
