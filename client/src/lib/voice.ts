@@ -1580,6 +1580,9 @@ class VoiceMasterEngine {
   private shouldRestart: boolean = true;
   private restartPromise: Promise<void> | null = null;
   
+  // GATEKEEPER FIX: Prevent UI and background loop collision
+  private isStarting: boolean = false;
+  
   // STEALTH MIC: Mute window to avoid stop/start beeps
   private isMuted: boolean = false;
   private muteTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -2016,6 +2019,12 @@ class VoiceMasterEngine {
   }
   
   private async startNative(): Promise<boolean> {
+    // GATEKEEPER FIX: Prevent re-entrant start calls (UI + background collision)
+    if (this.isStarting) {
+      console.log('[VoiceMaster] startNative blocked: Already starting');
+      return false;
+    }
+    
     if (this.micBusy) {
       console.log('[VoiceMaster] Mic is busy, not starting');
       return false;
@@ -2031,6 +2040,8 @@ class VoiceMasterEngine {
       // Return true so UI shows "listening" while we wait for lockout to expire
       return true;
     }
+    
+    this.isStarting = true; // LOCK
     
     try {
       // Clean up existing listeners
@@ -2126,6 +2137,8 @@ class VoiceMasterEngine {
         this.scheduleRestart();
       }
       return false;
+    } finally {
+      this.isStarting = false; // UNLOCK
     }
   }
   
@@ -2203,11 +2216,12 @@ class VoiceMasterEngine {
       clearTimeout(this.restartTimeout);
     }
     
-    this.restartTimeout = setTimeout(async () => {
+    this.restartTimeout = setTimeout(() => {
       if (this.shouldBeListening && !this.micBusy) {
-        console.log('[VoiceMaster] Restarting after delay');
+        console.log('[VoiceMaster] Scheduled restart firing via Gatekeeper');
         if (isNative) {
-          await this.startNative();
+          // GATEKEEPER FIX: Use triggerRestart() so we respect 'shouldRestart' (TTS flag) and the mutex
+          this.triggerRestart();
         } else {
           this.startWeb();
         }
