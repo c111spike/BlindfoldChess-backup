@@ -3,10 +3,6 @@
 
     <!-- Queries for Android 11+ package visibility -->
     <queries>
-        <!-- Speech Recognition Service -->
-        <intent>
-            <action android:name="android.speech.RecognitionService" />
-        </intent>
         <!-- Text-to-Speech Service -->
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
@@ -46,9 +42,9 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
 
-        <!-- Native Voice Service for Blindfold Chess -->
+        <!-- Vosk Offline Voice Service for Blindfold Chess -->
         <service 
-            android:name=".BlindfoldVoiceService" 
+            android:name=".VoskVoiceService" 
             android:enabled="true"
             android:exported="false" 
             android:foregroundServiceType="microphone" />

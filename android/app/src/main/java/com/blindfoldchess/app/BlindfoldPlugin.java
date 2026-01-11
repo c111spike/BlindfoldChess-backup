@@ -25,17 +25,17 @@ import com.getcapacitor.PermissionState;
     }
 )
 public class BlindfoldPlugin extends Plugin {
-    private BlindfoldVoiceService voiceService;
+    private VoskVoiceService voiceService;
     private boolean isBound = false;
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
-            BlindfoldVoiceService.LocalBinder binder = (BlindfoldVoiceService.LocalBinder) service;
+            VoskVoiceService.LocalBinder binder = (VoskVoiceService.LocalBinder) service;
             voiceService = binder.getService();
             isBound = true;
 
-            voiceService.setCallback(new BlindfoldVoiceService.VoiceCallback() {
+            voiceService.setCallback(new VoskVoiceService.VoiceCallback() {
                 @Override
                 public void onSpeechResult(String text) {
                     JSObject ret = new JSObject();
@@ -51,7 +51,6 @@ public class BlindfoldPlugin extends Plugin {
                 }
             });
 
-            // Execute any pending startSession call
             onServiceBound();
         }
 
@@ -63,9 +62,7 @@ public class BlindfoldPlugin extends Plugin {
 
     @Override
     public void load() {
-        // Only bind the service - don't start foreground yet
-        // startSession() will trigger the foreground notification when a voice game starts
-        Intent intent = new Intent(getContext(), BlindfoldVoiceService.class);
+        Intent intent = new Intent(getContext(), VoskVoiceService.class);
         getContext().bindService(intent, connection, Context.BIND_AUTO_CREATE);
     }
 
@@ -94,13 +91,11 @@ public class BlindfoldPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
-        // Cleanup: stop service and unbind when plugin is destroyed
         if (isBound) {
             try {
                 voiceService.stopSession();
                 getContext().unbindService(connection);
-                // Stop the service completely so it can't restart unattended
-                Intent intent = new Intent(getContext(), BlindfoldVoiceService.class);
+                Intent intent = new Intent(getContext(), VoskVoiceService.class);
                 getContext().stopService(intent);
             } catch (Exception e) {
                 // Ignore cleanup errors
@@ -147,7 +142,7 @@ public class BlindfoldPlugin extends Plugin {
 
     private void setupServiceCallback() {
         if (voiceService == null) return;
-        voiceService.setCallback(new BlindfoldVoiceService.VoiceCallback() {
+        voiceService.setCallback(new VoskVoiceService.VoiceCallback() {
             @Override
             public void onSpeechResult(String text) {
                 JSObject ret = new JSObject();
