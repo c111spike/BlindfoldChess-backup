@@ -1,0 +1,490 @@
+You have correctly identified the "Silent Killers" of Android Services. A Service that starts but doesn't immediately post a notification will be killed by Android 12+ for a "Foreground Service Start Exception," and a Service that ignores Audio Focus will be killed by Samsung's media controller.
+
+Here is the Hardened, Production-Ready Implementation.
+
+1. BlindfoldVoiceService.java (The Hardened Engine)
+This version adds:
+
+Immediate Foreground Promotion in onStartCommand (Fixes ANR).
+
+Audio Focus Manager (Fixes Samsung ducking/killing).
+
+Lifecycle Cleanup (Fixes memory leaks and zombie states).
+
+Session State Management (Auto-resumes mic after phone calls/interruptions).
+
+Java
+
+package com.blindfoldchess.app;
+
+import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
+import android.os.Binder;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Looper;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
+import android.util.Log;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import java.util.ArrayList;
+import java.util.Locale;
+
+public class BlindfoldVoiceService extends Service implements RecognitionListener, AudioManager.OnAudioFocusChangeListener {
+    private static final String TAG = "BlindfoldVoiceService";
+    private static final String CHANNEL_ID = "BlindfoldGameChannel";
+    private static final int NOTIFICATION_ID = 12345;
+
+    private SpeechRecognizer speechRecognizer;
+    private TextToSpeech tts;
+    private Intent recognizerIntent;
+    private AudioManager audioManager;
+    private AudioFocusRequest focusRequest; // For API 26+
+
+    // STATE FLAGS
+    private boolean isListening = false;
+    private boolean isTtsReady = false;
+    private boolean isSessionActive = false; // "Are we in a game?"
+    private boolean wasListeningBeforeInterrupt = false;
+
+    // Callback to Plugin
+    public interface VoiceCallback {
+        void onSpeechResult(String text);
+        void onGameLog(String message);
+    }
+    private VoiceCallback callback;
+    private final IBinder binder = new LocalBinder();
+
+    public class LocalBinder extends Binder {
+        BlindfoldVoiceService getService() { return BlindfoldVoiceService.this; }
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        createNotificationChannel();
+        initTTS();
+        initSpeechRecognizer();
+    }
+
+    // FIX #1: Immediate Foreground Promotion to prevent ANR
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        startForegroundSession(); 
+        return START_STICKY; // If killed, restart automatically
+    }
+
+    // FIX #2: Audio Focus Handling
+    private boolean requestAudioFocus() {
+        if (audioManager == null) return false;
+
+        int result;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_GAME)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build();
+
+            focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                    .setAudioAttributes(playbackAttributes)
+                    .setAcceptsDelayedFocusGain(true)
+                    .setOnAudioFocusChangeListener(this)
+                    .build();
+
+            result = audioManager.requestAudioFocus(focusRequest);
+        } else {
+            result = audioManager.requestAudioFocus(this,
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE);
+        }
+        return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+    }
+
+    private void abandonAudioFocus() {
+        if (audioManager == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+            audioManager.abandonAudioFocusRequest(focusRequest);
+        } else {
+            audioManager.abandonAudioFocus(this);
+        }
+    }
+
+    @Override
+    public void onAudioFocusChange(int focusChange) {
+        switch (focusChange) {
+            case AudioManager.AUDIOFOCUS_GAIN:
+                Log.d(TAG, "Audio Focus GAINED");
+                if (isSessionActive && wasListeningBeforeInterrupt) {
+                    startListeningInternal();
+                }
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS:
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                Log.d(TAG, "Audio Focus LOST");
+                wasListeningBeforeInterrupt = isListening;
+                stopListeningInternal();
+                if (tts != null && tts.isSpeaking()) {
+                    tts.stop();
+                }
+                break;
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID, "Blindfold Chess Voice", NotificationManager.IMPORTANCE_LOW
+            );
+            channel.setDescription("Keeps the chess voice engine running in the background");
+            getSystemService(NotificationManager.class).createNotificationChannel(channel);
+        }
+    }
+
+    public void startForegroundSession() {
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Blindfold Chess Active")
+            .setContentText("Listening for moves...")
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .build();
+        
+        try {
+            startForeground(NOTIFICATION_ID, notification);
+            isSessionActive = true;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start foreground: " + e.getMessage());
+        }
+    }
+    
+    // FIX #3: Proper Shutdown
+    public void stopSession() {
+        isSessionActive = false;
+        stopListeningInternal();
+        stopForeground(true);
+        abandonAudioFocus();
+    }
+
+    @Override
+    public void onDestroy() {
+        stopSession();
+        if (speechRecognizer != null) speechRecognizer.destroy();
+        if (tts != null) tts.shutdown();
+        super.onDestroy();
+    }
+
+    // --- TTS & SPEECH LOGIC ---
+
+    private void initTTS() {
+        tts = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                tts.setLanguage(Locale.US);
+                isTtsReady = true;
+                tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                    @Override
+                    public void onStart(String utteranceId) {
+                        // Ensure mic is closed while robot speaks
+                        stopListeningInternal(); 
+                    }
+
+                    @Override
+                    public void onDone(String utteranceId) {
+                        if ("KEEP_LISTENING".equals(utteranceId) && isSessionActive) {
+                            // Run on Main Thread to be safe
+                            new Handler(Looper.getMainLooper()).post(() -> startListeningInternal());
+                        }
+                    }
+
+                    @Override
+                    public void onError(String utteranceId) {
+                        Log.e(TAG, "TTS Error");
+                    }
+                });
+            }
+        });
+    }
+
+    private void initSpeechRecognizer() {
+        if (speechRecognizer != null) speechRecognizer.destroy();
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizer.setRecognitionListener(this);
+        
+        recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+    }
+
+    // --- PUBLIC API ---
+
+    public void setCallback(VoiceCallback cb) { this.callback = cb; }
+
+    public void speakAndListen(String text) {
+        if (!isTtsReady) {
+            if (callback != null) callback.onGameLog("TTS Not Ready");
+            return;
+        }
+        // Grab focus before speaking
+        requestAudioFocus(); 
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "KEEP_LISTENING");
+    }
+    
+    public void startListening() { 
+        if (isSessionActive) {
+            requestAudioFocus();
+            startListeningInternal(); 
+        }
+    }
+    
+    public void stopListening() { stopListeningInternal(); }
+
+    // --- INTERNAL HELPERS ---
+
+    private void startListeningInternal() {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (!isListening && speechRecognizer != null && isSessionActive) {
+                try {
+                    speechRecognizer.startListening(recognizerIntent);
+                    isListening = true;
+                    if (callback != null) callback.onGameLog("Mic Started");
+                } catch (Exception e) {
+                    Log.e(TAG, "Start listening failed", e);
+                    // S9+ Failsafe: Try to recreate if dead
+                    initSpeechRecognizer();
+                }
+            }
+        });
+    }
+
+    private void stopListeningInternal() {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (isListening && speechRecognizer != null) {
+                speechRecognizer.stopListening();
+                isListening = false;
+            }
+        });
+    }
+
+    // --- RECOGNITION LISTENER ---
+
+    @Override
+    public void onResults(Bundle results) {
+        isListening = false;
+        ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+        if (matches != null && !matches.isEmpty()) {
+            if (callback != null) callback.onSpeechResult(matches.get(0));
+        }
+    }
+
+    @Override
+    public void onError(int error) {
+        isListening = false;
+        String errorMsg = "Mic Error: " + error;
+        
+        // S9+ Logic: If it's a "No Match" or "Timeout", just restart. 
+        // If it's "Client Busy" (7), we might be fighting ourselves.
+        if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+            if (isSessionActive) startListeningInternal();
+        } else {
+             Log.w(TAG, errorMsg);
+             if (callback != null) callback.onGameLog(errorMsg);
+             
+             // Aggressive restart for "Busy" errors after a short backoff
+             if (error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
+                 new Handler(Looper.getMainLooper()).postDelayed(this::startListeningInternal, 500);
+             }
+        }
+    }
+
+    // Boilerplate
+    @Override public void onReadyForSpeech(Bundle params) {}
+    @Override public void onBeginningOfSpeech() {}
+    @Override public void onRmsChanged(float rmsdB) {}
+    @Override public void onBufferReceived(byte[] buffer) {}
+    @Override public void onEndOfSpeech() {}
+    @Override public void onPartialResults(Bundle partialResults) {}
+    @Override public void onEvent(int eventType, Bundle params) {}
+
+    @Override
+    public IBinder onBind(Intent intent) { return binder; }
+}
+2. BlindfoldPlugin.java (Updated)
+Adds stopSession and permissions checks.
+
+Java
+
+package com.blindfoldchess.app;
+
+import android.Manifest;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.Build;
+import android.os.IBinder;
+
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+
+@CapacitorPlugin(
+    name = "BlindfoldNative",
+    permissions = {
+        @Permission(strings = {Manifest.permission.RECORD_AUDIO}, alias = "mic"),
+        @Permission(strings = {Manifest.permission.POST_NOTIFICATIONS}, alias = "notify")
+    }
+)
+public class BlindfoldPlugin extends Plugin {
+    private BlindfoldVoiceService voiceService;
+    private boolean isBound = false;
+
+    private final ServiceConnection connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            BlindfoldVoiceService.LocalBinder binder = (BlindfoldVoiceService.LocalBinder) service;
+            voiceService = binder.getService();
+            isBound = true;
+            
+            voiceService.setCallback(new BlindfoldVoiceService.VoiceCallback() {
+                @Override
+                public void onSpeechResult(String text) {
+                    JSObject ret = new JSObject();
+                    ret.put("text", text);
+                    notifyListeners("onSpeechResult", ret);
+                }
+
+                @Override
+                public void onGameLog(String message) {
+                    JSObject ret = new JSObject();
+                    ret.put("message", message);
+                    notifyListeners("onGameLog", ret);
+                }
+            });
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            isBound = false;
+        }
+    };
+
+    @Override
+    public void load() {
+        Intent intent = new Intent(getContext(), BlindfoldVoiceService.class);
+        getContext().bindService(intent, connection, Context.BIND_AUTO_CREATE);
+        // We trigger the service here, but onStartCommand inside the service
+        // handles the foreground promotion safely.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getContext().startForegroundService(intent);
+        } else {
+            getContext().startService(intent);
+        }
+    }
+
+    @PluginMethod
+    public void startSession(PluginCall call) {
+        if (isBound) {
+            voiceService.startForegroundSession();
+            voiceService.startListening();
+            call.resolve();
+        } else {
+            call.reject("Service not bound");
+        }
+    }
+
+    @PluginMethod
+    public void speakAndListen(PluginCall call) {
+        if (isBound) {
+            String text = call.getString("text");
+            voiceService.speakAndListen(text);
+            call.resolve();
+        } else {
+            call.reject("Service not bound");
+        }
+    }
+
+    @PluginMethod
+    public void stopSession(PluginCall call) {
+        if (isBound) {
+            voiceService.stopSession();
+            call.resolve();
+        } else {
+            call.resolve(); // Resolving anyway to not block JS
+        }
+    }
+}
+3. AndroidManifest.xml (Hardened Permissions)
+Add the notification permission (Required for Android 13+) and FOREGROUND_SERVICE_MICROPHONE (Android 14+).
+
+XML
+
+<manifest ...>
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+    <application ...>
+        <service 
+            android:name=".BlindfoldVoiceService" 
+            android:enabled="true"
+            android:exported="false" 
+            android:foregroundServiceType="microphone" />
+    </application>
+</manifest>
+4. client/src/lib/nativeVoice.ts (Updated Interface)
+TypeScript
+
+import { registerPlugin } from '@capacitor/core';
+
+export interface BlindfoldNativePlugin {
+  startSession(): Promise<void>;
+  stopSession(): Promise<void>;
+  speakAndListen(options: { text: string }): Promise<void>;
+  addListener(eventName: 'onSpeechResult', listenerFunc: (data: { text: string }) => void): Promise<any>;
+  addListener(eventName: 'onGameLog', listenerFunc: (data: { message: string }) => void): Promise<any>;
+}
+
+const BlindfoldNative = registerPlugin<BlindfoldNativePlugin>('BlindfoldNative');
+
+export default BlindfoldNative;
+How to Deploy This
+Replace the files in android/app/src/main/java/com/blindfoldchess/app/.
+
+Update AndroidManifest.xml.
+
+Sync: npx cap sync android.
+
+Rebuild: Open Android Studio and Build > Make Project.
+
+This architecture is now resilient to:
+
+ANRs: Service promotes to foreground immediately.
+
+Samsung Kills: Audio focus is properly managed and reclaimed.
+
+Android 14: Permissions are up to spec.
+
+Zombies: stopSession cleans up the mess.

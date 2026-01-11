@@ -35,7 +35,9 @@ import { PostMortemReport } from "@/components/post-mortem-report";
 import { AnalysisView } from "@/components/analysis-view";
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Capacitor } from '@capacitor/core';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, VoiceRegistry, type AmbiguousMoveResult } from "@/lib/voice";
+import BlindfoldNative from "@/lib/nativeVoice";
 import { getBotMove, countBotPieces, detectRecapture, getBotMoveDelay as botMoveDelay, getHumanBotThinkingDelay, countAllPieces, type LastMoveInfo, type BotMoveResult } from "@/lib/botEngine";
 import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats, type BlindfoldSettings } from "@/lib/gameStats";
 import { initGameHistoryDB, saveGame, type SavedGame } from "@/lib/gameHistory";
@@ -271,6 +273,12 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isTtsSpeaking = useRef(false);
   
+  // Native Android voice loop state
+  const isNativeVoiceActive = useRef(false);
+  const nativeListenerRef = useRef<{ remove: () => Promise<void> } | null>(null);
+  const [nativeFallbackToWeb, setNativeFallbackToWeb] = useState(false); // State to trigger re-render on fallback
+  const isNativePlatform = Capacitor.isNativePlatform();
+  
   useEffect(() => {
     return () => {
       clientStockfish.stopAnalysis();
@@ -279,6 +287,15 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       }
       if (countdownTimeoutRef.current) {
         clearTimeout(countdownTimeoutRef.current);
+      }
+      // Cleanup native voice session
+      if (isNativeVoiceActive.current) {
+        BlindfoldNative.stopSession().catch(() => {});
+        isNativeVoiceActive.current = false;
+      }
+      if (nativeListenerRef.current) {
+        nativeListenerRef.current.remove().catch(() => {});
+        nativeListenerRef.current = null;
       }
     };
   }, []);
@@ -800,7 +817,124 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     };
   }, [gameStarted, isBlindfold, blindfoldSettings.keepAwakeEnabled]);
 
+  // NATIVE ANDROID VOICE LOOP - Uses BlindfoldNative plugin for 0ms mic restart
   useEffect(() => {
+    if (!isNativePlatform || !voiceInputEnabled || !gameStarted || !gameRef.current || gameResult !== null) {
+      // Stop native session if conditions not met
+      if (isNativeVoiceActive.current) {
+        BlindfoldNative.stopSession().catch(() => {});
+        isNativeVoiceActive.current = false;
+      }
+      return;
+    }
+
+    const setupNativeVoice = async () => {
+      try {
+        // Check and request permissions
+        const permStatus = await BlindfoldNative.checkPermissions();
+        if (permStatus.mic !== 'granted') {
+          const newStatus = await BlindfoldNative.requestPermissions();
+          if (newStatus.mic !== 'granted') {
+            console.warn('[NativeVoice] Mic permission denied');
+            return;
+          }
+        }
+
+        // Set up listener for speech results
+        if (nativeListenerRef.current) {
+          await nativeListenerRef.current.remove();
+        }
+        
+        nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
+          const transcript = data.text;
+          const currentGame = gameRef.current;
+          if (!currentGame) return;
+
+          const cleaned = transcript.trim();
+          if (cleaned.length < 2) return;
+
+          voiceCommandsRef.current++;
+          setVoiceTranscript(transcript);
+
+          const lowerTranscript = transcript.toLowerCase();
+
+          // Handle voice commands (resign, repeat, etc.)
+          if (lowerTranscript.includes("repeat") || lowerTranscript.includes("say again")) {
+            if (lastSpokenMove.current && voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: lastSpokenMove.current }).catch(() => {});
+            }
+            return;
+          }
+
+          // Parse and execute chess moves
+          const allLegalMoves = currentGame.moves({ verbose: true }).map(m => m.san);
+          const result = speechToMoveWithAmbiguity(transcript, allLegalMoves);
+
+          if (result.move && !result.isAmbiguous) {
+            // Execute the move
+            try {
+              const moveResult = currentGame.move(result.move);
+              if (moveResult) {
+                gameVoiceMovesRef.current++;
+                setLastMove({ from: moveResult.from, to: moveResult.to });
+                const newFen = currentGame.fen();
+                setFen(newFen);
+                const newMoves = [...movesRef.current, result.move];
+                setMoves(newMoves);
+                movesRef.current = newMoves;
+
+                // Haptic feedback
+                Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+
+                // Check game end
+                if (currentGame.isCheckmate()) {
+                  handleGameEnd(currentGame.turn() === "w" ? "black_win" : "white_win");
+                } else if (currentGame.isDraw()) {
+                  handleGameEnd("draw");
+                }
+
+                setVoiceTranscript(null);
+              }
+            } catch (e) {
+              console.error('[NativeVoice] Move error:', e);
+            }
+          } else if (!result.move && !result.isAmbiguous) {
+            setVoiceTranscript(null);
+          }
+        });
+
+        // Start the native voice session
+        await BlindfoldNative.startSession();
+        isNativeVoiceActive.current = true;
+        setIsVoiceListening(true);
+        // Reset fallback flag on success so native is used
+        setNativeFallbackToWeb(false);
+        console.log('[NativeVoice] Session started');
+
+      } catch (error) {
+        console.error('[NativeVoice] Setup failed, falling back to web voice:', error);
+        // Fallback to web voice recognition if native fails (state triggers re-render)
+        setNativeFallbackToWeb(true);
+        isNativeVoiceActive.current = false;
+      }
+    };
+
+    setupNativeVoice();
+
+    return () => {
+      if (isNativeVoiceActive.current) {
+        BlindfoldNative.stopSession().catch(() => {});
+        isNativeVoiceActive.current = false;
+        setIsVoiceListening(false);
+      }
+    };
+  }, [isNativePlatform, voiceInputEnabled, gameStarted, gameResult, voiceOutputEnabled, handleGameEnd]);
+
+  // WEB FALLBACK VOICE - Uses voiceRecognition for browser (or native fallback)
+  useEffect(() => {
+    // Skip if on native platform unless native failed and we need to fallback
+    if (isNativePlatform && !nativeFallbackToWeb) return;
+
     if (!voiceInputEnabled) {
       voiceRecognition.stop();
       return;
@@ -1439,7 +1573,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         disambiguationTimeoutRef.current = null;
       }
     };
-  }, [voiceInputEnabled, gameStarted, fen, playerColor, botThinking, pendingPromotion, gameResult, voiceOutputEnabled, toast, handleGameEnd, awaitingDisambiguation, voiceRestartTrigger, showResignConfirm]);
+  }, [voiceInputEnabled, gameStarted, fen, playerColor, botThinking, pendingPromotion, gameResult, voiceOutputEnabled, toast, handleGameEnd, awaitingDisambiguation, voiceRestartTrigger, showResignConfirm, nativeFallbackToWeb]);
 
   useEffect(() => {
     if (!selectedBot || !gameRef.current) return;
@@ -1478,20 +1612,29 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           } catch (e) {}
           
           if (voiceOutputEnabled) {
-            isTtsSpeaking.current = true;
-            
             const isCheck = gameRef.current.isCheck();
             const isCheckmate = gameRef.current.isCheckmate();
             const isCapture = botMove.move.includes('x');
             const spokenMove = moveToSpeech(botMove.move, isCapture, isCheck, isCheckmate);
             lastSpokenMove.current = spokenMove;
             
-            try {
-              await speak(spokenMove);
-            } catch (e) {
-              console.error('[Voice] TTS error:', e);
-            } finally {
-              isTtsSpeaking.current = false;
+            // Use native speakAndListen on Android (0ms mic restart after TTS)
+            if (isNativePlatform && isNativeVoiceActive.current && voiceInputEnabled) {
+              try {
+                await BlindfoldNative.speakAndListen({ text: spokenMove });
+              } catch (e) {
+                console.error('[NativeVoice] TTS error:', e);
+              }
+            } else {
+              // Web fallback
+              isTtsSpeaking.current = true;
+              try {
+                await speak(spokenMove);
+              } catch (e) {
+                console.error('[Voice] TTS error:', e);
+              } finally {
+                isTtsSpeaking.current = false;
+              }
             }
           }
           
