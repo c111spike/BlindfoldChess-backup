@@ -207,4 +207,14 @@ public class BlindfoldPlugin extends Plugin {
             call.resolve();
         }
     }
+
+    @PluginMethod
+    public void startListening(PluginCall call) {
+        if (isBound) {
+            voiceService.startListening();
+            call.resolve();
+        } else {
+            call.reject("Service not bound");
+        }
+    }
 }

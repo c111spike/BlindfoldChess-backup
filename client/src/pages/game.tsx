@@ -862,6 +862,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           if (lowerTranscript.includes("repeat") || lowerTranscript.includes("say again")) {
             if (lastSpokenMove.current && voiceOutputEnabled) {
               BlindfoldNative.speakAndListen({ text: lastSpokenMove.current }).catch(() => {});
+            } else {
+              // No TTS, restart mic manually
+              BlindfoldNative.startListening().catch(() => {});
             }
             return;
           }
@@ -894,12 +897,21 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
                 }
 
                 setVoiceTranscript(null);
+                // PING PONG: Player move executed, bot will respond with speakAndListen
+                // But if voice output disabled, restart mic manually
+                if (!voiceOutputEnabled) {
+                  BlindfoldNative.startListening().catch(() => {});
+                }
               }
             } catch (e) {
               console.error('[NativeVoice] Move error:', e);
+              // Move failed, restart mic
+              BlindfoldNative.startListening().catch(() => {});
             }
           } else if (!result.move && !result.isAmbiguous) {
+            // Invalid/unrecognized input, restart mic
             setVoiceTranscript(null);
+            BlindfoldNative.startListening().catch(() => {});
           }
         });
 

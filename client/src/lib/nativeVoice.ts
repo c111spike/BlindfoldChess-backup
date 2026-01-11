@@ -11,6 +11,7 @@ export interface BlindfoldNativePlugin {
   requestPermissions(): Promise<PermissionStatus>;
   startSession(): Promise<void>;
   stopSession(): Promise<void>;
+  startListening(): Promise<void>;
   speakAndListen(options: { text: string }): Promise<void>;
   speakOnly(options: { text: string }): Promise<void>;
   addListener(

@@ -38,10 +38,8 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
 
     // STATE FLAGS
     private boolean isListening = false;
-    private boolean isTtsActive = false; // Prevents Mic/TTS collision
-    private boolean isTtsReady = false;
     private boolean isSessionActive = false; 
-    private boolean wasListeningBeforeInterrupt = false;
+    private boolean isTtsReady = false;
 
     public interface VoiceCallback {
         void onSpeechResult(String text);
@@ -99,22 +97,9 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
 
     @Override
     public void onAudioFocusChange(int focusChange) {
-        switch (focusChange) {
-            case AudioManager.AUDIOFOCUS_GAIN:
-                if (isSessionActive && wasListeningBeforeInterrupt && !isTtsActive) {
-                    startListeningInternal();
-                }
-                break;
-            case AudioManager.AUDIOFOCUS_LOSS:
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                wasListeningBeforeInterrupt = isListening;
-                stopListeningInternal();
-                if (tts != null && tts.isSpeaking()) {
-                    tts.stop();
-                    isTtsActive = false;
-                }
-                break;
+        if (focusChange < 0) {
+            stopListeningInternal();
+            if (tts != null && tts.isSpeaking()) tts.stop();
         }
     }
 
@@ -130,12 +115,11 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
     public void startForegroundSession() {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Blindfold Chess Active")
-            .setContentText("Voice engine running")
+            .setContentText("Voice engine ready")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build();
-        
         try {
             startForeground(NOTIFICATION_ID, notification);
             isSessionActive = true;
@@ -166,21 +150,15 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
                 isTtsReady = true;
                 tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                     @Override
-                    public void onStart(String utteranceId) { 
-                        isTtsActive = true;
-                        stopListeningInternal(); 
-                    }
+                    public void onStart(String utteranceId) { stopListeningInternal(); }
                     @Override
                     public void onDone(String utteranceId) {
-                        isTtsActive = false;
                         if ("KEEP_LISTENING".equals(utteranceId) && isSessionActive) {
                             new Handler(Looper.getMainLooper()).post(() -> startListeningInternal());
                         }
                     }
                     @Override
-                    public void onError(String utteranceId) {
-                        isTtsActive = false;
-                    }
+                    public void onError(String utteranceId) {}
                 });
             }
         });
@@ -212,7 +190,7 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
     }
     
     public void startListening() { 
-        if (isSessionActive && !isTtsActive) {
+        if (isSessionActive) {
             requestAudioFocus();
             startListeningInternal(); 
         }
@@ -222,12 +200,12 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
 
     private void startListeningInternal() {
         new Handler(Looper.getMainLooper()).post(() -> {
-            if (!isListening && speechRecognizer != null && isSessionActive && !isTtsActive) {
+            if (!isListening && speechRecognizer != null && isSessionActive) {
                 try {
                     speechRecognizer.startListening(recognizerIntent);
                     isListening = true;
                 } catch (Exception e) {
-                    initSpeechRecognizer(); 
+                    initSpeechRecognizer();
                 }
             }
         });
@@ -249,22 +227,14 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
         if (matches != null && !matches.isEmpty()) {
             if (callback != null) callback.onSpeechResult(matches.get(0));
         }
-        
-        // AUTO-RESTART LOOP: If session active and TTS isn't about to start, restart mic
-        if (isSessionActive && !isTtsActive) {
-             new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                 if (isSessionActive && !isTtsActive) {
-                     startListeningInternal();
-                 }
-             }, 100); 
-        }
+        // PING PONG: Do NOT auto-restart. Wait for JS to tell us what to do.
     }
 
     @Override
     public void onError(int error) {
         isListening = false;
         if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-            if (isSessionActive && !isTtsActive) startListeningInternal();
+            if (isSessionActive) startListeningInternal();
         } else {
              if (error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
                  new Handler(Looper.getMainLooper()).postDelayed(this::startListeningInternal, 500);
