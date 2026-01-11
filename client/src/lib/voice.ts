@@ -848,15 +848,69 @@ export async function speak(text: string, rate: number = 0.9): Promise<void> {
   
   try {
     if (isNative) {
-      await CapacitorSpeechSynthesis.speak({
-        text: phoneticText,
-        language: 'en-US',
-        rate,
-        pitch: 1.0,
-        volume: 1.0
+      // PREMATURE RESUME FIX: Don't trust the speak() promise - it resolves immediately on Android
+      // Instead, wait for the 'end' EVENT which fires when TTS actually finishes
+      await new Promise<void>(async (resolve) => {
+        let hasResolved = false;
+        
+        // FAILSAFE: If the event never fires (rare Android bug), force resume after timeout
+        // Calculation: ~150ms per character + 2500ms base buffer
+        const timeoutDuration = Math.max(2500, phoneticText.length * 150);
+        const timer = setTimeout(() => {
+          if (!hasResolved) {
+            console.warn('[Voice] TTS Event timeout - forcing resume after', timeoutDuration, 'ms');
+            hasResolved = true;
+            // Clean up listener to avoid leaking native listeners
+            if (listener) listener.remove().catch(() => {});
+            resolve();
+          }
+        }, timeoutDuration);
+
+        // LISTENER: The only source of truth for when TTS actually finishes
+        let listener: { remove: () => Promise<void> } | null = null;
+        try {
+          listener = await CapacitorSpeechSynthesis.addListener('end', () => {
+            if (!hasResolved) {
+              console.log('[Voice] TTS End detected via event - mic resume now safe');
+              clearTimeout(timer);
+              hasResolved = true;
+              if (listener) listener.remove().catch(() => {});
+              resolve();
+            }
+          });
+        } catch (setupErr) {
+          console.warn('[Voice] Failed to setup TTS listener:', setupErr);
+        }
+
+        // SPEAK: Fire off the TTS (promise may resolve immediately - that's OK, we're waiting for event)
+        try {
+          await CapacitorSpeechSynthesis.speak({
+            text: phoneticText,
+            language: 'en-US',
+            rate,
+            pitch: 1.0,
+            volume: 1.0
+          });
+        } catch (speakErr) {
+          console.error('[Voice] Speak error:', speakErr);
+          clearTimeout(timer);
+          if (listener) listener.remove().catch(() => {});
+          hasResolved = true;
+          resolve();
+        }
+        
+        // If listener setup failed, rely on the timer (or fallback to old behavior)
+        if (!listener) {
+          console.log('[Voice] No listener available, using fallback timing');
+          // Wait a reasonable time for speech to complete
+          await new Promise(r => setTimeout(r, Math.max(1000, phoneticText.length * 100)));
+          if (!hasResolved) {
+            clearTimeout(timer);
+            hasResolved = true;
+            resolve();
+          }
+        }
       });
-      
-      await waitForTTSCompletion();
     } else {
       // Debug: check what speechSynthesis looks like
       console.log('[Voice] speechSynthesis in window:', 'speechSynthesis' in window);
