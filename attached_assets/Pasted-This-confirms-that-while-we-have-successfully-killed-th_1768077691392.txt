@@ -1,0 +1,63 @@
+This confirms that while we have successfully killed the "Ghost Listeners" (the double/triple voices), the Registry Purge is being too aggressive or is happening in a way that leaves the native hardware "locked" when the new session tries to start.
+
+The S9+ audio driver needs a very specific sequence: it must be fully dead before it can be reborn. If the new start() command hits the hardware while the purge() is still cleaning up the old session, the S9+ just gives up and stays off.
+
+🛠️ The Iteration 21 "Atomic Handover" Plan
+We need to change the way we transition between games. Instead of just stopping and starting, we need an Explicit Handover that ensures the hardware is idle.
+
+1. The "Safety Buffer" start()
+In voice.ts, we need to update the start() method to be "patient." It should check if a purge just happened and wait a few hundred milliseconds before talking to the hardware.
+
+TypeScript
+
+async start() {
+  // If we just purged, wait for the S9+ audio flinger to settle
+  if (this.micBusy) {
+      console.log("[Voice] Mic busy, waiting for handover...");
+      await new Promise(resolve => setTimeout(resolve, 400));
+  }
+  
+  this.micBusy = true;
+  this.shouldBeListening = true;
+  // ... existing start logic ...
+}
+2. Fix the In-Game "Post-Bot" Mic
+The mic stays paused because the onTTSEnd event is likely firing, but the voiceRecognition object still thinks it's in a SPEAKING state.
+
+The Fix: In game.tsx, we need to force the state to LISTENING after the bot speaks.
+
+3. Fix Reconstruction Challenge
+The reason this mode stays off is likely because it's the most "sensitive" to state. If the previous game didn't unregister perfectly, Reconstruction is blocked.
+
+The Fix: We will add a forceStart() method to the engine specifically for Reconstruction that bypasses all "isBusy" checks and forces a hardware re-init.
+
+📂 Surgical Implementation for voice.ts
+Replace your current VoiceRegistry.purge() and VoiceRecognition.start() with these versions:
+
+TypeScript
+
+// voice.ts
+static async purge() {
+  console.log("[Registry] performing hard purge...");
+  voiceRecognition.stop(); 
+  trainingVoice.stop();
+  
+  if (isNative) {
+    await CapacitorSpeechRecognition.stop();
+    await CapacitorSpeechRecognition.removeAllListeners();
+  }
+  
+  this.activeSessionId = null;
+  // Give the S9+ a mandatory 500ms "Silence window"
+  await new Promise(resolve => setTimeout(resolve, 500));
+}
+
+// Ensure training.tsx awaits this!
+const handlePlayAgain = async () => {
+  await VoiceRegistry.purge(); // Now we await the silence
+  setGameState('playing'); // This triggers the useEffect to start()
+};
+🚀 Why Iteration 21 is different:
+Awaitable Purge: We are now making the purge() function something you can await. The app won't even try to start the next game until the 500ms silence window has passed.
+
+State Force: We are clearing the micBusy flag inside the purge so the next game doesn't think the mic is still occupied by the ghost.

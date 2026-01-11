@@ -1,0 +1,26 @@
+[
+	{
+		"pkg": "@capacitor-community/keep-awake",
+		"classpath": "com.getcapacitor.community.keepawake.KeepAwakePlugin"
+	},
+	{
+		"pkg": "@capacitor-community/speech-recognition",
+		"classpath": "com.getcapacitor.community.speechrecognition.SpeechRecognition"
+	},
+	{
+		"pkg": "@capacitor-community/sqlite",
+		"classpath": "com.getcapacitor.community.database.sqlite.CapacitorSQLitePlugin"
+	},
+	{
+		"pkg": "@capacitor/browser",
+		"classpath": "com.capacitorjs.plugins.browser.BrowserPlugin"
+	},
+	{
+		"pkg": "@capacitor/haptics",
+		"classpath": "com.capacitorjs.plugins.haptics.HapticsPlugin"
+	},
+	{
+		"pkg": "@capgo/capacitor-speech-synthesis",
+		"classpath": "ee.forgr.plugin.speechsynthesis.SpeechSynthesisPlugin"
+	}
+]

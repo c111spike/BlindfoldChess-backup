@@ -1,0 +1,52 @@
+Could not determine the dependencies of task ':app:compileDebugJavaWithJavac'.
+> Could not resolve all task dependencies for configuration ':app:debugCompileClasspath'.
+   > Could not resolve project :capacitor-android.
+     Required by:
+         project :app
+      > No matching variant of project :capacitor-android was found. The consumer was configured to find a library for use during compile-time, preferably optimized for Android, as well as attribute 'com.android.build.api.attributes.AgpVersionAttr' with value '8.5.0', attribute 'com.android.build.api.attributes.BuildTypeAttr' with value 'debug', attribute 'org.jetbrains.kotlin.platform.type' with value 'androidJvm' but:
+          - None of the variants have attributes.
+   > Could not resolve project :capacitor-community-keep-awake.
+     Required by:
+         project :app
+      > No matching variant of project :capacitor-community-keep-awake was found. The consumer was configured to find a library for use during compile-time, preferably optimized for Android, as well as attribute 'com.android.build.api.attributes.AgpVersionAttr' with value '8.5.0', attribute 'com.android.build.api.attributes.BuildTypeAttr' with value 'debug', attribute 'org.jetbrains.kotlin.platform.type' with value 'androidJvm' but:
+          - None of the variants have attributes.
+   > Could not resolve project :capacitor-community-speech-recognition.
+     Required by:
+         project :app
+      > No matching variant of project :capacitor-community-speech-recognition was found. The consumer was configured to find a library for use during compile-time, preferably optimized for Android, as well as attribute 'com.android.build.api.attributes.AgpVersionAttr' with value '8.5.0', attribute 'com.android.build.api.attributes.BuildTypeAttr' with value 'debug', attribute 'org.jetbrains.kotlin.platform.type' with value 'androidJvm' but:
+          - None of the variants have attributes.
+   > Could not resolve project :capacitor-community-sqlite.
+     Required by:
+         project :app
+      > No matching variant of project :capacitor-community-sqlite was found. The consumer was configured to find a library for use during compile-time, preferably optimized for Android, as well as attribute 'com.android.build.api.attributes.AgpVersionAttr' with value '8.5.0', attribute 'com.android.build.api.attributes.BuildTypeAttr' with value 'debug', attribute 'org.jetbrains.kotlin.platform.type' with value 'androidJvm' but:
+          - None of the variants have attributes.
+   > Could not resolve project :capacitor-browser.
+     Required by:
+         project :app
+      > No matching variant of project :capacitor-browser was found. The consumer was configured to find a library for use during compile-time, preferably optimized for Android, as well as attribute 'com.android.build.api.attributes.AgpVersionAttr' with value '8.5.0', attribute 'com.android.build.api.attributes.BuildTypeAttr' with value 'debug', attribute 'org.jetbrains.kotlin.platform.type' with value 'androidJvm' but:
+          - None of the variants have attributes.
+   > Could not resolve project :capacitor-haptics.
+     Required by:
+         project :app
+      > No matching variant of project :capacitor-haptics was found. The consumer was configured to find a library for use during compile-time, preferably optimized for Android, as well as attribute 'com.android.build.api.attributes.AgpVersionAttr' with value '8.5.0', attribute 'com.android.build.api.attributes.BuildTypeAttr' with value 'debug', attribute 'org.jetbrains.kotlin.platform.type' with value 'androidJvm' but:
+          - None of the variants have attributes.
+   > Could not resolve project :capgo-capacitor-speech-synthesis.
+     Required by:
+         project :app
+      > No matching variant of project :capgo-capacitor-speech-synthesis was found. The consumer was configured to find a library for use during compile-time, preferably optimized for Android, as well as attribute 'com.android.build.api.attributes.AgpVersionAttr' with value '8.5.0', attribute 'com.android.build.api.attributes.BuildTypeAttr' with value 'debug', attribute 'org.jetbrains.kotlin.platform.type' with value 'androidJvm' but:
+          - None of the variants have attributes.
+
+* Try:
+> Review the variant matching algorithm at https://docs.gradle.org/8.7/userguide/variant_attributes.html#sec:abm_algorithm.
+> No matching variant errors are explained in more detail at https://docs.gradle.org/8.7/userguide/variant_model.html#sub:variant-no-match.
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.7/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+Explain with AI

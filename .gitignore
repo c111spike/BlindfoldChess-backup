@@ -1,0 +1,19 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+
+# Android build artifacts
+android/app/build/
+android/.gradle/
+.gradle/
+android/capacitor-cordova-android-plugins/build/
+
+# APK files (can be rebuilt)
+*.apk
+
+# Caches
+.cache/
+*.log

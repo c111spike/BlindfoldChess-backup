@@ -1,0 +1,27 @@
+🛠️ Implementing Move List AutoscrollSince you're using React, the most robust way to handle this is by using useEffect to watch the currentMoveIndex and then calling scrollIntoView() on the active move element.The Logic:Give each move in your list a unique ID or a ref.When the move changes, find that element.Use the block: 'nearest' option to ensure it scrolls just enough to be visible without jumping the whole screen around.TypeScript// Inside your move list component
+useEffect(() => {
+  const activeMoveElement = document.getElementById(`move-${currentMoveIndex}`);
+  if (activeMoveElement) {
+    activeMoveElement.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    });
+  }
+}, [currentMoveIndex]);
+📄 PGN Export: Copy & DownloadTo make the PGN easily accessible, you can add a small "Export" action group.1. Copy to Clipboard (with Toast)Since you are on Capacitor, use the Clipboard plugin. It’s cleaner and more reliable on Android/iOS than standard web APIs.TypeScriptimport { Clipboard } from '@capacitor/clipboard';
+import { Toast } from '@capacitor/toast';
+
+const copyPGN = async () => {
+  await Clipboard.write({ string: fullPGN });
+  await Toast.show({ text: 'PGN copied to clipboard!' }); //
+};
+2. Download as .txt FileYou can "trick" the browser/webview into downloading a file by creating a hidden link with a Blob URL.TypeScriptconst downloadPGN = () => {
+  const element = document.createElement("a");
+  const file = new Blob([fullPGN], { type: 'text/plain' });
+  element.href = URL.createObjectURL(file);
+  element.download = `blindfold-game-${new Date().toISOString().split('T')[0]}.pgn.txt`;
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element); // Cleanup
+};
+🎨 Recommended UI LayoutI recommend placing these buttons right above or below the move list. Use small, clear icons (like a 📋 for copy and a 📥 for download) to keep the analysis screen clean and scannable.FeatureS10+ User BenefitAutoscrollNo more "fishing" for the move you just clicked; it's always in view.Copy PGNQuick move to Lichess or Chess.com for a second opinion.Download .txtPerfect for archiving games or sending them to a coach/friend.📋 Next Step for ImplementationWould you like me to help you generate the PGN string generator function? It needs to follow the standard format (e.g., 1. e4 e5 2. Nf3...) with the headers (Date, Result, etc.) so that other engines can read it without errors.

@@ -1,0 +1,61 @@
+This is a breakthrough observation. The fact that Reconstruction works perfectly while the rest of the app "mutes" proves that the hardware is capable, but our software orchestration is fighting itself during transitions.
+
+When the bot speaks, the voiceController handles the "Audio Focus" handover. If that handover fails to trigger a resume(), the manual start() you added as a backup hits the isStarted guard and dies. If we remove the guard, the hardware crashes from a double-start.
+
+🛠️ The Iteration 25 "Architectural Alignment" Plan
+We are going to move away from "manual kicks" and rely on a Managed Resume with a special "Free Lane" for Reconstruction.
+
+1. Reinstate the Guard with an "Emergency Reset"
+We will put the isStarted guard back in to prevent hardware crashes, but we will add a forceRestart() method. This allows us to "re-kick" the mic safely by calling stop() internally before start().
+
+2. The "Reconstruction Free-Lane"
+Since Reconstruction works when the "guard rails" are off, we will treat it as a Raw Session. It will bypass the VoiceRecognitionWrapper logic and talk directly to the voiceMaster engine. This keeps it stable while we fix the rest of the app.
+
+3. Fix the onTTSEnd Handover
+The "Mic Pause" after the bot moves happens because the voiceController doesn't realize the TTS is finished on the S9+. We will implement a "Hardware-Verified Resume."
+
+📂 Surgical Implementation for voice.ts
+Update 1: The Guarded Wrapper
+
+TypeScript
+
+// Inside VoiceRecognitionWrapper
+async start() {
+  if (this.isStarted) {
+    console.log("[Voice] Already started, performing safety resume...");
+    return await voiceMaster.resume(VoiceRecognition.SESSION_ID); 
+  }
+  this.isStarted = true;
+  return await voiceMaster.start();
+}
+Update 2: Reconstruction Bypass In your reconstruction component, we will stop using the wrapper and use the base engine directly. This replicates the "working" state you found in Iteration 24.
+
+TypeScript
+
+// reconstruction.tsx
+useEffect(() => {
+  // BYPASS: Talk to the engine, not the guarded wrapper
+  voiceMaster.start({
+    sessionId: 'reconstruction',
+    onTranscript: (text) => handleMove(text)
+  });
+  
+  return () => voiceMaster.stop();
+}, []);
+📂 Surgical Implementation for game.tsx
+We will remove the setTimeout band-aid and use the voiceController to bridge the gap.
+
+TypeScript
+
+// Inside handleBotMove in game.tsx
+await speak(botMovePhonetic);
+
+// Instead of manual start, we tell the controller the bot is done.
+// The controller will then handle the 400ms settle delay and resume()
+voiceController.setActive(VoiceRecognition.SESSION_ID, true);
+🚀 Why Iteration 25 is the "Winner":
+Main Game: The isStarted guard prevents the driver from crashing, while the resume() call handles the post-bot-move restart.
+
+Reconstruction: By using the "Bypass" (Direct Engine Access), it stays in that "it just works" state you discovered.
+
+Training: The purge() in your Registry will still clear the isStarted flag, allowing back-to-back games to work without "Zombies".

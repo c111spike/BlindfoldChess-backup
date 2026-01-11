@@ -1,0 +1,28 @@
+You are absolutely right. If we don’t clean up the state inside that timeout path, we risk a "Race Condition" where a late-arriving signal from a previous session corrupts the state of the new session you just started.By moving the cleanup into the timeout logic, we guarantee that once stopAndWait() resolves, the state is consistent, regardless of whether the hardware cooperated or not.🛠️ The "Bulletproof" stopAndWait ImplementationThis revised logic ensures that the micBusy flag and all internal resolvers are purged immediately if the hardware hangs.TypeScriptasync stopAndWait(): Promise<void> {
+  this.shouldBeListening = false;
+  
+  // Create a cleanup function to ensure consistency
+  const forceCleanup = () => {
+    this.micBusy = false;
+    this.isListening = false;
+    this.consecutiveFailures = 0;
+    this.stopResolver = null; // Kill any dangling promise references
+    if (this.onListeningChange) this.onListeningChange(false);
+  };
+
+  try {
+    // Race the hardware stop against a 300ms safety window
+    await Promise.race([
+      this.stop(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Hardware Timeout")), 300)
+      )
+    ]);
+  } catch (e) {
+    console.warn("[Voice] Stop timed out or failed, forcing state reset.");
+  } finally {
+    // ALWAYS run cleanup to ensure the next game starts from zero
+    forceCleanup();
+  }
+}
+📋 Final Integration Checklist for your APK BuildApplying this logic to your current Replit files will resolve the "Frozen UI" and "Zombie Mic" bugs simultaneously:FeatureLogicResultUI SafetyPromise.race + forceCleanup()Menu, Resign, and Back buttons will never hang again.Phonetics.replace(/\ba\b/gi, 'Ay')The S9+ will clearly say "Ay 4" instead of "uh 4".In-Game Flowif (!cleaned) return;"Empty Transcript" errors won't kill the mic session.Greedy ListenerisMuted flag during TTSSystem beeps are eliminated during training.🚀 Ready for the Final SyncSince you've had a break and Replit has the tools ready:Update voice.ts with the "Bulletproof" stopAndWait above.Run the Build: npm run build && npx cap sync android.Compile the APK: cd android && ./gradlew assembleDebug.

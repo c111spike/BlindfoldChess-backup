@@ -1,0 +1,84 @@
+1. Fix Session Zombie Logic (client/src/lib/voice.ts)
+We will modify the VoiceRecognition class and the VoiceSessionController to ensure every game starts with a clean slate.
+
+Implement clearPendingForSession: Add this to VoiceSessionController to stop stale restarts.
+
+Deep Cleanup in stop(): Unregister from the coordinator before killing the hardware.
+
+S9+ Settle Delay: Increase resumeDelayMs from 250ms to 350ms.
+
+TypeScript
+
+// Add to VoiceSessionController class in voice.ts
+clearPendingForSession(sessionId: string): void {
+  this.pendingRestarts = this.pendingRestarts.filter(id => id !== sessionId);
+}
+
+// Updated VoiceRecognition.stop method in voice.ts
+async stop() {
+  this.shouldBeListening = false;
+  
+  // 1. Clear coordinator state first
+  voiceController.setActive(VoiceRecognition.SESSION_ID, false);
+  voiceController.clearPendingForSession(VoiceRecognition.SESSION_ID);
+  voiceController.unregister(VoiceRecognition.SESSION_ID);
+  this.isRegistered = false;
+
+  // 2. Hardware Cleanup
+  if (this.restartTimeout) {
+    clearTimeout(this.restartTimeout);
+    this.restartTimeout = null;
+  }
+  
+  if (isNative && this.nativeAvailable) {
+    try {
+      await CapacitorSpeechRecognition.stop();
+      // Increase delay to 300ms for S9+ hardware release
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } catch (e) {
+      console.log('Stop error:', e);
+    }
+  }
+  
+  this.isListening = false;
+  this.isPaused = false;
+  if (this.onListeningChange) this.onListeningChange(false);
+}
+2. Solve the TTS Echo Loop (client/src/pages/training.tsx)
+In the Voice Move Master section, we must simplify the feedback to prevent the mic from "hearing" the bot and scoring a wrong move.
+
+Action: Change the correct answer flow to use a haptic "ping" instead of a long sentence.
+
+TypeScript
+
+// Inside VoiceMoveMasterGame component in training.tsx
+if (matchesMove(input, position.move)) {
+  // 1. Immediate Success Haptic (The "Ping")
+  Haptics.notification({ type: NotificationType.Success }).catch(() => {});
+  setFeedback({ text: 'Correct!', correct: true });
+  
+  // 2. Minimal verbal feedback
+  await speak('Correct!'); // Removed "Next move" sentence
+  
+  // 3. Move to next position without additional speech
+  const newPos = getRandomPosition();
+  setPosition(newPos);
+  setTimeout(() => setFeedback(null), 500);
+}
+3. Expand Color Blitz Phonetics (client/src/pages/training.tsx)
+We will upgrade the handleVoiceTranscript in ColorBlitzGame to be more forgiving of mishearings.
+
+TypeScript
+
+const handleVoiceTranscript = useCallback((transcript: string) => {
+  const text = transcript.toLowerCase();
+  
+  const lightSynonyms = ['light', 'white', 'lie', 'lye', 'lite', 'lied', 'liked', 'right', 'bright'];
+  const darkSynonyms = ['dark', 'black', 'bark', 'duck', 'dock', 'doc'];
+
+  if (lightSynonyms.some(s => text.includes(s))) {
+    handleAnswerRef.current?.('light');
+  } else if (darkSynonyms.some(s => text.includes(s))) {
+    handleAnswerRef.current?.('dark');
+  }
+}, []);

@@ -1,0 +1,57 @@
+instead of turning off the mic on/off constantly. what if we kept it running?
+
+simulchesscode
+Custom Gem
+This is a "Pro-Tier" architectural pivot. You’ve hit on the Continuous Stream model, which is how professional voice assistants (like Alexa or Siri) work. Instead of toggling the hardware power (which causes the S9+ to crash, beep, and lock up), we keep the hardware "Hot" and move the logic into a Software Mute.
+
+🛠️ The "Always-On" Strategy (Iteration 27)
+In this model, the start() command is only called once when the screen loads. The stop() command is only called when the screen unmounts.
+
+1. The Software Mute (voice.ts)
+We add an isMuted flag. When the bot speaks, we don't kill the mic; we just tell the code to "throw away" any transcripts it hears.
+
+TypeScript
+// Inside VoiceMasterEngine in voice.ts
+private isMuted: boolean = false;
+
+setMute(val: boolean) {
+  this.isMuted = val;
+  console.log(`[Voice] Software Mute: ${val}`);
+}
+
+// In the transcript handler
+onResult(transcript: string) {
+  if (this.isMuted) return; // Mic is physically on, but we ignore the data
+  this.processMove(transcript);
+}
+2. In-Game "Smooth Flow" (game.tsx)
+No more setTimeout restarts. No more "Mic Paused" toasts.
+
+Before Bot Speaks: voiceRecognition.setMute(true);
+
+Bot Speaks: "e4 to e5."
+
+After Bot Speaks: voiceRecognition.setMute(false);
+
+Result: The mic stays green the whole time. The S9+ never has to "re-initialize" its audio driver, so the 2nd move works instantly.
+
+3. Training & Reconstruction Handover
+Since the hardware is always on, the transition from Game → Reconstruction becomes a simple software hand-off.
+
+We stop the "Move Parser" logic.
+
+We start the "Reconstruction Parser" logic.
+
+The hardware never blinks.
+
+🚀 Why this solves your S9+ issues:
+No More Beeps: System beeps only happen when the hardware starts/stops. If it never stops, it never beeps.
+
+No More 1-Move Limit: The "Paused" state disappears because the hardware never leaves the LISTENING state.
+
+No More Zombies: Because we aren't constantly creating new sessions, there are no "old" sessions left to clog the driver.
+
+Reconstruction "Just Works": Since you already proved Reconstruction works when the mic is left alone, this "Always-On" approach makes the whole app behave like Reconstruction.
+
+⚠️ The One Challenge: "Self-Hearing"
+The only risk is the mic "hearing" the bot speak its own move. We solve this by adding a 400ms "Mute Tail" after the bot finishes speaking to ensure the echo has cleared before we start listening to you again.

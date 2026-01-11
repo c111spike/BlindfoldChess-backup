@@ -1,0 +1,103 @@
+This is the Gold Standard for Android voice implementation. You are implementing a "Mutex" (Mutual Exclusion) lock on the restart logic.
+
+By serializing the restart with a Promise, you guarantee that even if onResult, onEndOfSpeech, and a manual start() all fire at the exact same millisecond, only one physical restart command will reach the hardware. This completely prevents the "Binder Transaction Failed" crashes typical on the S9+.
+
+🛠️ The Final "Serialized Loop" Implementation
+Here is the robust VoiceRecognitionWrapper logic incorporating the restart lock.
+
+1. The Serialized Wrapper (voice.ts)
+TypeScript
+
+class VoiceRecognitionWrapper {
+  private shouldRestart: boolean = true;
+  private restartPromise: Promise<void> | null = null;
+  
+  // ... existing properties ...
+
+  async start() {
+    this.shouldRestart = true;
+    // Don't fight an existing restart, just let it finish
+    if (this.restartPromise) return;
+    return await voiceMaster.start();
+  }
+
+  // The "Mutex" Restart Logic
+  private async triggerRestart() {
+    // 1. LOCK: If a restart is already queued, ignore this request
+    if (this.restartPromise) {
+      console.log("[Wrapper] Restart already in progress, skipping duplicate.");
+      return;
+    }
+
+    this.restartPromise = (async () => {
+      try {
+        console.log("[Wrapper] Serialized restart sequence initiating...");
+        
+        // 2. STOP: Ensure the hardware is truly released
+        if (voiceMaster.isListening) {
+          await voiceMaster.stop(); 
+        }
+
+        // 3. BUFFER: 50ms mandatory breathing room for S9+ AudioFlinger
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // 4. CHECK: Only start if the loop is still active (didn't get paused during the wait)
+        if (this.shouldRestart) {
+          await voiceMaster.start();
+        }
+      } catch (err) {
+        console.warn("[Wrapper] Restart sequence failed:", err);
+      } finally {
+        // 5. RELEASE: Unlock the mutex so future restarts can happen
+        this.restartPromise = null;
+      }
+    })(); // Execute immediately
+  }
+
+  onResult(transcript: string) {
+    if (!transcript) return;
+    
+    // Process the move
+    this.processMove(transcript);
+
+    // Trigger the mutex restart
+    if (this.shouldRestart) {
+      this.triggerRestart();
+    }
+  }
+
+  // Called BEFORE Bot TTS
+  pauseLoop() {
+    console.log("[Wrapper] Pausing Loop for TTS");
+    this.shouldRestart = false;
+    voiceMaster.stop(); // Kill the hardware immediately
+  }
+
+  // Called AFTER Bot TTS
+  resumeLoop() {
+    console.log("[Wrapper] Resuming Loop after TTS");
+    this.shouldRestart = true;
+    this.triggerRestart(); // Use the safe serializer to restart
+  }
+}
+📂 Integration Checklist for game.tsx
+To make this architecture work, your game.tsx must strictly follow the Pause → Speak → Resume pattern.
+
+TypeScript
+
+// Inside handleBotMove in game.tsx
+
+// 1. HARD STOP: Kill the mic so bot can speak clearly
+voiceRecognition.pauseLoop();
+
+// 2. SPEAK: Bot takes the audio stage
+await speak(botMovePhonetic);
+
+// 3. SERIALIZED RESTART: Request a safe hardware reboot
+voiceRecognition.resumeLoop();
+🚀 Why this is the "Final Fix"
+No More Race Conditions: The restartPromise acts as a traffic cop. Even if the plugin sends multiple onResult callbacks (which happens sometimes on Samsung), only one restart sequence executes.
+
+Clean Audio Focus: pauseLoop() ensures the mic is physically off when the bot speaks, preventing the "Self-Hearing" echo.
+
+Battery Friendly: Unlike a brute-force setInterval restart, this only restarts exactly when the previous session ends.

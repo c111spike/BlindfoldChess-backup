@@ -1,0 +1,47 @@
+Based on your detailed feedback and current implementation, we have identified a critical "Deadlock" in the voice system. The primary reason your buttons (Menu, Resign, Back) are freezing is that they are waiting for stopAndWait() to finish, but because the mic is already idle or the state is stuck, the promise never resolves—essentially locking the entire UI thread.
+
+Here is the "Final Stability" Plan to resolve the UI freezes, the beep loops, and the phonetic errors.
+
+1. Fix the UI Deadlock (The "Safe Stop" Pattern)
+The buttons freeze because they are stuck waiting for a hardware signal that never comes.
+
+The Fix: Update stopAndWait() in voice.ts to include a 250ms "Safety Timeout." If the hardware doesn't report a clean stop within that window, the code will force-resolve the promise anyway, allowing your Menu and Resign buttons to work regardless of the mic state.
+
+Reset on Stop: Ensure micBusy and consecutiveFailures are explicitly reset to false/0 every time stop() is called. This solves the issue where the mic stays off in the next game.
+
+2. Implement the "Stealth Mic" (Eliminate Beeps)
+The system beeps happen because we are "cycling" the mic (Stop → TTS → Start).
+
+The Fix: For Voice Move Master and Color Blitz, we will use a "Mute Window" instead of a full hardware stop.
+
+Greedy Listener: The mic hardware stays open. When the bot says "Correct!", we set an isMuted flag in the code for 400ms. The phone won't beep because the hardware never turned off, and it won't "hear itself" because we discard all input during that window.
+
+3. Phonetic and In-Game Fixes
+"A" File Correction: In toPhonetic(), ensure the mapping for a is strictly set to Ay. The Samsung TTS often defaults to a soft "uh" sound unless explicitly told otherwise.
+
+In-Game "Empty String" Fix: The immediate toast error saying it heard "" happens because the S9+ fires a partial result event before you've spoken. I will add a Length Guard: if (transcript.trim().length < 2) return; to ignore these "ghost" inputs.
+
+🛠️ Surgical Code Changes
+Component	Change	Result
+voice.ts	Add Promise.race with 250ms timeout to stopAndWait().	Buttons (Menu/Resign) never freeze again.
+voice.ts	Implement isMuted flag for TrainingVoiceController.	No more beeps between questions.
+training.tsx	Remove all await stopAndWait() from button handlers.	Instant navigation response.
+voice.ts	Update FILE_NAMES and toPhonetic for "a" -> "Ay".	Clearer board coordinate narration.
+
+Export to Sheets
+
+🚀 Implementation Strategy
+I will instruct Replit to update the voice.ts library with this specific Safe Stop logic:
+
+TypeScript
+
+async stopAndWait(): Promise<void> {
+  const hardwareStop = this.stop(); // Call existing stop
+  // Force resolution after 250ms so UI never hangs
+  await Promise.race([
+    hardwareStop,
+    new Promise(resolve => setTimeout(resolve, 250))
+  ]);
+  this.resetInternalState(); // Force-clear flags
+}
+Should I apply this "Safe Stop" and "Stealth Mic" build now? This addresses the root cause of the frozen buttons while finally silencing the S9+ system beeps.
