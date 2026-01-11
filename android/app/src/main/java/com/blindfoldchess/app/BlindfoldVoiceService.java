@@ -34,11 +34,13 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
     private TextToSpeech tts;
     private Intent recognizerIntent;
     private AudioManager audioManager;
-    private AudioFocusRequest focusRequest;
+    private AudioFocusRequest focusRequest; 
 
+    // STATE FLAGS
     private boolean isListening = false;
+    private boolean isTtsActive = false; // Prevents Mic/TTS collision
     private boolean isTtsReady = false;
-    private boolean isSessionActive = false;
+    private boolean isSessionActive = false; 
     private boolean wasListeningBeforeInterrupt = false;
 
     public interface VoiceCallback {
@@ -63,32 +65,25 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // Don't start foreground immediately - wait for startSession() call from JS
-        // This prevents the notification from appearing until a voice game actually starts
-        return START_NOT_STICKY; // Don't restart if killed - requires JS client to restart
+        return START_NOT_STICKY; 
     }
 
     private boolean requestAudioFocus() {
         if (audioManager == null) return false;
-
         int result;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             AudioAttributes playbackAttributes = new AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_GAME)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build();
-
             focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
                     .setAudioAttributes(playbackAttributes)
                     .setAcceptsDelayedFocusGain(true)
                     .setOnAudioFocusChangeListener(this)
                     .build();
-
             result = audioManager.requestAudioFocus(focusRequest);
         } else {
-            result = audioManager.requestAudioFocus(this,
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE);
+            result = audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE);
         }
         return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
     }
@@ -106,19 +101,18 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
     public void onAudioFocusChange(int focusChange) {
         switch (focusChange) {
             case AudioManager.AUDIOFOCUS_GAIN:
-                Log.d(TAG, "Audio Focus GAINED");
-                if (isSessionActive && wasListeningBeforeInterrupt) {
+                if (isSessionActive && wasListeningBeforeInterrupt && !isTtsActive) {
                     startListeningInternal();
                 }
                 break;
             case AudioManager.AUDIOFOCUS_LOSS:
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                Log.d(TAG, "Audio Focus LOST");
                 wasListeningBeforeInterrupt = isListening;
                 stopListeningInternal();
                 if (tts != null && tts.isSpeaking()) {
                     tts.stop();
+                    isTtsActive = false;
                 }
                 break;
         }
@@ -129,7 +123,6 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID, "Blindfold Chess Voice", NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Keeps the chess voice engine running in the background");
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
         }
     }
@@ -137,12 +130,12 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
     public void startForegroundSession() {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Blindfold Chess Active")
-            .setContentText("Listening for moves...")
+            .setContentText("Voice engine running")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build();
-
+        
         try {
             startForeground(NOTIFICATION_ID, notification);
             isSessionActive = true;
@@ -150,14 +143,12 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
             Log.e(TAG, "Failed to start foreground: " + e.getMessage());
         }
     }
-
+    
     public void stopSession() {
         isSessionActive = false;
         stopListeningInternal();
         stopForeground(true);
         abandonAudioFocus();
-        // NOTE: Don't null callback here - it will be re-established by startSession
-        // Don't call stopSelf() - service stays bound for quick restart
     }
 
     @Override
@@ -175,20 +166,20 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
                 isTtsReady = true;
                 tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                     @Override
-                    public void onStart(String utteranceId) {
-                        stopListeningInternal();
+                    public void onStart(String utteranceId) { 
+                        isTtsActive = true;
+                        stopListeningInternal(); 
                     }
-
                     @Override
                     public void onDone(String utteranceId) {
+                        isTtsActive = false;
                         if ("KEEP_LISTENING".equals(utteranceId) && isSessionActive) {
                             new Handler(Looper.getMainLooper()).post(() -> startListeningInternal());
                         }
                     }
-
                     @Override
                     public void onError(String utteranceId) {
-                        Log.e(TAG, "TTS Error");
+                        isTtsActive = false;
                     }
                 });
             }
@@ -199,7 +190,6 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
         if (speechRecognizer != null) speechRecognizer.destroy();
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         speechRecognizer.setRecognitionListener(this);
-
         recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US);
@@ -210,42 +200,34 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
     public void setCallback(VoiceCallback cb) { this.callback = cb; }
 
     public void speakAndListen(String text) {
-        if (!isTtsReady || !isSessionActive) {
-            if (callback != null) callback.onGameLog("TTS Not Ready or Session Inactive");
-            return;
-        }
+        if (!isTtsReady) return;
         requestAudioFocus();
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "KEEP_LISTENING");
     }
-
+    
     public void speakOnly(String text) {
-        if (!isTtsReady) {
-            if (callback != null) callback.onGameLog("TTS Not Ready");
-            return;
-        }
+        if (!isTtsReady) return;
         requestAudioFocus();
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "JUST_SPEAK");
     }
-
-    public void startListening() {
-        if (isSessionActive) {
+    
+    public void startListening() { 
+        if (isSessionActive && !isTtsActive) {
             requestAudioFocus();
-            startListeningInternal();
+            startListeningInternal(); 
         }
     }
-
+    
     public void stopListening() { stopListeningInternal(); }
 
     private void startListeningInternal() {
         new Handler(Looper.getMainLooper()).post(() -> {
-            if (!isListening && speechRecognizer != null && isSessionActive) {
+            if (!isListening && speechRecognizer != null && isSessionActive && !isTtsActive) {
                 try {
                     speechRecognizer.startListening(recognizerIntent);
                     isListening = true;
-                    if (callback != null) callback.onGameLog("Mic Started");
                 } catch (Exception e) {
-                    Log.e(TAG, "Start listening failed", e);
-                    initSpeechRecognizer();
+                    initSpeechRecognizer(); 
                 }
             }
         });
@@ -267,26 +249,26 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
         if (matches != null && !matches.isEmpty()) {
             if (callback != null) callback.onSpeechResult(matches.get(0));
         }
-        // AUTO-RESTART: Keep listening after processing results
-        if (isSessionActive) {
-            startListeningInternal();
+        
+        // AUTO-RESTART LOOP: If session active and TTS isn't about to start, restart mic
+        if (isSessionActive && !isTtsActive) {
+             new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                 if (isSessionActive && !isTtsActive) {
+                     startListeningInternal();
+                 }
+             }, 100); 
         }
     }
 
     @Override
     public void onError(int error) {
         isListening = false;
-        String errorMsg = "Mic Error: " + error;
-
         if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-            if (isSessionActive) startListeningInternal();
+            if (isSessionActive && !isTtsActive) startListeningInternal();
         } else {
-            Log.w(TAG, errorMsg);
-            if (callback != null) callback.onGameLog(errorMsg);
-
-            if (error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
-                new Handler(Looper.getMainLooper()).postDelayed(this::startListeningInternal, 500);
-            }
+             if (error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
+                 new Handler(Looper.getMainLooper()).postDelayed(this::startListeningInternal, 500);
+             }
         }
     }
 
