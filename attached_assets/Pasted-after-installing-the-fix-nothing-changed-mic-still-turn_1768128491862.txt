@@ -1,0 +1,243 @@
+after installing the fix
+
+
+
+nothing changed. mic still turns off after first move in game.
+
+in my training games after I say the move in voice move master or light/white dark/black in color blitz. the mic just turns off
+
+Based on the behavior you described—mic turning off specifically after a voice event (like a move) in both main and training games—it is highly probable you are hitting a "Late Stop Event" collision.
+
+The Cause: When triggerRestart runs, it calls stop(), waits, and then start(). On the S9+, the system's stopped event often arrives slowly—sometimes after the new start() command has already finished.
+
+Code: Stop (old session).
+
+Code: Start (new session).
+
+System Event: "Stopped" (referring to step 1).
+
+Your Listener: "Oh, the mic stopped! I must restart it!" -> Calls stop() on the fresh session.
+
+Result: The mic turns on briefly, then commits suicide.
+
+The Fix: We need to teach the engine to ignore 'stopped' events that we caused ourselves. I will add a simple expectedStops counter.
+
+Here is the corrected client/src/lib/voice.ts.
+
+client/src/lib/voice.ts
+TypeScript
+//
+
+import { Capacitor } from '@capacitor/core';
+import { SpeechRecognition as CapacitorSpeechRecognition } from '@capacitor-community/speech-recognition';
+import { SpeechSynthesis as CapacitorSpeechSynthesis } from '@capgo/capacitor-speech-synthesis';
+import { voiceController } from './voice'; // Ensure correct import path if needed
+
+// ... (Keep existing imports and pulseHaptic/pulseHapticLight functions) ...
+
+// ... (Keep VoiceSessionController and VoiceRegistryImpl classes exactly as they were) ...
+
+// ========================================
+// UNIFIED VOICE MASTER ENGINE
+// ========================================
+
+// ... (Keep VoiceMode, VoiceMasterConfig interfaces) ...
+
+class VoiceMasterEngine {
+  private isListening: boolean = false;
+  private shouldBeListening: boolean = false;
+  private config: VoiceMasterConfig | null = null;
+  private listenerHandle: { remove: () => Promise<void> } | null = null;
+  private stateListenerHandle: { remove: () => Promise<void> } | null = null;
+  private webRecognition: SpeechRecognition | null = null;
+  private restartTimeout: ReturnType<typeof setTimeout> | null = null;
+  private availabilityChecked: boolean = false;
+  private isAvailable: boolean = false;
+  
+  // Android S9+ stability
+  private lastErrorTime: number = 0;
+  private consecutiveFailures: number = 0;
+  private micBusy: boolean = false;
+  private onMicBusyChange: ((busy: boolean) => void) | null = null;
+  private onRetryNeeded: (() => void) | null = null;
+  
+  // Session management
+  private sessionId: string = 'master';
+  private isRegistered: boolean = false;
+  private isPaused: boolean = false;
+  
+  // Move mode debouncing
+  private captureDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
+  private pendingCaptureTranscript: string = '';
+  private static readonly CAPTURE_DEBOUNCE_MS = 2000;
+  private static readonly MAX_CONSECUTIVE_FAILURES = 3;
+  
+  // GOLD STANDARD: Mutex-based restart serialization
+  private shouldRestart: boolean = true;
+  private restartPromise: Promise<void> | null = null;
+  private isStarting: boolean = false;
+  
+  // NEW: "Ghost Buster" - Counter for stop events we triggered intentionally
+  private expectedStops: number = 0;
+  
+  // STEALTH MIC
+  private isMuted: boolean = false;
+  private muteTimeout: ReturnType<typeof setTimeout> | null = null;
+  
+  // ... (checkAvailability, setOnMicBusyChange, setOnRetryNeeded, isMicBusy, resetMicBusy, mute, setMute, getIsMuted - NO CHANGES) ...
+
+  /**
+   * GOLD STANDARD: The "Mutex" Restart Logic (FIRE-AND-FORGET)
+   * Includes "Ghost Buster" logic to ignore late stop events
+   */
+  private triggerRestart(): void {
+    if (this.restartPromise) {
+      console.log('[VoiceMaster] Restart already in progress, skipping duplicate.');
+      return;
+    }
+
+    this.restartPromise = (async () => {
+      try {
+        console.log('[VoiceMaster] Serialized restart sequence initiating...');
+        
+        // 1. SIGNAL INTENT: We are stopping intentionally, so ignore the resulting event
+        this.expectedStops++;
+        
+        // 2. STOP
+        try {
+          await CapacitorSpeechRecognition.stop();
+        } catch (e) { 
+          // If stop failed, we didn't actually cause a stop event, so decrement
+          this.expectedStops = Math.max(0, this.expectedStops - 1);
+        }
+
+        // 3. BUFFER: Increased to 100ms for S9+ safety
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // 4. START
+        if (this.shouldRestart && !this.micBusy) {
+          try {
+            await this.startNative();
+          } catch (startErr) {
+            console.warn('[VoiceMaster] triggerRestart start failed, scheduling retry');
+            setTimeout(() => {
+              if (this.shouldRestart && !this.micBusy && !this.restartPromise) {
+                this.triggerRestart();
+              }
+            }, 200);
+          }
+        }
+      } catch (err) {
+        console.warn('[VoiceMaster] Restart sequence failed:', err);
+      } finally {
+        this.restartPromise = null;
+      }
+    })();
+  }
+  
+  // ... (pauseLoop, resumeLoop, getShouldRestartLoop, start, setLegalMoves, processTranscript, pauseInternal, resumeInternal - NO CHANGES from previous fix) ...
+  
+  private async startNative(): Promise<boolean> {
+    if (this.isStarting) {
+      console.log('[VoiceMaster] startNative blocked: Already starting');
+      return false;
+    }
+
+    if (this.micBusy) {
+      console.log('[VoiceMaster] Mic is busy, not starting');
+      return false;
+    }
+    
+    const timeSinceLastError = Date.now() - this.lastErrorTime;
+    if (timeSinceLastError < 3000 && this.lastErrorTime > 0) {
+      if (!this.restartTimeout) this.scheduleRestart();
+      return true;
+    }
+    
+    this.isStarting = true; // LOCK
+
+    try {
+      if (this.listenerHandle) {
+        await this.listenerHandle.remove();
+        this.listenerHandle = null;
+      }
+      
+      this.listenerHandle = await CapacitorSpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
+        if (!this.shouldRestart) return;
+        if (data.matches && data.matches.length > 0 && this.shouldBeListening) {
+          this.consecutiveFailures = 0;
+          this.processTranscript(data.matches[0]);
+          if (this.shouldRestart) this.triggerRestart();
+        }
+      });
+      
+      if (this.stateListenerHandle) {
+        await this.stateListenerHandle.remove();
+        this.stateListenerHandle = null;
+      }
+      
+      this.stateListenerHandle = await CapacitorSpeechRecognition.addListener('listeningState', (state: { status: string }) => {
+        if (state.status === 'stopped') {
+          // GHOST BUSTER: Did we cause this stop?
+          if (this.expectedStops > 0) {
+            console.log('[VoiceMaster] Ignoring expected stop event');
+            this.expectedStops--;
+            return;
+          }
+          
+          this.isListening = false;
+          if (this.config?.onListeningChange) {
+            this.config.onListeningChange(false);
+          }
+          
+          // Genuine OS stop -> Restart
+          if (this.shouldBeListening && this.shouldRestart && !this.micBusy) {
+            console.log('[VoiceMaster] Detected OS stop, restarting...');
+            this.triggerRestart();
+          }
+        } else if (state.status === 'started') {
+          this.isListening = true;
+          if (this.config?.onListeningChange) {
+            this.config.onListeningChange(true);
+          }
+        }
+      });
+      
+      await CapacitorSpeechRecognition.start({
+        language: 'en-US',
+        partialResults: true,
+        popup: false,
+      });
+      
+      this.isListening = true;
+      this.consecutiveFailures = 0;
+      await pulseHapticLight();
+      return true;
+    } catch (e) {
+      console.error('[VoiceMaster] Failed to start native:', e);
+      this.lastErrorTime = Date.now();
+      this.consecutiveFailures++;
+      
+      if (this.consecutiveFailures >= VoiceMasterEngine.MAX_CONSECUTIVE_FAILURES) {
+        this.micBusy = true;
+        this.isListening = false;
+        if (this.onMicBusyChange) this.onMicBusyChange(true);
+        if (this.onRetryNeeded) this.onRetryNeeded();
+        return false;
+      }
+      
+      if (this.shouldBeListening) {
+        this.scheduleRestart();
+      }
+      return false;
+    } finally {
+      this.isStarting = false; // UNLOCK
+    }
+  }
+  
+  // ... (rest of class remains same) ...
+}
+
+export const voiceMaster = new VoiceMasterEngine();
+// ... (rest of file) ...
+Note: Ensure you keep the game.tsx changes (removing manual controls) from the previous step, as they are still required for the bot games. This new fix solves the "turning off" issue in training games.

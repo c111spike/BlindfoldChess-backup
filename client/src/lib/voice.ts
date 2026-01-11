@@ -1583,6 +1583,9 @@ class VoiceMasterEngine {
   // GATEKEEPER FIX: Prevent UI and background loop collision
   private isStarting: boolean = false;
   
+  // GHOST BUSTER: Counter for intentional stops - ignore late 'stopped' events
+  private expectedStops: number = 0;
+  
   // STEALTH MIC: Mute window to avoid stop/start beeps
   private isMuted: boolean = false;
   private muteTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -1716,18 +1719,23 @@ class VoiceMasterEngine {
       try {
         console.log('[VoiceMaster] Serialized restart sequence initiating...');
         
+        // GHOST BUSTER: Signal we're stopping intentionally - ignore the resulting event
+        this.expectedStops++;
+        console.log('[VoiceMaster] triggerRestart: expectedStops incremented to', this.expectedStops);
+        
         // 2. STOP: Ensure the hardware is truly released
         // Note: isListening may be stale, always try to stop
         try {
           await CapacitorSpeechRecognition.stop();
           console.log('[VoiceMaster] triggerRestart: hardware stopped');
         } catch (e) {
-          // Expected on S9+ - may already be stopped or in bad state
-          console.log('[VoiceMaster] triggerRestart stop error (expected):', e);
+          // If stop failed, we didn't actually cause a stop event, so decrement
+          this.expectedStops = Math.max(0, this.expectedStops - 1);
+          console.log('[VoiceMaster] triggerRestart stop error, expectedStops decremented to', this.expectedStops);
         }
 
-        // 3. BUFFER: 50ms mandatory breathing room for S9+ AudioFlinger
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // 3. BUFFER: 100ms mandatory breathing room for S9+ AudioFlinger (increased from 50ms)
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         // 4. CHECK: Only start if the loop is still active (didn't get paused during the wait)
         if (this.shouldRestart && !this.micBusy) {
@@ -2094,17 +2102,30 @@ class VoiceMasterEngine {
         this.stateListenerHandle = null;
       }
       this.stateListenerHandle = await CapacitorSpeechRecognition.addListener('listeningState', (state: { status: string }) => {
-        console.log('[VoiceMaster] State changed:', state.status, 'shouldRestart:', this.shouldRestart, 'isListening:', this.isListening);
+        console.log('[VoiceMaster] State changed:', state.status, 'shouldRestart:', this.shouldRestart, 'isListening:', this.isListening, 'expectedStops:', this.expectedStops);
         if (state.status === 'stopped') {
-          // NATIVE EVENT: This is the authoritative source for isListening state
+          // GHOST BUSTER: Was this stop caused by us (triggerRestart)?
+          if (this.expectedStops > 0) {
+            console.log('[VoiceMaster] Ignoring expected stop event (expectedStops=' + this.expectedStops + ')');
+            this.expectedStops--;
+            // Still update state, but DON'T trigger restart - we're handling it ourselves
+            this.isListening = false;
+            if (this.config?.onListeningChange) {
+              this.config.onListeningChange(false);
+            }
+            return; // Don't trigger restart - triggerRestart will handle start
+          }
+          
+          // GENUINE OS STOP: This is an unexpected stop from the system
+          console.log('[VoiceMaster] Genuine OS stop detected');
           this.isListening = false;
           if (this.config?.onListeningChange) {
             this.config.onListeningChange(false);
           }
           // GOLD STANDARD: If loop should continue, trigger restart
-          // This handles late stopped events and cases where partialResults didn't fire
+          // This handles genuine OS stops and cases where partialResults didn't fire
           if (this.shouldBeListening && this.shouldRestart && !this.micBusy) {
-            console.log('[VoiceMaster] Restart via listeningState handler');
+            console.log('[VoiceMaster] Restart via listeningState handler (genuine stop)');
             this.triggerRestart();
           }
         } else if (state.status === 'started') {
