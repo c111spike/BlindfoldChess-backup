@@ -1479,10 +1479,6 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           
           if (voiceOutputEnabled) {
             isTtsSpeaking.current = true;
-            // ALWAYS-ON MIC: Mute instead of stop - hardware stays hot
-            if (voiceInputEnabled) {
-              await voiceRecognition.pauseLoop();
-            }
             
             const isCheck = gameRef.current.isCheck();
             const isCheckmate = gameRef.current.isCheckmate();
@@ -1496,11 +1492,6 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               console.error('[Voice] TTS error:', e);
             } finally {
               isTtsSpeaking.current = false;
-              // ALWAYS-ON MIC: Unmute after TTS (400ms mute tail built-in for S9+ audio flinger)
-              if (voiceInputEnabled) {
-                await voiceRecognition.resumeLoop();
-                console.log('[Voice] TTS complete - unmuting mic (400ms tail)');
-              }
             }
           }
           

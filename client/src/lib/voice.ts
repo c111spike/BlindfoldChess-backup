@@ -1970,6 +1970,10 @@ class VoiceMasterEngine {
   
   private pauseInternal(): void {
     console.log(`[VoiceMaster] pauseInternal called - isListening=${this.isListening}, shouldBeListening=${this.shouldBeListening}`);
+    
+    // CRITICAL FIX: Kill the auto-restart loop immediately to prevent Audio Focus War
+    this.shouldRestart = false;
+    
     if (!this.isListening) {
       console.log('[VoiceMaster] Not pausing - already not listening');
       return;
@@ -2008,11 +2012,25 @@ class VoiceMasterEngine {
     }
     
     this.isPaused = false;
+    
+    // CRITICAL FIX: Re-enable auto-restart loop
+    this.shouldRestart = true;
+    
     console.log('[VoiceMaster] Resuming after TTS');
     
     if (isNative) {
-      const started = await this.startNative();
-      console.log(`[VoiceMaster] Resume startNative result: ${started}`);
+      // Wait for any pending restart to complete before triggering new one
+      if (this.restartPromise) {
+        console.log('[VoiceMaster] Waiting for pending restart to complete...');
+        try {
+          await this.restartPromise;
+        } catch (e) {
+          // Ignore errors from previous restart
+        }
+      }
+      
+      // Now trigger a fresh restart - guaranteed to run since restartPromise is null
+      this.triggerRestart();
     } else {
       this.startWeb();
     }
