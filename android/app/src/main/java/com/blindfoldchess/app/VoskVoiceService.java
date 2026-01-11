@@ -214,8 +214,9 @@ public class VoskVoiceService extends Service {
                                 mainHandler.post(() -> {
                                     if (callback != null) callback.onSpeechResult(finalText);
                                 });
-                                stopListeningInternal();
-                                return;
+                                // Reset for next utterance - continue listening
+                                hasSpeech = false;
+                                silenceStart = 0;
                             }
                         } else {
                             String partial = recognizer.getPartialResult();
@@ -238,11 +239,9 @@ public class VoskVoiceService extends Service {
                                     if (callback != null) callback.onSpeechResult(finalText);
                                 });
                             }
-                            stopListeningInternal();
-                            if (isSessionActive && !isTtsSpeaking) {
-                                mainHandler.postDelayed(() -> startListeningInternal(), 200);
-                            }
-                            return;
+                            // Reset for next utterance - continue listening
+                            hasSpeech = false;
+                            silenceStart = 0;
                         }
                     }
                 }
