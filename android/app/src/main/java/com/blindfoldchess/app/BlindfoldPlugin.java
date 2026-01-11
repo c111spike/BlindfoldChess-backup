@@ -211,6 +211,11 @@ public class BlindfoldPlugin extends Plugin {
     @PluginMethod
     public void startListening(PluginCall call) {
         if (isBound) {
+            // Check if session is active before starting
+            if (!voiceService.isSessionActive()) {
+                call.reject("Session not active");
+                return;
+            }
             voiceService.startListening();
             call.resolve();
         } else {

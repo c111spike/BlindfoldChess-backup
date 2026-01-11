@@ -197,6 +197,8 @@ public class BlindfoldVoiceService extends Service implements RecognitionListene
     }
     
     public void stopListening() { stopListeningInternal(); }
+    
+    public boolean isSessionActive() { return isSessionActive; }
 
     private void startListeningInternal() {
         new Handler(Looper.getMainLooper()).post(() -> {

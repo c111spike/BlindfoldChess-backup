@@ -1,0 +1,92 @@
+1. Update client/src/lib/nativeVoice.ts
+We add startListening to the interface so TypeScript knows it exists.
+
+TypeScript
+
+// client/src/lib/nativeVoice.ts
+import { registerPlugin } from '@capacitor/core';
+
+export interface BlindfoldNativePlugin {
+  startSession(): Promise<void>;
+  stopSession(): Promise<void>;
+  speakAndListen(options: { text: string }): Promise<void>;
+  
+  // NEW: Explicit command to wake up the mic WITHOUT speaking
+  startListening(): Promise<void>;
+  
+  checkPermissions(): Promise<{ mic: string; notify: string }>;
+  requestPermissions(): Promise<{ mic: string; notify: string }>;
+  addListener(eventName: 'onSpeechResult', listenerFunc: (data: { text: string }) => void): Promise<any>;
+  addListener(eventName: 'onGameLog', listenerFunc: (data: { message: string }) => void): Promise<any>;
+}
+
+const BlindfoldNative = registerPlugin<BlindfoldNativePlugin>('BlindfoldNative');
+export default BlindfoldNative;
+2. Update client/src/pages/game.tsx
+We update the onSpeechResult listener to ensure every possible branch ends with either speakAndListen() OR startListening().
+
+TypeScript
+
+// client/src/pages/game.tsx (Inside your useEffect)
+
+      // ... inside the Native Platform check ...
+      await BlindfoldNative.startSession();
+      
+      BlindfoldNative.addListener('onSpeechResult', async (data) => {
+        console.log("NATIVE VOICE:", data.text);
+        const text = data.text.trim(); // Clean input
+
+        // CASE 1: Empty or too short (Noise)
+        if (!text || text.length < 2) {
+            console.log("Voice: Input too short, restarting mic");
+            await BlindfoldNative.startListening();
+            return;
+        }
+
+        // CASE 2: Game not active (e.g. waiting in lobby)
+        if (!gameStarted && !gameRef.current) {
+            // Optional: Check for "Start Game" command here
+            console.log("Voice: No game active, restarting mic");
+            await BlindfoldNative.startListening();
+            return;
+        }
+
+        // ... Existing Move Parsing Logic ...
+        // (Assume you have logic that sets 'move', 'isAmbiguous', etc.)
+        
+        // --- THE "PING PONG" LOGIC ---
+        
+        if (move) {
+            // Valid Move Executed
+            if (isBotTurn) {
+                // Let the Bot speak (The "Speak" command restarts the mic)
+                // Logic handles this later in the bot response block
+                // BUT: If for some reason bot doesn't move immediately, we must ensure mic is live
+            } else {
+                 // Training Mode / Human vs Human
+                 // We heard the move, applied it, now listen for the next one immediately
+                 await BlindfoldNative.startListening();
+            }
+        } 
+        else if (isAmbiguous) {
+            // CASE 3: Ambiguous Move (e.g. "Rook to E1" when two rooks can go there)
+            // We MUST speak to ask for clarification, otherwise user is lost
+            await BlindfoldNative.speakAndListen({ text: "Ambiguous move, please specify source" });
+        } 
+        else {
+            // CASE 4: Invalid Move / Hallucination
+            // Silent Retry (Best for "Continuous" feel)
+            // If you want it to complain, use speakAndListen({text: "Invalid"})
+            console.log("Voice: Invalid move, silently restarting");
+            await BlindfoldNative.startListening();
+        }
+      });
+Bot Move Integration Note: Ensure your bot move logic (which calculates the bot's reply) calls speakAndListen. If there is any scenario where the bot "thinks" silently (e.g., pre-move delay), you must call startListening() during that delay, or the mic will be dead until the bot speaks.
+
+With these changes, the "Ping Pong" ball never drops.
+
+Java: Hears text -> Stops -> Sends to JS.
+
+JS: Analyzes text -> Sends "Speak" OR "Listen" command back to Java.
+
+Loop: Restored.

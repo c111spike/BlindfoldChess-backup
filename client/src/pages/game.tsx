@@ -828,6 +828,27 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       return;
     }
 
+    // Helper for robust mic restart with retry logic
+    const restartMicWithRetry = async (maxRetries = 3, delay = 200) => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          await BlindfoldNative.startListening();
+          console.log(`[NativeVoice] Mic restarted (attempt ${attempt})`);
+          return true;
+        } catch (err) {
+          console.warn(`[NativeVoice] startListening failed (attempt ${attempt}):`, err);
+          if (attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, delay * attempt));
+          }
+        }
+      }
+      // All retries failed, fall back to web voice
+      console.error('[NativeVoice] All mic restart attempts failed, falling back to web voice');
+      setNativeFallbackToWeb(true);
+      isNativeVoiceActive.current = false;
+      return false;
+    };
+
     const setupNativeVoice = async () => {
       try {
         // Check and request permissions
@@ -848,10 +869,18 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
           const transcript = data.text;
           const currentGame = gameRef.current;
-          if (!currentGame) return;
+          if (!currentGame) {
+            // No game context, restart mic for next input
+            restartMicWithRetry();
+            return;
+          }
 
           const cleaned = transcript.trim();
-          if (cleaned.length < 2) return;
+          if (cleaned.length < 2) {
+            // Empty/short input (noise), restart mic
+            restartMicWithRetry();
+            return;
+          }
 
           voiceCommandsRef.current++;
           setVoiceTranscript(transcript);
@@ -864,7 +893,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               BlindfoldNative.speakAndListen({ text: lastSpokenMove.current }).catch(() => {});
             } else {
               // No TTS, restart mic manually
-              BlindfoldNative.startListening().catch(() => {});
+              restartMicWithRetry();
             }
             return;
           }
@@ -900,18 +929,22 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
                 // PING PONG: Player move executed, bot will respond with speakAndListen
                 // But if voice output disabled, restart mic manually
                 if (!voiceOutputEnabled) {
-                  BlindfoldNative.startListening().catch(() => {});
+                  restartMicWithRetry();
                 }
               }
             } catch (e) {
               console.error('[NativeVoice] Move error:', e);
               // Move failed, restart mic
-              BlindfoldNative.startListening().catch(() => {});
+              restartMicWithRetry();
             }
           } else if (!result.move && !result.isAmbiguous) {
             // Invalid/unrecognized input, restart mic
             setVoiceTranscript(null);
-            BlindfoldNative.startListening().catch(() => {});
+            restartMicWithRetry();
+          } else if (result.isAmbiguous) {
+            // Ambiguous move (multiple possibilities), restart mic for clarification
+            setVoiceTranscript(null);
+            restartMicWithRetry();
           }
         });
 
