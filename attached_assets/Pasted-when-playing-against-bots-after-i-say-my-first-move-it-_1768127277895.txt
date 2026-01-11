@@ -1,0 +1,273 @@
+when playing against bots. after i say my first move. it moves the piece and pauses the mic. then the bot moves says the bot move. the mic does not get unpaused
+
+Which response is more helpful?
+Your choice will help Gemini give you more helpful responses. Loading the response may take a moment.
+Choice A
+The issue is a conflict between your Game Logic (game.tsx) and your Voice Engine (voice.ts).
+
+The Conflict:
+
+Game Logic: You explicitly call pauseLoop() before speak() and resumeLoop() immediately after.
+
+Voice Engine: The speak() function automatically pauses the mic via voiceController and resumes it after a 350ms delay (specifically tuning for the S9+).
+
+The Bug:
+
+game.tsx calls resumeLoop() immediately when TTS finishes. This restarts the mic.
+
+350ms later, the voiceController inside voice.ts also tries to restart the mic.
+
+This "Double Start" collision confuses the state machine, leaving shouldRestart or isListening in a broken state, effectively permanently muting the mic.
+
+The Fix: We will update voice.ts to handle the pause/resume logic correctly internally, and then remove the manual mic controls from game.tsx. The speak() function is smart enough to handle the S9+ requirements on its own.
+
+Step 1: Fix client/src/lib/voice.ts
+We need to apply the "Gatekeeper" fixes from before, AND update pauseInternal/resumeInternal to properly manage the shouldRestart flag so voiceController can do its job without external help.
+
+TypeScript
+// ... imports remain the same
+
+class VoiceMasterEngine {
+  // ... existing properties
+  
+  // 1. ADD: Gatekeeper Guard
+  private isStarting: boolean = false;
+
+  // ... (checkAvailability, setOnMicBusyChange, mute, setMute, getIsMuted remain same)
+
+  /**
+   * GOLD STANDARD: The "Mutex" Restart Logic (FIRE-AND-FORGET)
+   * Prevents double-starts and race conditions
+   */
+  private triggerRestart(): void {
+    if (this.restartPromise) {
+      console.log('[VoiceMaster] Restart already in progress, skipping duplicate.');
+      return;
+    }
+
+    this.restartPromise = (async () => {
+      try {
+        console.log('[VoiceMaster] Serialized restart sequence initiating...');
+        
+        try {
+          await CapacitorSpeechRecognition.stop();
+        } catch (e) { /* expected */ }
+
+        // Mandatory buffer for S9+ AudioFlinger
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // CHECK: Only start if loop is active and mic isn't busy
+        if (this.shouldRestart && !this.micBusy) {
+          try {
+            await this.startNative();
+          } catch (startErr) {
+            console.warn('[VoiceMaster] triggerRestart start failed, scheduling retry');
+            setTimeout(() => {
+              if (this.shouldRestart && !this.micBusy && !this.restartPromise) {
+                this.triggerRestart();
+              }
+            }, 200);
+          }
+        }
+      } catch (err) {
+        // ... error handling
+      } finally {
+        this.restartPromise = null;
+      }
+    })();
+  }
+
+  // ... (pauseLoop, resumeLoop, getShouldRestartLoop, start, setLegalMoves, processTranscript remain same)
+
+  // 2. UPDATE: pauseInternal must disable auto-restart
+  private pauseInternal(): void {
+    console.log(`[VoiceMaster] pauseInternal called...`);
+    // CRITICAL FIX: Ensure we stop auto-restart logic during TTS
+    this.shouldRestart = false; 
+    
+    if (!this.isListening) {
+      console.log('[VoiceMaster] Not pausing - already not listening');
+      return;
+    }
+    this.isPaused = true;
+    console.log('[VoiceMaster] Pausing for TTS');
+    
+    if (isNative) {
+      CapacitorSpeechRecognition.stop()
+        .catch(e => console.log('[VoiceMaster] Pause stop error:', e));
+    } else if (this.webRecognition) {
+      // ... web stop logic
+    }
+    this.isListening = false;
+    if (this.config?.onListeningChange) {
+      this.config.onListeningChange(false);
+    }
+  }
+  
+  // 3. UPDATE: resumeInternal must re-enable auto-restart and use Gatekeeper
+  private async resumeInternal(): Promise<void> {
+    console.log(`[VoiceMaster] resumeInternal called...`);
+    
+    if (!this.shouldBeListening) return;
+    if (this.isListening) return;
+    
+    this.isPaused = false;
+    // CRITICAL FIX: Re-enable auto-restart
+    this.shouldRestart = true;
+    
+    console.log('[VoiceMaster] Resuming after TTS');
+    
+    if (isNative) {
+      // CRITICAL FIX: Use triggerRestart() (Gatekeeper) instead of calling startNative() directly
+      this.triggerRestart();
+    } else {
+      this.startWeb();
+    }
+  }
+  
+  // 4. UPDATE: startNative with isStarting Guard
+  private async startNative(): Promise<boolean> {
+    if (this.isStarting) {
+      console.log('[VoiceMaster] startNative blocked: Already starting');
+      return false;
+    }
+
+    if (this.micBusy) {
+      console.log('[VoiceMaster] Mic is busy, not starting');
+      return false;
+    }
+    
+    // ... Lockout logic remains same ...
+    const timeSinceLastError = Date.now() - this.lastErrorTime;
+    if (timeSinceLastError < 3000 && this.lastErrorTime > 0) {
+       if (!this.restartTimeout) this.scheduleRestart();
+       return true;
+    }
+    
+    this.isStarting = true; // LOCK
+
+    try {
+      if (this.listenerHandle) {
+        await this.listenerHandle.remove();
+        this.listenerHandle = null;
+      }
+      
+      this.listenerHandle = await CapacitorSpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
+        if (!this.shouldRestart) return;
+        if (data.matches && data.matches.length > 0 && this.shouldBeListening) {
+          this.consecutiveFailures = 0;
+          this.processTranscript(data.matches[0]);
+          if (this.shouldRestart) this.triggerRestart();
+        }
+      });
+      
+      this.stateListenerHandle = await CapacitorSpeechRecognition.addListener('listeningState', (state: { status: string }) => {
+        if (state.status === 'stopped' && this.shouldBeListening && this.shouldRestart && !this.micBusy) {
+            this.triggerRestart();
+        }
+      });
+      
+      await CapacitorSpeechRecognition.start({
+        language: 'en-US',
+        partialResults: true,
+        popup: false,
+      });
+      
+      this.isListening = true;
+      this.consecutiveFailures = 0;
+      // ... haptic ...
+      return true;
+    } catch (e) {
+      console.error('[VoiceMaster] Failed to start native:', e);
+      this.lastErrorTime = Date.now();
+      this.consecutiveFailures++;
+      
+      if (this.consecutiveFailures >= VoiceMasterEngine.MAX_CONSECUTIVE_FAILURES) {
+        this.micBusy = true;
+        this.isListening = false;
+        if (this.onMicBusyChange) this.onMicBusyChange(true);
+        if (this.onRetryNeeded) this.onRetryNeeded();
+        return false;
+      }
+      
+      if (this.shouldBeListening) {
+        this.scheduleRestart();
+      }
+      return false;
+    } finally {
+      this.isStarting = false; // UNLOCK
+    }
+  }
+
+  // 5. UPDATE: scheduleRestart to use Gatekeeper
+  private scheduleRestart(): void {
+    const timeSinceLastError = Date.now() - this.lastErrorTime;
+    // ... lockout logic ...
+    
+    if (this.micBusy) return;
+    if (this.restartTimeout) clearTimeout(this.restartTimeout);
+    
+    this.restartTimeout = setTimeout(() => {
+      if (this.shouldBeListening && !this.micBusy) {
+        console.log('[VoiceMaster] Scheduled restart firing via Gatekeeper');
+        if (isNative) {
+          this.triggerRestart(); // SAFE
+        } else {
+          this.startWeb();
+        }
+      }
+    }, 500);
+  }
+
+  // ... (rest of class remains same)
+}
+Step 2: Cleanup client/src/pages/game.tsx
+Now that voice.ts handles the pause/resume cycle safely, remove the manual calls in game.tsx. This relies on speak() to handle the mic, which includes the necessary delays for your S9+.
+
+Remove the lines marked with <-- DELETE THIS:
+
+TypeScript
+// Inside handleStartGame or the bot move effect hook
+
+if (voiceOutputEnabled) {
+  isTtsSpeaking.current = true;
+  
+  // DELETE THIS BLOCK: Redundant pause
+  // if (voiceInputEnabled) {
+  //   await voiceRecognition.pauseLoop(); 
+  // }
+  
+  const isCheck = gameRef.current.isCheck();
+  // ... (move calculation) ...
+  const spokenMove = moveToSpeech(botMove.move, isCapture, isCheck, isCheckmate);
+  lastSpokenMove.current = spokenMove;
+  
+  try {
+    await speak(spokenMove);
+  } catch (e) {
+    console.error('[Voice] TTS error:', e);
+  } finally {
+    isTtsSpeaking.current = false;
+    
+    // DELETE THIS BLOCK: Redundant resume (and causes the race condition!)
+    // if (voiceInputEnabled) {
+    //   await voiceRecognition.resumeLoop();
+    //   console.log('[Voice] TTS complete - unmuting mic (400ms tail)');
+    // }
+  }
+}
+Why this works:
+
+speak() calls voiceController.onTTSStart().
+
+voiceController calls VoiceMaster.pauseInternal(), which now sets shouldRestart = false. Mic stops, no auto-restart.
+
+TTS speaks.
+
+TTS finishes. speak() calls voiceController.onTTSEnd().
+
+voiceController waits 350ms (S9+ safety).
+
+voiceController calls VoiceMaster.resumeInternal().
+
+resumeInternal sets shouldRestart = true and calls triggerRestart(). Mic restarts safely.
