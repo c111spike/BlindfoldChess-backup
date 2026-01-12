@@ -279,9 +279,8 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
 
   // Start/stop voice recognition based on voiceMode and gameState using BlindfoldNative
   useEffect(() => {
+    // Only setup when all conditions are met - cleanup handles stopping
     if (!isNativePlatform || !voiceMode || gameState !== 'playing') {
-      // Stop native session if conditions not met
-      stopNativeVoice();
       return;
     }
 
@@ -1127,11 +1126,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
 
   // Start/stop voice recognition based on gameState using BlindfoldNative
   useEffect(() => {
+    // Only setup when conditions are met - cleanup handles stopping
     if (!isNativePlatform || gameState !== 'playing') {
-      // Stop native session if conditions not met
-      if (gameState === 'ready') {
-        stopNativeVoice();
-      }
       return;
     }
 

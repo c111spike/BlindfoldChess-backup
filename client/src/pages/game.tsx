@@ -819,12 +819,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
 
   // NATIVE ANDROID VOICE LOOP - Uses BlindfoldNative plugin for 0ms mic restart
   useEffect(() => {
+    // Only setup when all conditions are met - cleanup handles stopping
     if (!isNativePlatform || !voiceInputEnabled || !gameStarted || !gameRef.current || gameResult !== null) {
-      // Stop native session if conditions not met
-      if (isNativeVoiceActive.current) {
-        BlindfoldNative.stopSession().catch(() => {});
-        isNativeVoiceActive.current = false;
-      }
       return;
     }
 

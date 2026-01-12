@@ -289,6 +289,9 @@ public class VoskVoiceService extends Service {
     }
 
     private void stopListeningInternal() {
+        // CRITICAL FIX: Cancel any pending start request
+        pendingListeningRequest = false;
+        
         isListening = false;
         
         if (audioRecord != null) {
