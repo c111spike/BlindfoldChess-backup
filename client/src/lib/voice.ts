@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
-import { SpeechRecognition as CapacitorSpeechRecognition } from '@capacitor-community/speech-recognition';
 import { SpeechSynthesis as CapacitorSpeechSynthesis } from '@capgo/capacitor-speech-synthesis';
+import BlindfoldNative, { isVoicePermissionGranted, waitForVoiceReady } from './nativeVoice';
 
 // Cached Haptics module for efficient haptic feedback
 let cachedHapticsModule: typeof import('@capacitor/haptics') | null = null;
@@ -336,11 +336,10 @@ class VoiceRegistryImpl {
     // Remove native listeners only if no protected session
     if (isNative && !hasProtected) {
       try {
-        await CapacitorSpeechRecognition.stop();
-        await CapacitorSpeechRecognition.removeAllListeners();
-        console.log('[VoiceRegistry] Removed native listeners');
+        await BlindfoldNative.stopSession();
+        console.log('[VoiceRegistry] Stopped native session');
       } catch (e) {
-        console.log('[VoiceRegistry] removeAllListeners error:', e);
+        console.log('[VoiceRegistry] stopSession error:', e);
       }
     }
     
@@ -388,8 +387,7 @@ class VoiceRegistryImpl {
     
     if (isNative) {
       try {
-        await CapacitorSpeechRecognition.stop();
-        await CapacitorSpeechRecognition.removeAllListeners();
+        await BlindfoldNative.stopSession();
       } catch (e) {}
     }
     
@@ -635,8 +633,8 @@ export async function checkMicPermission(): Promise<MicPermissionStatus> {
   }
   
   try {
-    const status = await CapacitorSpeechRecognition.checkPermissions();
-    return status.speechRecognition as MicPermissionStatus;
+    const status = await BlindfoldNative.checkPermissions();
+    return status.mic as MicPermissionStatus;
   } catch (e) {
     console.error('[Voice] Error checking permissions:', e);
     return 'unknown';
@@ -663,22 +661,17 @@ export async function handleMicPermission(): Promise<boolean> {
   }
   
   try {
-    const status = await CapacitorSpeechRecognition.checkPermissions();
+    // Use BlindfoldNative for permission check/request
+    const status = await BlindfoldNative.checkPermissions();
     
-    if (status.speechRecognition === 'granted') {
+    if (status.mic === 'granted') {
       return true;
     }
     
-    if (status.speechRecognition === 'denied' || status.speechRecognition === 'prompt') {
+    if (status.mic === 'denied' || status.mic === 'prompt') {
       // Trigger the standard Android permission popup
-      const request = await CapacitorSpeechRecognition.requestPermissions();
-      return request.speechRecognition === 'granted';
-    }
-    
-    // If they clicked "Don't ask again" (permanently denied)
-    if (status.speechRecognition === 'prompt-with-rationale') {
-      // Return false - caller should show guidance to settings
-      return false;
+      const request = await BlindfoldNative.requestPermissions();
+      return request.mic === 'granted';
     }
     
     return false;
@@ -1651,23 +1644,13 @@ class VoiceMasterEngine {
     
     if (isNative) {
       try {
-        const { available } = await CapacitorSpeechRecognition.available();
-        if (!available) {
-          console.log('[VoiceMaster] Speech recognition not available');
+        // Wait for voice service to be ready (permission + Vosk initialized)
+        const ready = await waitForVoiceReady();
+        if (!ready) {
+          console.log('[VoiceMaster] Voice service not ready (permission denied or init failed)');
           this.isAvailable = false;
           this.availabilityChecked = true;
           return false;
-        }
-        
-        const { speechRecognition } = await CapacitorSpeechRecognition.checkPermissions();
-        if (speechRecognition !== 'granted') {
-          const result = await CapacitorSpeechRecognition.requestPermissions();
-          if (result.speechRecognition !== 'granted') {
-            console.log('[VoiceMaster] Permission denied');
-            this.isAvailable = false;
-            this.availabilityChecked = true;
-            return false;
-          }
         }
         
         this.isAvailable = true;
@@ -1777,28 +1760,22 @@ class VoiceMasterEngine {
         this.expectedStops++;
         console.log('[VoiceMaster] triggerRestart: expectedStops incremented to', this.expectedStops);
         
-        // 2. STOP: Ensure the hardware is truly released
-        // Note: isListening may be stale, always try to stop
-        try {
-          await CapacitorSpeechRecognition.stop();
-          console.log('[VoiceMaster] triggerRestart: hardware stopped');
-        } catch (e) {
-          // If stop failed, we didn't actually cause a stop event, so decrement
-          this.expectedStops = Math.max(0, this.expectedStops - 1);
-          console.log('[VoiceMaster] triggerRestart stop error, expectedStops decremented to', this.expectedStops);
-        }
+        // 2. STOP: For BlindfoldNative, we don't stop - just restart listening
+        // Vosk handles continuous listening differently than Google Speech
+        console.log('[VoiceMaster] triggerRestart: preparing to restart listening');
+        this.expectedStops = 0; // Reset - not used with BlindfoldNative
 
         // 3. BUFFER: 100ms mandatory breathing room for S9+ AudioFlinger (increased from 50ms)
         await new Promise(resolve => setTimeout(resolve, 100));
 
         // 4. CHECK: Only start if the loop is still active (didn't get paused during the wait)
         if (this.shouldRestart && !this.micBusy) {
-          console.log('[VoiceMaster] triggerRestart: starting fresh session');
+          console.log('[VoiceMaster] triggerRestart: restarting mic capture');
           try {
-            await this.startNative();
+            // Session already exists, just restart listening
+            await BlindfoldNative.startListening();
           } catch (startErr) {
-            console.warn('[VoiceMaster] triggerRestart start failed, scheduling retry:', startErr);
-            // Schedule a retry after delay
+            console.warn('[VoiceMaster] triggerRestart startListening failed, scheduling retry:', startErr);
             setTimeout(() => {
               if (this.shouldRestart && !this.micBusy && !this.restartPromise) {
                 this.triggerRestart();
@@ -1806,7 +1783,7 @@ class VoiceMasterEngine {
             }, 200);
           }
         } else {
-          console.log('[VoiceMaster] triggerRestart: shouldRestart=false or micBusy, skipping start');
+          console.log('[VoiceMaster] triggerRestart: shouldRestart=false or micBusy, skipping');
         }
       } catch (err) {
         console.warn('[VoiceMaster] Restart sequence failed:', err);
@@ -1833,14 +1810,9 @@ class VoiceMasterEngine {
     console.log('[VoiceMaster] Pausing Loop for TTS');
     this.shouldRestart = false;
     
-    // Kill the hardware immediately - native listeningState handler will set isListening=false
+    // For BlindfoldNative, we just set the flag - mic stays hot but we ignore results
     if (isNative) {
-      try {
-        await CapacitorSpeechRecognition.stop();
-        console.log('[VoiceMaster] pauseLoop: hardware stopped');
-      } catch (e) {
-        console.log('[VoiceMaster] pauseLoop stop error:', e);
-      }
+      console.log('[VoiceMaster] pauseLoop: mic paused (flag set, results ignored)');
     }
   }
   
@@ -2044,9 +2016,9 @@ class VoiceMasterEngine {
     console.log('[VoiceMaster] Pausing for TTS');
     
     if (isNative) {
-      CapacitorSpeechRecognition.stop()
-        .then(() => console.log('[VoiceMaster] Native stop succeeded during pause'))
-        .catch(e => console.log('[VoiceMaster] Pause stop error:', e));
+      // For BlindfoldNative, we just set flags - session stays active
+      // Mic will be restarted on resume via startListening
+      console.log('[VoiceMaster] Pausing - mic will resume on TTS end');
     } else if (this.webRecognition) {
       try {
         this.webRecognition.stop();
@@ -2117,86 +2089,49 @@ class VoiceMasterEngine {
       if (!this.restartTimeout) {
         this.scheduleRestart();
       }
-      // Return true so UI shows "listening" while we wait for lockout to expire
       return true;
     }
     
-    this.isStarting = true; // LOCK
+    this.isStarting = true;
     
     try {
-      // Clean up existing listeners
+      // Clean up existing listener
       if (this.listenerHandle) {
         await this.listenerHandle.remove();
         this.listenerHandle = null;
       }
       
-      // Add result listener - GOLD STANDARD: Process transcript + mutex restart
-      this.listenerHandle = await CapacitorSpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
-        // GATE: Don't process if loop is paused (prevents stray results during pause window)
+      // Add BlindfoldNative speech result listener
+      this.listenerHandle = await BlindfoldNative.addListener('onSpeechResult', (data: { text: string }) => {
+        // GATE: Don't process if loop is paused
         if (!this.shouldRestart) {
-          console.log('[VoiceMaster] Loop paused, ignoring partial result');
+          console.log('[VoiceMaster] Loop paused, ignoring speech result');
           return;
         }
         
-        if (data.matches && data.matches.length > 0 && this.shouldBeListening) {
-          const transcript = data.matches[0];
+        if (data.text && this.shouldBeListening) {
+          const transcript = data.text;
           this.consecutiveFailures = 0;
           this.processTranscript(transcript);
           
-          // GOLD STANDARD: Trigger the mutex restart after processing
-          if (this.shouldRestart) {
-            this.triggerRestart();
+          // BlindfoldNative auto-restarts mic after each result via startListening
+          // Just need to call it again to keep continuous listening
+          if (this.shouldRestart && this.shouldBeListening) {
+            BlindfoldNative.startListening().catch(e => {
+              console.log('[VoiceMaster] startListening error after result:', e);
+            });
           }
         }
       });
       
-      // Add state listener
-      if (this.stateListenerHandle) {
-        await this.stateListenerHandle.remove();
-        this.stateListenerHandle = null;
-      }
-      this.stateListenerHandle = await CapacitorSpeechRecognition.addListener('listeningState', (state: { status: string }) => {
-        console.log('[VoiceMaster] State changed:', state.status, 'shouldRestart:', this.shouldRestart, 'isListening:', this.isListening, 'expectedStops:', this.expectedStops);
-        if (state.status === 'stopped') {
-          // GHOST BUSTER: Was this stop caused by us (triggerRestart)?
-          if (this.expectedStops > 0) {
-            console.log('[VoiceMaster] Ignoring expected stop event (expectedStops=' + this.expectedStops + ')');
-            this.expectedStops--;
-            // Still update state, but DON'T trigger restart - we're handling it ourselves
-            this.isListening = false;
-            if (this.config?.onListeningChange) {
-              this.config.onListeningChange(false);
-            }
-            return; // Don't trigger restart - triggerRestart will handle start
-          }
-          
-          // GENUINE OS STOP: This is an unexpected stop from the system
-          console.log('[VoiceMaster] Genuine OS stop detected');
-          this.isListening = false;
-          if (this.config?.onListeningChange) {
-            this.config.onListeningChange(false);
-          }
-          // GOLD STANDARD: If loop should continue, trigger restart
-          // This handles genuine OS stops and cases where partialResults didn't fire
-          if (this.shouldBeListening && this.shouldRestart && !this.micBusy) {
-            console.log('[VoiceMaster] Restart via listeningState handler (genuine stop)');
-            this.triggerRestart();
-          }
-        } else if (state.status === 'started') {
-          // NATIVE EVENT: Mic is now listening
-          this.isListening = true;
-          if (this.config?.onListeningChange) {
-            this.config.onListeningChange(true);
-          }
-        }
-      });
+      // Start session if not already started, then start listening
+      console.log('[VoiceMaster] Starting BlindfoldNative session...');
+      await BlindfoldNative.startSession();
       
-      console.log('[VoiceMaster] Calling CapacitorSpeechRecognition.start()...');
-      await CapacitorSpeechRecognition.start({
-        language: 'en-US',
-        partialResults: true,
-        popup: false,
-      });
+      // CRITICAL: Must call startListening() to begin mic capture
+      // startSession() only starts the foreground service, startListening() activates the microphone
+      console.log('[VoiceMaster] Starting BlindfoldNative listening...');
+      await BlindfoldNative.startListening();
       
       this.isListening = true;
       this.consecutiveFailures = 0;
@@ -2231,7 +2166,7 @@ class VoiceMasterEngine {
       }
       return false;
     } finally {
-      this.isStarting = false; // UNLOCK
+      this.isStarting = false;
     }
   }
   
@@ -2358,14 +2293,10 @@ class VoiceMasterEngine {
     
     if (isNative) {
       try {
-        await CapacitorSpeechRecognition.stop();
+        await BlindfoldNative.stopSession();
         if (this.listenerHandle) {
           await this.listenerHandle.remove();
           this.listenerHandle = null;
-        }
-        if (this.stateListenerHandle) {
-          await this.stateListenerHandle.remove();
-          this.stateListenerHandle = null;
         }
       } catch (e) {
         console.log('[VoiceMaster] Stop error:', e);
@@ -2427,7 +2358,7 @@ class VoiceMasterEngine {
         console.warn('[VoiceMaster] Normal stop timed out, forcing native stop');
         if (isNative) {
           try {
-            await CapacitorSpeechRecognition.stop();
+            await BlindfoldNative.stopSession();
           } catch (e) {
             // Expected if not running
           }
@@ -2438,12 +2369,6 @@ class VoiceMasterEngine {
             await this.listenerHandle.remove();
           } catch (e) {}
           this.listenerHandle = null;
-        }
-        if (this.stateListenerHandle) {
-          try {
-            await this.stateListenerHandle.remove();
-          } catch (e) {}
-          this.stateListenerHandle = null;
         }
         if (this.webRecognition) {
           try {
