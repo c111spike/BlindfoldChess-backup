@@ -47,7 +47,7 @@ export default function App() {
   }, []);
 
   // Request microphone permission on app load (Android only)
-  // Voice modes await waitForVoiceReady() before starting sessions
+  // MUST request permission FIRST, then wait for Vosk service (it needs mic permission to bind)
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
       markVoiceReady(true); // Web mode - always ready
@@ -57,12 +57,23 @@ export default function App() {
     const requestMicPermission = async () => {
       try {
         console.log('[App] Requesting mic permission on startup...');
-        await BlindfoldNative.waitUntilReady();
+        // Request permission FIRST - Vosk service needs this before it can bind
         const result = await BlindfoldNative.requestPermissions();
         console.log('[App] Mic permission result:', result.mic);
-        markVoiceReady(result.mic === 'granted');
+        
+        if (result.mic !== 'granted') {
+          console.warn('[App] Mic permission denied');
+          markVoiceReady(false);
+          return;
+        }
+        
+        // Only wait for Vosk service AFTER permission is granted
+        console.log('[App] Permission granted, waiting for Vosk service...');
+        await BlindfoldNative.waitUntilReady();
+        console.log('[App] Vosk service ready');
+        markVoiceReady(true);
       } catch (error) {
-        console.error('[App] Failed to request mic permission:', error);
+        console.error('[App] Failed to initialize voice:', error);
         markVoiceReady(false);
       }
     };
