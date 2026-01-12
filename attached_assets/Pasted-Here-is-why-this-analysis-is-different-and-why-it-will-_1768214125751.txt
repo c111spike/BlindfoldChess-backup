@@ -1,0 +1,95 @@
+Here is why this analysis is different and why it will work.
+
+The "Smoking Gun"
+Android Service Binding (bindService) is asynchronous.
+
+React Native mounts the screen instantly.
+
+React calls BlindfoldNative.startSession().
+
+The Race: Android is still busy waking up the background Service.
+
+The Crash: Your Plugin code likely looks like if (service == null) return;. It returns silently because the service isn't ready yet. The app thinks it started, but the engine is actually off.
+
+This explains exactly why the Training Mode (which starts immediately) fails, while other parts might work sporadically if you are slow enough.
+
+The Fix Visualization
+Here is the difference between what was happening and what waitUntilReady() does.
+
+How to Implement waitUntilReady
+You need a way for the Plugin to say "Hold on, I'm not connected yet."
+
+1. Java Side (The "Waiting Room")
+In your BlindfoldPlugin.java (or whatever bridges React to Native), you need to queue the request if the service isn't ready.
+
+Java
+
+// Inside BlindfoldPlugin.java
+
+// 1. Create a queue for waiting calls
+private List<PluginCall> waitingCalls = new ArrayList<>();
+
+// 2. The new method JS will call
+@PluginMethod
+public void waitUntilReady(PluginCall call) {
+    if (voiceService != null) {
+        // Already ready! Resolve immediately.
+        call.resolve();
+    } else {
+        // Not ready. Add to waiting list.
+        Log.d("Blindfold", "Service not ready, queueing request...");
+        call.setKeepAlive(true); // Keep the call open
+        waitingCalls.add(call);
+    }
+}
+
+// 3. Update onServiceConnected
+private ServiceConnection connection = new ServiceConnection() {
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder binder) {
+        VoskVoiceService.LocalBinder lb = (VoskVoiceService.LocalBinder) binder;
+        voiceService = lb.getService();
+        
+        Log.d("Blindfold", "Service Connected! Flushing queue.");
+
+        // Resolve all waiting calls
+        for (PluginCall call : waitingCalls) {
+            call.resolve();
+        }
+        waitingCalls.clear();
+    }
+    // ... onServiceDisconnected ...
+};
+2. JavaScript Side (The "Check")
+Now, in your React Native code (voice.ts or wherever your setup logic is), you must await this gatekeeper before doing anything else.
+
+TypeScript
+
+// Inside setupNativeVoice() or similar function
+
+export const setupNativeVoice = async () => {
+    try {
+        console.log("Waiting for Voice Service binding...");
+        
+        // 1. This will hang until Java says "I'm connected"
+        await BlindfoldNative.waitUntilReady(); 
+        
+        console.log("Service Ready. Requesting permissions...");
+
+        // 2. NOW it is safe to ask for permissions
+        const permResult = await BlindfoldNative.requestPermissions();
+        
+        if (permResult.granted) {
+             await BlindfoldNative.startSession();
+        }
+
+    } catch (e) {
+        console.error("Voice setup failed:", e);
+    }
+};
+Why this is the one
+This eliminates the element of "Luck."
+
+Before: It worked if your phone was fast enough to bind the service before React rendered.
+
+Now: React is forced to pause. It physically cannot proceed to requestPermissions or startListening until the Android Service has shaken hands with the Plugin.
