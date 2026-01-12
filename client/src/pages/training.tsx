@@ -9,16 +9,23 @@ import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag, Volume2, HelpCircle 
 import { Chess } from 'chess.js';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { saveTrainingSession, getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
-import { speak, trainingVoice, VoiceRegistry } from "@/lib/voice";
+import { speak } from "@/lib/voice";
 import { Capacitor } from "@capacitor/core";
+import BlindfoldNative from "@/lib/nativeVoice";
+import type { PluginListenerHandle } from '@capacitor/core';
 
-// CONTINUOUS LOOP: Helper that pauses mic loop during TTS, then resumes after
+const isNativePlatform = Capacitor.isNativePlatform();
+
+// CONTINUOUS LOOP: Helper that uses native speakAndListen for TTS + mic restart
 async function speakMuted(text: string): Promise<void> {
-  await trainingVoice.pauseLoop();
-  try {
+  if (isNativePlatform) {
+    try {
+      await BlindfoldNative.speakAndListen({ text });
+    } catch (e) {
+      console.error('[Training] speakAndListen error:', e);
+    }
+  } else {
     await speak(text);
-  } finally {
-    await trainingVoice.resumeLoop();
   }
 }
 import {
@@ -217,18 +224,35 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
   const isNewBest = stats !== null && stats.colorBlitzBest !== null && score > stats.colorBlitzBest;
   const handleAnswerRef = useRef<((answer: 'light' | 'dark' | 'white' | 'black') => void) | null>(null);
   const hasSpokenFirstSquare = useRef(false);
+  const nativeListenerRef = useRef<PluginListenerHandle | null>(null);
+  const isNativeVoiceActive = useRef(false);
 
-  // ZOMBIE KILLER: VoiceRegistry.purge() instantly severs ALL mic connections
+  // Stop native voice session (stop session first, then remove listener)
+  const stopNativeVoice = async () => {
+    // Stop session first to prevent startListening races
+    if (isNativeVoiceActive.current) {
+      try {
+        await BlindfoldNative.stopSession();
+      } catch (e) {}
+      isNativeVoiceActive.current = false;
+    }
+    // Then remove listener
+    if (nativeListenerRef.current) {
+      try {
+        await nativeListenerRef.current.remove();
+      } catch (e) {}
+      nativeListenerRef.current = null;
+    }
+    setIsListening(false);
+  };
+
   const handleBack = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    VoiceRegistry.purge(); // Instant kill - no waiting for hardware
+    stopNativeVoice();
     onBack();
   };
 
   const startGame = async () => {
-    // ALWAYS-ON MIC: Don't purge between games - keep mic hot
-    // Only reset game state, not hardware
-    
     setGameState('playing');
     setScore(0);
     setStreak(0);
@@ -249,70 +273,71 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
 
   const handleResign = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    VoiceRegistry.purge(); // Instant kill - no waiting for hardware
+    stopNativeVoice();
     onBack();
   };
 
-  // Handle voice input for color answers with expanded phonetic synonyms
-  const handleVoiceTranscript = useCallback((transcript: string) => {
-    const text = transcript.toLowerCase();
-    console.log('[ColorBlitz] Voice:', text);
-    
-    // Expanded synonyms for S9+ mishearings
-    const lightSynonyms = ['light', 'white', 'lie', 'lye', 'lite', 'lied', 'liked', 'right', 'bright'];
-    const darkSynonyms = ['dark', 'black', 'bark', 'duck', 'dock', 'doc'];
-    
-    if (lightSynonyms.some(s => text.includes(s))) {
-      handleAnswerRef.current?.('light');
-    } else if (darkSynonyms.some(s => text.includes(s))) {
-      handleAnswerRef.current?.('dark');
-    }
-  }, []);
-
-  // Start/stop voice recognition based on voiceMode and gameState
+  // Start/stop voice recognition based on voiceMode and gameState using BlindfoldNative
   useEffect(() => {
-    let mounted = true;
-    
-    const startVoice = async () => {
-      // ALWAYS-ON MIC: Only stop when not in voice mode, keep hot during 'finished' state
-      if (!voiceMode) {
-        trainingVoice.stop();
-        setIsListening(false);
-        return;
-      }
-      
-      // Don't stop when finished - keep mic ready for next game
-      if (gameState !== 'playing') {
-        return;
-      }
-      
-      // S9+ quirk: Force permission re-check before each game start
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
-          await SpeechRecognition.requestPermissions();
-        } catch (e) {
-          console.log('[ColorBlitz] Permission request failed:', e);
+    if (!isNativePlatform || !voiceMode || gameState !== 'playing') {
+      // Stop native session if conditions not met
+      stopNativeVoice();
+      return;
+    }
+
+    const setupNativeVoice = async () => {
+      try {
+        // Check and request permissions
+        const permStatus = await BlindfoldNative.checkPermissions();
+        if (permStatus.mic !== 'granted') {
+          const newStatus = await BlindfoldNative.requestPermissions();
+          if (newStatus.mic !== 'granted') {
+            console.warn('[ColorBlitz] Mic permission denied');
+            return;
+          }
         }
-      }
-      
-      // Reset mic busy state for fresh start
-      trainingVoice.resetMicBusy();
-      
-      const started = await trainingVoice.start(handleVoiceTranscript, setIsListening);
-      if (mounted) {
-        setIsListening(started);
+
+        // Set up listener for speech results
+        if (nativeListenerRef.current) {
+          await nativeListenerRef.current.remove();
+        }
+        
+        nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
+          const text = data.text.toLowerCase();
+          console.log('[ColorBlitz] Voice:', text);
+          
+          // Expanded synonyms for S9+ mishearings
+          const lightSynonyms = ['light', 'white', 'lie', 'lye', 'lite', 'lied', 'liked', 'right', 'bright'];
+          const darkSynonyms = ['dark', 'black', 'bark', 'duck', 'dock', 'doc'];
+          
+          if (lightSynonyms.some(s => text.includes(s))) {
+            handleAnswerRef.current?.('light');
+          } else if (darkSynonyms.some(s => text.includes(s))) {
+            handleAnswerRef.current?.('dark');
+          }
+          
+          // startListening is safe here - VoskVoiceService recording loop handles state
+          // The loop continues automatically, this is just a belt-and-suspenders restart
+          BlindfoldNative.startListening().catch(() => {});
+        });
+
+        // Start the native voice session
+        await BlindfoldNative.startSession();
+        isNativeVoiceActive.current = true;
+        setIsListening(true);
+        console.log('[ColorBlitz] Native voice session started');
+
+      } catch (error) {
+        console.error('[ColorBlitz] Native voice setup failed:', error);
       }
     };
-    
-    startVoice();
-    
+
+    setupNativeVoice();
+
     return () => {
-      mounted = false;
-      // ZOMBIE KILLER: Full purge on cleanup to kill all voice sessions
-      VoiceRegistry.purge();
+      stopNativeVoice();
     };
-  }, [voiceMode, gameState, handleVoiceTranscript]);
+  }, [voiceMode, gameState]);
 
   useEffect(() => {
     if (gameState === 'playing') {
@@ -875,73 +900,46 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   const [awaitingResignConfirm, setAwaitingResignConfirm] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; correct: boolean } | null>(null);
   const [textInput, setTextInput] = useState('');
-  const [micRetryNeeded, setMicRetryNeeded] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.voiceMoveMasterBest !== null && score > stats.voiceMoveMasterBest;
-  const isNative = Capacitor.isNativePlatform();
+  const nativeListenerRef = useRef<PluginListenerHandle | null>(null);
+  const isNativeVoiceActive = useRef(false);
+  const processVoiceInputRef = useRef<((transcript: string) => void) | null>(null);
 
-  // ZOMBIE KILLER: VoiceRegistry.purge() instantly severs ALL mic connections
+  // Stop native voice session (stop session first, then remove listener)
+  const stopNativeVoice = async () => {
+    // Stop session first to prevent startListening races
+    if (isNativeVoiceActive.current) {
+      try {
+        await BlindfoldNative.stopSession();
+      } catch (e) {}
+      isNativeVoiceActive.current = false;
+    }
+    // Then remove listener
+    if (nativeListenerRef.current) {
+      try {
+        await nativeListenerRef.current.remove();
+      } catch (e) {}
+      nativeListenerRef.current = null;
+    }
+    setIsListening(false);
+  };
+
   const handleBack = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
-    VoiceRegistry.purge(); // Instant kill - no waiting for hardware
+    stopNativeVoice();
     onBack();
   };
-  
-  // Clean slate: Stop any lingering speech recognition when Ready screen mounts
-  useEffect(() => {
-    const cleanSlate = async () => {
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
-          await SpeechRecognition.stop();
-          console.log('[VoiceMoveMaster] Clean slate: stopped lingering recognition');
-        } catch (e) {
-          // Ignore - may not be running
-        }
-      }
-    };
-    cleanSlate();
-    
-    // Set up 3-strike retry callback
-    trainingVoice.setOnRetryNeeded(() => {
-      setMicRetryNeeded(true);
-    });
-    
-    return () => {
-      trainingVoice.setOnRetryNeeded(null);
-    };
-  }, []);
-  
-  // Handle manual retry after 3-strike failure
-  const handleRetryMic = async () => {
-    setMicRetryNeeded(false);
-    trainingVoice.resetMicBusy();
-    const started = await trainingVoice.start(
-      (transcript) => {
-        if (transcript.length > 2) {
-          processVoiceInputRef.current?.(transcript);
-        }
-      },
-      setIsListening  // Sync mic icon during TTS pause/resume
-    );
-    setIsListening(started);
-  };
-  
-  const processVoiceInputRef = useRef<((transcript: string) => void) | null>(null);
 
   const startGame = async () => {
-    // ALWAYS-ON MIC: Don't purge between games - keep mic hot
-    // Only reset game state, not hardware
-    
     setGameState('playing');
     setScore(0);
     setStreak(0);
     setBestStreak(0);
     setTimeLeft(60);
     setFeedback(null);
-    setMicRetryNeeded(false);
     const newPos = getRandomPosition();
     setPosition(newPos);
     
@@ -954,7 +952,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   const handleResign = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
-    VoiceRegistry.purge(); // Instant kill - no waiting for hardware
+    stopNativeVoice();
     onBack();
   };
 
@@ -1127,31 +1125,58 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     processVoiceInputRef.current = processVoiceInput;
   }, [processVoiceInput]);
 
-  // Start/stop voice recognition based on gameState using trainingVoice
+  // Start/stop voice recognition based on gameState using BlindfoldNative
   useEffect(() => {
-    if (gameState === 'playing') {
-      trainingVoice.start(
-        (transcript) => {
-          // FIX: Allow 2-char bare coordinates like "c4" for pawn moves
+    if (!isNativePlatform || gameState !== 'playing') {
+      // Stop native session if conditions not met
+      if (gameState === 'ready') {
+        stopNativeVoice();
+      }
+      return;
+    }
+
+    const setupNativeVoice = async () => {
+      try {
+        // Check and request permissions
+        const permStatus = await BlindfoldNative.checkPermissions();
+        if (permStatus.mic !== 'granted') {
+          const newStatus = await BlindfoldNative.requestPermissions();
+          if (newStatus.mic !== 'granted') {
+            console.warn('[VoiceMoveMaster] Mic permission denied');
+            return;
+          }
+        }
+
+        // Set up listener for speech results
+        if (nativeListenerRef.current) {
+          await nativeListenerRef.current.remove();
+        }
+        
+        nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
+          const transcript = data.text;
+          // Allow 2-char bare coordinates like "c4" for pawn moves
           if (transcript.length >= 2) {
             processVoiceInputRef.current?.(transcript);
           }
-        },
-        setIsListening  // Sync mic icon during TTS pause/resume
-      ).then(started => {
-        setIsListening(started);
-      });
-    } else if (gameState === 'ready') {
-      // ALWAYS-ON MIC: Only stop on 'ready' state (not started yet)
-      // Keep mic hot during 'finished' state for "Play Again"
-      trainingVoice.stop();
-      setIsListening(false);
-      setMicRetryNeeded(false);
-    }
-    // NOTE: Don't stop mic on 'finished' - keep it hot for back-to-back games
+          // Keep mic alive after processing input
+          BlindfoldNative.startListening().catch(() => {});
+        });
+
+        // Start the native voice session
+        await BlindfoldNative.startSession();
+        isNativeVoiceActive.current = true;
+        setIsListening(true);
+        console.log('[VoiceMoveMaster] Native voice session started');
+
+      } catch (error) {
+        console.error('[VoiceMoveMaster] Native voice setup failed:', error);
+      }
+    };
+
+    setupNativeVoice();
+
     return () => {
-      // ZOMBIE KILLER: Full purge on cleanup to kill all voice sessions
-      VoiceRegistry.purge();
+      stopNativeVoice();
     };
   }, [gameState]);
 
@@ -1264,11 +1289,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-2xl font-mono font-bold tabular-nums">{timeLeft}</span>
-            {isListening && !micRetryNeeded && (
+            {isListening && (
               <Mic className="h-5 w-5 text-red-500 animate-pulse" />
-            )}
-            {micRetryNeeded && (
-              <MicOff className="h-5 w-5 text-muted-foreground" />
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -1281,16 +1303,6 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
           </div>
         </div>
         
-        {/* 3-Strike Retry Button */}
-        {micRetryNeeded && (
-          <div className="mb-4 p-3 bg-amber-500/20 rounded-lg text-center">
-            <p className="text-sm text-amber-600 mb-2">Microphone needs a fresh start</p>
-            <Button onClick={handleRetryMic} size="sm" data-testid="button-voicemaster-retry-mic">
-              <Mic className="h-4 w-4 mr-2" />
-              Tap to Retry
-            </Button>
-          </div>
-        )}
 
         {/* Feedback display */}
         {feedback && (
@@ -1338,12 +1350,12 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
         {/* Target move display */}
         <div className="text-center mb-4">
           <p className="text-lg">
-            {isNative ? 'Say: ' : 'Type: '}<span className="font-bold text-purple-500">{position?.move.san}</span>
+            {isNativePlatform ? 'Say: ' : 'Type: '}<span className="font-bold text-purple-500">{position?.move.san}</span>
           </p>
         </div>
 
         {/* Text input fallback for web */}
-        {!isNative && (
+        {!isNativePlatform && (
           <form
             className="flex gap-2 mb-4"
             onSubmit={(e) => {
@@ -1384,7 +1396,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
         <div className="bg-muted/50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-2">
             <HelpCircle className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{isNative ? 'Voice Commands' : 'Commands'}</span>
+            <span className="text-sm font-medium">{isNativePlatform ? 'Voice Commands' : 'Commands'}</span>
           </div>
           <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
             <span>repeat / again</span>

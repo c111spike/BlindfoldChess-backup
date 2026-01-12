@@ -862,6 +862,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           if (lowerTranscript.includes("repeat") || lowerTranscript.includes("say again")) {
             if (lastSpokenMove.current && voiceOutputEnabled) {
               BlindfoldNative.speakAndListen({ text: lastSpokenMove.current }).catch(() => {});
+            } else {
+              // No TTS to repeat, restart listening anyway
+              BlindfoldNative.startListening().catch(() => {});
             }
             return;
           }
@@ -891,12 +894,21 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
                 }
 
                 setVoiceTranscript(null);
+                
+                // CRITICAL: Keep mic alive after player move
+                // Bot will use speakAndListen which handles its own restart
+                // For player-only moves (or when voice output is off), we need explicit restart
+                BlindfoldNative.startListening().catch(() => {});
               }
             } catch (e) {
               console.error('[NativeVoice] Move error:', e);
+              // Restart listening even on error to keep mic active
+              BlindfoldNative.startListening().catch(() => {});
             }
           } else {
             setVoiceTranscript(null);
+            // Keep listening for next attempt (unrecognized or ambiguous input)
+            BlindfoldNative.startListening().catch(() => {});
           }
         });
 

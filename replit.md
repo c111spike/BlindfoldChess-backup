@@ -43,8 +43,9 @@ Stockfish-powered analysis with evaluation bar and move-by-move review.
 ### Voice System (Android)
 - **Engine**: Vosk offline speech recognition (vosk-model-small-en-us)
 - **Service**: VoskVoiceService.java - AudioRecord + Vosk Recognizer
-- **TTS**: Android TextToSpeech with mic coordination
-- **Continuous listening**: Mic stays active during game session
+- **TTS**: Android TextToSpeech with mic coordination via speakAndListen()
+- **Continuous listening**: After each speech result, BlindfoldNative.startListening() restarts mic
+- **Training modes**: Color Blitz and VoiceMoveMaster use same BlindfoldNative plugin
 
 ## Android Build Instructions
 
