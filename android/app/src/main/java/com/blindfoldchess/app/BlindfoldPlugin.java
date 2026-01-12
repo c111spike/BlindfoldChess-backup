@@ -80,6 +80,16 @@ public class BlindfoldPlugin extends Plugin {
             }
             waitingCalls.clear();
 
+            // Process pending startSession call if service connected after startSession was requested
+            if (pendingStartSession != null) {
+                Log.d(TAG, "Processing pendingStartSession after service connected");
+                setupServiceCallback();
+                voiceService.startForegroundSession();
+                voiceService.startListening();
+                pendingStartSession.resolve();
+                pendingStartSession = null;
+            }
+
             onServiceBound();
         }
 

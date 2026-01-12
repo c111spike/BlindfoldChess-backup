@@ -26,8 +26,6 @@ import { getDailyGoalsEnabled, getTodaySessionCount, isDailyGoalMet } from "@/li
 import { Capacitor } from "@capacitor/core";
 import BlindfoldNative, { markVoiceReady } from "@/lib/nativeVoice";
 
-const BUILD_TIMESTAMP = "BUILD VERIFIED 2026-01-12 13:25 UTC";
-
 export default function App() {
   const [showStatsDialog, setShowStatsDialog] = useState(false);
   const [showVoiceHelpDialog, setShowVoiceHelpDialog] = useState(false);
@@ -281,9 +279,6 @@ export default function App() {
               </Dialog>
             </div>
           </header>
-          <div className="bg-red-600 text-white text-center py-2 font-bold text-lg">
-            {BUILD_TIMESTAMP}
-          </div>
           <main className="flex-1 overflow-auto">
             {showTraining ? (
               <TrainingPage 

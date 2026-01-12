@@ -324,6 +324,8 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
 
         // Start the native voice session
         await BlindfoldNative.startSession();
+        // CRITICAL: Must call startListening() to begin mic capture
+        await BlindfoldNative.startListening();
         isNativeVoiceActive.current = true;
         setIsListening(true);
         console.log('[ColorBlitz] Native voice session started');
@@ -1166,6 +1168,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
 
         // Start the native voice session
         await BlindfoldNative.startSession();
+        // CRITICAL: Must call startListening() to begin mic capture
+        await BlindfoldNative.startListening();
         isNativeVoiceActive.current = true;
         setIsListening(true);
         console.log('[VoiceMoveMaster] Native voice session started');
