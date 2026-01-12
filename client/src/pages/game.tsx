@@ -37,7 +37,7 @@ import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, VoiceRegistry, type AmbiguousMoveResult } from "@/lib/voice";
-import BlindfoldNative from "@/lib/nativeVoice";
+import BlindfoldNative, { waitForVoiceReady } from "@/lib/nativeVoice";
 import { getBotMove, countBotPieces, detectRecapture, getBotMoveDelay as botMoveDelay, getHumanBotThinkingDelay, countAllPieces, type LastMoveInfo, type BotMoveResult } from "@/lib/botEngine";
 import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats, type BlindfoldSettings } from "@/lib/gameStats";
 import { initGameHistoryDB, saveGame, type SavedGame } from "@/lib/gameHistory";
@@ -818,8 +818,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   }, [gameStarted, isBlindfold, blindfoldSettings.keepAwakeEnabled]);
 
   // NATIVE ANDROID VOICE LOOP - Uses BlindfoldNative plugin for 0ms mic restart
+  // Permissions are requested once on app startup in App.tsx
   useEffect(() => {
-    // Only setup when all conditions are met - cleanup handles stopping
     if (!isNativePlatform || !voiceInputEnabled || !gameStarted || !gameRef.current || gameResult !== null) {
       return;
     }
@@ -828,27 +828,21 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
 
     const setupNativeVoice = async () => {
       try {
-        // CRITICAL: Wait for service to be bound before any operations
-        console.log('[NativeVoice] Waiting for voice service to be ready...');
-        await BlindfoldNative.waitUntilReady();
-        console.log('[NativeVoice] Service ready, requesting permissions...');
-        
-        if (cancelled) return;
-
-        // Request permissions (this will show the Android permission dialog)
-        const permStatus = await BlindfoldNative.requestPermissions();
-        if (permStatus.mic !== 'granted') {
-          console.warn('[NativeVoice] Mic permission denied');
+        // Wait for app-level permission request to complete
+        const ready = await waitForVoiceReady();
+        if (!ready || cancelled) {
+          console.warn('[NativeVoice] Voice not ready or cancelled');
           return;
         }
-        
-        if (cancelled) return;
-        console.log('[NativeVoice] Mic permission granted');
+
+        console.log('[NativeVoice] Starting voice session...');
 
         // Set up listener for speech results
         if (nativeListenerRef.current) {
           await nativeListenerRef.current.remove();
         }
+        
+        if (cancelled) return;
         
         nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
           const transcript = data.text;

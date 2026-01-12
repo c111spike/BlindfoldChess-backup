@@ -27,4 +27,41 @@ export interface BlindfoldNativePlugin {
 
 const BlindfoldNative = registerPlugin<BlindfoldNativePlugin>('BlindfoldNative');
 
+// Global voice readiness tracking - voice modes await this before starting sessions
+let voiceReadyResolve: (() => void) | null = null;
+let voiceReadyReject: ((err: Error) => void) | null = null;
+const voiceReadyPromise = new Promise<void>((resolve, reject) => {
+  voiceReadyResolve = resolve;
+  voiceReadyReject = reject;
+});
+
+let voiceReadyCompleted = false;
+let voicePermissionGranted = false;
+
+export function markVoiceReady(granted: boolean) {
+  voicePermissionGranted = granted;
+  voiceReadyCompleted = true;
+  if (granted && voiceReadyResolve) {
+    voiceReadyResolve();
+  } else if (!granted && voiceReadyReject) {
+    voiceReadyReject(new Error('Mic permission denied'));
+  }
+}
+
+export function isVoicePermissionGranted(): boolean {
+  return voicePermissionGranted;
+}
+
+export async function waitForVoiceReady(): Promise<boolean> {
+  if (voiceReadyCompleted) {
+    return voicePermissionGranted;
+  }
+  try {
+    await voiceReadyPromise;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default BlindfoldNative;

@@ -23,6 +23,8 @@ import { StatsDashboard } from "@/components/stats-dashboard";
 import GamePage, { type GameViewState } from "@/pages/game";
 import TrainingPage, { type TrainingGameState } from "@/pages/training";
 import { getDailyGoalsEnabled, getTodaySessionCount, isDailyGoalMet } from "@/lib/trainingStats";
+import { Capacitor } from "@capacitor/core";
+import BlindfoldNative, { markVoiceReady } from "@/lib/nativeVoice";
 
 export default function App() {
   const [showStatsDialog, setShowStatsDialog] = useState(false);
@@ -42,6 +44,30 @@ export default function App() {
     };
     window.addEventListener('statsUpdated', handleStatsUpdate);
     return () => window.removeEventListener('statsUpdated', handleStatsUpdate);
+  }, []);
+
+  // Request microphone permission on app load (Android only)
+  // Voice modes await waitForVoiceReady() before starting sessions
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      markVoiceReady(true); // Web mode - always ready
+      return;
+    }
+    
+    const requestMicPermission = async () => {
+      try {
+        console.log('[App] Requesting mic permission on startup...');
+        await BlindfoldNative.waitUntilReady();
+        const result = await BlindfoldNative.requestPermissions();
+        console.log('[App] Mic permission result:', result.mic);
+        markVoiceReady(result.mic === 'granted');
+      } catch (error) {
+        console.error('[App] Failed to request mic permission:', error);
+        markVoiceReady(false);
+      }
+    };
+    
+    requestMicPermission();
   }, []);
 
   const handleOpenHistory = () => {

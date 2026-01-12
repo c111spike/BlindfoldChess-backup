@@ -11,7 +11,7 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { saveTrainingSession, getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
 import { speak } from "@/lib/voice";
 import { Capacitor } from "@capacitor/core";
-import BlindfoldNative from "@/lib/nativeVoice";
+import BlindfoldNative, { waitForVoiceReady } from "@/lib/nativeVoice";
 import type { PluginListenerHandle } from '@capacitor/core';
 
 const isNativePlatform = Capacitor.isNativePlatform();
@@ -278,34 +278,36 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
   };
 
   // Start/stop voice recognition based on voiceMode and gameState using BlindfoldNative
+  // Permissions are requested once on app startup in App.tsx
   useEffect(() => {
-    // Only setup when all conditions are met - cleanup handles stopping
     if (!isNativePlatform || !voiceMode || gameState !== 'playing') {
       return;
     }
 
+    let cancelled = false;
+
     const setupNativeVoice = async () => {
       try {
-        // Check and request permissions
-        const permStatus = await BlindfoldNative.checkPermissions();
-        if (permStatus.mic !== 'granted') {
-          const newStatus = await BlindfoldNative.requestPermissions();
-          if (newStatus.mic !== 'granted') {
-            console.warn('[ColorBlitz] Mic permission denied');
-            return;
-          }
+        // Wait for app-level permission request to complete
+        const ready = await waitForVoiceReady();
+        if (!ready || cancelled) {
+          console.warn('[ColorBlitz] Voice not ready or cancelled');
+          return;
         }
+
+        console.log('[ColorBlitz] Starting voice session...');
 
         // Set up listener for speech results
         if (nativeListenerRef.current) {
           await nativeListenerRef.current.remove();
         }
         
+        if (cancelled) return;
+        
         nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
           const text = data.text.toLowerCase();
           console.log('[ColorBlitz] Voice:', text);
           
-          // Expanded synonyms for S9+ mishearings
           const lightSynonyms = ['light', 'white', 'lie', 'lye', 'lite', 'lied', 'liked', 'right', 'bright'];
           const darkSynonyms = ['dark', 'black', 'bark', 'duck', 'dock', 'doc'];
           
@@ -315,10 +317,10 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
             handleAnswerRef.current?.('dark');
           }
           
-          // startListening is safe here - VoskVoiceService recording loop handles state
-          // The loop continues automatically, this is just a belt-and-suspenders restart
           BlindfoldNative.startListening().catch(() => {});
         });
+
+        if (cancelled) return;
 
         // Start the native voice session
         await BlindfoldNative.startSession();
@@ -334,6 +336,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     setupNativeVoice();
 
     return () => {
+      cancelled = true;
       stopNativeVoice();
     };
   }, [voiceMode, gameState]);
@@ -1125,8 +1128,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   }, [processVoiceInput]);
 
   // Start/stop voice recognition based on gameState using BlindfoldNative
+  // Permissions are requested once on app startup in App.tsx
   useEffect(() => {
-    // Only setup when conditions are met - cleanup handles stopping
     if (!isNativePlatform || gameState !== 'playing') {
       return;
     }
@@ -1135,35 +1138,27 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
 
     const setupNativeVoice = async () => {
       try {
-        // CRITICAL: Wait for service to be bound before any operations
-        console.log('[VoiceMoveMaster] Waiting for voice service to be ready...');
-        await BlindfoldNative.waitUntilReady();
-        console.log('[VoiceMoveMaster] Service ready, requesting permissions...');
-        
-        if (cancelled) return;
-
-        // Request permissions (this will show the Android permission dialog)
-        const permStatus = await BlindfoldNative.requestPermissions();
-        if (permStatus.mic !== 'granted') {
-          console.warn('[VoiceMoveMaster] Mic permission denied');
+        // Wait for app-level permission request to complete
+        const ready = await waitForVoiceReady();
+        if (!ready || cancelled) {
+          console.warn('[VoiceMoveMaster] Voice not ready or cancelled');
           return;
         }
-        
-        if (cancelled) return;
-        console.log('[VoiceMoveMaster] Mic permission granted');
+
+        console.log('[VoiceMoveMaster] Starting voice session...');
 
         // Set up listener for speech results
         if (nativeListenerRef.current) {
           await nativeListenerRef.current.remove();
         }
         
+        if (cancelled) return;
+        
         nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
           const transcript = data.text;
-          // Allow 2-char bare coordinates like "c4" for pawn moves
           if (transcript.length >= 2) {
             processVoiceInputRef.current?.(transcript);
           }
-          // Keep mic alive after processing input
           BlindfoldNative.startListening().catch(() => {});
         });
 
