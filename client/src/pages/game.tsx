@@ -824,17 +824,26 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       return;
     }
 
+    let cancelled = false;
+
     const setupNativeVoice = async () => {
       try {
-        // Check and request permissions
-        const permStatus = await BlindfoldNative.checkPermissions();
+        // CRITICAL: Wait for service to be bound before any operations
+        console.log('[NativeVoice] Waiting for voice service to be ready...');
+        await BlindfoldNative.waitUntilReady();
+        console.log('[NativeVoice] Service ready, requesting permissions...');
+        
+        if (cancelled) return;
+
+        // Request permissions (this will show the Android permission dialog)
+        const permStatus = await BlindfoldNative.requestPermissions();
         if (permStatus.mic !== 'granted') {
-          const newStatus = await BlindfoldNative.requestPermissions();
-          if (newStatus.mic !== 'granted') {
-            console.warn('[NativeVoice] Mic permission denied');
-            return;
-          }
+          console.warn('[NativeVoice] Mic permission denied');
+          return;
         }
+        
+        if (cancelled) return;
+        console.log('[NativeVoice] Mic permission granted');
 
         // Set up listener for speech results
         if (nativeListenerRef.current) {
@@ -908,6 +917,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           }
         });
 
+        if (cancelled) return;
+
         // Start the native voice session
         await BlindfoldNative.startSession();
         isNativeVoiceActive.current = true;
@@ -927,6 +938,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     setupNativeVoice();
 
     return () => {
+      cancelled = true;
       if (isNativeVoiceActive.current) {
         BlindfoldNative.stopSession().catch(() => {});
         isNativeVoiceActive.current = false;

@@ -7,6 +7,7 @@ export interface PermissionStatus {
 }
 
 export interface BlindfoldNativePlugin {
+  waitUntilReady(): Promise<void>;
   checkPermissions(): Promise<PermissionStatus>;
   requestPermissions(): Promise<PermissionStatus>;
   startSession(): Promise<void>;

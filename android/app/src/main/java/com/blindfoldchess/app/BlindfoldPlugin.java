@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.IBinder;
+import android.util.Log;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -17,6 +18,9 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import com.getcapacitor.PermissionState;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @CapacitorPlugin(
     name = "BlindfoldNative",
     permissions = {
@@ -25,8 +29,12 @@ import com.getcapacitor.PermissionState;
     }
 )
 public class BlindfoldPlugin extends Plugin {
+    private static final String TAG = "BlindfoldPlugin";
     private VoskVoiceService voiceService;
     private boolean isBound = false;
+    
+    // Queue for waitUntilReady calls waiting for service bind
+    private final List<PluginCall> waitingCalls = new ArrayList<>();
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -34,6 +42,8 @@ public class BlindfoldPlugin extends Plugin {
             VoskVoiceService.LocalBinder binder = (VoskVoiceService.LocalBinder) service;
             voiceService = binder.getService();
             isBound = true;
+            
+            Log.d(TAG, "Service connected! Flushing " + waitingCalls.size() + " waiting calls.");
 
             voiceService.setCallback(new VoskVoiceService.VoiceCallback() {
                 @Override
@@ -51,6 +61,12 @@ public class BlindfoldPlugin extends Plugin {
                 }
             });
 
+            // Resolve all waiting calls
+            for (PluginCall call : waitingCalls) {
+                call.resolve();
+            }
+            waitingCalls.clear();
+
             onServiceBound();
         }
 
@@ -62,8 +78,23 @@ public class BlindfoldPlugin extends Plugin {
 
     @Override
     public void load() {
+        Log.d(TAG, "Plugin loading, binding to VoskVoiceService...");
         Intent intent = new Intent(getContext(), VoskVoiceService.class);
         getContext().bindService(intent, connection, Context.BIND_AUTO_CREATE);
+    }
+
+    @PluginMethod
+    public void waitUntilReady(PluginCall call) {
+        if (isBound) {
+            // Already ready - resolve immediately
+            Log.d(TAG, "waitUntilReady: already bound, resolving immediately");
+            call.resolve();
+        } else {
+            // Not ready - queue the call to be resolved when service connects
+            Log.d(TAG, "waitUntilReady: service not bound, queueing request");
+            call.setKeepAlive(true);
+            waitingCalls.add(call);
+        }
     }
 
     @PluginMethod

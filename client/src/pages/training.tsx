@@ -1131,17 +1131,26 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
       return;
     }
 
+    let cancelled = false;
+
     const setupNativeVoice = async () => {
       try {
-        // Check and request permissions
-        const permStatus = await BlindfoldNative.checkPermissions();
+        // CRITICAL: Wait for service to be bound before any operations
+        console.log('[VoiceMoveMaster] Waiting for voice service to be ready...');
+        await BlindfoldNative.waitUntilReady();
+        console.log('[VoiceMoveMaster] Service ready, requesting permissions...');
+        
+        if (cancelled) return;
+
+        // Request permissions (this will show the Android permission dialog)
+        const permStatus = await BlindfoldNative.requestPermissions();
         if (permStatus.mic !== 'granted') {
-          const newStatus = await BlindfoldNative.requestPermissions();
-          if (newStatus.mic !== 'granted') {
-            console.warn('[VoiceMoveMaster] Mic permission denied');
-            return;
-          }
+          console.warn('[VoiceMoveMaster] Mic permission denied');
+          return;
         }
+        
+        if (cancelled) return;
+        console.log('[VoiceMoveMaster] Mic permission granted');
 
         // Set up listener for speech results
         if (nativeListenerRef.current) {
@@ -1158,6 +1167,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
           BlindfoldNative.startListening().catch(() => {});
         });
 
+        if (cancelled) return;
+
         // Start the native voice session
         await BlindfoldNative.startSession();
         isNativeVoiceActive.current = true;
@@ -1172,6 +1183,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     setupNativeVoice();
 
     return () => {
+      cancelled = true;
       stopNativeVoice();
     };
   }, [gameState]);
