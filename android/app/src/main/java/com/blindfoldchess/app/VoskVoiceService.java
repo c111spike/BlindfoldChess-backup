@@ -45,6 +45,7 @@ public class VoskVoiceService extends Service {
     private volatile boolean isTtsReady = false;
     private volatile boolean isTtsSpeaking = false;
     private volatile boolean modelLoaded = false;
+    private volatile boolean pendingListeningRequest = false;
 
     public interface VoiceCallback {
         void onSpeechResult(String text);
@@ -94,13 +95,20 @@ public class VoskVoiceService extends Service {
                     @Override
                     public void onDone(String utteranceId) {
                         isTtsSpeaking = false;
-                        if ("KEEP_LISTENING".equals(utteranceId) && isSessionActive) {
+                        // CRITICAL: Always restart mic after TTS unless explicitly told to stop
+                        // This fixes the "mic pauses after first move" bug
+                        if (!"STOP_LISTENING".equals(utteranceId) && isSessionActive) {
+                            Log.d(TAG, "TTS finished (" + utteranceId + "). Restarting mic.");
                             mainHandler.postDelayed(() -> startListeningInternal(), 100);
                         }
                     }
                     @Override
                     public void onError(String utteranceId) {
                         isTtsSpeaking = false;
+                        // Always restart on error too, to recover gracefully
+                        if (isSessionActive) {
+                            mainHandler.post(() -> startListeningInternal());
+                        }
                     }
                 });
             }
@@ -113,6 +121,13 @@ public class VoskVoiceService extends Service {
                 this.model = model;
                 this.modelLoaded = true;
                 Log.i(TAG, "Vosk model loaded successfully");
+                
+                // Check if we have a queued listening request
+                if (pendingListeningRequest && isSessionActive) {
+                    Log.d(TAG, "Model loaded. Executing queued listening request.");
+                    pendingListeningRequest = false;
+                    mainHandler.post(() -> startListeningInternal());
+                }
             },
             (exception) -> {
                 Log.e(TAG, "Failed to load Vosk model: " + exception.getMessage());
@@ -167,7 +182,15 @@ public class VoskVoiceService extends Service {
     public boolean isSessionActive() { return isSessionActive; }
 
     private void startListeningInternal() {
-        if (isListening || !modelLoaded || !isSessionActive) return;
+        if (!isSessionActive) return;
+        
+        if (!modelLoaded) {
+            Log.d(TAG, "Model not ready yet. Queuing start request.");
+            pendingListeningRequest = true;
+            return;
+        }
+        
+        if (isListening) return;
 
         try {
             recognizer = new Recognizer(model, SAMPLE_RATE);
