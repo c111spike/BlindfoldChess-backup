@@ -83,7 +83,7 @@ public class BlindfoldPlugin extends Plugin {
             // Process pending startSession call if service connected after startSession was requested
             if (pendingStartSession != null) {
                 Log.d(TAG, "Processing pendingStartSession after service connected");
-                setupServiceCallback();
+                // Callback already set up above, just start the session and mic
                 voiceService.startForegroundSession();
                 voiceService.startListening();
                 pendingStartSession.resolve();
