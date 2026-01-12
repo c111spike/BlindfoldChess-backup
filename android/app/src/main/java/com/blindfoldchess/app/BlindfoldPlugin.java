@@ -5,9 +5,15 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.Log;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -30,11 +36,18 @@ import java.util.List;
 )
 public class BlindfoldPlugin extends Plugin {
     private static final String TAG = "BlindfoldPlugin";
+    private static final int BIND_TIMEOUT_MS = 5000;
+    
     private VoskVoiceService voiceService;
     private boolean isBound = false;
+    private boolean isBindingInProgress = false;
     
-    // Queue for waitUntilReady calls waiting for service bind
     private final List<PluginCall> waitingCalls = new ArrayList<>();
+
+    private boolean hasMicPermission() {
+        return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) 
+               == PackageManager.PERMISSION_GRANTED;
+    }
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -62,7 +75,6 @@ public class BlindfoldPlugin extends Plugin {
                 }
             });
 
-            // Resolve all waiting calls
             for (PluginCall call : waitingCalls) {
                 call.resolve();
             }
@@ -80,13 +92,22 @@ public class BlindfoldPlugin extends Plugin {
 
     @Override
     public void load() {
-        // Don't bind service here - wait until mic permission is granted
-        // Service binding requires RECORD_AUDIO permission
-        Log.d(TAG, "Plugin loaded - service binding deferred until permission granted");
+        Log.d(TAG, "Plugin loaded - checking mic permission...");
+        if (hasMicPermission()) {
+            Log.d(TAG, "Mic permission already granted on load, binding service");
+            bindServiceIfNeeded();
+        } else {
+            Log.d(TAG, "Mic permission not granted, deferring service bind");
+        }
     }
     
     private void bindServiceIfNeeded() {
         if (isBound || isBindingInProgress) {
+            Log.d(TAG, "bindServiceIfNeeded: already bound or binding in progress");
+            return;
+        }
+        if (!hasMicPermission()) {
+            Log.w(TAG, "bindServiceIfNeeded: mic permission not granted, skipping bind");
             return;
         }
         isBindingInProgress = true;
@@ -94,48 +115,67 @@ public class BlindfoldPlugin extends Plugin {
         Intent intent = new Intent(getContext(), VoskVoiceService.class);
         getContext().bindService(intent, connection, Context.BIND_AUTO_CREATE);
     }
-    
-    private boolean isBindingInProgress = false;
 
     @PluginMethod
     public void waitUntilReady(PluginCall call) {
+        Log.d(TAG, "waitUntilReady called, isBound=" + isBound + ", hasMicPermission=" + hasMicPermission());
+        
         if (isBound) {
-            // Already ready - resolve immediately
             Log.d(TAG, "waitUntilReady: already bound, resolving immediately");
             call.resolve();
-        } else {
-            // Not ready - queue the call to be resolved when service connects
-            Log.d(TAG, "waitUntilReady: service not bound, queueing request");
-            call.setKeepAlive(true);
-            waitingCalls.add(call);
-            
-            // If permission is already granted (app relaunch), trigger service binding
-            if (getPermissionState("mic") == PermissionState.GRANTED) {
-                Log.d(TAG, "waitUntilReady: mic already granted, binding service");
-                bindServiceIfNeeded();
-            }
+            return;
         }
+        
+        call.setKeepAlive(true);
+        waitingCalls.add(call);
+        
+        if (hasMicPermission()) {
+            Log.d(TAG, "waitUntilReady: mic permission granted (native check), binding service");
+            bindServiceIfNeeded();
+        } else {
+            Log.d(TAG, "waitUntilReady: mic permission NOT granted (native check)");
+        }
+        
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (waitingCalls.contains(call) && !isBound) {
+                Log.e(TAG, "waitUntilReady: TIMEOUT after " + BIND_TIMEOUT_MS + "ms, service never bound");
+                waitingCalls.remove(call);
+                call.reject("Voice service bind timeout - mic permission may be denied");
+            }
+        }, BIND_TIMEOUT_MS);
     }
 
     @PluginMethod
     public void checkPermissions(PluginCall call) {
-        JSObject permissionsResultJSON = new JSObject();
-        permissionsResultJSON.put("mic", getPermissionState("mic").toString().toLowerCase());
+        JSObject result = new JSObject();
+        result.put("mic", hasMicPermission() ? "granted" : "prompt");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionsResultJSON.put("notify", getPermissionState("notify").toString().toLowerCase());
+            boolean hasNotify = ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS) 
+                               == PackageManager.PERMISSION_GRANTED;
+            result.put("notify", hasNotify ? "granted" : "prompt");
         } else {
-            permissionsResultJSON.put("notify", "granted");
+            result.put("notify", "granted");
         }
-        call.resolve(permissionsResultJSON);
+        call.resolve(result);
     }
 
     @PluginMethod
     public void requestPermissions(PluginCall call) {
-        // Only request POST_NOTIFICATIONS on API 33+ (TIRAMISU)
+        Log.d(TAG, "requestPermissions called, current mic state: " + (hasMicPermission() ? "granted" : "not granted"));
+        
+        if (hasMicPermission()) {
+            Log.d(TAG, "requestPermissions: mic already granted (native check), binding service");
+            bindServiceIfNeeded();
+            JSObject result = new JSObject();
+            result.put("mic", "granted");
+            result.put("notify", "granted");
+            call.resolve(result);
+            return;
+        }
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionForAliases(new String[]{"mic", "notify"}, call, "permissionsCallback");
         } else {
-            // On older APIs, just request mic - notifications don't need runtime permission
             requestPermissionForAliases(new String[]{"mic"}, call, "permissionsCallback");
         }
     }
@@ -149,7 +189,7 @@ public class BlindfoldPlugin extends Plugin {
                 Intent intent = new Intent(getContext(), VoskVoiceService.class);
                 getContext().stopService(intent);
             } catch (Exception e) {
-                // Ignore cleanup errors
+                Log.e(TAG, "Error during cleanup: " + e.getMessage());
             }
             isBound = false;
         }
@@ -158,44 +198,48 @@ public class BlindfoldPlugin extends Plugin {
 
     @PermissionCallback
     private void permissionsCallback(PluginCall call) {
-        PermissionState micState = getPermissionState("mic");
-        JSObject permissionsResultJSON = new JSObject();
-        permissionsResultJSON.put("mic", micState.toString().toLowerCase());
+        boolean micGranted = hasMicPermission();
+        Log.d(TAG, "permissionsCallback: mic granted (native check) = " + micGranted);
+        
+        JSObject result = new JSObject();
+        result.put("mic", micGranted ? "granted" : "denied");
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionsResultJSON.put("notify", getPermissionState("notify").toString().toLowerCase());
+            boolean hasNotify = ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS) 
+                               == PackageManager.PERMISSION_GRANTED;
+            result.put("notify", hasNotify ? "granted" : "denied");
         } else {
-            permissionsResultJSON.put("notify", "granted");
+            result.put("notify", "granted");
         }
         
-        // Bind service now that we have permission
-        if (micState == PermissionState.GRANTED) {
-            Log.d(TAG, "Mic permission granted - binding service");
+        if (micGranted) {
+            Log.d(TAG, "permissionsCallback: binding service after permission granted");
             bindServiceIfNeeded();
         }
         
-        call.resolve(permissionsResultJSON);
+        call.resolve(result);
     }
 
     private PluginCall pendingStartSession = null;
 
     @PluginMethod
     public void startSession(PluginCall call) {
+        Log.d(TAG, "startSession called, isBound=" + isBound);
+        
         if (isBound) {
-            // Re-establish callback for this session (fixes callback lifecycle after stopSession)
             setupServiceCallback();
             voiceService.startForegroundSession();
             voiceService.startListening();
             call.resolve();
         } else {
-            // Queue the call and retry when service binds
             pendingStartSession = call;
-            // Set a timeout to reject if binding takes too long
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 if (pendingStartSession == call && !isBound) {
                     pendingStartSession = null;
+                    Log.e(TAG, "startSession: TIMEOUT waiting for service bind");
                     call.reject("Service bind timeout");
                 }
-            }, 5000);
+            }, BIND_TIMEOUT_MS);
         }
     }
 
@@ -219,7 +263,6 @@ public class BlindfoldPlugin extends Plugin {
     }
 
     private void onServiceBound() {
-        // Execute pending startSession if any
         if (pendingStartSession != null && isBound) {
             PluginCall call = pendingStartSession;
             pendingStartSession = null;
@@ -256,16 +299,13 @@ public class BlindfoldPlugin extends Plugin {
     public void stopSession(PluginCall call) {
         if (isBound) {
             voiceService.stopSession();
-            call.resolve();
-        } else {
-            call.resolve();
         }
+        call.resolve();
     }
 
     @PluginMethod
     public void startListening(PluginCall call) {
         if (isBound) {
-            // Check if session is active before starting
             if (!voiceService.isSessionActive()) {
                 call.reject("Session not active");
                 return;
