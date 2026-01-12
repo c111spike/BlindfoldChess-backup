@@ -14,8 +14,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok", app: "blindfold-chess" });
   });
 
-  // APK download endpoint
-  app.get("/download/apk", (_req, res) => {
+  // APK download endpoint - serves the 110MB APK file
+  app.get("/download/apk", (req, res) => {
     const apkPath = path.resolve("android/app/build/outputs/apk/debug/app-debug.apk");
     
     if (!fs.existsSync(apkPath)) {
@@ -23,11 +23,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     const stat = fs.statSync(apkPath);
+    
+    // Disable request timeout for large file download
+    req.setTimeout(0);
+    res.setTimeout(0);
+    
+    // Set headers for download
     res.setHeader("Content-Type", "application/vnd.android.package-archive");
     res.setHeader("Content-Disposition", "attachment; filename=blindfold-chess.apk");
     res.setHeader("Content-Length", stat.size);
+    res.setHeader("Cache-Control", "no-cache");
     
-    const stream = fs.createReadStream(apkPath);
+    // Stream the file with high watermark for better performance
+    const stream = fs.createReadStream(apkPath, { highWaterMark: 1024 * 1024 }); // 1MB chunks
+    
+    stream.on("error", (err) => {
+      console.error("APK stream error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to stream APK" });
+      }
+    });
+    
     stream.pipe(res);
   });
 
