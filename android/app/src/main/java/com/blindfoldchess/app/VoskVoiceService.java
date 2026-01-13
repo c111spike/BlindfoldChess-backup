@@ -289,17 +289,43 @@ public class VoskVoiceService extends Service {
             isListening = true;
             audioRecord.startRecording();
             logToCallback("Mic recording STARTED");
+            
+            // CRITICAL: Capture final references for thread safety
+            final AudioRecord localAudioRecord = audioRecord;
+            final Recognizer localRecognizer = recognizer;
+            logToCallback("AudioRecord state: " + localAudioRecord.getState() + ", RecState: " + localAudioRecord.getRecordingState());
 
             recordingThread = new Thread(() -> {
                 try {
                     logToCallback("Audio thread starting...");
+                    
+                    // Defensive null check
+                    if (localAudioRecord == null) {
+                        logToCallback("ERROR: localAudioRecord is null!");
+                        return;
+                    }
+                    if (localRecognizer == null) {
+                        logToCallback("ERROR: localRecognizer is null!");
+                        return;
+                    }
+                    
+                    // Check recording state before first read
+                    int recState = localAudioRecord.getRecordingState();
+                    logToCallback("Recording state in thread: " + recState);
+                    if (recState != AudioRecord.RECORDSTATE_RECORDING) {
+                        logToCallback("ERROR: AudioRecord not in RECORDING state!");
+                        return;
+                    }
+                    
                     byte[] buffer = new byte[4096];
                     long silenceStart = 0;
                     boolean hasSpeech = false;
                     int loopCount = 0;
+                    
+                    logToCallback("Starting audio read loop...");
 
                     while (isListening && isSessionActive) {
-                        int read = audioRecord.read(buffer, 0, buffer.length);
+                        int read = localAudioRecord.read(buffer, 0, buffer.length);
                         loopCount++;
                         if (loopCount == 1) {
                             logToCallback("First audio read: " + read + " bytes");
@@ -308,13 +334,13 @@ public class VoskVoiceService extends Service {
                             if (loopCount == 1) {
                                 logToCallback("Calling acceptWaveForm...");
                             }
-                            boolean hasResult = recognizer.acceptWaveForm(buffer, read);
+                            boolean hasResult = localRecognizer.acceptWaveForm(buffer, read);
                             if (loopCount == 1) {
                                 logToCallback("acceptWaveForm OK, hasResult=" + hasResult);
                             }
                             
                             if (hasResult) {
-                                String result = recognizer.getResult();
+                                String result = localRecognizer.getResult();
                                 String text = parseVoskResult(result);
                                 if (text != null && !text.isEmpty()) {
                                     hasSpeech = true;
@@ -328,7 +354,7 @@ public class VoskVoiceService extends Service {
                                     silenceStart = 0;
                                 }
                             } else {
-                                String partial = recognizer.getPartialResult();
+                                String partial = localRecognizer.getPartialResult();
                                 if (partial.contains("\"partial\" : \"\"")) {
                                     if (hasSpeech && silenceStart == 0) {
                                         silenceStart = System.currentTimeMillis();
@@ -340,7 +366,7 @@ public class VoskVoiceService extends Service {
                             }
 
                             if (silenceStart > 0 && System.currentTimeMillis() - silenceStart > 1500) {
-                                String finalResult = recognizer.getFinalResult();
+                                String finalResult = localRecognizer.getFinalResult();
                                 String text2 = parseVoskResult(finalResult);
                                 if (text2 != null && !text2.isEmpty()) {
                                     final String finalText = text2;
@@ -357,8 +383,8 @@ public class VoskVoiceService extends Service {
                     }
 
                     logToCallback("Audio loop ended. Loops: " + loopCount);
-                    if (recognizer != null) {
-                        String finalResult = recognizer.getFinalResult();
+                    if (localRecognizer != null) {
+                        String finalResult = localRecognizer.getFinalResult();
                         String text = parseVoskResult(finalResult);
                         if (text != null && !text.isEmpty()) {
                             final String finalText = text;
