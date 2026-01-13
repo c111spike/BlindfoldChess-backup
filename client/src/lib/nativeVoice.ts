@@ -69,6 +69,12 @@ export function debugSetLastError(error: string) {
   updateDebugState({ lastError: error });
 }
 
+export interface NativeStatus {
+  serviceBound: boolean;
+  modelReady: boolean;
+  sessionActive: boolean;
+}
+
 export interface BlindfoldNativePlugin {
   waitUntilReady(): Promise<void>;
   checkPermissions(): Promise<PermissionStatus>;
@@ -78,6 +84,7 @@ export interface BlindfoldNativePlugin {
   startListening(): Promise<void>;
   speakAndListen(options: { text: string }): Promise<void>;
   speakOnly(options: { text: string }): Promise<void>;
+  getStatus(): Promise<NativeStatus>;
   addListener(
     eventName: 'onSpeechResult',
     listenerFunc: (data: { text: string }) => void

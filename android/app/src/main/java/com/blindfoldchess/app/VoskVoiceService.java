@@ -116,11 +116,13 @@ public class VoskVoiceService extends Service {
     }
 
     private void initVoskModel() {
+        logToCallback("Loading Vosk model...");
         StorageService.unpack(this, "vosk-model", "model",
             (model) -> {
                 this.model = model;
                 this.modelLoaded = true;
                 Log.i(TAG, "Vosk model loaded successfully");
+                logToCallback("Vosk model LOADED");
                 
                 // Check if we have a queued listening request
                 if (pendingListeningRequest && isSessionActive) {
@@ -131,8 +133,16 @@ public class VoskVoiceService extends Service {
             },
             (exception) -> {
                 Log.e(TAG, "Failed to load Vosk model: " + exception.getMessage());
+                logToCallback("Model FAILED: " + exception.getMessage());
             }
         );
+    }
+    
+    private void logToCallback(String message) {
+        Log.d(TAG, message);
+        if (callback != null) {
+            mainHandler.post(() -> callback.onGameLog(message));
+        }
     }
 
     public void setCallback(VoiceCallback cb) { this.callback = cb; }
@@ -180,6 +190,8 @@ public class VoskVoiceService extends Service {
     }
 
     public boolean isSessionActive() { return isSessionActive; }
+    
+    public boolean isModelReady() { return modelLoaded; }
 
     private void startListeningInternal() {
         if (!isSessionActive) return;
@@ -217,6 +229,7 @@ public class VoskVoiceService extends Service {
 
             isListening = true;
             audioRecord.startRecording();
+            logToCallback("Mic recording STARTED");
 
             recordingThread = new Thread(() -> {
                 byte[] buffer = new byte[4096];
@@ -234,6 +247,8 @@ public class VoskVoiceService extends Service {
                             if (text != null && !text.isEmpty()) {
                                 hasSpeech = true;
                                 final String finalText = text;
+                                Log.d(TAG, "Speech result: " + finalText);
+                                logToCallback("Heard: " + finalText);
                                 mainHandler.post(() -> {
                                     if (callback != null) callback.onSpeechResult(finalText);
                                 });

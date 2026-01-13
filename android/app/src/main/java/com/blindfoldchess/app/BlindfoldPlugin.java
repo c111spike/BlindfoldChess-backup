@@ -340,4 +340,13 @@ public class BlindfoldPlugin extends Plugin {
             call.reject("Service not bound");
         }
     }
+
+    @PluginMethod
+    public void getStatus(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("serviceBound", isBound);
+        result.put("modelReady", isBound && voiceService != null && voiceService.isModelReady());
+        result.put("sessionActive", isBound && voiceService != null && voiceService.isSessionActive());
+        call.resolve(result);
+    }
 }

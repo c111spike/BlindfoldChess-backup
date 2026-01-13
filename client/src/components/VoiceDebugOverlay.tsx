@@ -1,13 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { subscribeToVoiceDebug, type VoiceDebugState } from '@/lib/nativeVoice';
+import BlindfoldNative from '@/lib/nativeVoice';
 import { Mic, MicOff, Check, X, AlertCircle } from 'lucide-react';
 
 export function VoiceDebugOverlay() {
   const [state, setState] = useState<VoiceDebugState | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const [nativeStatus, setNativeStatus] = useState<{serviceBound: boolean; modelReady: boolean; sessionActive: boolean} | null>(null);
+  const [nativeLogs, setNativeLogs] = useState<string[]>([]);
+  const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
-    return subscribeToVoiceDebug(setState);
+    const unsub = subscribeToVoiceDebug(setState);
+    
+    // Poll native status every 2 seconds
+    const pollNativeStatus = async () => {
+      try {
+        const status = await BlindfoldNative.getStatus();
+        setNativeStatus(status);
+      } catch (e) {
+        // Plugin not available
+      }
+    };
+    
+    pollNativeStatus();
+    pollRef.current = window.setInterval(pollNativeStatus, 2000);
+    
+    // Listen to native logs
+    let logHandle: any = null;
+    BlindfoldNative.addListener('onGameLog', (data) => {
+      setNativeLogs(prev => [...prev.slice(-4), data.message]);
+    }).then(h => { logHandle = h; }).catch(() => {});
+    
+    return () => {
+      unsub();
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (logHandle) logHandle.remove();
+    };
   }, []);
 
   if (!state) return null;
@@ -38,14 +67,21 @@ export function VoiceDebugOverlay() {
             <span>Permission: {state.permissionStatus}</span>
           </div>
           
+          <div className="text-white/50 text-[10px] mt-1 mb-1">--- Native Status (polled) ---</div>
+          
           <div className="flex items-center gap-2">
-            <StatusIcon ok={state.modelReady} />
-            <span>Model Ready: {state.modelReady ? 'Yes' : 'No'}</span>
+            <StatusIcon ok={nativeStatus?.serviceBound ?? false} />
+            <span>Service Bound: {nativeStatus?.serviceBound ? 'Yes' : 'No'}</span>
           </div>
           
           <div className="flex items-center gap-2">
-            <StatusIcon ok={state.sessionActive} />
-            <span>Session Active: {state.sessionActive ? 'Yes' : 'No'}</span>
+            <StatusIcon ok={nativeStatus?.modelReady ?? false} />
+            <span>Model Ready: {nativeStatus?.modelReady ? 'Yes' : 'No'}</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <StatusIcon ok={nativeStatus?.sessionActive ?? false} />
+            <span>Session Active: {nativeStatus?.sessionActive ? 'Yes' : 'No'}</span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -63,6 +99,15 @@ export function VoiceDebugOverlay() {
             <div className="mt-2 p-1 bg-red-900/50 rounded flex items-start gap-1">
               <AlertCircle className="w-3 h-3 text-red-400 mt-0.5 shrink-0" />
               <span className="text-red-300 break-all">{state.lastError}</span>
+            </div>
+          )}
+          
+          {nativeLogs.length > 0 && (
+            <div className="mt-2 p-1 bg-blue-900/50 rounded">
+              <div className="text-blue-300 text-[10px]">Native Logs:</div>
+              {nativeLogs.map((log, i) => (
+                <div key={i} className="text-blue-200 text-[9px] truncate">{log}</div>
+              ))}
             </div>
           )}
           
