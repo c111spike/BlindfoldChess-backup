@@ -1515,15 +1515,38 @@ const SPOKEN_PIECES: Record<string, string> = {
   'pond': 'pawn',
 };
 
+// Phonetic file letters (a-h) - how Vosk might hear them
+const SPOKEN_FILES: Record<string, string> = {
+  'ay': 'a', 'aye': 'a', 'eh': 'a', 'alpha': 'a', 'alfa': 'a', 'apple': 'a', 'able': 'a',
+  'bee': 'b', 'be': 'b', 'bravo': 'b', 'boy': 'b', 'baker': 'b',
+  'cee': 'c', 'see': 'c', 'sea': 'c', 'charlie': 'c', 'cat': 'c',
+  'dee': 'd', 'delta': 'd', 'dog': 'd', 'david': 'd',
+  'eee': 'e', 'ee': 'e', 'echo': 'e', 'easy': 'e', 'edward': 'e',
+  'ef': 'f', 'eff': 'f', 'foxtrot': 'f', 'fox': 'f', 'frank': 'f',
+  'gee': 'g', 'jee': 'g', 'golf': 'g', 'george': 'g',
+  'aitch': 'h', 'ach': 'h', 'hotel': 'h', 'henry': 'h',
+};
+
 function normalizePhonetics(text: string): string {
   let normalized = text.toLowerCase();
   
-  // Replace spoken numbers with digits
+  // STEP 1: Replace spoken file letters with actual letters FIRST
+  // So "bee for" becomes "b for" before we check for "[a-h] for" pattern
+  for (const [spoken, file] of Object.entries(SPOKEN_FILES)) {
+    normalized = normalized.replace(new RegExp(`\\b${spoken}\\b`, 'g'), file);
+  }
+  
+  // STEP 2: Handle context-aware "for" → "4" (only when after a file letter)
+  // Pattern: [file letter] + "for" → [file letter] + "4"
+  // Now "b for" correctly becomes "b 4"
+  normalized = normalized.replace(/\b([a-h])\s+for\b/g, '$1 4');
+  
+  // STEP 3: Replace spoken numbers with digits
   for (const [spoken, digit] of Object.entries(SPOKEN_NUMBERS)) {
     normalized = normalized.replace(new RegExp(`\\b${spoken}\\b`, 'g'), digit);
   }
   
-  // Replace spoken piece names with standard names
+  // STEP 4: Replace spoken piece names with standard names
   for (const [spoken, piece] of Object.entries(SPOKEN_PIECES)) {
     normalized = normalized.replace(new RegExp(`\\b${spoken}\\b`, 'g'), piece);
   }

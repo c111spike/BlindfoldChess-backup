@@ -32,9 +32,19 @@ const PIECE_NAMES: Record<string, string[]> = {
 };
 
 const FILE_PHONETICS: Record<string, string> = {
+  // Letter sounds (ay, bee, cee, etc.)
+  'ay': 'a', 'aye': 'a', 'eh': 'a',
+  'bee': 'b', 'be': 'b',
+  'cee': 'c', 'see': 'c', 'sea': 'c',
+  'dee': 'd',
+  'eee': 'e', 'ee': 'e',
+  'ef': 'f', 'eff': 'f',
+  'gee': 'g', 'jee': 'g',
+  'aitch': 'h', 'ach': 'h',
+  // NATO/phonetic alphabet
   'alpha': 'a', 'alfa': 'a', 'apple': 'a', 'able': 'a',
   'bravo': 'b', 'boy': 'b', 'baker': 'b',
-  'charlie': 'c', 'cat': 'c', 'see': 'c', 'sea': 'c',
+  'charlie': 'c', 'cat': 'c',
   'delta': 'd', 'dog': 'd', 'david': 'd',
   'echo': 'e', 'easy': 'e', 'edward': 'e',
   'foxtrot': 'f', 'fox': 'f', 'frank': 'f',
@@ -42,12 +52,12 @@ const FILE_PHONETICS: Record<string, string> = {
   'hotel': 'h', 'henry': 'h',
 };
 
-// NOTE: "to", "for" excluded - they're connector words not rank numbers in chess context
+// NOTE: "to" excluded - it's a connector word. "for" handled context-aware below.
 const RANK_PHONETICS: Record<string, string> = {
   'one': '1', 'won': '1', 'first': '1',
   'two': '2', 'too': '2', 'second': '2',  // NOT "to" - it's a connector word
   'three': '3', 'free': '3', 'third': '3', 'tree': '3',
-  'four': '4', 'fore': '4', 'forth': '4', 'fourth': '4',  // NOT "for" - it's a preposition
+  'four': '4', 'fore': '4', 'forth': '4', 'fourth': '4', 'for': '4',  // "for" added - context handled in parseSquare
   'five': '5', 'fifth': '5',
   'six': '6', 'sixth': '6', 'sicks': '6',
   'seven': '7', 'seventh': '7',
