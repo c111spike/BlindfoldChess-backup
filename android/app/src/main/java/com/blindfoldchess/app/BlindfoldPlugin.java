@@ -102,28 +102,42 @@ public class BlindfoldPlugin extends Plugin {
 
     @Override
     public void load() {
-        Log.d(TAG, "Plugin loaded - checking mic permission...");
-        if (hasMicPermission()) {
-            Log.d(TAG, "Mic permission already granted on load, binding service");
-            bindServiceIfNeeded();
-        } else {
-            Log.d(TAG, "Mic permission not granted, deferring service bind");
+        try {
+            Log.d(TAG, "Plugin loaded - checking mic permission...");
+            if (hasMicPermission()) {
+                Log.d(TAG, "Mic permission already granted on load, binding service");
+                bindServiceIfNeeded();
+            } else {
+                Log.d(TAG, "Mic permission not granted, deferring service bind");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in load(), continuing anyway: " + e.getMessage());
         }
     }
     
     private void bindServiceIfNeeded() {
-        if (isBound || isBindingInProgress) {
-            Log.d(TAG, "bindServiceIfNeeded: already bound or binding in progress");
-            return;
+        try {
+            if (isBound || isBindingInProgress) {
+                Log.d(TAG, "bindServiceIfNeeded: already bound or binding in progress");
+                return;
+            }
+            Context ctx = getContext();
+            if (ctx == null) {
+                Log.w(TAG, "bindServiceIfNeeded: context is null, skipping bind");
+                return;
+            }
+            if (!hasMicPermission()) {
+                Log.w(TAG, "bindServiceIfNeeded: mic permission not granted, skipping bind");
+                return;
+            }
+            isBindingInProgress = true;
+            Log.d(TAG, "Binding to VoskVoiceService...");
+            Intent intent = new Intent(ctx, VoskVoiceService.class);
+            ctx.bindService(intent, connection, Context.BIND_AUTO_CREATE);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in bindServiceIfNeeded: " + e.getMessage());
+            isBindingInProgress = false;
         }
-        if (!hasMicPermission()) {
-            Log.w(TAG, "bindServiceIfNeeded: mic permission not granted, skipping bind");
-            return;
-        }
-        isBindingInProgress = true;
-        Log.d(TAG, "Binding to VoskVoiceService...");
-        Intent intent = new Intent(getContext(), VoskVoiceService.class);
-        getContext().bindService(intent, connection, Context.BIND_AUTO_CREATE);
     }
 
     @PluginMethod
