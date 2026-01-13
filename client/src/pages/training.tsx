@@ -11,8 +11,9 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { saveTrainingSession, getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
 import { speak } from "@/lib/voice";
 import { Capacitor } from "@capacitor/core";
-import BlindfoldNative, { waitForVoiceReady } from "@/lib/nativeVoice";
+import BlindfoldNative, { waitForVoiceReady, debugSetSessionActive, debugSetMicListening, debugSetLastResult, debugSetLastError } from "@/lib/nativeVoice";
 import type { PluginListenerHandle } from '@capacitor/core';
+import { VoiceDebugOverlay } from "@/components/VoiceDebugOverlay";
 
 const isNativePlatform = Capacitor.isNativePlatform();
 
@@ -307,6 +308,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
         nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
           const text = data.text.toLowerCase();
           console.log('[ColorBlitz] Voice:', text);
+          debugSetLastResult(text);
           
           const lightSynonyms = ['light', 'white', 'lie', 'lye', 'lite', 'lied', 'liked', 'right', 'bright'];
           const darkSynonyms = ['dark', 'black', 'bark', 'duck', 'dock', 'doc'];
@@ -324,14 +326,17 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
 
         // Start the native voice session
         await BlindfoldNative.startSession();
+        debugSetSessionActive(true);
         // CRITICAL: Must call startListening() to begin mic capture
         await BlindfoldNative.startListening();
+        debugSetMicListening(true);
         isNativeVoiceActive.current = true;
         setIsListening(true);
         console.log('[ColorBlitz] Native voice session started');
 
       } catch (error) {
         console.error('[ColorBlitz] Native voice setup failed:', error);
+        debugSetLastError(String(error));
       }
     };
 
@@ -497,6 +502,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
 
   return (
     <>
+      {isNativePlatform && <VoiceDebugOverlay />}
       <div className="flex flex-col h-full p-4 max-w-md mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -1158,6 +1164,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
         
         nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
           const transcript = data.text;
+          debugSetLastResult(transcript);
           if (transcript.length >= 2) {
             processVoiceInputRef.current?.(transcript);
           }
@@ -1168,14 +1175,17 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
 
         // Start the native voice session
         await BlindfoldNative.startSession();
+        debugSetSessionActive(true);
         // CRITICAL: Must call startListening() to begin mic capture
         await BlindfoldNative.startListening();
+        debugSetMicListening(true);
         isNativeVoiceActive.current = true;
         setIsListening(true);
         console.log('[VoiceMoveMaster] Native voice session started');
 
       } catch (error) {
         console.error('[VoiceMoveMaster] Native voice setup failed:', error);
+        debugSetLastError(String(error));
       }
     };
 
@@ -1292,6 +1302,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
 
   return (
     <>
+      {isNativePlatform && <VoiceDebugOverlay />}
       <div className="flex flex-col h-full p-4 max-w-md mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">

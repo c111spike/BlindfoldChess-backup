@@ -24,7 +24,7 @@ import GamePage, { type GameViewState } from "@/pages/game";
 import TrainingPage, { type TrainingGameState } from "@/pages/training";
 import { getDailyGoalsEnabled, getTodaySessionCount, isDailyGoalMet } from "@/lib/trainingStats";
 import { Capacitor } from "@capacitor/core";
-import BlindfoldNative, { markVoiceReady } from "@/lib/nativeVoice";
+import BlindfoldNative, { markVoiceReady, debugSetPermission, debugSetModelReady, debugSetLastError } from "@/lib/nativeVoice";
 
 export default function App() {
   const [showStatsDialog, setShowStatsDialog] = useState(false);
@@ -57,12 +57,15 @@ export default function App() {
     const requestMicPermission = async () => {
       try {
         console.log('[App] Requesting mic permission on startup...');
+        debugSetPermission('requesting...');
         // Request permission FIRST - Vosk service needs this before it can bind
         const result = await BlindfoldNative.requestPermissions();
         console.log('[App] Mic permission result:', result.mic);
+        debugSetPermission(result.mic);
         
         if (result.mic !== 'granted') {
           console.warn('[App] Mic permission denied');
+          debugSetLastError('Mic permission denied');
           markVoiceReady(false);
           return;
         }
@@ -71,9 +74,11 @@ export default function App() {
         console.log('[App] Permission granted, waiting for Vosk service...');
         await BlindfoldNative.waitUntilReady();
         console.log('[App] Vosk service ready');
+        debugSetModelReady(true);
         markVoiceReady(true);
       } catch (error) {
         console.error('[App] Failed to initialize voice:', error);
+        debugSetLastError(String(error));
         markVoiceReady(false);
       }
     };

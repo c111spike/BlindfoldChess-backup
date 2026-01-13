@@ -6,6 +6,69 @@ export interface PermissionStatus {
   notify: 'granted' | 'denied' | 'prompt';
 }
 
+// Debug state for voice system diagnostics
+export interface VoiceDebugState {
+  permissionStatus: string;
+  modelReady: boolean;
+  sessionActive: boolean;
+  micListening: boolean;
+  lastResult: string;
+  lastError: string;
+  timestamp: number;
+}
+
+const debugState: VoiceDebugState = {
+  permissionStatus: 'unknown',
+  modelReady: false,
+  sessionActive: false,
+  micListening: false,
+  lastResult: '',
+  lastError: '',
+  timestamp: Date.now(),
+};
+
+type DebugListener = (state: VoiceDebugState) => void;
+const debugListeners: Set<DebugListener> = new Set();
+
+export function getVoiceDebugState(): VoiceDebugState {
+  return { ...debugState };
+}
+
+export function subscribeToVoiceDebug(listener: DebugListener): () => void {
+  debugListeners.add(listener);
+  listener({ ...debugState });
+  return () => debugListeners.delete(listener);
+}
+
+function updateDebugState(updates: Partial<VoiceDebugState>) {
+  Object.assign(debugState, updates, { timestamp: Date.now() });
+  debugListeners.forEach(l => l({ ...debugState }));
+}
+
+export function debugSetPermission(status: string) {
+  updateDebugState({ permissionStatus: status });
+}
+
+export function debugSetModelReady(ready: boolean) {
+  updateDebugState({ modelReady: ready });
+}
+
+export function debugSetSessionActive(active: boolean) {
+  updateDebugState({ sessionActive: active });
+}
+
+export function debugSetMicListening(listening: boolean) {
+  updateDebugState({ micListening: listening });
+}
+
+export function debugSetLastResult(result: string) {
+  updateDebugState({ lastResult: result });
+}
+
+export function debugSetLastError(error: string) {
+  updateDebugState({ lastError: error });
+}
+
 export interface BlindfoldNativePlugin {
   waitUntilReady(): Promise<void>;
   checkPermissions(): Promise<PermissionStatus>;
