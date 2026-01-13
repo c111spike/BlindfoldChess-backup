@@ -117,25 +117,47 @@ public class VoskVoiceService extends Service {
 
     private void initVoskModel() {
         logToCallback("Loading Vosk model...");
-        StorageService.unpack(this, "vosk-model", "model",
-            (model) -> {
-                this.model = model;
-                this.modelLoaded = true;
-                Log.i(TAG, "Vosk model loaded successfully");
-                logToCallback("Vosk model LOADED");
-                
-                // Check if we have a queued listening request
-                if (pendingListeningRequest && isSessionActive) {
-                    Log.d(TAG, "Model loaded. Executing queued listening request.");
-                    pendingListeningRequest = false;
-                    mainHandler.post(() -> startListeningInternal());
+        try {
+            // Log the expected extraction path
+            java.io.File modelDir = new java.io.File(getFilesDir(), "model");
+            logToCallback("Model path: " + modelDir.getAbsolutePath());
+            
+            StorageService.unpack(this, "vosk-model", "model",
+                (model) -> {
+                    try {
+                        this.model = model;
+                        this.modelLoaded = true;
+                        Log.i(TAG, "Vosk model loaded successfully");
+                        logToCallback("Vosk model LOADED!");
+                        
+                        // Verify model directory exists
+                        java.io.File verifyDir = new java.io.File(getFilesDir(), "model");
+                        logToCallback("Model exists: " + verifyDir.exists());
+                        
+                        // Check if we have a queued listening request
+                        if (pendingListeningRequest && isSessionActive) {
+                            Log.d(TAG, "Model loaded. Executing queued listening request.");
+                            pendingListeningRequest = false;
+                            mainHandler.post(() -> startListeningInternal());
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Exception in model success callback: " + e.getMessage());
+                        logToCallback("Model callback error: " + e.getMessage());
+                    }
+                },
+                (exception) -> {
+                    Log.e(TAG, "Failed to load Vosk model: " + exception.getMessage());
+                    logToCallback("Model FAILED: " + exception.getMessage());
+                    if (exception.getCause() != null) {
+                        logToCallback("Cause: " + exception.getCause().getMessage());
+                    }
                 }
-            },
-            (exception) -> {
-                Log.e(TAG, "Failed to load Vosk model: " + exception.getMessage());
-                logToCallback("Model FAILED: " + exception.getMessage());
-            }
-        );
+            );
+        } catch (Exception e) {
+            Log.e(TAG, "Exception during model init: " + e.getMessage());
+            logToCallback("Model init exception: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
     
     private void logToCallback(String message) {

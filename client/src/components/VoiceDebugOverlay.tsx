@@ -26,10 +26,10 @@ export function VoiceDebugOverlay() {
     pollNativeStatus();
     pollRef.current = window.setInterval(pollNativeStatus, 2000);
     
-    // Listen to native logs
+    // Listen to native logs - keep more entries
     let logHandle: any = null;
     BlindfoldNative.addListener('onGameLog', (data) => {
-      setNativeLogs(prev => [...prev.slice(-4), data.message]);
+      setNativeLogs(prev => [...prev.slice(-9), data.message]);
     }).then(h => { logHandle = h; }).catch(() => {});
     
     return () => {
