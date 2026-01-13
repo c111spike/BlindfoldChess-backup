@@ -260,193 +260,173 @@ public class VoskVoiceService extends Service {
         }
         
         if (isListening) return;
-
-        try {
-            logToCallback("Creating Recognizer with model...");
-            recognizer = new Recognizer(model, SAMPLE_RATE);
-            logToCallback("Recognizer created OK");
+        isListening = true;
+        
+        // CRITICAL FIX: Create EVERYTHING inside the thread for thread affinity
+        // Vosk native code may require thread-local initialization
+        final Model localModel = model;
+        
+        recordingThread = new Thread(() -> {
+            Recognizer threadRecognizer = null;
+            AudioRecord threadAudioRecord = null;
             
-            int bufferSize = AudioRecord.getMinBufferSize(
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-            );
-            bufferSize = Math.max(bufferSize, 4096);
+            try {
+                logToCallback("Thread started. Creating Recognizer...");
+                threadRecognizer = new Recognizer(localModel, SAMPLE_RATE);
+                logToCallback("Recognizer created OK in thread");
+                
+                int bufferSize = AudioRecord.getMinBufferSize(
+                    SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT
+                );
+                bufferSize = Math.max(bufferSize, 4096);
+                logToCallback("Buffer size: " + bufferSize);
 
-            audioRecord = new AudioRecord(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                bufferSize
-            );
+                threadAudioRecord = new AudioRecord(
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                    SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize
+                );
 
-            if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-                Log.e(TAG, "AudioRecord failed to initialize");
-                return;
-            }
+                if (threadAudioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+                    logToCallback("ERROR: AudioRecord failed to initialize");
+                    isListening = false;
+                    return;
+                }
+                
+                logToCallback("AudioRecord initialized. Starting recording...");
+                threadAudioRecord.startRecording();
+                logToCallback("Mic recording STARTED");
+                
+                byte[] buffer = new byte[4096];
+                long silenceStart = 0;
+                boolean hasSpeech = false;
+                int loopCount = 0;
+                
+                logToCallback("Starting audio read loop...");
 
-            isListening = true;
-            audioRecord.startRecording();
-            logToCallback("Mic recording STARTED");
-            
-            // CRITICAL: Capture final references for thread safety
-            final AudioRecord localAudioRecord = audioRecord;
-            final Recognizer localRecognizer = recognizer;
-            logToCallback("AudioRecord state: " + localAudioRecord.getState() + ", RecState: " + localAudioRecord.getRecordingState());
-
-            recordingThread = new Thread(() -> {
-                try {
-                    logToCallback("Audio thread starting...");
-                    
-                    // Defensive null check
-                    if (localAudioRecord == null) {
-                        logToCallback("ERROR: localAudioRecord is null!");
-                        return;
+                while (isListening && isSessionActive) {
+                    int read = threadAudioRecord.read(buffer, 0, buffer.length);
+                    loopCount++;
+                    if (loopCount == 1) {
+                        logToCallback("First audio read: " + read + " bytes");
                     }
-                    if (localRecognizer == null) {
-                        logToCallback("ERROR: localRecognizer is null!");
-                        return;
-                    }
-                    
-                    // Check recording state before first read
-                    int recState = localAudioRecord.getRecordingState();
-                    logToCallback("Recording state in thread: " + recState);
-                    if (recState != AudioRecord.RECORDSTATE_RECORDING) {
-                        logToCallback("ERROR: AudioRecord not in RECORDING state!");
-                        return;
-                    }
-                    
-                    byte[] buffer = new byte[4096];
-                    long silenceStart = 0;
-                    boolean hasSpeech = false;
-                    int loopCount = 0;
-                    
-                    logToCallback("Starting audio read loop...");
-
-                    while (isListening && isSessionActive) {
-                        int read = localAudioRecord.read(buffer, 0, buffer.length);
-                        loopCount++;
+                    if (read > 0) {
                         if (loopCount == 1) {
-                            logToCallback("First audio read: " + read + " bytes");
+                            logToCallback("Calling acceptWaveForm...");
                         }
-                        if (read > 0) {
-                            if (loopCount == 1) {
-                                logToCallback("Calling acceptWaveForm...");
-                            }
-                            boolean hasResult = localRecognizer.acceptWaveForm(buffer, read);
-                            if (loopCount == 1) {
-                                logToCallback("acceptWaveForm OK, hasResult=" + hasResult);
-                            }
-                            
-                            if (hasResult) {
-                                String result = localRecognizer.getResult();
-                                String text = parseVoskResult(result);
-                                if (text != null && !text.isEmpty()) {
-                                    hasSpeech = true;
-                                    final String finalText = text;
-                                    Log.d(TAG, "Speech result: " + finalText);
-                                    logToCallback("Heard: " + finalText);
-                                    mainHandler.post(() -> {
-                                        if (callback != null) callback.onSpeechResult(finalText);
-                                    });
-                                    hasSpeech = false;
-                                    silenceStart = 0;
-                                }
-                            } else {
-                                String partial = localRecognizer.getPartialResult();
-                                if (partial.contains("\"partial\" : \"\"")) {
-                                    if (hasSpeech && silenceStart == 0) {
-                                        silenceStart = System.currentTimeMillis();
-                                    }
-                                } else {
-                                    hasSpeech = true;
-                                    silenceStart = 0;
-                                }
-                            }
-
-                            if (silenceStart > 0 && System.currentTimeMillis() - silenceStart > 1500) {
-                                String finalResult = localRecognizer.getFinalResult();
-                                String text2 = parseVoskResult(finalResult);
-                                if (text2 != null && !text2.isEmpty()) {
-                                    final String finalText = text2;
-                                    mainHandler.post(() -> {
-                                        if (callback != null) callback.onSpeechResult(finalText);
-                                    });
-                                }
+                        boolean hasResult = threadRecognizer.acceptWaveForm(buffer, read);
+                        if (loopCount == 1) {
+                            logToCallback("acceptWaveForm OK, hasResult=" + hasResult);
+                        }
+                        
+                        if (hasResult) {
+                            String result = threadRecognizer.getResult();
+                            String text = parseVoskResult(result);
+                            if (text != null && !text.isEmpty()) {
+                                hasSpeech = true;
+                                final String finalText = text;
+                                Log.d(TAG, "Speech result: " + finalText);
+                                logToCallback("Heard: " + finalText);
+                                mainHandler.post(() -> {
+                                    if (callback != null) callback.onSpeechResult(finalText);
+                                });
                                 hasSpeech = false;
                                 silenceStart = 0;
                             }
-                        } else if (read < 0) {
-                            logToCallback("Audio read error: " + read);
+                        } else {
+                            String partial = threadRecognizer.getPartialResult();
+                            if (partial.contains("\"partial\" : \"\"")) {
+                                if (hasSpeech && silenceStart == 0) {
+                                    silenceStart = System.currentTimeMillis();
+                                }
+                            } else {
+                                hasSpeech = true;
+                                silenceStart = 0;
+                            }
                         }
-                    }
 
-                    logToCallback("Audio loop ended. Loops: " + loopCount);
-                    if (localRecognizer != null) {
-                        String finalResult = localRecognizer.getFinalResult();
-                        String text = parseVoskResult(finalResult);
-                        if (text != null && !text.isEmpty()) {
-                            final String finalText = text;
-                            mainHandler.post(() -> {
-                                if (callback != null) callback.onSpeechResult(finalText);
-                            });
+                        if (silenceStart > 0 && System.currentTimeMillis() - silenceStart > 1500) {
+                            String finalResult = threadRecognizer.getFinalResult();
+                            String text2 = parseVoskResult(finalResult);
+                            if (text2 != null && !text2.isEmpty()) {
+                                final String finalText = text2;
+                                mainHandler.post(() -> {
+                                    if (callback != null) callback.onSpeechResult(finalText);
+                                });
+                            }
+                            hasSpeech = false;
+                            silenceStart = 0;
                         }
+                    } else if (read < 0) {
+                        logToCallback("Audio read error: " + read);
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "AUDIO THREAD CRASH: " + e.getClass().getName() + ": " + e.getMessage());
-                    logToCallback("CRASH: " + e.getClass().getSimpleName() + ": " + e.getMessage());
-                    if (e.getCause() != null) {
-                        logToCallback("Cause: " + e.getCause().getMessage());
-                    }
-                    java.io.StringWriter sw = new java.io.StringWriter();
-                    e.printStackTrace(new java.io.PrintWriter(sw));
-                    String[] lines = sw.toString().split("\n");
-                    for (int i = 0; i < Math.min(5, lines.length); i++) {
-                        logToCallback("  " + lines[i].trim());
-                    }
-                } catch (Error e) {
-                    Log.e(TAG, "AUDIO THREAD ERROR: " + e.getClass().getName() + ": " + e.getMessage());
-                    logToCallback("ERROR: " + e.getClass().getSimpleName() + ": " + e.getMessage());
-                    throw e;
                 }
-            }, "VoskRecordingThread");
 
-            recordingThread.start();
-            Log.i(TAG, "Started Vosk listening");
+                logToCallback("Audio loop ended. Loops: " + loopCount);
+                if (threadRecognizer != null) {
+                    String finalResult = threadRecognizer.getFinalResult();
+                    String text = parseVoskResult(finalResult);
+                    if (text != null && !text.isEmpty()) {
+                        final String finalText = text;
+                        mainHandler.post(() -> {
+                            if (callback != null) callback.onSpeechResult(finalText);
+                        });
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "AUDIO THREAD CRASH: " + e.getClass().getName() + ": " + e.getMessage());
+                logToCallback("CRASH: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+                if (e.getCause() != null) {
+                    logToCallback("Cause: " + e.getCause().getMessage());
+                }
+                java.io.StringWriter sw = new java.io.StringWriter();
+                e.printStackTrace(new java.io.PrintWriter(sw));
+                String[] lines = sw.toString().split("\n");
+                for (int i = 0; i < Math.min(5, lines.length); i++) {
+                    logToCallback("  " + lines[i].trim());
+                }
+            } catch (Error e) {
+                Log.e(TAG, "AUDIO THREAD ERROR: " + e.getClass().getName() + ": " + e.getMessage());
+                logToCallback("ERROR: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+                throw e;
+            } finally {
+                // Clean up in thread
+                if (threadAudioRecord != null) {
+                    try {
+                        if (threadAudioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                            threadAudioRecord.stop();
+                        }
+                        threadAudioRecord.release();
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error releasing AudioRecord: " + e.getMessage());
+                    }
+                }
+                if (threadRecognizer != null) {
+                    try {
+                        threadRecognizer.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error closing Recognizer: " + e.getMessage());
+                    }
+                }
+                isListening = false;
+                logToCallback("Thread cleanup complete");
+            }
+        }, "VoskRecordingThread");
 
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to start listening: " + e.getMessage());
-            isListening = false;
-        }
+        recordingThread.start();
+        Log.i(TAG, "Started Vosk recording thread");
     }
 
     private void stopListeningInternal() {
-        // CRITICAL FIX: Cancel any pending start request
+        // Cancel any pending start request
         pendingListeningRequest = false;
         
+        // Signal thread to stop - cleanup happens in thread's finally block
         isListening = false;
-        
-        if (audioRecord != null) {
-            try {
-                if (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-                    audioRecord.stop();
-                }
-                audioRecord.release();
-            } catch (Exception e) {
-                Log.e(TAG, "Error stopping AudioRecord: " + e.getMessage());
-            }
-            audioRecord = null;
-        }
-
-        if (recognizer != null) {
-            try {
-                recognizer.close();
-            } catch (Exception e) {
-                Log.e(TAG, "Error closing recognizer: " + e.getMessage());
-            }
-            recognizer = null;
-        }
 
         if (recordingThread != null) {
             recordingThread.interrupt();
