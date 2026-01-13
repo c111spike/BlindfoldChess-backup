@@ -844,16 +844,25 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         
         if (cancelled) return;
         
+        console.log('[NativeVoice] Setting up onSpeechResult listener...');
         nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
+          console.log('[NativeVoice] *** RECEIVED onSpeechResult:', data.text);
           const transcript = data.text;
           const currentGame = gameRef.current;
-          if (!currentGame) return;
+          if (!currentGame) {
+            console.log('[NativeVoice] No game ref, ignoring');
+            return;
+          }
 
           const cleaned = transcript.trim();
-          if (cleaned.length < 2) return; // Noise filter
+          if (cleaned.length < 2) {
+            console.log('[NativeVoice] Too short, ignoring:', cleaned);
+            return;
+          }
 
           voiceCommandsRef.current++;
           setVoiceTranscript(transcript);
+          console.log('[NativeVoice] Processing transcript:', transcript);
 
           const lowerTranscript = transcript.toLowerCase();
 
@@ -914,12 +923,13 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         if (cancelled) return;
 
         // Start the native voice session
+        console.log('[NativeVoice] Calling startSession...');
         await BlindfoldNative.startSession();
         isNativeVoiceActive.current = true;
         setIsVoiceListening(true);
         // Reset fallback flag on success so native is used
         setNativeFallbackToWeb(false);
-        console.log('[NativeVoice] Session started');
+        console.log('[NativeVoice] Session started - listener active, waiting for speech');
 
       } catch (error) {
         console.error('[NativeVoice] Setup failed, falling back to web voice:', error);

@@ -25,21 +25,33 @@ const ALL_PIECES = ['wK', 'wQ', 'wR', 'wB', 'wN', 'wP', 'bK', 'bQ', 'bR', 'bB', 
 const PIECE_NAMES: Record<string, string[]> = {
   'K': ['king'],
   'Q': ['queen'],
-  'R': ['rook', 'castle'],
-  'B': ['bishop'],
-  'N': ['knight', 'horse'],
-  'P': ['pawn'],
+  'R': ['rook', 'castle', 'rock', 'brook'],
+  'B': ['bishop', 'bish', 'bishup'],
+  'N': ['knight', 'night', 'horse', 'nite'],
+  'P': ['pawn', 'pond'],
 };
 
 const FILE_PHONETICS: Record<string, string> = {
-  'alpha': 'a', 'alfa': 'a',
-  'bravo': 'b',
-  'charlie': 'c',
-  'delta': 'd',
-  'echo': 'e',
-  'foxtrot': 'f', 'fox': 'f',
-  'golf': 'g',
-  'hotel': 'h',
+  'alpha': 'a', 'alfa': 'a', 'apple': 'a', 'able': 'a',
+  'bravo': 'b', 'boy': 'b', 'baker': 'b',
+  'charlie': 'c', 'cat': 'c', 'see': 'c', 'sea': 'c',
+  'delta': 'd', 'dog': 'd', 'david': 'd',
+  'echo': 'e', 'easy': 'e', 'edward': 'e',
+  'foxtrot': 'f', 'fox': 'f', 'frank': 'f',
+  'golf': 'g', 'george': 'g',
+  'hotel': 'h', 'henry': 'h',
+};
+
+// NOTE: "to", "for" excluded - they're connector words not rank numbers in chess context
+const RANK_PHONETICS: Record<string, string> = {
+  'one': '1', 'won': '1', 'first': '1',
+  'two': '2', 'too': '2', 'second': '2',  // NOT "to" - it's a connector word
+  'three': '3', 'free': '3', 'third': '3', 'tree': '3',
+  'four': '4', 'fore': '4', 'forth': '4', 'fourth': '4',  // NOT "for" - it's a preposition
+  'five': '5', 'fifth': '5',
+  'six': '6', 'sixth': '6', 'sicks': '6',
+  'seven': '7', 'seventh': '7',
+  'eight': '8', 'ate': '8', 'eighth': '8',
 };
 
 interface BoardReconstructionProps {
@@ -101,18 +113,51 @@ function calculateScore(userBoard: (string | null)[][], actualBoard: (string | n
 function parseSquare(text: string): { file: string; rank: string } | null {
   const normalized = text.toLowerCase().trim();
   
-  for (const [phonetic, file] of Object.entries(FILE_PHONETICS)) {
+  let file: string | null = null;
+  let rank: string | null = null;
+  
+  // Check for phonetic file names first
+  for (const [phonetic, f] of Object.entries(FILE_PHONETICS)) {
     if (normalized.includes(phonetic)) {
-      const rankMatch = normalized.match(/[1-8]/);
-      if (rankMatch) {
-        return { file, rank: rankMatch[0] };
-      }
+      file = f;
+      break;
     }
   }
   
-  const directMatch = normalized.match(/([a-h])\s*([1-8])/);
-  if (directMatch) {
-    return { file: directMatch[1], rank: directMatch[2] };
+  // Check for single letter file (a-h)
+  if (!file) {
+    const fileMatch = normalized.match(/\b([a-h])\b/);
+    if (fileMatch) {
+      file = fileMatch[1];
+    }
+  }
+  
+  // Check for phonetic rank names (one, two, three, etc.)
+  for (const [phonetic, r] of Object.entries(RANK_PHONETICS)) {
+    if (normalized.includes(phonetic)) {
+      rank = r;
+      break;
+    }
+  }
+  
+  // Check for digit rank (1-8)
+  if (!rank) {
+    const rankMatch = normalized.match(/[1-8]/);
+    if (rankMatch) {
+      rank = rankMatch[0];
+    }
+  }
+  
+  // Direct match like "f3" or "a 7"
+  if (!file || !rank) {
+    const directMatch = normalized.match(/([a-h])\s*([1-8])/);
+    if (directMatch) {
+      return { file: directMatch[1], rank: directMatch[2] };
+    }
+  }
+  
+  if (file && rank) {
+    return { file, rank };
   }
   
   return null;

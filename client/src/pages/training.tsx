@@ -1495,9 +1495,49 @@ function calculateMaterialValue(chess: Chess): number {
 // User can say any of these interchangeably regardless of whether move is a capture
 const CONNECTOR_WORDS = ['to', 'takes', 'captures', 'moves', 'x', 'move'];
 
+// Phonetic mappings for Vosk speech recognition
+// NOTE: "to", "for" excluded - they're connector words not rank numbers in chess context
+const SPOKEN_NUMBERS: Record<string, string> = {
+  'one': '1', 'won': '1', 'first': '1',
+  'two': '2', 'too': '2', 'second': '2',  // NOT "to" - it's a connector word
+  'three': '3', 'free': '3', 'tree': '3', 'third': '3',
+  'four': '4', 'fore': '4', 'forth': '4', 'fourth': '4',  // NOT "for" - it's a preposition
+  'five': '5', 'fifth': '5',
+  'six': '6', 'sixth': '6', 'sicks': '6',
+  'seven': '7', 'seventh': '7',
+  'eight': '8', 'ate': '8', 'eighth': '8',
+};
+
+const SPOKEN_PIECES: Record<string, string> = {
+  'night': 'knight', 'nite': 'knight', 'horse': 'knight',
+  'rock': 'rook', 'castle': 'rook', 'brook': 'rook',
+  'bish': 'bishop', 'bishup': 'bishop',
+  'pond': 'pawn',
+};
+
+function normalizePhonetics(text: string): string {
+  let normalized = text.toLowerCase();
+  
+  // Replace spoken numbers with digits
+  for (const [spoken, digit] of Object.entries(SPOKEN_NUMBERS)) {
+    normalized = normalized.replace(new RegExp(`\\b${spoken}\\b`, 'g'), digit);
+  }
+  
+  // Replace spoken piece names with standard names
+  for (const [spoken, piece] of Object.entries(SPOKEN_PIECES)) {
+    normalized = normalized.replace(new RegExp(`\\b${spoken}\\b`, 'g'), piece);
+  }
+  
+  return normalized;
+}
+
 function matchesMove(input: string, target: TargetMove): boolean {
+  // STEP 1: Normalize phonetics first ("seven" → "7", "night" → "knight")
+  const phoneticNormalized = normalizePhonetics(input);
+  console.log('[matchesMove] Input:', input, '→ Normalized:', phoneticNormalized, '→ Target:', target.san);
+  
   // Normalize and strip connector words for flexible matching
-  let normalized = input.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+  let normalized = phoneticNormalized.replace(/[^a-z0-9\s]/g, '');
   const words = normalized.split(/\s+/);
   
   // Strip connector words for core matching (but keep original for bare coord check)
