@@ -53,6 +53,9 @@ public class VoskVoiceService extends Service {
     }
     private VoiceCallback callback;
     private final IBinder binder = new LocalBinder();
+    
+    // Buffer logs until callback is set
+    private java.util.List<String> logBuffer = new java.util.ArrayList<>();
 
     public class LocalBinder extends Binder {
         VoskVoiceService getService() { return VoskVoiceService.this; }
@@ -164,10 +167,27 @@ public class VoskVoiceService extends Service {
         Log.d(TAG, message);
         if (callback != null) {
             mainHandler.post(() -> callback.onGameLog(message));
+        } else {
+            // Buffer logs until callback is set
+            synchronized(logBuffer) {
+                logBuffer.add(message);
+            }
         }
     }
 
-    public void setCallback(VoiceCallback cb) { this.callback = cb; }
+    public void setCallback(VoiceCallback cb) { 
+        this.callback = cb;
+        // Flush buffered logs
+        if (cb != null) {
+            synchronized(logBuffer) {
+                for (String msg : logBuffer) {
+                    final String m = msg;
+                    mainHandler.post(() -> cb.onGameLog(m));
+                }
+                logBuffer.clear();
+            }
+        }
+    }
 
     public void startForegroundSession() {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
