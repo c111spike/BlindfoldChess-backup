@@ -349,4 +349,20 @@ public class BlindfoldPlugin extends Plugin {
         result.put("sessionActive", isBound && voiceService != null && voiceService.isSessionActive());
         call.resolve(result);
     }
+    
+    @PluginMethod
+    public void getLogs(PluginCall call) {
+        JSObject result = new JSObject();
+        if (isBound && voiceService != null) {
+            String[] logs = voiceService.getLogs();
+            com.getcapacitor.JSArray arr = new com.getcapacitor.JSArray();
+            for (String log : logs) {
+                arr.put(log);
+            }
+            result.put("logs", arr);
+        } else {
+            result.put("logs", new com.getcapacitor.JSArray());
+        }
+        call.resolve(result);
+    }
 }

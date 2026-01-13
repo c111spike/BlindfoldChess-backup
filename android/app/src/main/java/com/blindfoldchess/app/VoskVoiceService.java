@@ -54,8 +54,9 @@ public class VoskVoiceService extends Service {
     private VoiceCallback callback;
     private final IBinder binder = new LocalBinder();
     
-    // Buffer logs until callback is set
+    // Buffer logs until callback is set, and keep all logs for polling
     private java.util.List<String> logBuffer = new java.util.ArrayList<>();
+    private java.util.List<String> allLogs = new java.util.ArrayList<>();
 
     public class LocalBinder extends Binder {
         VoskVoiceService getService() { return VoskVoiceService.this; }
@@ -165,6 +166,14 @@ public class VoskVoiceService extends Service {
     
     private void logToCallback(String message) {
         Log.d(TAG, message);
+        // Always store in allLogs for polling
+        synchronized(allLogs) {
+            allLogs.add(message);
+            // Keep max 50 logs
+            if (allLogs.size() > 50) {
+                allLogs.remove(0);
+            }
+        }
         if (callback != null) {
             mainHandler.post(() -> callback.onGameLog(message));
         } else {
@@ -186,6 +195,12 @@ public class VoskVoiceService extends Service {
                 }
                 logBuffer.clear();
             }
+        }
+    }
+    
+    public String[] getLogs() {
+        synchronized(allLogs) {
+            return allLogs.toArray(new String[0]);
         }
     }
 

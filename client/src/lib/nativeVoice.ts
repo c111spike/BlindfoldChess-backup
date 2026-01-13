@@ -85,6 +85,7 @@ export interface BlindfoldNativePlugin {
   speakAndListen(options: { text: string }): Promise<void>;
   speakOnly(options: { text: string }): Promise<void>;
   getStatus(): Promise<NativeStatus>;
+  getLogs(): Promise<{ logs: string[] }>;
   addListener(
     eventName: 'onSpeechResult',
     listenerFunc: (data: { text: string }) => void

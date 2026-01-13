@@ -13,29 +13,29 @@ export function VoiceDebugOverlay() {
   useEffect(() => {
     const unsub = subscribeToVoiceDebug(setState);
     
-    // Poll native status every 2 seconds
-    const pollNativeStatus = async () => {
+    // Poll native status and logs every 2 seconds
+    const pollNative = async () => {
       try {
         const status = await BlindfoldNative.getStatus();
         setNativeStatus(status);
+        
+        // Also poll logs
+        const logsResult = await BlindfoldNative.getLogs();
+        if (logsResult && logsResult.logs) {
+          const logs = logsResult.logs as string[];
+          setNativeLogs(logs.slice(-10));
+        }
       } catch (e) {
         // Plugin not available
       }
     };
     
-    pollNativeStatus();
-    pollRef.current = window.setInterval(pollNativeStatus, 2000);
-    
-    // Listen to native logs - keep more entries
-    let logHandle: any = null;
-    BlindfoldNative.addListener('onGameLog', (data) => {
-      setNativeLogs(prev => [...prev.slice(-9), data.message]);
-    }).then(h => { logHandle = h; }).catch(() => {});
+    pollNative();
+    pollRef.current = window.setInterval(pollNative, 2000);
     
     return () => {
       unsub();
       if (pollRef.current) clearInterval(pollRef.current);
-      if (logHandle) logHandle.remove();
     };
   }, []);
 
