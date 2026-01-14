@@ -518,14 +518,14 @@ function stripFillerWords(transcript: string): string {
 }
 
 const FILE_NAMES: Record<string, string> = {
-  'a': 'a', 'alpha': 'a', 'able': 'a', 'apple': 'a', 'ay': 'a',
-  'b': 'b', 'bravo': 'b', 'boy': 'b', 'baker': 'b', 'bee': 'b',
-  'c': 'c', 'charlie': 'c', 'cat': 'c', 'see': 'c', 'sea': 'c',
-  'd': 'd', 'delta': 'd', 'dog': 'd', 'dee': 'd',
-  'e': 'e', 'echo': 'e', 'easy': 'e', 'edward': 'e',
-  'f': 'f', 'foxtrot': 'f', 'fox': 'f', 'frank': 'f', 'eff': 'f',
-  'g': 'g', 'golf': 'g', 'george': 'g', 'gee': 'g',
-  'h': 'h', 'hotel': 'h', 'henry': 'h', 'aitch': 'h',
+  'a': 'a', 'alpha': 'a', 'able': 'a', 'apple': 'a', 'ay': 'a', 'aye': 'a', 'eh': 'a',
+  'b': 'b', 'bravo': 'b', 'boy': 'b', 'baker': 'b', 'bee': 'b', 'be': 'b',
+  'c': 'c', 'charlie': 'c', 'cat': 'c', 'see': 'c', 'sea': 'c', 'cee': 'c',
+  'd': 'd', 'delta': 'd', 'dog': 'd', 'dee': 'd', 'david': 'd',
+  'e': 'e', 'echo': 'e', 'easy': 'e', 'edward': 'e', 'eee': 'e', 'ee': 'e',
+  'f': 'f', 'foxtrot': 'f', 'fox': 'f', 'frank': 'f', 'eff': 'f', 'ef': 'f',
+  'g': 'g', 'golf': 'g', 'george': 'g', 'gee': 'g', 'jee': 'g',
+  'h': 'h', 'hotel': 'h', 'henry': 'h', 'aitch': 'h', 'ach': 'h',
 };
 
 const RANK_NAMES: Record<string, string> = {
@@ -973,6 +973,21 @@ function applyHomophoneCorrections(text: string): string {
   corrected = corrected.replace(/\brook\s+he\b/gi, 'rook e');
   // "rock e" → "rook e"
   corrected = corrected.replace(/\brock\s+([a-h])\b/gi, 'rook $1');
+  
+  // Context-aware "he" → "e" (when followed by rank 1-8)
+  // "he 4" → "e 4", "he four" → "e four"
+  corrected = corrected.replace(/\bhe\s+([1-8])\b/g, 'e $1');
+  corrected = corrected.replace(/\bhe\s+(one|two|three|four|five|six|seven|eight|won|too|free|fore|fifth|sixth|seventh|eighth)\b/gi, 'e $1');
+  
+  // Context-aware "the" → "d" (after piece names, capture words, or square coords)
+  // "king the 8" → "king d 8", "takes the 5" → "takes d 5"
+  corrected = corrected.replace(/\b(king|queen|rook|bishop|knight|pawn|night|rock|castle)\s+the\s+([1-8])\b/gi, '$1 d $2');
+  corrected = corrected.replace(/\b(takes|captures|x)\s+the\s+([1-8])\b/gi, '$1 d $2');
+  corrected = corrected.replace(/\b([a-h][1-8])\s+(takes|captures|x)\s+the\s+([1-8])\b/gi, '$1 $2 d $3');
+  // Also handle spoken numbers: "king the eight" → "king d eight"
+  corrected = corrected.replace(/\b(king|queen|rook|bishop|knight|pawn|night|rock|castle)\s+the\s+(one|two|three|four|five|six|seven|eight)\b/gi, '$1 d $2');
+  corrected = corrected.replace(/\b(takes|captures)\s+the\s+(one|two|three|four|five|six|seven|eight)\b/gi, '$1 d $2');
+  
   return corrected;
 }
 

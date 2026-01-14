@@ -52,6 +52,23 @@ const FILE_PHONETICS: Record<string, string> = {
   'hotel': 'h', 'henry': 'h',
 };
 
+// Context-aware phonetic pre-processing for common Vosk mishearings
+function applyContextAwarePhonetics(text: string): string {
+  let result = text.toLowerCase();
+  
+  // "he" → "e" when followed by rank (1-8 or spoken)
+  // "he 4" → "e 4", "he four" → "e four"
+  result = result.replace(/\bhe\s+([1-8])\b/g, 'e $1');
+  result = result.replace(/\bhe\s+(one|two|three|four|five|six|seven|eight)\b/gi, 'e $1');
+  
+  // "the" → "d" when followed by rank (1-8 or spoken) - context is board placement
+  // "the 8" → "d 8", "the eight" → "d eight"
+  result = result.replace(/\bthe\s+([1-8])\b/g, 'd $1');
+  result = result.replace(/\bthe\s+(one|two|three|four|five|six|seven|eight)\b/gi, 'd $1');
+  
+  return result;
+}
+
 // NOTE: "to" excluded - it's a connector word. "for" handled context-aware below.
 const RANK_PHONETICS: Record<string, string> = {
   'one': '1', 'won': '1', 'first': '1',
@@ -121,7 +138,9 @@ function calculateScore(userBoard: (string | null)[][], actualBoard: (string | n
 }
 
 function parseSquare(text: string): { file: string; rank: string } | null {
-  const normalized = text.toLowerCase().trim();
+  // Apply context-aware phonetics first: "he 4" → "e 4", "the 8" → "d 8"
+  const processed = applyContextAwarePhonetics(text);
+  const normalized = processed.toLowerCase().trim();
   
   let file: string | null = null;
   let rank: string | null = null;

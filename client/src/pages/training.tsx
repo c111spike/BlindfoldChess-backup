@@ -1536,17 +1536,29 @@ function normalizePhonetics(text: string): string {
     normalized = normalized.replace(new RegExp(`\\b${spoken}\\b`, 'g'), file);
   }
   
-  // STEP 2: Handle context-aware "for" → "4" (only when after a file letter)
+  // STEP 2: Context-aware "he" → "e" (when followed by rank 1-8)
+  // "he 4" → "e 4", but "he said" stays unchanged
+  normalized = normalized.replace(/\bhe\s+([1-8])\b/g, 'e $1');
+  // Also handle spoken numbers after "he": "he four" → "e four"
+  normalized = normalized.replace(/\bhe\s+(one|two|three|four|five|six|seven|eight|won|too|free|fore|fifth|sixth|seventh|eighth)\b/gi, 'e $1');
+  
+  // STEP 3: Context-aware "the" → "d" (after piece names, capture words, or square coords)
+  // "king the 8" → "king d 8", "takes the 5" → "takes d 5", "e4 takes the 5" → "e4 takes d 5"
+  normalized = normalized.replace(/\b(king|queen|rook|bishop|knight|pawn|night|rock|castle)\s+the\s+([1-8])\b/gi, '$1 d $2');
+  normalized = normalized.replace(/\b(takes|captures|x)\s+the\s+([1-8])\b/gi, '$1 d $2');
+  normalized = normalized.replace(/\b([a-h][1-8])\s+(takes|captures|x)\s+the\s+([1-8])\b/gi, '$1 $2 d $3');
+  
+  // STEP 4: Handle context-aware "for" → "4" (only when after a file letter)
   // Pattern: [file letter] + "for" → [file letter] + "4"
   // Now "b for" correctly becomes "b 4"
   normalized = normalized.replace(/\b([a-h])\s+for\b/g, '$1 4');
   
-  // STEP 3: Replace spoken numbers with digits
+  // STEP 5: Replace spoken numbers with digits
   for (const [spoken, digit] of Object.entries(SPOKEN_NUMBERS)) {
     normalized = normalized.replace(new RegExp(`\\b${spoken}\\b`, 'g'), digit);
   }
   
-  // STEP 4: Replace spoken piece names with standard names
+  // STEP 6: Replace spoken piece names with standard names
   for (const [spoken, piece] of Object.entries(SPOKEN_PIECES)) {
     normalized = normalized.replace(new RegExp(`\\b${spoken}\\b`, 'g'), piece);
   }
