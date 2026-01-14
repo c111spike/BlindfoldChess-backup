@@ -973,6 +973,8 @@ function applyHomophoneCorrections(text: string): string {
   // "sci fi" or "scifi" → "c 5" (Vosk hears "c five" as "sci fi")
   corrected = corrected.replace(/\bsci\s*fi\b/gi, 'c 5');
   corrected = corrected.replace(/\bscifi\b/gi, 'c 5');
+  // "quincy" → "queen c" (Vosk hears "Queen c" as "Quincy")
+  corrected = corrected.replace(/\bquincy\b/gi, 'queen c');
   
   // "rookie" → "rook e" (common speech recognition error)
   corrected = corrected.replace(/\brookie\b/gi, 'rook e');
@@ -999,9 +1001,10 @@ function applyHomophoneCorrections(text: string): string {
 }
 
 export function speechToMove(transcript: string, legalMoves: string[]): string | null {
-  // Strip filler words and apply homophone corrections before processing
-  const cleaned = stripFillerWords(transcript);
-  const input = applyHomophoneCorrections(cleaned.toLowerCase().trim());
+  // Apply homophone corrections FIRST (before stripping filler words)
+  // This allows "the 4" → "d 4" before "the" could be stripped as filler
+  const corrected = applyHomophoneCorrections(transcript.toLowerCase().trim());
+  const input = stripFillerWords(corrected);
   
   // FIX: Bare coordinate detection for pawn moves (e.g., "c4", "e 4")
   const bareCoord = input.replace(/\s+/g, '').match(/^([a-h])([1-8])$/);

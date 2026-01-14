@@ -1542,6 +1542,8 @@ function normalizePhonetics(text: string): string {
   // "sci fi" or "scifi" → "c 5" (Vosk hears "c five" as "sci fi")
   normalized = normalized.replace(/\bsci\s*fi\b/g, 'c 5');
   normalized = normalized.replace(/\bscifi\b/g, 'c 5');
+  // "quincy" → "queen c" (Vosk hears "Queen c" as "Quincy")
+  normalized = normalized.replace(/\bquincy\b/g, 'queen c');
   
   // STEP 1: Replace spoken file letters with actual letters FIRST
   // So "bee for" becomes "b for" before we check for "[a-h] for" pattern

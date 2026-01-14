@@ -62,6 +62,8 @@ function applyContextAwarePhonetics(text: string): string {
   // "sci fi" or "scifi" → "c 5" (Vosk hears "c five" as "sci fi")
   result = result.replace(/\bsci\s*fi\b/g, 'c 5');
   result = result.replace(/\bscifi\b/g, 'c 5');
+  // "quincy" → "queen c" (Vosk hears "Queen c" as "Quincy")
+  result = result.replace(/\bquincy\b/g, 'queen c');
   
   // "he" → "e" when followed by rank (1-8 or spoken, including "for")
   // "he 4" → "e 4", "he four" → "e four", "he for" → "e for"
