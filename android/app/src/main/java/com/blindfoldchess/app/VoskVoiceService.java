@@ -32,6 +32,36 @@ public class VoskVoiceService extends Service {
     private static final String CHANNEL_ID = "BlindfoldGameChannel";
     private static final int NOTIFICATION_ID = 12345;
     private static final int SAMPLE_RATE = 16000;
+    
+    // Chess vocabulary whitelist - Vosk will ONLY recognize these words
+    // This prevents mishearings like "the" for "d", "see" for "c", etc.
+    private static final String CHESS_GRAMMAR = "[" +
+        // Files (Standard + NATO Phonetic)
+        "\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\", " +
+        "\"alpha\", \"bravo\", \"charlie\", \"delta\", \"echo\", \"foxtrot\", \"golf\", \"hotel\", " +
+        // Ranks (Words + Digits)
+        "\"one\", \"two\", \"three\", \"four\", \"five\", \"six\", \"seven\", \"eight\", " +
+        "\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", " +
+        // Pieces
+        "\"knight\", \"night\", \"rook\", \"bishop\", \"queen\", \"king\", \"pawn\", " +
+        // Actions
+        "\"take\", \"takes\", \"capture\", \"captures\", " +
+        "\"castle\", \"short\", \"long\", \"kingside\", \"queenside\", " +
+        "\"en\", \"passant\", " +
+        "\"check\", \"mate\", \"checkmate\", " +
+        "\"resign\", \"quit\", \"give\", \"up\", " +
+        "\"promotion\", \"promote\", " +
+        // Questions / Info
+        "\"say\", \"again\", \"repeat\", \"last\", \"move\", " +
+        "\"what\", \"what's\", \"on\", \"is\", \"where\", \"my\", " +
+        "\"how\", \"much\", \"time\", \"clock\", " +
+        "\"legal\", \"moves\", \"for\", " +
+        "\"show\", \"board\", \"peek\", " +
+        "\"evaluate\", \"eval\", \"evaluation\", " +
+        // Colors / Confirmation
+        "\"light\", \"dark\", \"white\", \"black\", " +
+        "\"yes\", \"no\", \"confirm\", \"cancel\"" +
+        "]";
 
     private Model model;
     private Recognizer recognizer;
@@ -271,9 +301,11 @@ public class VoskVoiceService extends Service {
             AudioRecord threadAudioRecord = null;
             
             try {
-                logToCallback("Thread started. Creating Recognizer...");
-                threadRecognizer = new Recognizer(localModel, SAMPLE_RATE);
-                logToCallback("Recognizer created OK in thread");
+                logToCallback("Thread started. Creating Recognizer with chess grammar...");
+                // Use grammar restriction to limit vocabulary to chess-only words
+                // This dramatically improves recognition accuracy by preventing mishearings
+                threadRecognizer = new Recognizer(localModel, SAMPLE_RATE, CHESS_GRAMMAR);
+                logToCallback("Recognizer created with chess vocabulary whitelist");
                 
                 int bufferSize = AudioRecord.getMinBufferSize(
                     SAMPLE_RATE,

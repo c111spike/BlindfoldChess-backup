@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag, Volume2, HelpCircle } from "lucide-react";
 import { Chess } from 'chess.js';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
@@ -51,6 +52,12 @@ interface TrainingPageProps {
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const RANKS = ['1', '2', '3', '4', '5', '6', '7', '8'];
+
+// TTS pronunciation helper - pronounce 'a' as 'ay' for clarity
+function speakableCoordinate(file: string, rank: string): string {
+  const spokenFile = file === 'a' ? 'ay' : file;
+  return `${spokenFile} ${rank}`;
+}
 
 function isDarkSquare(fileIndex: number, rankIndex: number): boolean {
   return (fileIndex + rankIndex) % 2 === 0;
@@ -221,6 +228,8 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
   const [voiceMode, setVoiceMode] = useState(false);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isPracticeMode, setIsPracticeMode] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'challenge' | 'practice'>('challenge');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.colorBlitzBest !== null && score > stats.colorBlitzBest;
   const handleAnswerRef = useRef<((answer: 'light' | 'dark' | 'white' | 'black') => void) | null>(null);
@@ -253,7 +262,8 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     onBack();
   };
 
-  const startGame = async () => {
+  const startGame = async (practiceMode: boolean = false) => {
+    setIsPracticeMode(practiceMode);
     setGameState('playing');
     setScore(0);
     setStreak(0);
@@ -266,7 +276,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     // Speak first square after a brief delay (speakMuted handles mute/unmute)
     setTimeout(async () => {
       if (voiceMode) {
-        await speakMuted(`${newSquare.file} ${newSquare.rank}`);
+        await speakMuted(speakableCoordinate(newSquare.file, newSquare.rank));
         hasSpokenFirstSquare.current = true;
       }
     }, 300);
@@ -276,6 +286,10 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     if (timerRef.current) clearInterval(timerRef.current);
     stopNativeVoice();
     onBack();
+  };
+  
+  const handlePracticeResign = () => {
+    setShowResignConfirm(true);
   };
 
   // Start/stop voice recognition based on voiceMode and gameState using BlindfoldNative
@@ -349,7 +363,8 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
   }, [voiceMode, gameState]);
 
   useEffect(() => {
-    if (gameState === 'playing') {
+    // Skip timer countdown in practice mode (unlimited time)
+    if (gameState === 'playing' && !isPracticeMode) {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -363,13 +378,14 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [gameState]);
+  }, [gameState, isPracticeMode]);
 
   useEffect(() => {
-    if (gameState === 'finished') {
+    // Skip stats in practice mode
+    if (gameState === 'finished' && !isPracticeMode) {
       onComplete(score, bestStreak);
     }
-  }, [gameState, score, bestStreak, onComplete]);
+  }, [gameState, score, bestStreak, onComplete, isPracticeMode]);
 
   // Notify parent of game state changes
   useEffect(() => {
@@ -398,7 +414,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       if (voiceMode) {
         // HAPTIC CALIBRATION: Wait 300ms for haptic to finish before TTS (muted during speak)
         setTimeout(async () => {
-          await speakMuted(`${newSquare.file} ${newSquare.rank}`);
+          await speakMuted(speakableCoordinate(newSquare.file, newSquare.rank));
         }, 300);
       }
     } else {
@@ -437,8 +453,20 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
           <div className="text-center space-y-2">
             <Zap className="h-12 w-12 text-amber-500 mx-auto" />
             <h2 className="text-2xl font-bold">Ready?</h2>
-            <p className="text-muted-foreground">Name as many square colors as you can in 60 seconds!</p>
           </div>
+
+          <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as 'challenge' | 'practice')} className="w-full max-w-xs">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="challenge" data-testid="tab-colorblitz-challenge">1 Minute Challenge</TabsTrigger>
+              <TabsTrigger value="practice" data-testid="tab-colorblitz-practice">Practice</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <p className="text-muted-foreground text-center">
+            {selectedTab === 'challenge' 
+              ? 'Name as many square colors as you can in 60 seconds!'
+              : 'Practice at your own pace with unlimited time.'}
+          </p>
 
           <div className="flex items-center gap-3">
             <Switch
@@ -453,13 +481,13 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
             </Label>
           </div>
 
-          {stats !== null && stats.colorBlitzBest !== null && (
+          {selectedTab === 'challenge' && stats !== null && stats.colorBlitzBest !== null && (
             <p className="text-sm text-muted-foreground">
               Your best: <span className="font-semibold text-amber-500">{stats.colorBlitzBest}</span> correct
             </p>
           )}
 
-          <Button size="lg" onClick={startGame} data-testid="button-start-colorblitz">
+          <Button size="lg" onClick={() => startGame(selectedTab === 'practice')} data-testid="button-start-colorblitz">
             Start
           </Button>
         </div>
@@ -491,7 +519,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
             <Button variant="outline" onClick={handleBack} data-testid="button-colorblitz-menu">
               Menu
             </Button>
-            <Button onClick={startGame} data-testid="button-colorblitz-retry">
+            <Button onClick={() => startGame(false)} data-testid="button-colorblitz-retry">
               Play Again
             </Button>
           </div>
@@ -506,7 +534,11 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
       <div className="flex flex-col h-full p-4 max-w-md mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold tabular-nums">{timeLeft}s</span>
+            {isPracticeMode ? (
+              <Badge variant="outline">Practice</Badge>
+            ) : (
+              <span className="text-2xl font-bold tabular-nums">{timeLeft}s</span>
+            )}
             {voiceMode && isListening && (
               <Mic className="h-4 w-4 text-red-500 animate-pulse" />
             )}
@@ -598,6 +630,8 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
   const [flashSquare, setFlashSquare] = useState<{ square: string; correct: boolean } | null>(null);
   const [correctSquareFlash, setCorrectSquareFlash] = useState<string | null>(null);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const [isPracticeMode, setIsPracticeMode] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'challenge' | 'practice'>('challenge');
   const totalSquares = 10;
   const isNewBest = stats !== null && stats.coordinateSniperBest !== null && elapsedTime < stats.coordinateSniperBest && elapsedTime > 0;
 
@@ -605,7 +639,8 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
     onBack();
   };
 
-  const startGame = () => {
+  const startGame = (practiceMode: boolean = false) => {
+    setIsPracticeMode(practiceMode);
     setGameState('playing');
     setFoundCount(0);
     setStreak(0);
@@ -656,12 +691,25 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
       const updatedBestStreak = Math.max(bestStreak, newStreak);
       setBestStreak(updatedBestStreak);
       
-      if (newCount >= totalSquares) {
+      if (newCount >= totalSquares && !isPracticeMode) {
         const finalTime = Date.now() - startTime;
         setElapsedTime(finalTime);
         setGameState('finished');
         onComplete(finalTime, updatedBestStreak);
         speakMuted("Complete!");
+      } else if (newCount >= totalSquares && isPracticeMode) {
+        // In practice mode, just reset and continue - don't end the game
+        setFoundCount(0);
+        setStreak(0);
+        setBestStreak(0);
+        setTimeout(() => {
+          setFlashSquare(null);
+          const newSquare = getRandomSquare();
+          setCurrentSquare(newSquare);
+          const fileSpoken = newSquare.file === 'a' ? 'ay' : newSquare.file;
+          speakMuted(`Great! Find ${fileSpoken} ${newSquare.rank}`);
+        }, 200);
+        return;
       } else {
         setTimeout(() => {
           setFlashSquare(null);
@@ -678,7 +726,7 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
       setFlashSquare({ square: clickedSquare, correct: false });
       setCorrectSquareFlash(targetSquare);
       setStreak(0);
-      speakMuted(`No, that's ${clickedFile} ${clickedRank}`);
+      speakMuted(`No, that's ${speakableCoordinate(clickedFile, clickedRank)}`);
       
       setTimeout(() => {
         setFlashSquare(null);
@@ -701,16 +749,28 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
           <div className="text-center space-y-2">
             <Target className="h-12 w-12 text-blue-500 mx-auto" />
             <h2 className="text-2xl font-bold">Ready?</h2>
-            <p className="text-muted-foreground">Find 10 squares as fast as you can!</p>
           </div>
 
-          {stats !== null && stats.coordinateSniperBest !== null && (
+          <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as 'challenge' | 'practice')} className="w-full max-w-xs">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="challenge" data-testid="tab-sniper-challenge">10 Square Race</TabsTrigger>
+              <TabsTrigger value="practice" data-testid="tab-sniper-practice">Practice</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <p className="text-muted-foreground text-center">
+            {selectedTab === 'challenge' 
+              ? 'Find 10 squares as fast as you can!'
+              : 'Practice finding squares with no time pressure.'}
+          </p>
+
+          {selectedTab === 'challenge' && stats !== null && stats.coordinateSniperBest !== null && (
             <p className="text-sm text-muted-foreground">
               Your best: <span className="font-semibold text-blue-500">{formatTime(stats.coordinateSniperBest)}</span>
             </p>
           )}
 
-          <Button size="lg" onClick={startGame} data-testid="button-start-sniper">
+          <Button size="lg" onClick={() => startGame(selectedTab === 'practice')} data-testid="button-start-sniper">
             Start
           </Button>
         </div>
@@ -742,7 +802,7 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
             <Button variant="outline" onClick={onBack} data-testid="button-sniper-menu">
               Menu
             </Button>
-            <Button onClick={startGame} data-testid="button-sniper-retry">
+            <Button onClick={() => startGame(false)} data-testid="button-sniper-retry">
               Play Again
             </Button>
           </div>
@@ -758,11 +818,19 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
           <p className="text-lg font-semibold">
             Find: <span className="text-2xl font-mono">{currentSquare.file}{currentSquare.rank}</span>
           </p>
-          <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
+          <div className="flex items-center gap-2">
+            {isPracticeMode ? (
+              <Badge variant="outline">Practice</Badge>
+            ) : (
+              <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
+            )}
+          </div>
         </div>
 
-        <Progress value={(foundCount / totalSquares) * 100} className="mb-4" />
-        <p className="text-sm text-muted-foreground text-center mb-4">{foundCount}/{totalSquares} found</p>
+        {!isPracticeMode && <Progress value={(foundCount / totalSquares) * 100} className="mb-4" />}
+        <p className="text-sm text-muted-foreground text-center mb-4">
+          {isPracticeMode ? `${foundCount} found` : `${foundCount}/${totalSquares} found`}
+        </p>
 
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
@@ -916,6 +984,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   const [awaitingResignConfirm, setAwaitingResignConfirm] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; correct: boolean } | null>(null);
   const [textInput, setTextInput] = useState('');
+  const [isPracticeMode, setIsPracticeMode] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'challenge' | 'practice'>('challenge');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isNewBest = stats !== null && stats.voiceMoveMasterBest !== null && score > stats.voiceMoveMasterBest;
@@ -949,7 +1019,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     onBack();
   };
 
-  const startGame = async () => {
+  const startGame = async (practiceMode: boolean = false) => {
+    setIsPracticeMode(practiceMode);
     setGameState('playing');
     setScore(0);
     setStreak(0);
@@ -1203,9 +1274,9 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     };
   }, [gameState]);
 
-  // Timer
+  // Timer - skip in practice mode
   useEffect(() => {
-    if (gameState === 'playing') {
+    if (gameState === 'playing' && !isPracticeMode) {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -1219,14 +1290,14 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [gameState]);
+  }, [gameState, isPracticeMode]);
 
-  // Game complete
+  // Game complete - skip stats in practice mode
   useEffect(() => {
-    if (gameState === 'finished') {
+    if (gameState === 'finished' && !isPracticeMode) {
       onComplete(score, bestStreak);
     }
-  }, [gameState, score, bestStreak, onComplete]);
+  }, [gameState, score, bestStreak, onComplete, isPracticeMode]);
 
   // Notify parent of game state changes
   useEffect(() => {
@@ -1247,17 +1318,28 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
           <div className="text-center space-y-2">
             <Volume2 className="h-12 w-12 text-purple-500 mx-auto" />
             <h2 className="text-2xl font-bold">Ready?</h2>
-            <p className="text-muted-foreground">Announce chess moves by voice!</p>
-            <p className="text-sm text-muted-foreground">Say the highlighted move within 60 seconds</p>
           </div>
 
-          {stats !== null && stats.voiceMoveMasterBest !== null && (
+          <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as 'challenge' | 'practice')} className="w-full max-w-xs">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="challenge" data-testid="tab-voicemaster-challenge">1 Minute Challenge</TabsTrigger>
+              <TabsTrigger value="practice" data-testid="tab-voicemaster-practice">Practice</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <p className="text-muted-foreground text-center">
+            {selectedTab === 'challenge' 
+              ? 'Say the highlighted move within 60 seconds!'
+              : 'Practice announcing moves at your own pace.'}
+          </p>
+
+          {selectedTab === 'challenge' && stats !== null && stats.voiceMoveMasterBest !== null && (
             <p className="text-sm text-muted-foreground">
               Your best: <span className="font-semibold text-purple-500">{stats.voiceMoveMasterBest} moves</span>
             </p>
           )}
 
-          <Button size="lg" onClick={startGame} data-testid="button-start-voicemaster">
+          <Button size="lg" onClick={() => startGame(selectedTab === 'practice')} data-testid="button-start-voicemaster">
             Start
           </Button>
         </div>
@@ -1292,7 +1374,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
             <Button variant="outline" onClick={handleBack} data-testid="button-voicemaster-menu">
               Menu
             </Button>
-            <Button onClick={startGame} data-testid="button-voicemaster-retry">
+            <Button onClick={() => startGame(false)} data-testid="button-voicemaster-retry">
               Play Again
             </Button>
           </div>
@@ -1312,7 +1394,11 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
       <div className="flex flex-col h-full p-4 max-w-md mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-mono font-bold tabular-nums">{timeLeft}</span>
+            {isPracticeMode ? (
+              <Badge variant="outline">Practice</Badge>
+            ) : (
+              <span className="text-2xl font-mono font-bold tabular-nums">{timeLeft}</span>
+            )}
             {isListening && (
               <Mic className="h-5 w-5 text-red-500 animate-pulse" />
             )}
