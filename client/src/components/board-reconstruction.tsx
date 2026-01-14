@@ -56,15 +56,25 @@ const FILE_PHONETICS: Record<string, string> = {
 function applyContextAwarePhonetics(text: string): string {
   let result = text.toLowerCase();
   
-  // "he" → "e" when followed by rank (1-8 or spoken)
-  // "he 4" → "e 4", "he four" → "e four"
+  // Compound phonetic mishearings FIRST
+  // "before" → "b 4" (Vosk hears "b four" as "before")
+  result = result.replace(/\bbefore\b/g, 'b 4');
+  // "sci fi" or "scifi" → "c 5" (Vosk hears "c five" as "sci fi")
+  result = result.replace(/\bsci\s*fi\b/g, 'c 5');
+  result = result.replace(/\bscifi\b/g, 'c 5');
+  
+  // "he" → "e" when followed by rank (1-8 or spoken, including "for")
+  // "he 4" → "e 4", "he four" → "e four", "he for" → "e for"
   result = result.replace(/\bhe\s+([1-8])\b/g, 'e $1');
-  result = result.replace(/\bhe\s+(one|two|three|four|five|six|seven|eight)\b/gi, 'e $1');
+  result = result.replace(/\bhe\s+(one|two|three|four|five|six|seven|eight|for)\b/gi, 'e $1');
   
   // "the" → "d" when followed by rank (1-8 or spoken) - context is board placement
   // "the 8" → "d 8", "the eight" → "d eight"
   result = result.replace(/\bthe\s+([1-8])\b/g, 'd $1');
   result = result.replace(/\bthe\s+(one|two|three|four|five|six|seven|eight)\b/gi, 'd $1');
+  
+  // Context-aware "for" → "4" (only when after a file letter)
+  result = result.replace(/\b([a-h])\s+for\b/g, '$1 4');
   
   return result;
 }

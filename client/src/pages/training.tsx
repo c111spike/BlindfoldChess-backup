@@ -310,8 +310,8 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
           console.log('[ColorBlitz] Voice:', text);
           debugSetLastResult(text);
           
-          const lightSynonyms = ['light', 'white', 'lie', 'lye', 'lite', 'lied', 'liked', 'right', 'bright'];
-          const darkSynonyms = ['dark', 'black', 'bark', 'duck', 'dock', 'doc'];
+          const lightSynonyms = ['light', 'white', 'lie', 'lye', 'lite', 'lied', 'liked', 'right', 'bright', 'lyte', 'lit', 'like', 'life'];
+          const darkSynonyms = ['dark', 'black', 'bark', 'duck', 'dock', 'doc', 'dork', 'dog', 'dart'];
           
           if (lightSynonyms.some(s => text.includes(s))) {
             handleAnswerRef.current?.('light');
@@ -612,9 +612,13 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
     setBestStreak(0);
     setStartTime(Date.now());
     setElapsedTime(0);
+    setFlashSquare(null);
+    setCorrectSquareFlash(null);
     const sq = getRandomSquare();
     setCurrentSquare(sq);
-    speakMuted(`Find ${sq.file} ${sq.rank}`);
+    // Use "ay" pronunciation for file A
+    const fileSpoken = sq.file === 'a' ? 'ay' : sq.file;
+    speakMuted(`Find ${fileSpoken} ${sq.rank}`);
   };
 
   useEffect(() => {
@@ -663,7 +667,9 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
           setFlashSquare(null);
           const newSquare = getRandomSquare();
           setCurrentSquare(newSquare);
-          speakMuted(`Find ${newSquare.file} ${newSquare.rank}`);
+          // Use "ay" pronunciation for file A
+          const fileSpoken = newSquare.file === 'a' ? 'ay' : newSquare.file;
+          speakMuted(`Find ${fileSpoken} ${newSquare.rank}`);
         }, 200);
       }
     } else {
@@ -1530,23 +1536,28 @@ const SPOKEN_FILES: Record<string, string> = {
 function normalizePhonetics(text: string): string {
   let normalized = text.toLowerCase();
   
+  // STEP 0: Handle compound phonetic mishearings FIRST
+  // "before" → "b 4" (Vosk hears "b four" as "before")
+  normalized = normalized.replace(/\bbefore\b/g, 'b 4');
+  // "sci fi" or "scifi" → "c 5" (Vosk hears "c five" as "sci fi")
+  normalized = normalized.replace(/\bsci\s*fi\b/g, 'c 5');
+  normalized = normalized.replace(/\bscifi\b/g, 'c 5');
+  
   // STEP 1: Replace spoken file letters with actual letters FIRST
   // So "bee for" becomes "b for" before we check for "[a-h] for" pattern
   for (const [spoken, file] of Object.entries(SPOKEN_FILES)) {
     normalized = normalized.replace(new RegExp(`\\b${spoken}\\b`, 'g'), file);
   }
   
-  // STEP 2: Context-aware "he" → "e" (when followed by rank 1-8)
-  // "he 4" → "e 4", but "he said" stays unchanged
+  // STEP 2: Context-aware "he" → "e" (when followed by rank 1-8 or rank-like words including "for")
+  // "he 4" → "e 4", "he for" → "e for" (which then becomes "e 4")
   normalized = normalized.replace(/\bhe\s+([1-8])\b/g, 'e $1');
-  // Also handle spoken numbers after "he": "he four" → "e four"
-  normalized = normalized.replace(/\bhe\s+(one|two|three|four|five|six|seven|eight|won|too|free|fore|fifth|sixth|seventh|eighth)\b/gi, 'e $1');
+  normalized = normalized.replace(/\bhe\s+(one|two|three|four|five|six|seven|eight|won|too|free|fore|for|fifth|sixth|seventh|eighth)\b/gi, 'e $1');
   
-  // STEP 3: Context-aware "the" → "d" (after piece names, capture words, or square coords)
-  // "king the 8" → "king d 8", "takes the 5" → "takes d 5", "e4 takes the 5" → "e4 takes d 5"
-  normalized = normalized.replace(/\b(king|queen|rook|bishop|knight|pawn|night|rock|castle)\s+the\s+([1-8])\b/gi, '$1 d $2');
-  normalized = normalized.replace(/\b(takes|captures|x)\s+the\s+([1-8])\b/gi, '$1 d $2');
-  normalized = normalized.replace(/\b([a-h][1-8])\s+(takes|captures|x)\s+the\s+([1-8])\b/gi, '$1 $2 d $3');
+  // STEP 3: Context-aware "the" → "d" (when followed by rank - works for bare coords and after pieces/captures)
+  // "the 8" → "d 8", "king the 8" → "king d 8", "takes the 5" → "takes d 5"
+  normalized = normalized.replace(/\bthe\s+([1-8])\b/g, 'd $1');
+  normalized = normalized.replace(/\bthe\s+(one|two|three|four|five|six|seven|eight)\b/gi, 'd $1');
   
   // STEP 4: Handle context-aware "for" → "4" (only when after a file letter)
   // Pattern: [file letter] + "for" → [file letter] + "4"

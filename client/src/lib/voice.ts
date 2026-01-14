@@ -966,6 +966,14 @@ export async function speak(text: string, rate: number = 0.9): Promise<void> {
 // Homophone corrections for common speech recognition errors
 function applyHomophoneCorrections(text: string): string {
   let corrected = text;
+  
+  // Compound phonetic mishearings FIRST
+  // "before" → "b 4" (Vosk hears "b four" as "before")
+  corrected = corrected.replace(/\bbefore\b/gi, 'b 4');
+  // "sci fi" or "scifi" → "c 5" (Vosk hears "c five" as "sci fi")
+  corrected = corrected.replace(/\bsci\s*fi\b/gi, 'c 5');
+  corrected = corrected.replace(/\bscifi\b/gi, 'c 5');
+  
   // "rookie" → "rook e" (common speech recognition error)
   corrected = corrected.replace(/\brookie\b/gi, 'rook e');
   corrected = corrected.replace(/\brookies\b/gi, 'rook e');
@@ -974,19 +982,18 @@ function applyHomophoneCorrections(text: string): string {
   // "rock e" → "rook e"
   corrected = corrected.replace(/\brock\s+([a-h])\b/gi, 'rook $1');
   
-  // Context-aware "he" → "e" (when followed by rank 1-8)
-  // "he 4" → "e 4", "he four" → "e four"
+  // Context-aware "he" → "e" (when followed by rank 1-8 or rank-like words including "for")
+  // "he 4" → "e 4", "he for" → "e for" (which then becomes "e 4")
   corrected = corrected.replace(/\bhe\s+([1-8])\b/g, 'e $1');
-  corrected = corrected.replace(/\bhe\s+(one|two|three|four|five|six|seven|eight|won|too|free|fore|fifth|sixth|seventh|eighth)\b/gi, 'e $1');
+  corrected = corrected.replace(/\bhe\s+(one|two|three|four|five|six|seven|eight|won|too|free|fore|for|fifth|sixth|seventh|eighth)\b/gi, 'e $1');
   
-  // Context-aware "the" → "d" (after piece names, capture words, or square coords)
-  // "king the 8" → "king d 8", "takes the 5" → "takes d 5"
-  corrected = corrected.replace(/\b(king|queen|rook|bishop|knight|pawn|night|rock|castle)\s+the\s+([1-8])\b/gi, '$1 d $2');
-  corrected = corrected.replace(/\b(takes|captures|x)\s+the\s+([1-8])\b/gi, '$1 d $2');
-  corrected = corrected.replace(/\b([a-h][1-8])\s+(takes|captures|x)\s+the\s+([1-8])\b/gi, '$1 $2 d $3');
-  // Also handle spoken numbers: "king the eight" → "king d eight"
-  corrected = corrected.replace(/\b(king|queen|rook|bishop|knight|pawn|night|rock|castle)\s+the\s+(one|two|three|four|five|six|seven|eight)\b/gi, '$1 d $2');
-  corrected = corrected.replace(/\b(takes|captures)\s+the\s+(one|two|three|four|five|six|seven|eight)\b/gi, '$1 d $2');
+  // Context-aware "the" → "d" (when followed by rank - works for bare coords and after pieces/captures)
+  // "the 8" → "d 8", "king the 8" → "king d 8", "takes the 5" → "takes d 5"
+  corrected = corrected.replace(/\bthe\s+([1-8])\b/g, 'd $1');
+  corrected = corrected.replace(/\bthe\s+(one|two|three|four|five|six|seven|eight)\b/gi, 'd $1');
+  
+  // Context-aware "for" → "4" (only when after a file letter)
+  corrected = corrected.replace(/\b([a-h])\s+for\b/gi, '$1 4');
   
   return corrected;
 }

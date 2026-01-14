@@ -2209,6 +2209,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           setShowPostMortem(false);
           setShowAnalysis(false);
           resetGameState();
+          returnToTitle();
         }}
         onAnalyze={() => {
           setShowAnalysis(true);
