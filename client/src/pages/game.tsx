@@ -43,6 +43,7 @@ import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeek
 import { initGameHistoryDB, saveGame, type SavedGame } from "@/lib/gameHistory";
 import { GameHistory } from "@/pages/game-history";
 import { HistoryGameReport } from "@/components/history-game-report";
+import { VoiceDebugOverlay } from "@/components/VoiceDebugOverlay";
 import { clientStockfish } from "@/lib/stockfish";
 import type { BotProfile } from "@shared/botTypes";
 import { 
@@ -2173,6 +2174,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
 
   return (
     <div className="container max-w-4xl mx-auto p-2 md:p-4 animate-in fade-in duration-300">
+      <VoiceDebugOverlay />
       {showReconstruction && reconstructionFen && (
         <div className="mb-3">
           <BoardReconstruction

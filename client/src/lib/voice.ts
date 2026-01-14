@@ -501,7 +501,7 @@ const PIECE_LETTERS: Record<string, string> = {
   'bishep': 'B',
   'bashop': 'B',
   'knight': 'N',
-  'night': 'N',
+  'night': 'N', 'nite': 'N', 'kite': 'N',
   'horse': 'N',
   'pawn': '',
   'castle': 'R',
@@ -523,7 +523,7 @@ const FILE_NAMES: Record<string, string> = {
   'c': 'c', 'charlie': 'c', 'cat': 'c', 'see': 'c', 'sea': 'c', 'cee': 'c',
   'd': 'd', 'delta': 'd', 'dog': 'd', 'dee': 'd', 'david': 'd',
   'e': 'e', 'echo': 'e', 'easy': 'e', 'edward': 'e', 'eee': 'e', 'ee': 'e',
-  'f': 'f', 'foxtrot': 'f', 'fox': 'f', 'frank': 'f', 'eff': 'f', 'ef': 'f',
+  'f': 'f', 'foxtrot': 'f', 'fox': 'f', 'frank': 'f', 'eff': 'f', 'ef': 'f', 'if': 'f', 'of': 'f',
   'g': 'g', 'golf': 'g', 'george': 'g', 'gee': 'g', 'jee': 'g',
   'h': 'h', 'hotel': 'h', 'henry': 'h', 'aitch': 'h', 'ach': 'h',
 };
@@ -1322,7 +1322,7 @@ const DISAMBIGUATION_MAP: Record<string, string> = {
   'c': 'c', 'see': 'c', 'sea': 'c', 'charlie': 'c',
   'd': 'd', 'dee': 'd', 'delta': 'd', 'the': 'd', 'tea': 'd',
   'e': 'e', 'echo': 'e', 'ee': 'e',
-  'f': 'f', 'if': 'f', 'eff': 'f', 'foxtrot': 'f', 'off': 'f',
+  'f': 'f', 'if': 'f', 'eff': 'f', 'foxtrot': 'f', 'off': 'f', 'of': 'f',
   'g': 'g', 'gee': 'g', 'golf': 'g',
   'h': 'h', 'aitch': 'h', 'hotel': 'h',
 };

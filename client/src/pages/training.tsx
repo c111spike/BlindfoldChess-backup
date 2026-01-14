@@ -1528,7 +1528,7 @@ const SPOKEN_FILES: Record<string, string> = {
   'cee': 'c', 'see': 'c', 'sea': 'c', 'charlie': 'c', 'cat': 'c',
   'dee': 'd', 'delta': 'd', 'dog': 'd', 'david': 'd',
   'eee': 'e', 'ee': 'e', 'echo': 'e', 'easy': 'e', 'edward': 'e',
-  'ef': 'f', 'eff': 'f', 'foxtrot': 'f', 'fox': 'f', 'frank': 'f',
+  'ef': 'f', 'eff': 'f', 'foxtrot': 'f', 'fox': 'f', 'frank': 'f', 'if': 'f', 'of': 'f',
   'gee': 'g', 'jee': 'g', 'golf': 'g', 'george': 'g',
   'aitch': 'h', 'ach': 'h', 'hotel': 'h', 'henry': 'h',
 };
