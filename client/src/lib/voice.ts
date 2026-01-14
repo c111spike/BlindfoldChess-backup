@@ -518,14 +518,20 @@ function stripFillerWords(transcript: string): string {
 }
 
 const FILE_NAMES: Record<string, string> = {
-  'a': 'a', 'alpha': 'a', 'able': 'a', 'apple': 'a', 'ay': 'a', 'aye': 'a', 'eh': 'a',
-  'b': 'b', 'bravo': 'b', 'boy': 'b', 'baker': 'b', 'bee': 'b', 'be': 'b',
-  'c': 'c', 'charlie': 'c', 'cat': 'c', 'see': 'c', 'sea': 'c', 'cee': 'c',
-  'd': 'd', 'delta': 'd', 'dog': 'd', 'dee': 'd', 'david': 'd',
-  'e': 'e', 'echo': 'e', 'easy': 'e', 'edward': 'e', 'eee': 'e', 'ee': 'e',
-  'f': 'f', 'foxtrot': 'f', 'fox': 'f', 'frank': 'f', 'eff': 'f', 'ef': 'f', 'if': 'f', 'of': 'f',
-  'g': 'g', 'golf': 'g', 'george': 'g', 'gee': 'g', 'jee': 'g',
-  'h': 'h', 'hotel': 'h', 'henry': 'h', 'aitch': 'h', 'ach': 'h',
+  // Direct letters
+  'a': 'a', 'b': 'b', 'c': 'c', 'd': 'd', 'e': 'e', 'f': 'f', 'g': 'g', 'h': 'h',
+  // NATO phonetic alphabet (primary disambiguation method)
+  'alpha': 'a', 'alfa': 'a', 'bravo': 'b', 'charlie': 'c', 'delta': 'd', 
+  'echo': 'e', 'foxtrot': 'f', 'golf': 'g', 'hotel': 'h',
+  // Common phonetic alternatives
+  'able': 'a', 'apple': 'a', 'ay': 'a', 'aye': 'a', 'eh': 'a',
+  'boy': 'b', 'baker': 'b', 'bee': 'b', 'be': 'b',
+  'cat': 'c', 'see': 'c', 'sea': 'c', 'cee': 'c',
+  'dog': 'd', 'dee': 'd', 'david': 'd',
+  'easy': 'e', 'edward': 'e', 'eee': 'e', 'ee': 'e',
+  'fox': 'f', 'frank': 'f', 'eff': 'f', 'ef': 'f', 'if': 'f', 'of': 'f',
+  'george': 'g', 'gee': 'g', 'jee': 'g',
+  'henry': 'h', 'aitch': 'h', 'ach': 'h',
 };
 
 const RANK_NAMES: Record<string, string> = {
@@ -1309,6 +1315,7 @@ export function speechToMoveWithAmbiguity(transcript: string, legalMoves: string
 }
 
 const DISAMBIGUATION_MAP: Record<string, string> = {
+  // Numbers
   'one': '1', 'won': '1', 'want': '1',
   'two': '2', 'too': '2', 'to': '2',
   'three': '3', 'tree': '3', 'free': '3',
@@ -1317,14 +1324,20 @@ const DISAMBIGUATION_MAP: Record<string, string> = {
   'six': '6', 'sick': '6', 'sicks': '6',
   'seven': '7',
   'eight': '8', 'ate': '8', 'ait': '8',
-  'a': 'a', 'alpha': 'a', 'ay': 'a',
-  'b': 'b', 'bee': 'b', 'be': 'b', 'bravo': 'b',
-  'c': 'c', 'see': 'c', 'sea': 'c', 'charlie': 'c',
-  'd': 'd', 'dee': 'd', 'delta': 'd', 'the': 'd', 'tea': 'd',
-  'e': 'e', 'echo': 'e', 'ee': 'e',
-  'f': 'f', 'if': 'f', 'eff': 'f', 'foxtrot': 'f', 'off': 'f', 'of': 'f',
-  'g': 'g', 'gee': 'g', 'golf': 'g',
-  'h': 'h', 'aitch': 'h', 'hotel': 'h',
+  // Direct letters
+  'a': 'a', 'b': 'b', 'c': 'c', 'd': 'd', 'e': 'e', 'f': 'f', 'g': 'g', 'h': 'h',
+  // NATO phonetic alphabet (primary disambiguation)
+  'alpha': 'a', 'alfa': 'a', 'bravo': 'b', 'charlie': 'c', 'delta': 'd',
+  'echo': 'e', 'foxtrot': 'f', 'golf': 'g', 'hotel': 'h',
+  // Phonetic variants
+  'ay': 'a', 'aye': 'a', 'apple': 'a',
+  'bee': 'b', 'be': 'b', 'boy': 'b',
+  'see': 'c', 'sea': 'c', 'cee': 'c',
+  'dee': 'd', 'the': 'd', 'tea': 'd', 'dog': 'd',
+  'ee': 'e', 'easy': 'e',
+  'eff': 'f', 'if': 'f', 'of': 'f', 'off': 'f', 'fox': 'f',
+  'gee': 'g', 'jee': 'g',
+  'aitch': 'h', 'ach': 'h',
 };
 
 export interface DisambiguationResult {
@@ -1420,6 +1433,49 @@ export function getSourceSquaresFromCandidates(candidates: string[]): string[] {
   }
   
   return sources;
+}
+
+/**
+ * Get source files from pawn capture candidates (e.g., "dxc3", "exd4")
+ * Returns file letters that can capture to the target square
+ */
+export function getPawnCaptureFiles(candidates: string[]): string[] {
+  const files: string[] = [];
+  
+  for (const move of candidates) {
+    const cleanMove = move.replace(/[+#=QRBN]/g, '');
+    // Pawn capture format: [file]x[file][rank] e.g., "dxc3", "exf6"
+    const match = cleanMove.match(/^([a-h])x[a-h][1-8]$/);
+    if (match) {
+      files.push(match[1]);
+    }
+  }
+  
+  return files;
+}
+
+/**
+ * Find pawn capture move by source file disambiguation
+ */
+export function findPawnCaptureByFile(candidates: string[], sourceFile: string): string | null {
+  for (const move of candidates) {
+    const cleanMove = move.replace(/[+#]/g, '');
+    if (cleanMove.startsWith(sourceFile + 'x')) {
+      return move;
+    }
+  }
+  return null;
+}
+
+/**
+ * Check if candidates are pawn captures (no piece letter, has 'x')
+ */
+export function isPawnCaptureAmbiguity(candidates: string[]): boolean {
+  if (candidates.length < 2) return false;
+  return candidates.every(move => {
+    const cleanMove = move.replace(/[+#=QRBN]/g, '');
+    return /^[a-h]x[a-h][1-8]$/.test(cleanMove);
+  });
 }
 
 // VoiceRecognition class - now a wrapper around voiceMaster for unified mic handling

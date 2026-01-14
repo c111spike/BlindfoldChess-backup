@@ -36,7 +36,7 @@ import { AnalysisView } from "@/components/analysis-view";
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
-import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, VoiceRegistry, type AmbiguousMoveResult } from "@/lib/voice";
+import { voiceRecognition, speak, moveToSpeech, speechToMoveWithAmbiguity, parseDisambiguation, findMoveByDisambiguation, getSourceSquaresFromCandidates, getPawnCaptureFiles, findPawnCaptureByFile, isPawnCaptureAmbiguity, VoiceRegistry, type AmbiguousMoveResult } from "@/lib/voice";
 import BlindfoldNative, { waitForVoiceReady } from "@/lib/nativeVoice";
 import { getBotMove, countBotPieces, detectRecapture, getBotMoveDelay as botMoveDelay, getHumanBotThinkingDelay, countAllPieces, type LastMoveInfo, type BotMoveResult } from "@/lib/botEngine";
 import { loadStats, loadSettings, saveSettings, recordGameResult, getAveragePeekTime, formatPeekTime, resetStats, type GameStats, type BlindfoldSettings } from "@/lib/gameStats";
@@ -239,6 +239,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     candidates: string[];
     piece: string;
     targetSquare: string;
+    isPawnCapture?: boolean;
+    pawnFiles?: string[];
   } | null>(null);
   const disambiguationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [voiceRestartTrigger, setVoiceRestartTrigger] = useState(0);
@@ -878,6 +880,71 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             return;
           }
 
+          // Handle disambiguation responses if awaiting one
+          if (awaitingDisambiguation) {
+            if (disambiguationTimeoutRef.current) {
+              clearTimeout(disambiguationTimeoutRef.current);
+              disambiguationTimeoutRef.current = null;
+            }
+            
+            const disambigResult = parseDisambiguation(transcript);
+            let matchingMove: string | null = null;
+            
+            // Handle pawn capture disambiguation
+            if (awaitingDisambiguation.isPawnCapture && awaitingDisambiguation.pawnFiles && disambigResult.file) {
+              matchingMove = findPawnCaptureByFile(awaitingDisambiguation.candidates, disambigResult.file);
+            } else if (disambigResult.file || disambigResult.rank) {
+              matchingMove = findMoveByDisambiguation(awaitingDisambiguation.candidates, disambigResult);
+            }
+            
+            if (matchingMove) {
+              setAwaitingDisambiguation(null);
+              try {
+                const moveResult = currentGame.move(matchingMove);
+                if (moveResult) {
+                  gameVoiceMovesRef.current++;
+                  setLastMove({ from: moveResult.from, to: moveResult.to });
+                  setFen(currentGame.fen());
+                  const newMoves = [...movesRef.current, matchingMove];
+                  setMoves(newMoves);
+                  movesRef.current = newMoves;
+                  Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+                  
+                  if (voiceOutputEnabled) {
+                    const spokenMove = moveToSpeech(matchingMove, matchingMove.includes('x'), false, false);
+                    lastSpokenMove.current = spokenMove;
+                    BlindfoldNative.speakAndListen({ text: spokenMove }).catch(() => {});
+                  } else {
+                    BlindfoldNative.startListening().catch(() => {});
+                  }
+                  
+                  if (currentGame.isCheckmate()) {
+                    handleGameEnd(currentGame.turn() === "w" ? "black_win" : "white_win");
+                  } else if (currentGame.isDraw()) {
+                    handleGameEnd("draw");
+                  }
+                  setVoiceTranscript(null);
+                }
+              } catch (e) {
+                console.error('[NativeVoice] Disambiguation move error:', e);
+                BlindfoldNative.startListening().catch(() => {});
+              }
+              return;
+            }
+            
+            // Disambiguation failed, ask again
+            voiceCorrectionsRef.current++;
+            const retryPrompt = awaitingDisambiguation.isPawnCapture 
+              ? "I didn't catch that. Which file?" 
+              : "I didn't catch that. Which piece?";
+            if (voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: retryPrompt }).catch(() => {});
+            } else {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+            return;
+          }
+
           // Parse and execute chess moves
           const allLegalMoves = currentGame.moves({ verbose: true }).map(m => m.san);
           const result = speechToMoveWithAmbiguity(transcript, allLegalMoves);
@@ -914,9 +981,52 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               // Restart listening even on error to keep mic active
               BlindfoldNative.startListening().catch(() => {});
             }
+          } else if (result.isAmbiguous && result.candidates.length > 1) {
+            // Handle ambiguous moves with TTS clarification
+            const isPawnCapture = isPawnCaptureAmbiguity(result.candidates);
+            const pawnFiles = isPawnCapture ? getPawnCaptureFiles(result.candidates) : [];
+            
+            let prompt: string;
+            if (isPawnCapture && pawnFiles.length === 2) {
+              const file1 = pawnFiles[0].toUpperCase();
+              const file2 = pawnFiles[1].toUpperCase();
+              prompt = `Did you mean ${file1} takes ${result.targetSquare} or ${file2} takes ${result.targetSquare}?`;
+            } else {
+              const sources = getSourceSquaresFromCandidates(result.candidates);
+              const pieceName = result.piece === 'R' ? 'rook' : result.piece === 'N' ? 'knight' : result.piece === 'B' ? 'bishop' : result.piece === 'Q' ? 'queen' : 'piece';
+              prompt = sources.length === 2 
+                ? `Two ${pieceName}s can move to ${result.targetSquare}. The one on ${sources[0]} or ${sources[1]}?`
+                : `Multiple ${pieceName}s can move to ${result.targetSquare}. Which one?`;
+            }
+            
+            setAwaitingDisambiguation({
+              candidates: result.candidates,
+              piece: result.piece,
+              targetSquare: result.targetSquare,
+              isPawnCapture,
+              pawnFiles,
+            });
+            setVoiceTranscript(`Clarify: ${result.candidates.join(' or ')}`);
+            
+            if (voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: prompt }).catch(() => {});
+            } else {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+            
+            // Set timeout to cancel disambiguation
+            disambiguationTimeoutRef.current = setTimeout(() => {
+              setAwaitingDisambiguation(null);
+              setVoiceTranscript(null);
+              if (voiceOutputEnabled) {
+                BlindfoldNative.speakAndListen({ text: "Move cancelled" }).catch(() => {});
+              } else {
+                BlindfoldNative.startListening().catch(() => {});
+              }
+            }, 10000);
           } else {
             setVoiceTranscript(null);
-            // Keep listening for next attempt (unrecognized or ambiguous input)
+            // Keep listening for next attempt (unrecognized input)
             BlindfoldNative.startListening().catch(() => {});
           }
         });
@@ -1401,54 +1511,61 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         }
         
         const disambigResult = parseDisambiguation(transcript);
+        let matchingMove: string | null = null;
         
-        if (disambigResult.file || disambigResult.rank) {
-          const matchingMove = findMoveByDisambiguation(awaitingDisambiguation.candidates, disambigResult);
+        // Handle pawn capture disambiguation (user says file letter like "D" or "delta")
+        if (awaitingDisambiguation.isPawnCapture && awaitingDisambiguation.pawnFiles && disambigResult.file) {
+          matchingMove = findPawnCaptureByFile(awaitingDisambiguation.candidates, disambigResult.file);
+        } else if (disambigResult.file || disambigResult.rank) {
+          matchingMove = findMoveByDisambiguation(awaitingDisambiguation.candidates, disambigResult);
+        }
+        
+        if (matchingMove) {
+          setAwaitingDisambiguation(null);
           
-          if (matchingMove) {
-            setAwaitingDisambiguation(null);
-            
-            // HOT ECHO: Speak move without pausing mic
-            if (voiceOutputEnabled) {
-              const spokenMove = moveToSpeech(matchingMove, matchingMove.includes('x'), false, false);
-              lastSpokenMove.current = spokenMove;
-              speak(spokenMove).catch(e => console.warn('[Voice] Echo failed:', e));
-            }
-            
-            if (!gameRef.current) return;
-            const moveObj = gameRef.current.move(matchingMove);
-            if (moveObj) {
-              // Track voice move for stats
-              gameVoiceMovesRef.current++;
-              
-              setFen(gameRef.current.fen());
-              setLastMove({ from: moveObj.from, to: moveObj.to });
-              
-              const newMoves = [...movesRef.current, moveObj.san];
-              setMoves(newMoves);
-              movesRef.current = newMoves;
-              
-              setSelectedSquare(null);
-              setLegalMoves([]);
-              setVoiceTranscript(null);
-              
-              if (gameRef.current.isCheckmate()) {
-                const result = gameRef.current.turn() === "w" ? "black_win" : "white_win";
-                handleGameEnd(result);
-              } else if (gameRef.current.isDraw() || gameRef.current.isStalemate() || gameRef.current.isThreefoldRepetition() || gameRef.current.isInsufficientMaterial()) {
-                handleGameEnd("draw");
-              }
-            }
-            return;
+          // HOT ECHO: Speak move without pausing mic
+          if (voiceOutputEnabled) {
+            const spokenMove = moveToSpeech(matchingMove, matchingMove.includes('x'), false, false);
+            lastSpokenMove.current = spokenMove;
+            speak(spokenMove).catch(e => console.warn('[Voice] Echo failed:', e));
           }
+          
+          if (!gameRef.current) return;
+          const moveObj = gameRef.current.move(matchingMove);
+          if (moveObj) {
+            // Track voice move for stats
+            gameVoiceMovesRef.current++;
+            
+            setFen(gameRef.current.fen());
+            setLastMove({ from: moveObj.from, to: moveObj.to });
+            
+            const newMoves = [...movesRef.current, moveObj.san];
+            setMoves(newMoves);
+            movesRef.current = newMoves;
+            
+            setSelectedSquare(null);
+            setLegalMoves([]);
+            setVoiceTranscript(null);
+            
+            if (gameRef.current.isCheckmate()) {
+              const result = gameRef.current.turn() === "w" ? "black_win" : "white_win";
+              handleGameEnd(result);
+            } else if (gameRef.current.isDraw() || gameRef.current.isStalemate() || gameRef.current.isThreefoldRepetition() || gameRef.current.isInsufficientMaterial()) {
+              handleGameEnd("draw");
+            }
+          }
+          return;
         }
         
         // Track correction - disambiguation failed to resolve
         voiceCorrectionsRef.current++;
         
         // HOT ECHO: Short prompts don't need mic pause
+        const retryPrompt = awaitingDisambiguation.isPawnCapture 
+          ? "I didn't catch that. Which file?" 
+          : "I didn't catch that. Which piece?";
         if (voiceOutputEnabled) {
-          speak("I didn't catch that. Which piece?").catch(e => console.warn('[Voice] Echo failed:', e));
+          speak(retryPrompt).catch(e => console.warn('[Voice] Echo failed:', e));
         }
         
         disambiguationTimeoutRef.current = setTimeout(async () => {
@@ -1525,16 +1642,31 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           }
         }
       } else if (result.isAmbiguous && result.candidates.length > 1) {
-        const sources = getSourceSquaresFromCandidates(result.candidates);
-        const pieceName = result.piece === 'R' ? 'rook' : result.piece === 'N' ? 'knight' : result.piece === 'B' ? 'bishop' : result.piece === 'Q' ? 'queen' : 'piece';
-        const prompt = sources.length === 2 
-          ? `Two ${pieceName}s can move to ${result.targetSquare}. The one on ${sources[0]} or ${sources[1]}?`
-          : `Multiple ${pieceName}s can move to ${result.targetSquare}. Which one?`;
+        // Check if this is a pawn capture ambiguity (e.g., dxc3 vs exc3)
+        const isPawnCapture = isPawnCaptureAmbiguity(result.candidates);
+        const pawnFiles = isPawnCapture ? getPawnCaptureFiles(result.candidates) : [];
+        
+        let prompt: string;
+        if (isPawnCapture && pawnFiles.length === 2) {
+          // Pawn capture disambiguation - ask about file (D or E)
+          const file1 = pawnFiles[0].toUpperCase();
+          const file2 = pawnFiles[1].toUpperCase();
+          prompt = `Did you mean ${file1} takes ${result.targetSquare} or ${file2} takes ${result.targetSquare}?`;
+        } else {
+          // Piece disambiguation (rooks, knights, etc.)
+          const sources = getSourceSquaresFromCandidates(result.candidates);
+          const pieceName = result.piece === 'R' ? 'rook' : result.piece === 'N' ? 'knight' : result.piece === 'B' ? 'bishop' : result.piece === 'Q' ? 'queen' : 'piece';
+          prompt = sources.length === 2 
+            ? `Two ${pieceName}s can move to ${result.targetSquare}. The one on ${sources[0]} or ${sources[1]}?`
+            : `Multiple ${pieceName}s can move to ${result.targetSquare}. Which one?`;
+        }
         
         setAwaitingDisambiguation({
           candidates: result.candidates,
           piece: result.piece,
           targetSquare: result.targetSquare,
+          isPawnCapture,
+          pawnFiles,
         });
         setVoiceTranscript(`Clarify: ${result.candidates.join(' or ')}`);
         
