@@ -384,8 +384,6 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   // Save game state to localStorage whenever game is in progress
   useEffect(() => {
     if (!gameStarted || gameResult || !game || !selectedBot) return;
-    // Only save if there are moves (not at initial position)
-    if (moves.length === 0) return;
     
     const stateToSave: SavedGameState = {
       pgn: game.pgn(),
@@ -842,8 +840,23 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       return;
     }
     
+    // Reset all runtime stats for fresh tracking
     gamePeekTimeRef.current = 0;
     gameBotEloRef.current = bot.elo;
+    setPeekFreeStreak(0);
+    setBestPeekFreeStreak(0);
+    peekedSinceLastMoveRef.current = false;
+    botMoveTimestampRef.current = null;
+    responseTimesRef.current = [];
+    bookMovesRef.current = 0;
+    voiceCorrectionsRef.current = 0;
+    voiceCommandsRef.current = 0;
+    reconstructionVoiceInputsRef.current = 0;
+    reconstructionTouchInputsRef.current = 0;
+    gameVoiceMovesRef.current = 0;
+    gameTouchMovesRef.current = 0;
+    squareInquiriesRef.current = [];
+    
     setGame(newGame);
     gameRef.current = newGame;
     setFen(newGame.fen());
@@ -2856,6 +2869,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               onClick={() => {
                 clearSavedGame();
                 setPendingSavedGame(null);
+                setShowResumeDialog(false);
               }}
             >
               New Game

@@ -13,6 +13,7 @@ Preferred communication style: Simple, everyday language.
 - Voice commands to make moves (e.g., "knight c3", "e4")
 - Press-and-hold to peek at the position
 - AI bot opponents at various skill levels
+- Game state persistence: unfinished games save automatically and can be resumed
 
 ### Training Gym
 Coordinate mastery drills:
