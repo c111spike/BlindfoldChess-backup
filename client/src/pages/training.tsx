@@ -1523,7 +1523,7 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
             <span><strong>#</strong> = Checkmate</span>
             <span><strong>=Q</strong> = Promote to Queen</span>
             <span><strong>e.p.</strong> = En passant</span>
-            <span className="col-span-2"><strong>Rac1</strong> = Disambiguation (Rook from a-file to c1)</span>
+            <span className="col-span-2"><strong>Rac1</strong> = When 2 rooks can go to c1, specify which (a-file)</span>
           </div>
         </div>
       </div>
