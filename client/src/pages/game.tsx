@@ -57,6 +57,50 @@ const PIECE_VALUES: Record<string, number> = {
   p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000
 };
 
+// Game persistence for app backgrounding
+const SAVED_GAME_KEY = 'blindfold-saved-game';
+
+interface SavedGameState {
+  pgn: string;
+  playerColor: 'white' | 'black';
+  whiteTime: number;
+  blackTime: number;
+  timeControl: TimeControlOption;
+  botElo: number;
+  isBlindfold: boolean;
+  blindfoldDifficulty: BlindFoldDifficulty;
+  remainingPeeks: number;
+  savedAt: number;
+}
+
+function saveGameState(state: SavedGameState): void {
+  try {
+    localStorage.setItem(SAVED_GAME_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn('Failed to save game state:', e);
+  }
+}
+
+function loadSavedGame(): SavedGameState | null {
+  try {
+    const saved = localStorage.getItem(SAVED_GAME_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.warn('Failed to load saved game:', e);
+  }
+  return null;
+}
+
+function clearSavedGame(): void {
+  try {
+    localStorage.removeItem(SAVED_GAME_KEY);
+  } catch (e) {
+    console.warn('Failed to clear saved game:', e);
+  }
+}
+
 function extractLastMoveInfo(move: { from: string; to: string; captured?: string } | null): LastMoveInfo | undefined {
   if (!move) return undefined;
   return {
@@ -200,6 +244,12 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   
   useEffect(() => {
     initGameHistoryDB();
+    // Check for saved game on mount
+    const saved = loadSavedGame();
+    if (saved) {
+      setPendingSavedGame(saved);
+      setShowResumeDialog(true);
+    }
   }, []);
   
   // Listen for settings changes from Settings dialog
@@ -248,6 +298,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   
   const [pendingPromotion, setPendingPromotion] = useState<{ from: string; to: string } | null>(null);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [pendingSavedGame, setPendingSavedGame] = useState<SavedGameState | null>(null);
   
   // Board reconstruction state
   const [showReconstruction, setShowReconstruction] = useState(false);
@@ -329,7 +381,31 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     movesRef.current = moves;
   }, [game, whiteTime, blackTime, moves]);
 
+  // Save game state to localStorage whenever game is in progress
+  useEffect(() => {
+    if (!gameStarted || gameResult || !game || !selectedBot) return;
+    // Only save if there are moves (not at initial position)
+    if (moves.length === 0) return;
+    
+    const stateToSave: SavedGameState = {
+      pgn: game.pgn(),
+      playerColor,
+      whiteTime,
+      blackTime,
+      timeControl,
+      botElo: selectedBot.elo,
+      isBlindfold,
+      blindfoldDifficulty,
+      remainingPeeks,
+      savedAt: Date.now()
+    };
+    saveGameState(stateToSave);
+  }, [gameStarted, gameResult, game, selectedBot, moves, playerColor, whiteTime, blackTime, timeControl, isBlindfold, blindfoldDifficulty, remainingPeeks]);
+
   const resetGameState = useCallback(() => {
+    // Clear any saved game when starting fresh
+    clearSavedGame();
+    
     if (clockIntervalRef.current) {
       clearInterval(clockIntervalRef.current);
       clockIntervalRef.current = null;
@@ -524,6 +600,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   }, [playerColor, bestPeekFreeStreak, isBlindfold, selectedBot, timeControl]);
 
   const handleGameEnd = useCallback((result: "white_win" | "black_win" | "draw") => {
+    // Clear saved game since game has ended
+    clearSavedGame();
+    
     if (clockIntervalRef.current) {
       clearInterval(clockIntervalRef.current);
       clockIntervalRef.current = null;
@@ -750,6 +829,83 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       }
     }
   };
+
+  // Resume a saved game from localStorage
+  const handleResumeGame = useCallback(async (savedGame: SavedGameState) => {
+    const newGame = new Chess();
+    newGame.loadPgn(savedGame.pgn);
+    
+    const bot = getBotByElo(savedGame.botElo);
+    if (!bot) {
+      toast({ title: "Error", description: "Could not find bot", variant: "destructive" });
+      clearSavedGame();
+      return;
+    }
+    
+    gamePeekTimeRef.current = 0;
+    gameBotEloRef.current = bot.elo;
+    setGame(newGame);
+    gameRef.current = newGame;
+    setFen(newGame.fen());
+    const history = newGame.history();
+    setMoves(history);
+    movesRef.current = history;
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setGameResult(null);
+    setSelectedBot(bot);
+    setPlayerColor(savedGame.playerColor);
+    setWhiteTime(savedGame.whiteTime);
+    setBlackTime(savedGame.blackTime);
+    whiteTimeRef.current = savedGame.whiteTime;
+    blackTimeRef.current = savedGame.blackTime;
+    setTimeControl(savedGame.timeControl);
+    setIsBlindfold(savedGame.isBlindfold);
+    setBlindFoldDifficulty(savedGame.blindfoldDifficulty);
+    setRemainingPeeks(savedGame.remainingPeeks);
+    
+    // Find last move for highlighting
+    const historyVerbose = newGame.history({ verbose: true });
+    if (historyVerbose.length > 0) {
+      const lastMoveData = historyVerbose[historyVerbose.length - 1];
+      setLastMove({ from: lastMoveData.from, to: lastMoveData.to });
+    }
+    
+    setShowTitleScreen(false);
+    setGameStarted(true);
+    setIsTransitioning(false);
+    
+    // Clear the saved game now that we've restored it
+    clearSavedGame();
+    
+    // If it's bot's turn, request a bot move
+    const currentTurn = newGame.turn();
+    const botColor = savedGame.playerColor === 'white' ? 'b' : 'w';
+    if (currentTurn === botColor) {
+      const botMove = await requestBotMove(newGame.fen(), bot.id, history);
+      if (botMove && gameRef.current) {
+        const moveResult = gameRef.current.move(botMove.move);
+        if (moveResult) {
+          setLastMove({ from: moveResult.from, to: moveResult.to });
+        }
+        setFen(gameRef.current.fen());
+        const newMoves = [...movesRef.current, botMove.move];
+        setMoves(newMoves);
+        movesRef.current = newMoves;
+        botMoveTimestampRef.current = Date.now();
+        
+        try {
+          Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+        } catch (e) {}
+        
+        if (voiceOutputEnabled) {
+          const spokenMove = moveToSpeech(botMove.move, botMove.move.includes('x'), gameRef.current.isCheck(), false);
+          lastSpokenMove.current = spokenMove;
+          speak(spokenMove);
+        }
+      }
+    }
+  }, [toast, requestBotMove, voiceOutputEnabled]);
 
   useEffect(() => {
     // Don't run timer if game has ended
@@ -2681,6 +2837,40 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               data-testid="button-resign-confirm"
             >
               Resign
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={showResumeDialog} onOpenChange={setShowResumeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resume Game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have an unfinished game{pendingSavedGame ? ` (${pendingSavedGame.playerColor === 'white' ? 'White' : 'Black'} vs ${pendingSavedGame.botElo} Elo)` : ''}. Would you like to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              data-testid="button-resume-cancel"
+              onClick={() => {
+                clearSavedGame();
+                setPendingSavedGame(null);
+              }}
+            >
+              New Game
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingSavedGame) {
+                  handleResumeGame(pendingSavedGame);
+                  setPendingSavedGame(null);
+                }
+                setShowResumeDialog(false);
+              }}
+              data-testid="button-resume-confirm"
+            >
+              Resume
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
