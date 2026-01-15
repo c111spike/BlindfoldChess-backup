@@ -132,15 +132,15 @@ export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }:
   }
 
   return (
-    <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+      <div className="flex items-center gap-2 mb-3">
         <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-training-back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-bold">Training Gym</h1>
       </div>
 
-      <div className="space-y-4 flex-1">
+      <div className="space-y-3 flex-1">
         <Card className="hover-elevate cursor-pointer" onClick={() => setMode('voice_move_master')} data-testid="card-voice-move-master">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
@@ -441,15 +441,15 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
 
   if (gameState === 'ready') {
     return (
-      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
           <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-colorblitz-back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Color Blitz</h1>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <div className="text-center space-y-2">
             <Zap className="h-12 w-12 text-amber-500 mx-auto" />
             <h2 className="text-2xl font-bold">Ready?</h2>
@@ -497,15 +497,15 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
 
   if (gameState === 'finished') {
     return (
-      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
           <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-colorblitz-back-finished">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Color Blitz</h1>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <Trophy className={`h-16 w-16 ${isNewBest ? 'text-amber-500' : 'text-muted-foreground'}`} />
           <div className="text-center space-y-2">
             <h2 className="text-4xl font-bold">{score}</h2>
@@ -531,8 +531,8 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
   return (
     <>
       {isNativePlatform && <VoiceDebugOverlay />}
-      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             {isPracticeMode ? (
               <Badge variant="outline">Practice</Badge>
@@ -553,7 +553,7 @@ function ColorBlitzGame({ onBack, onComplete, stats, onGameStateChange }: ColorB
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-8">
+        <div className="flex-1 flex flex-col items-center justify-center gap-6">
           <div className="text-center">
             <p className="text-6xl font-bold font-mono tracking-wider">
               {currentSquare.file}{currentSquare.rank}
@@ -737,15 +737,15 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
 
   if (gameState === 'ready') {
     return (
-      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
           <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-sniper-back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Coordinate Sniper</h1>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <div className="text-center space-y-2">
             <Target className="h-12 w-12 text-blue-500 mx-auto" />
             <h2 className="text-2xl font-bold">Ready?</h2>
@@ -780,15 +780,15 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
 
   if (gameState === 'finished') {
     return (
-      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
           <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-sniper-back-finished">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Coordinate Sniper</h1>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <Trophy className={`h-16 w-16 ${isNewBest ? 'text-blue-500' : 'text-muted-foreground'}`} />
           <div className="text-center space-y-2">
             <h2 className="text-4xl font-bold">{formatTime(elapsedTime)}</h2>
@@ -813,8 +813,8 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
 
   return (
     <>
-      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-2">
           <p className="text-lg font-semibold">
             Find: <span className="text-2xl font-mono">{currentSquare.file}{currentSquare.rank}</span>
           </p>
@@ -827,8 +827,8 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
           </div>
         </div>
 
-        {!isPracticeMode && <Progress value={(foundCount / totalSquares) * 100} className="mb-4" />}
-        <p className="text-sm text-muted-foreground text-center mb-4">
+        {!isPracticeMode && <Progress value={(foundCount / totalSquares) * 100} className="mb-2" />}
+        <p className="text-sm text-muted-foreground text-center mb-2">
           {isPracticeMode ? `${foundCount} found` : `${foundCount}/${totalSquares} found`}
         </p>
 
@@ -1306,15 +1306,15 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
 
   if (gameState === 'ready') {
     return (
-      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
           <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-voicemaster-back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Voice Move Master</h1>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <div className="text-center space-y-2">
             <Volume2 className="h-12 w-12 text-purple-500 mx-auto" />
             <h2 className="text-2xl font-bold">Ready?</h2>
@@ -1349,15 +1349,15 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
 
   if (gameState === 'finished') {
     return (
-      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
           <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-voicemaster-back-finished">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Voice Move Master</h1>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <Trophy className={`h-16 w-16 ${isNewBest ? 'text-purple-500' : 'text-muted-foreground'}`} />
           <div className="text-center space-y-2">
             <h2 className="text-4xl font-bold">{score}</h2>
@@ -1391,8 +1391,8 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
   return (
     <>
       {isNativePlatform && <VoiceDebugOverlay />}
-      <div className="flex flex-col h-full p-4 max-w-md mx-auto">
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             {isPracticeMode ? (
               <Badge variant="outline">Practice</Badge>
