@@ -1982,23 +1982,23 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           alt="Blindfold Chess" 
           className="absolute inset-0 w-full h-full object-cover object-center z-0"
         />
-        <div className="relative z-10 flex flex-col items-center gap-2 p-6 pt-12 w-full">
+        <div className="relative z-10 flex flex-col items-center gap-1 p-4 pt-6 w-full">
           <h1 
-            className="text-4xl md:text-5xl font-bold text-black text-center tracking-tight"
+            className="text-3xl md:text-4xl font-bold text-black text-center tracking-tight"
             data-testid="text-title"
           >
             Blindfold Chess
           </h1>
-          <p className="text-black/70 text-center text-base md:text-lg">
+          <p className="text-black/70 text-center text-sm md:text-base">
             Train your visualization and memory
           </p>
         </div>
         <div className="flex-1" />
-        <div className="relative z-10 flex flex-col items-center gap-3 p-6 pb-[120px] w-full max-w-sm">
+        <div className="relative z-10 flex flex-col items-center gap-2 p-4 pb-16 w-full max-w-sm">
           <Button 
             size="lg" 
             variant="ghost"
-            className="w-full text-lg py-6 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-amber-500 dark:bg-black dark:hover:bg-black/90 dark:text-white dark:border-black"
+            className="w-full text-base py-4 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-amber-500 dark:bg-black dark:hover:bg-black/90 dark:text-white dark:border-black"
             onClick={() => onTrainNowClick?.()}
             data-testid="button-train-now"
           >
@@ -2008,7 +2008,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           <Button 
             size="lg" 
             variant="ghost"
-            className="w-full text-lg py-6 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-amber-500 dark:bg-black dark:hover:bg-black/90 dark:text-white dark:border-black"
+            className="w-full text-base py-4 bg-amber-400 hover:bg-amber-500 text-stone-900 border border-amber-500 dark:bg-black dark:hover:bg-black/90 dark:text-white dark:border-black"
             onClick={() => setShowTitleScreen(false)}
             data-testid="button-start-now"
           >
