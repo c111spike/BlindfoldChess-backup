@@ -1502,21 +1502,28 @@ function VoiceMoveMasterGame({ onBack, onComplete, stats, onGameStateChange }: V
           Resign
         </Button>
 
-        {/* Voice Commands Key */}
+        {/* Chess Notation Guide */}
         <div className="bg-muted/50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-2">
             <HelpCircle className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{isNativePlatform ? 'Voice Commands' : 'Commands'}</span>
+            <span className="text-sm font-medium">Chess Notation</span>
           </div>
-          <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-            <span>repeat / again</span>
-            <span>time / clock</span>
-            <span>what's on [square]</span>
-            <span>where is my [piece]</span>
-            <span>material</span>
-            <span>evaluate</span>
-            <span>legal moves for [piece]</span>
-            <span>resign</span>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span><strong>e4</strong> = pawn to e4</span>
+            <span><strong>R</strong> = Rook</span>
+            <span><strong>N</strong> = Knight</span>
+            <span><strong>B</strong> = Bishop</span>
+            <span><strong>Q</strong> = Queen</span>
+            <span><strong>K</strong> = King</span>
+            <span><strong>Bb2</strong> = Bishop to b2</span>
+            <span><strong>Nxc5</strong> = Knight takes c5</span>
+            <span><strong>0-0</strong> = Kingside castle</span>
+            <span><strong>0-0-0</strong> = Queenside castle</span>
+            <span><strong>+</strong> = Check</span>
+            <span><strong>#</strong> = Checkmate</span>
+            <span><strong>=Q</strong> = Promote to Queen</span>
+            <span><strong>e.p.</strong> = En passant</span>
+            <span className="col-span-2"><strong>Rac1</strong> = Disambiguation (Rook from a-file to c1)</span>
           </div>
         </div>
       </div>

@@ -56,7 +56,7 @@ public class VoskVoiceService extends Service {
         "\"what\", \"what's\", \"on\", \"is\", \"where\", \"my\", " +
         "\"how\", \"much\", \"time\", \"clock\", " +
         "\"legal\", \"moves\", \"for\", " +
-        "\"show\", \"board\", \"peek\", " +
+        "\"peek\", " +
         "\"evaluate\", \"eval\", \"evaluation\", " +
         // Colors / Confirmation
         "\"light\", \"dark\", \"white\", \"black\", " +

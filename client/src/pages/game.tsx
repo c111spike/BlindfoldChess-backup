@@ -1419,10 +1419,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         return;
       }
       
-      // Handle "show board" / "peek" / "show" voice command (5 second auto-hide)
-      if ((lowerTranscript.includes("show") && lowerTranscript.includes("board")) || 
-          lowerTranscript === "peek" || lowerTranscript === "peak" ||
-          lowerTranscript === "show") {
+      // Handle "peek" voice command (5 second auto-hide)
+      if (lowerTranscript === "peek" || lowerTranscript === "peak") {
         // Block peeking in No Board mode or Grandmaster difficulty
         if (blindfoldDisplayMode === "no_board" || blindfoldDifficulty === "grandmaster") {
           // HOT ECHO: Short warnings don't need mic pause
