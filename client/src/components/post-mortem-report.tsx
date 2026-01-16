@@ -32,8 +32,8 @@ function MentalStaminaGraph({ responseTimes, onJumpToMove }: { responseTimes: nu
 
   const maxTime = Math.max(...responseTimes, 1);
   const totalMoves = responseTimes.length;
-  const MIN_BAR_WIDTH = 6;
-  const graphWidth = Math.max(100, totalMoves * MIN_BAR_WIDTH);
+  const MIN_BAR_WIDTH = 4;
+  const graphWidth = Math.max(100, totalMoves * (MIN_BAR_WIDTH + 2));
   
   const getPhaseColor = (moveIndex: number, total: number): string => {
     const progress = moveIndex / total;
@@ -76,11 +76,12 @@ function MentalStaminaGraph({ responseTimes, onJumpToMove }: { responseTimes: nu
             return (
               <div
                 key={idx}
-                className={`${bgColor} rounded-t-sm flex-shrink-0 cursor-pointer hover:opacity-80 active:opacity-60`}
+                className={`${bgColor} rounded-t-sm flex-1 cursor-pointer hover:opacity-80 active:opacity-60`}
                 style={{ 
                   height: `${height}%`,
-                  width: '4px',
-                  marginRight: '2px'
+                  minWidth: '4px',
+                  marginLeft: '1px',
+                  marginRight: '1px'
                 }}
                 onClick={() => onJumpToMove?.(idx)}
                 title={`Move ${idx + 1}: ${formatResponseTime(time)}`}

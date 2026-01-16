@@ -2486,7 +2486,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   }
 
   return (
-    <div className="container max-w-4xl mx-auto p-2 md:p-4 animate-in fade-in duration-300">
+    <div className="h-[100dvh] w-full flex flex-col overflow-hidden animate-in fade-in duration-300">
       <VoiceDebugOverlay />
       {showReconstruction && reconstructionFen && (
         <div className="mb-3">
@@ -2542,8 +2542,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       )}
       
       {!showReconstruction && (
-      <div className="space-y-2">
-        <Card className={`lg:hidden ${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
+      <main className="flex-1 flex flex-col min-h-0 p-2 md:p-4 max-w-4xl mx-auto w-full">
+        <Card className={`flex-none lg:hidden ${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
           <CardContent className="py-2 px-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -2567,8 +2567,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           </CardContent>
         </Card>
         
-        <div className="flex flex-col lg:flex-row gap-3">
-          <div className="flex flex-col gap-2">
+        <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0">
+          <div className="flex-1 flex flex-col gap-2 min-h-0">
             <Card className={`hidden lg:block ${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
               <CardContent className="py-2 px-4">
                 <div className="flex items-center justify-between">
@@ -2593,7 +2593,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               </CardContent>
             </Card>
             
-            <Card className={`aspect-square w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${
+            <div className="flex-1 flex items-center justify-center min-h-0">
+            <Card className={`aspect-square h-full max-h-full w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${
               isBlindfold && blindfoldDisplayMode === "no_board" && !isPeeking ? "invisible" : ""
             }`}>
             <div className="relative w-full h-full">
@@ -2705,8 +2706,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
                 )}
               </div>
             </Card>
+            </div>
             
-            <Card className={`hidden lg:block ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
+            <Card className={`flex-none hidden lg:block ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
               <CardContent className="py-2 px-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -2723,7 +2725,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             </Card>
           </div>
           
-          <div className="flex flex-col gap-2 lg:w-48">
+          <div className="flex flex-col gap-2 lg:w-48 min-h-0 overflow-y-auto">
             {isBlindfold && blindfoldDifficulty !== 'grandmaster' && (
               <Button
                 variant={isPeeking ? "default" : "outline"}
@@ -2830,7 +2832,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             )}
           </div>
         </div>
-      </div>
+      </main>
       )}
       
       <PromotionDialog
