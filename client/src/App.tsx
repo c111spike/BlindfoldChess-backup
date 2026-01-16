@@ -221,11 +221,11 @@ export default function App() {
                       <ul className="space-y-1 text-muted-foreground">
                         <li><span className="font-mono text-foreground">"material"</span> - Hear material balance</li>
                         <li><span className="font-mono text-foreground">"legal moves for knight"</span> - List piece's legal moves</li>
-                        <li><span className="font-mono text-foreground">"show board"</span> / <span className="font-mono text-foreground">"peek"</span> - Show board for 5 seconds</li>
+                        <li><span className="font-mono text-foreground">"peek"</span> - Show board for 5 seconds</li>
                         <li><span className="font-mono text-foreground">"evaluate"</span> / <span className="font-mono text-foreground">"eval"</span> - Hear engine evaluation</li>
                       </ul>
                       <p className="text-xs text-muted-foreground/70 mt-1">
-                        Note: "show board" and "evaluate" mark the game as assisted
+                        Note: "peek" and "evaluate" mark the game as assisted
                       </p>
                     </div>
                   </div>

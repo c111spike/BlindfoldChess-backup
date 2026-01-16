@@ -1036,14 +1036,35 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
 
           const lowerTranscript = transcript.toLowerCase();
 
-          // Handle repeat command
-          if (lowerTranscript.includes("repeat") || lowerTranscript.includes("say again")) {
+          // Handle repeat command (including "again" and "what was that")
+          if (lowerTranscript.includes("repeat") || lowerTranscript.includes("say again") || 
+              lowerTranscript === "again" || lowerTranscript.includes("what was that")) {
             if (lastSpokenMove.current && voiceOutputEnabled) {
               BlindfoldNative.speakAndListen({ text: lastSpokenMove.current }).catch(() => {});
             } else {
-              // No TTS to repeat, restart listening anyway
               BlindfoldNative.startListening().catch(() => {});
             }
+            return;
+          }
+
+          // Handle resign confirmation dialog voice commands
+          if (showResignConfirm) {
+            if (lowerTranscript.includes("yes") || lowerTranscript.includes("confirm") || lowerTranscript.includes("i confirm")) {
+              Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+              setShowResignConfirm(false);
+              handleGameEnd(playerColor === "white" ? "black_win" : "white_win");
+              setVoiceTranscript(null);
+              return;
+            }
+            if (lowerTranscript.includes("no") || lowerTranscript.includes("cancel") || lowerTranscript.includes("never mind")) {
+              Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+              setShowResignConfirm(false);
+              setVoiceTranscript(null);
+              BlindfoldNative.startListening().catch(() => {});
+              return;
+            }
+            // If dialog is open but command isn't yes/no, ignore and wait
+            BlindfoldNative.startListening().catch(() => {});
             return;
           }
 
@@ -1109,6 +1130,280 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             } else {
               BlindfoldNative.startListening().catch(() => {});
             }
+            return;
+          }
+
+          // Handle "what's on [square]" inquiry
+          const whatOnMatch = lowerTranscript.match(/what(?:'?s| is)?\s+(?:on\s+)?([a-h])[\s-]?([1-8])/);
+          if (whatOnMatch) {
+            const inquiredSquare = `${whatOnMatch[1]}${whatOnMatch[2]}`;
+            if (isBlindfold) {
+              squareInquiriesRef.current.push(inquiredSquare);
+            }
+            const piece = currentGame.get(inquiredSquare as any);
+            let response = '';
+            if (piece) {
+              const colorName = piece.color === 'w' ? 'White' : 'Black';
+              const pieceNames: Record<string, string> = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' };
+              response = `${colorName} ${pieceNames[piece.type]} on ${inquiredSquare}`;
+            } else {
+              response = `${inquiredSquare.toUpperCase()} is empty`;
+            }
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+            if (voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: response }).catch(() => {});
+            } else {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+            setVoiceTranscript(null);
+            return;
+          }
+
+          // Handle "where is my [piece]" inquiry
+          const whereIsMatch = lowerTranscript.match(/where\s+(?:is|are)\s+(?:my\s+)?(\w+)/);
+          if (whereIsMatch) {
+            const pieceQuery = whereIsMatch[1].toLowerCase();
+            const pieceMap: Record<string, string> = {
+              'king': 'k', 'queen': 'q', 'rook': 'r', 'bishop': 'b', 'knight': 'n', 'pawn': 'p',
+              'kings': 'k', 'queens': 'q', 'rooks': 'r', 'bishops': 'b', 'knights': 'n', 'pawns': 'p',
+              'horse': 'n', 'horses': 'n', 'castle': 'r', 'castles': 'r',
+            };
+            const pieceType = pieceMap[pieceQuery];
+            if (pieceType) {
+              const myColor = playerColor === 'white' ? 'w' : 'b';
+              const squares: string[] = [];
+              const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+              const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
+              for (const file of files) {
+                for (const rank of ranks) {
+                  const sq = `${file}${rank}`;
+                  const piece = currentGame.get(sq as any);
+                  if (piece && piece.type === pieceType && piece.color === myColor) {
+                    squares.push(sq.toUpperCase());
+                  }
+                }
+              }
+              const pieceNames: Record<string, string> = { k: 'King', q: 'Queen', r: 'Rook', b: 'Bishop', n: 'Knight', p: 'Pawn' };
+              let response = '';
+              if (squares.length === 0) {
+                response = `You have no ${pieceNames[pieceType]}`;
+              } else if (squares.length === 1) {
+                response = `Your ${pieceNames[pieceType]} is on ${squares[0]}`;
+              } else {
+                response = `Your ${pieceNames[pieceType]}s are on ${squares.join(' and ')}`;
+              }
+              Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+              if (voiceOutputEnabled) {
+                BlindfoldNative.speakAndListen({ text: response }).catch(() => {});
+              } else {
+                BlindfoldNative.startListening().catch(() => {});
+              }
+              setVoiceTranscript(null);
+              return;
+            }
+          }
+
+          // Handle "last move" query
+          if (lowerTranscript.includes("last move") || lowerTranscript.includes("previous move") || lowerTranscript.includes("opponent's move")) {
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+            const history = currentGame.history({ verbose: true });
+            let response = '';
+            if (history.length === 0) {
+              response = 'No moves have been made yet';
+            } else {
+              const lastMove = history[history.length - 1];
+              const pieceNames: Record<string, string> = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' };
+              const pieceName = pieceNames[lastMove.piece] || lastMove.piece;
+              const capture = lastMove.captured ? ' takes' : '';
+              const to = lastMove.to.toUpperCase();
+              if (lastMove.piece === 'p') {
+                response = `${lastMove.from.toUpperCase()}${capture} ${to}`;
+              } else {
+                response = `${pieceName}${capture} ${to}`;
+              }
+            }
+            if (voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: response }).catch(() => {});
+            } else {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+            setVoiceTranscript(null);
+            return;
+          }
+
+          // Handle "legal moves for [piece]" query
+          const legalMovesMatch = lowerTranscript.match(/legal\s+moves?\s+(?:for\s+)?(?:my\s+)?(\w+)/);
+          if (legalMovesMatch) {
+            const pieceQuery = legalMovesMatch[1].toLowerCase();
+            const pieceMap: Record<string, string> = {
+              'king': 'k', 'queen': 'q', 'rook': 'r', 'bishop': 'b', 'knight': 'n', 'pawn': 'p',
+              'kings': 'k', 'queens': 'q', 'rooks': 'r', 'bishops': 'b', 'knights': 'n', 'pawns': 'p',
+              'horse': 'n', 'horses': 'n', 'castle': 'r', 'castles': 'r',
+            };
+            const pieceType = pieceMap[pieceQuery];
+            if (pieceType) {
+              Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+              const pieceFullNames: Record<string, string> = { k: 'King', q: 'Queen', r: 'Rook', b: 'Bishop', n: 'Knight', p: 'Pawn' };
+              const pieceName = pieceFullNames[pieceType];
+              const allMoves = currentGame.moves({ verbose: true });
+              const pieceMoves = allMoves.filter(m => m.piece === pieceType);
+              const destinations = Array.from(new Set(pieceMoves.map(m => m.to.toUpperCase())));
+              let response = '';
+              if (destinations.length === 0) {
+                response = `Your ${pieceName} has no legal moves`;
+              } else if (destinations.length <= 4) {
+                response = `Your ${pieceName} can move to ${destinations.join(', ')}`;
+              } else {
+                const examples = destinations.slice(0, 3);
+                response = `Your ${pieceName} has ${destinations.length} legal moves, including ${examples.join(', ')}`;
+              }
+              if (voiceOutputEnabled) {
+                BlindfoldNative.speakAndListen({ text: response }).catch(() => {});
+              } else {
+                BlindfoldNative.startListening().catch(() => {});
+              }
+              setVoiceTranscript(null);
+              return;
+            }
+          }
+
+          // Handle "resign" / "quit" / "give up" voice command
+          if (lowerTranscript.includes("resign") || lowerTranscript.includes("quit") || 
+              lowerTranscript.includes("give up") || lowerTranscript.includes("i resign")) {
+            Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+            setShowResignConfirm(true);
+            setVoiceTranscript(null);
+            if (voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: "Resign? Say yes or no." }).catch(() => {});
+            } else {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+            return;
+          }
+
+          // Handle "peek" voice command (5 second auto-hide)
+          if (lowerTranscript === "peek" || lowerTranscript === "peak") {
+            // Block if no peeks remaining or in grandmaster/no_board mode
+            if (remainingPeeks <= 0 || blindfoldDisplayMode === "no_board" || blindfoldDifficulty === "grandmaster") {
+              if (voiceOutputEnabled) {
+                BlindfoldNative.speakAndListen({ text: "Peeking is not allowed" }).catch(() => {});
+              } else {
+                BlindfoldNative.startListening().catch(() => {});
+              }
+              setVoiceTranscript(null);
+              return;
+            }
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+            wasAssistedRef.current = true;
+            setIsPeeking(true);
+            // Decrement remaining peeks
+            setRemainingPeeks(prev => prev - 1);
+            if (voicePeekTimeoutRef.current) {
+              clearTimeout(voicePeekTimeoutRef.current);
+            }
+            voicePeekTimeoutRef.current = setTimeout(() => {
+              setIsPeeking(false);
+              voicePeekTimeoutRef.current = null;
+            }, 5000);
+            if (voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: "Board visible for 5 seconds" }).catch(() => {});
+            } else {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+            setVoiceTranscript(null);
+            return;
+          }
+
+          // Handle "clock" / "time" / "how much time" query
+          if (lowerTranscript.includes("clock") || lowerTranscript.includes("how much time") || 
+              lowerTranscript.includes("time left") || lowerTranscript.includes("remaining")) {
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+            const myTime = playerColor === "white" ? whiteTime : blackTime;
+            const minutes = Math.floor(myTime / 60);
+            const seconds = myTime % 60;
+            let response = '';
+            if (minutes > 0) {
+              response = `${minutes} minute${minutes !== 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''} remaining`;
+            } else {
+              response = `${seconds} second${seconds !== 1 ? 's' : ''} remaining`;
+            }
+            if (voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: response }).catch(() => {});
+            } else {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+            setVoiceTranscript(null);
+            return;
+          }
+
+          // Handle "material" query (Pro Command)
+          if (lowerTranscript.includes("material")) {
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+            const pieceValues: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+            let whiteMaterial = 0;
+            let blackMaterial = 0;
+            const board = currentGame.board();
+            for (const row of board) {
+              for (const piece of row) {
+                if (piece) {
+                  const value = pieceValues[piece.type] || 0;
+                  if (piece.color === 'w') whiteMaterial += value;
+                  else blackMaterial += value;
+                }
+              }
+            }
+            const diff = whiteMaterial - blackMaterial;
+            let response = '';
+            if (diff > 0) {
+              response = `White is up ${diff} point${diff !== 1 ? 's' : ''}`;
+            } else if (diff < 0) {
+              response = `Black is up ${Math.abs(diff)} point${Math.abs(diff) !== 1 ? 's' : ''}`;
+            } else {
+              response = 'Material is equal';
+            }
+            if (voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: response }).catch(() => {});
+            } else {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+            setVoiceTranscript(null);
+            return;
+          }
+
+          // Handle "evaluate" / "eval" command (Pro Command)
+          if (lowerTranscript.includes("eval") || lowerTranscript.includes("evaluation")) {
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+            wasAssistedRef.current = true;
+            if (voiceOutputEnabled) {
+              BlindfoldNative.speakAndListen({ text: "Evaluating position" }).catch(() => {});
+            }
+            clientStockfish.analyzePosition(currentGame.fen(), 500000).then((result) => {
+              let evalResponse = '';
+              if (result.isMate && result.mateIn !== undefined) {
+                evalResponse = result.mateIn > 0 ? `Mate in ${result.mateIn} for white` : `Mate in ${Math.abs(result.mateIn)} for black`;
+              } else {
+                const absScore = Math.abs(result.evaluation);
+                if (absScore < 0.3) {
+                  evalResponse = 'Position is equal';
+                } else if (result.evaluation > 0) {
+                  evalResponse = `White is better by ${absScore.toFixed(1)}`;
+                } else {
+                  evalResponse = `Black is better by ${absScore.toFixed(1)}`;
+                }
+              }
+              if (voiceOutputEnabled) {
+                BlindfoldNative.speakAndListen({ text: evalResponse }).catch(() => {});
+              } else {
+                BlindfoldNative.startListening().catch(() => {});
+              }
+            }).catch(() => {
+              if (voiceOutputEnabled) {
+                BlindfoldNative.speakAndListen({ text: "Unable to evaluate position" }).catch(() => {});
+              } else {
+                BlindfoldNative.startListening().catch(() => {});
+              }
+            });
+            setVoiceTranscript(null);
             return;
           }
 
@@ -2567,8 +2862,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           </CardContent>
         </Card>
         
-        <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0">
-          <div className="flex-1 flex flex-col gap-2 min-h-0">
+        <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0 overflow-hidden">
+          <div className="flex-shrink flex flex-col gap-2 min-h-0 lg:flex-1">
             <Card className={`hidden lg:block ${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
               <CardContent className="py-2 px-4">
                 <div className="flex items-center justify-between">
@@ -2593,7 +2888,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               </CardContent>
             </Card>
             
-            <div className="flex-1 flex items-center justify-center min-h-0">
+            <div className="flex-1 flex items-center justify-center min-h-0 max-h-[50vh] lg:max-h-full">
             <Card className={`aspect-square h-full max-h-full w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${
               isBlindfold && blindfoldDisplayMode === "no_board" && !isPeeking ? "invisible" : ""
             }`}>
@@ -2725,7 +3020,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             </Card>
           </div>
           
-          <div className="flex flex-col gap-2 lg:w-48 min-h-0 overflow-y-auto">
+          <div className="flex flex-col gap-2 lg:w-48 min-h-0 flex-shrink-0">
             {isBlindfold && blindfoldDifficulty !== 'grandmaster' && (
               <Button
                 variant={isPeeking ? "default" : "outline"}
@@ -2803,9 +3098,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               </CardContent>
             </Card>
             
-            <Card className="flex-1">
+            <Card className="flex-none">
               <CardContent className="p-2">
-                <ScrollArea className="h-24 lg:h-48">
+                <ScrollArea className="h-16 lg:h-48">
                   <div className="text-xs font-mono space-y-1">
                     {moves.map((move, i) => (
                       <span key={i} className={i % 2 === 0 ? "font-semibold" : ""}>
