@@ -21,13 +21,20 @@ Coordinate mastery drills:
 - **Coordinate Sniper**: Find 10 squares as fast as possible. Voice announces target squares. Trophy tiers: Gold ≤10s, Silver ≤20s.
 
 ### AI Bot Engine
-Client-side engine with:
-- 8 Elo levels (400-2500)
-- 7 personalities: Tal Attacker, Tactician, Fortress Defender, Bishop Specialist, Knight Specialist, Positional Grandmaster, Balanced
-- Lichess opening database + Stockfish WASM + custom minimax
+Client-side engine with continuous Elo slider:
+- Elo range: 400-2600 (step 50) with non-linear skill curve
+- Stockfish Skill Level parameter (0-20) for authentic strength variation
+- Dynamic labels: Beginner (400-800) → Casual (800-1200) → Club (1200-1800) → Master (1800-2600)
+- Lichess opening database + Stockfish WASM
 
 ### Post-Game Analysis
-Stockfish-powered analysis with evaluation bar and move-by-move review.
+Stockfish-powered analysis with evaluation bar, move-by-move review, and PGN export (Share/Copy buttons).
+
+### Game History
+- View all past games with results, dates, and move counts
+- Favorite games for quick access
+- Share or copy PGN for any saved game
+- Full Stockfish analysis for historical games
 
 ## Technical Architecture
 
@@ -60,7 +67,7 @@ npx cap sync android
 node scripts/patch-capacitor-android.cjs
 nix-shell android-shell.nix --run "cd android && ./gradlew assembleDebug --no-daemon"
 ```
-APK output: `android/app/build/outputs/apk/debug/app-debug.apk` (~106MB with Vosk model)
+APK output: `android/app/build/outputs/apk/debug/app-debug.apk` (~67MB with Vosk model)
 
 **Important**: Run patch script after every `npx cap sync` or `npm install`.
 
@@ -70,6 +77,7 @@ APK output: `android/app/build/outputs/apk/debug/app-debug.apk` (~106MB with Vos
 - `client/src/pages/game.tsx` - Main game UI
 - `client/src/pages/training.tsx` - Training drills
 - `client/src/lib/botEngine.ts` - AI opponent logic
+- `client/src/lib/pgnExport.ts` - PGN share/copy utilities
 
 ## External Dependencies
 - Vosk (Apache 2.0, Alpha Cephei) - Offline speech recognition
