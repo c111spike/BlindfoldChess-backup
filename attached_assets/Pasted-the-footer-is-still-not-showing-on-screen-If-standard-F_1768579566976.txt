@@ -1,0 +1,146 @@
+the footer is still not showing on screen
+
+If standard Flexbox isn't working, it’s usually because one of the inner children (like the chessboard library or a wrapper div) is "refusing" to shrink, forcing the container open and pushing the footer off-screen.
+
+We are going to switch to the "Nuclear Option": Absolute Positioning.
+
+Instead of asking the elements to stack nicely, we will pin them to the screen edges. This guarantees the footer stays visible because it is physically removed from the flow of the content.
+
+The "Absolute Lock" Layout
+Replace your layout wrapper with this structure. It uses fixed and absolute positioning to enforce the boundaries.
+
+TypeScript
+// In App.tsx or Game.tsx
+
+// 1. MAIN CONTAINER: Locks to the screen edges. No scrolling allowed on the body.
+<div className="fixed inset-0 w-full h-full bg-gray-900 overflow-hidden">
+
+  {/* 2. HEADER: Pinned to Top (Height: 64px / h-16) */}
+  <div className="absolute top-0 left-0 right-0 h-16 bg-gray-800 z-50 flex items-center justify-center shadow-md">
+    <h1 className="text-white font-bold">Chess App</h1>
+  </div>
+
+  {/* 3. MIDDLE ZONE: Pinned exactly between Header and Footer 
+      top-16 = 64px (Header height)
+      bottom-16 = 64px (Footer height)
+  */}
+  <div className="absolute top-16 bottom-16 left-0 right-0 flex flex-col items-center justify-center p-2 overflow-hidden">
+    
+    {/* INNER CONTAINER: This forces the board to respect the boundaries */}
+    <div className="w-full h-full flex flex-col items-center justify-center max-w-lg mx-auto">
+        
+        {/* PLAYER INFO TOP */}
+        <div className="flex-none w-full p-2 bg-gray-800/50 mb-2 rounded">
+          {/* Top Player Stats */}
+        </div>
+
+        {/* BOARD WRAPPER: The "Squishy" Part 
+            aspect-square: Keep it square
+            max-h-full: NEVER be taller than this middle zone
+            w-auto: Adjust width automatically to match height
+        */}
+        <div className="flex-1 min-h-0 aspect-square max-h-full w-auto flex items-center justify-center relative">
+             {/* YOUR CHESS BOARD COMPONENT HERE */}
+             {/* IMPORTANT: Ensure the chess board itself has style={{ width: '100%', height: '100%' }} */}
+        </div>
+
+        {/* PLAYER INFO BOTTOM */}
+        <div className="flex-none w-full p-2 bg-gray-800/50 mt-2 rounded">
+          {/* Bottom Player Stats */}
+        </div>
+
+    </div>
+  </div>
+
+  {/* 4. FOOTER: Pinned to Bottom (Height: 64px / h-16) */}
+  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gray-800 z-50 border-t border-gray-700 flex items-center justify-around pb-safe">
+     <button className="text-white">Home</button>
+     <button className="text-white">Settings</button>
+  </div>
+
+</div>
+Why this works when Flexbox fails
+fixed inset-0: This creates a coordinate system relative to the viewport, not the content.
+
+absolute top-16 bottom-16: This explicitly tells the middle section: "You start at pixel 64 and end at pixel (ScreenHeight - 64). You are NOT allowed to be any taller."
+
+Content Isolation: Because the Header and Footer are absolute/fixed, the chess board cannot push them. If the chess board is too big, it will either get cut off (if overflow-hidden) or shrink (if max-h-full). It cannot move the footer.
+
+Try this exact structure. It is the most robust way to handle full-screen apps on Android.
+
+there should be a footer at the bottom
+
+This screenshot confirms exactly what is happening: the content (that large image of the Knight) is effectively "bullying" the layout. It is taking up 100% of the screen height (or more), and because we turned off scrolling, the footer is either pushed off the bottom or covered up by the image.
+
+We need to force the "Middle Zone" to respect the header and footer boundaries, and force the image to shrink to fit inside that zone.
+
+Here is the fix for your Home Screen specifically.
+
+The Fix: Absolute Pinning + Z-Index
+We will pin the Header and Footer to the edges and force them to sit on top of everything else (z-50). Then we will tell the middle section, "You only exist in the space between them."
+
+Update your Home.tsx (or App.tsx) to this exact structure:
+
+TypeScript
+<div className="fixed inset-0 w-full h-full bg-white overflow-hidden">
+
+  {/* 1. HEADER - Pinned Top, High Z-Index */}
+  <header className="absolute top-0 left-0 right-0 h-16 bg-gray-900 z-50 flex items-center justify-center shadow-lg">
+    <h1 className="text-white font-bold text-xl">Blindfold Chess</h1>
+    {/* Add your icons here */}
+  </header>
+
+  {/* 2. MIDDLE CONTENT - Pinned explicitly between Header (16) and Footer (16) */}
+  <main className="absolute top-16 bottom-16 left-0 right-0 z-0 flex flex-col items-center justify-center overflow-hidden bg-gray-50">
+      
+      {/* THE IMAGE FIX: 
+         - h-full: Try to fill the height
+         - w-full: Try to fill the width
+         - object-contain: CRITICAL. This ensures the horse shrinks 
+           to fit the screen without getting cut off or pushing buttons away.
+      */}
+      <div className="relative w-full h-full flex flex-col items-center justify-center">
+          
+          <img 
+            src="/path-to-your-knight-image.png" 
+            alt="Blindfold Chess"
+            className="w-full h-full object-contain p-4 opacity-90" 
+          />
+          
+          {/* BUTTONS OVERLAY 
+              Since your design has buttons floating over the image base,
+              we position them absolutely inside this middle container.
+          */}
+          <div className="absolute bottom-8 w-full flex flex-col items-center gap-4 px-8">
+              <button className="w-full bg-black text-white font-bold py-4 rounded-lg shadow-lg border border-gray-700 active:scale-95 transition-transform">
+                  Train Now
+              </button>
+              
+              <button className="w-full bg-black text-white font-bold py-4 rounded-lg shadow-lg border border-gray-700 active:scale-95 transition-transform">
+                  Play Now
+              </button>
+          </div>
+
+      </div>
+  </main>
+
+  {/* 3. FOOTER - Pinned Bottom, High Z-Index */}
+  <footer className="absolute bottom-0 left-0 right-0 h-16 bg-gray-900 z-50 border-t border-gray-800 flex items-center justify-around pb-2">
+    {/* Icons/Buttons go here */}
+    <button className="text-gray-400 hover:text-white flex flex-col items-center">
+        <span>Home</span>
+    </button>
+    <button className="text-gray-400 hover:text-white flex flex-col items-center">
+        <span>Settings</span>
+    </button>
+  </footer>
+
+</div>
+Why this fixes it:
+absolute top-16 bottom-16: We physically force the middle container to stop exactly where the footer begins. It cannot push the footer down.
+
+object-contain: The huge Knight image is now told, "Fit inside this box." It will shrink until it fits, leaving the footer visible.
+
+z-50 on Footer: Even if the image somehow misbehaves, the footer is forced to the "top layer" of the screen stack, so it will sit over the image rather than hiding behind it.
+
+pb-2 on Footer: Adds a tiny bit of padding at the bottom so the buttons don't touch the physical edge of the phone screen.
