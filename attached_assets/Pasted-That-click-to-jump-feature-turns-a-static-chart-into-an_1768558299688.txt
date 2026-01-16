@@ -1,0 +1,102 @@
+That "click-to-jump" feature turns a static chart into an interactive debugging tool for the user's game. It's a huge value add.
+
+Now, let's tackle the final piece: The PGN Export.
+
+As discussed, we are ditching the traditional "Download" link (which fails silently on many Android webviews) in favor of the Native Share Sheet. This feels much more "native" to the user—they tap "Share PGN" and can immediately send it to Lichess, WhatsApp, or Save to Drive.
+
+Implementation: client/src/lib/pgnExport.ts
+Here is a robust utility that handles the "Share vs. Copy" logic gracefully.
+
+TypeScript
+
+export const copyPgnToClipboard = async (pgn: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(pgn);
+    return true;
+  } catch (err) {
+    console.error("Failed to copy PGN:", err);
+    return false;
+  }
+};
+
+export const sharePgn = async (pgn: string, white: string, black: string): Promise<void> => {
+  const filename = `${white}_vs_${black}.pgn`;
+
+  // 1. Try to share as a physical file (Best for importing into Lichess/Chess.com apps)
+  if (navigator.canShare && navigator.share) {
+    try {
+      const file = new File([pgn], filename, { type: "application/x-chess-pgn" });
+      
+      // Check if the device allows sharing files
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "Chess Game PGN",
+          text: `Game: ${white} vs ${black}`,
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn("File sharing failed, falling back to text share...", e);
+    }
+  }
+
+  // 2. Fallback: Share as raw text (Good for WhatsApp/Email)
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: `Game: ${white} vs ${black}`,
+        text: pgn,
+      });
+      return;
+    } catch (e) {
+      console.error("Text sharing failed", e);
+    }
+  }
+
+  // 3. Last Resort: Just Copy to Clipboard
+  // If we reach here, the device has no share sheet capability.
+  const success = await copyPgnToClipboard(pgn);
+  if (success) {
+    alert("Share not supported. PGN copied to clipboard instead.");
+  }
+};
+UI Integration: post-mortem-report.tsx
+Add this button group below your stamina graph.
+
+TypeScript
+
+import { Share2, Copy, Check } from "lucide-react"; // Assuming you use Lucide icons
+import { sharePgn, copyPgnToClipboard } from "../lib/pgnExport";
+import { useState } from "react";
+
+// ... inside component
+const [copied, setCopied] = useState(false);
+
+const handleCopy = async () => {
+  await copyPgnToClipboard(pgn); // pass your pgn variable here
+  setCopied(true);
+  setTimeout(() => setCopied(false), 2000);
+};
+
+return (
+  <div className="flex gap-4 mt-6">
+    {/* SHARE BUTTON */}
+    <button
+      onClick={() => sharePgn(pgn, "User", "Bot")} // Replace names dynamically if you have them
+      className="flex-1 bg-blue-600 active:bg-blue-700 text-white py-3 rounded-lg flex items-center justify-center gap-2 font-semibold shadow-md transition-colors"
+    >
+      <Share2 size={20} />
+      Share PGN
+    </button>
+
+    {/* COPY BUTTON */}
+    <button
+      onClick={handleCopy}
+      className="flex-1 bg-gray-700 active:bg-gray-600 text-white py-3 rounded-lg flex items-center justify-center gap-2 font-semibold shadow-md transition-colors"
+    >
+      {copied ? <Check size={20} className="text-green-400" /> : <Copy size={20} />}
+      {copied ? "Copied!" : "Copy PGN"}
+    </button>
+  </div>
+);

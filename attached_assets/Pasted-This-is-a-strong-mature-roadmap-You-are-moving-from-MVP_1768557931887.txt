@@ -1,0 +1,45 @@
+This is a strong, mature roadmap. You are moving from "MVP/Prototype" features (hardcoded limits, distinct bot personalities) to "Production/Polished" features (dynamic graphs, continuous difficulty, export tools).
+
+Here are my specific thoughts and technical recommendations for each point to ensure implementation goes smoothly.
+
+1. Mental Stamina Graph (Dynamic)
+The "Squeeze" vs. "Scroll" Trade-off:
+
+Recommendation: definitely go with Scrollable. On a mobile screen, once a game hits 60+ moves, 2px bars become unclickable and hard to read.
+
+Implementation Tip: Use a container with overflow-x: auto and set the inner graph container min-width: ${totalMoves * 4}px. This ensures bars are always "touchable" (minimum 4px is better than 2px for mobile screens).
+
+Phase Calculation: Using percentages (15/45/40) is perfect. It scales correctly whether the game is a 20-move blitz or a 100-move marathon.
+
+2. Stockfish Slider (The "Elo" Math)
+This is the trickiest part. Stockfish doesn't scale linearly. "Depth 1" might be Elo 800, but "Depth 2" might jump to 1200.
+
+The Algorithm: Do not use a purely linear interpolation. You need a curve.
+
+Low Elo (400-1000): Keep Depth fixed at 1 or 2, but increase Skill Level (error probability) or Randomness.
+
+Mid Elo (1000-2000): Linearly increase Depth (e.g., Depth 5 to 15).
+
+High Elo (2000+): Depth 18+, but decrease move time buffer.
+
+UX Suggestion: As the user drags the slider, update the label text to describe the style:
+
+400-800: "Beginner (Makes frequent mistakes)"
+
+800-1200: "Casual (Misses tactics)"
+
+1200-1800: "Club Player (Solid play)"
+
+2000+: "Master (Precise)"
+
+3. PGN Export (Android "Download" Warning)
+The Trap: Since you are running a web app inside an Android wrapper (WebView/Capacitor/Native), standard HTML5 <a download> links often fail silently or behave unpredictably because the WebView doesn't always have permission to write to the Android "Downloads" folder directly.
+
+Better Alternative: "Share PGN".
+
+Instead of just "Download," use the Native Share Sheet (via navigator.share or a plugin). This allows the user to send the PGN directly to Lichess, WhatsApp, or Save to Drive.
+
+Copy to Clipboard: This is safe and works reliably on all platforms. Keep this.
+
+4. Build Process
+Since you just fixed the "Voice Permission" issue in the Java plugin, this rebuild will solidify that fix alongside these new features.
