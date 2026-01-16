@@ -2436,7 +2436,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   if (showTitleScreen) {
     return (
       <div 
-        className="h-full w-full flex flex-col items-center relative overflow-hidden"
+        className="h-full w-full flex flex-col items-center relative overflow-hidden bg-white"
         data-testid="screen-title"
       >
         {/* Background image with object-contain to fit within boundaries */}
