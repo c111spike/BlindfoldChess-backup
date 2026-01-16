@@ -21,7 +21,7 @@ interface PostMortemReportProps {
   onAnalyze?: () => void;
 }
 
-function MentalStaminaGraph({ responseTimes }: { responseTimes: number[] }) {
+function MentalStaminaGraph({ responseTimes, onJumpToMove }: { responseTimes: number[], onJumpToMove?: (moveIndex: number) => void }) {
   if (responseTimes.length < 3) {
     return (
       <div className="text-sm text-muted-foreground text-center py-4">
@@ -31,13 +31,24 @@ function MentalStaminaGraph({ responseTimes }: { responseTimes: number[] }) {
   }
 
   const maxTime = Math.max(...responseTimes, 1);
-  const displayTimes = responseTimes.slice(0, 40);
-  const barCount = displayTimes.length;
+  const totalMoves = responseTimes.length;
+  const MIN_BAR_WIDTH = 6;
+  const graphWidth = Math.max(100, totalMoves * MIN_BAR_WIDTH);
+  
+  const getPhaseColor = (moveIndex: number, total: number): string => {
+    const progress = moveIndex / total;
+    if (progress < 0.15) return 'bg-green-500';
+    if (progress < 0.60) return 'bg-amber-400';
+    return 'bg-red-400';
+  };
+  
+  const openingEnd = Math.floor(totalMoves * 0.15);
+  const middlegameEnd = Math.floor(totalMoves * 0.60);
   
   const phases = {
-    opening: responseTimes.slice(0, 10),
-    middlegame: responseTimes.slice(10, 30),
-    endgame: responseTimes.slice(30),
+    opening: responseTimes.slice(0, openingEnd),
+    middlegame: responseTimes.slice(openingEnd, middlegameEnd),
+    endgame: responseTimes.slice(middlegameEnd),
   };
   
   const avgOpening = phases.opening.length > 0 
@@ -53,26 +64,32 @@ function MentalStaminaGraph({ responseTimes }: { responseTimes: number[] }) {
 
   return (
     <div className="space-y-3" data-testid="mental-stamina-graph">
-      <div className="h-24 flex items-end bg-muted/30 rounded-md p-2 overflow-hidden">
-        {displayTimes.map((time, idx) => {
-          const height = Math.max(5, (time / maxTime) * 100);
-          let bgColor = 'bg-amber-400';
-          if (idx < 10) bgColor = 'bg-green-500';
-          else if (idx >= 30) bgColor = 'bg-red-400';
-          
-          return (
-            <div
-              key={idx}
-              className={`${bgColor} rounded-t-sm transition-all flex-1 min-w-[3px] max-w-[8px]`}
-              style={{ 
-                height: `${height}%`,
-                marginRight: '1px'
-              }}
-              title={`Move ${idx + 1}: ${formatResponseTime(time)}`}
-              data-testid={`stamina-bar-${idx}`}
-            />
-          );
-        })}
+      <div className="w-full overflow-x-auto pb-1">
+        <div 
+          className="h-24 flex items-end bg-muted/30 rounded-md p-2 relative"
+          style={{ width: `${graphWidth}px`, minWidth: '100%' }}
+        >
+          {responseTimes.map((time, idx) => {
+            const height = Math.max(4, (time / maxTime) * 100);
+            const bgColor = getPhaseColor(idx, totalMoves);
+            
+            return (
+              <div
+                key={idx}
+                className={`${bgColor} rounded-t-sm flex-shrink-0 cursor-pointer hover:opacity-80 active:opacity-60`}
+                style={{ 
+                  height: `${height}%`,
+                  width: '4px',
+                  marginRight: '2px'
+                }}
+                onClick={() => onJumpToMove?.(idx)}
+                title={`Move ${idx + 1}: ${formatResponseTime(time)}`}
+                data-testid={`stamina-bar-${idx}`}
+              />
+            );
+          })}
+          <div className="absolute bottom-0 w-full h-[1px] bg-muted-foreground/20" />
+        </div>
       </div>
       
       <div className="flex justify-between text-xs text-muted-foreground">

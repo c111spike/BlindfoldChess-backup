@@ -284,7 +284,7 @@ export default function App() {
               </Dialog>
             </div>
           </header>
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-hidden">
             {showTraining ? (
               <TrainingPage 
                 onBack={() => setShowTraining(false)} 

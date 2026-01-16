@@ -20,9 +20,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force the root containers to match the device screen exactly */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* Mobile-ready: prevent browser "bounce" and optimize touch */
 body {
-  overscroll-behavior-y: none;
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
