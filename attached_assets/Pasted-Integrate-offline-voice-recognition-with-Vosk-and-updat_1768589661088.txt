@@ -1,0 +1,56 @@
+Integrate offline voice recognition with Vosk and update project build configurations
+
+Add Vosk offline speech recognition dependency and model files to the Android project, alongside updating the build.gradle file with mavenCentral repository.
+
+Replit-Commit-Author: Agent
+Replit-Commit-Session-Id: 58a91746-f0f5-4a7c-81e7-8d97613ff22c
+Replit-Commit-Checkpoint-Type: intermediate_checkpoint
+Replit-Commit-Event-Id: efa684c6-6860-4f7c-bf86-ada43a75f08a
+Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/84bd6486-f632-4638-b19e-e9cf43bf2995/58a91746-f0f5-4a7c-81e7-8d97613ff22c/KoN7HKB
+
+# Conflicts:
+#	.replit
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# Author:    c111spike <49512517-c111spike@users.noreply.replit.com>
+#
+# interactive rebase in progress; onto 914abf5
+# Last commands done (20 commands done):
+#    pick 96e0243 # Update voice input system to allow continuous listening
+#    pick c2449d6 # Integrate offline voice recognition with Vosk and update project build configurations
+# Next commands to do (121 remaining commands):
+#    pick 5823494 # Replace voice recognition system with an offline Vosk model
+#    pick 6d2bf3a # Update voice recognition and improve game page functionality
+# You are currently rebasing branch 'main' on '914abf5'.
+#
+# Changes to be committed:
+#	new file:   .replit
+#	modified:   android/app/build.gradle
+#	new file:   android/app/src/main/assets/vosk-model/README
+#	new file:   android/app/src/main/assets/vosk-model/am/final.mdl
+#	new file:   android/app/src/main/assets/vosk-model/conf/mfcc.conf
+#	new file:   android/app/src/main/assets/vosk-model/conf/model.conf
+#	new file:   android/app/src/main/assets/vosk-model/graph/Gr.fst
+#	new file:   android/app/src/main/assets/vosk-model/graph/HCLr.fst
+#	new file:   android/app/src/main/assets/vosk-model/graph/disambig_tid.int
+#	new file:   android/app/src/main/assets/vosk-model/graph/phones/word_boundary.int
+#	new file:   android/app/src/main/assets/vosk-model/ivector/final.dubm
+#	new file:   android/app/src/main/assets/vosk-model/ivector/final.ie
+#	new file:   android/app/src/main/assets/vosk-model/ivector/final.mat
+#	new file:   android/app/src/main/assets/vosk-model/ivector/global_cmvn.stats
+#	new file:   android/app/src/main/assets/vosk-model/ivector/online_cmvn.conf
+#	new file:   android/app/src/main/assets/vosk-model/ivector/splice.conf
+#
+# Untracked files:
+#	android/app/src/main/assets/public/assets/index-DA-UTZ0w.css
+#	android/app/src/main/assets/public/assets/index-j-eNxcME.js
+#	android/app/src/main/assets/public/assets/title_cropped-BD2iTFVW.webp
+#	android/app/src/main/assets/public/assets/web-BUtOR9s3.js
+#	android/app/src/main/assets/public/assets/web-D5I3Ms3Y.js
+#	android/app/src/main/assets/public/assets/web-GDMKq5uA.js
+#	android/app/src/main/assets/public/assets/web-o8Zy6Z2g.js
+#	android/build/
+#	android/capacitor-cordova-android-plugins/
+#
