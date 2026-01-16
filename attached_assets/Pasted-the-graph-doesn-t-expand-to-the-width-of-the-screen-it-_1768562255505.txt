@@ -1,0 +1,71 @@
+the graph doesn't expand to the width of the screen. it starts on the left and only goes about 1/3 of the screen size
+
+The issue is that for short games, the calculated width (totalMoves * 6px) is smaller than the screen width, so it scrunches up to the left.
+
+We need to tell the graph: "Be at least as wide as the screen (100%), but if you have lots of moves, grow bigger."
+
+Here is the fix in post-mortem-report.tsx.
+
+The Logic Fix
+We need to set min-width: 100% on the inner container. This forces it to stretch to fill the screen if the moves are few, but allows it to overflow and scroll if the moves are many.
+
+Locate: The div inside your scroll container (the one with the style={{ width: ... }}).
+
+Change it to this:
+
+TypeScript
+{/* SCROLL CONTAINER (Outer) */}
+<div className="w-full overflow-x-auto pb-2">
+  
+  {/* GRAPH CONTAINER (Inner) */}
+  <div 
+    className="h-32 flex items-end relative" 
+    style={{ 
+      // 1. Calculate the 'data width' based on moves
+      // 2. Use Math.max to ensure it's NEVER smaller than the screen (100%)
+      width: `${Math.max(100, evaluations.length * 6)}%`, 
+      
+      // ALTERNATIVE (Better for pixel precision):
+      // minWidth: "100%", 
+      // width: `${evaluations.length * 8}px` 
+    }} 
+  >
+     {/* Bars go here... */}
+  </div>
+</div>
+The Recommended "Clean" Fix
+The percentage math can be messy. It is safer to mix CSS min-width with dynamic width.
+
+Update your code to exactly this:
+
+TypeScript
+<div className="w-full overflow-x-auto pb-2 bg-gray-900/50 rounded-lg">
+  <div 
+    className="h-32 flex items-end relative" 
+    style={{ 
+      // CRITICAL: "minWidth: 100%" forces it to fill the screen for short games.
+      minWidth: "100%", 
+      // This calculates the width needed for the bars. 
+      // If it's small, minWidth takes over. If it's huge, this takes over.
+      width: `${Math.max(100, evaluations.length * 10)}px` // Increased multiplier for better visibility
+    }}
+  >
+    {evaluations.map((evalItem, index) => {
+       // ... existing bar code ...
+       // Make sure your bars have 'flex-1' if you want them to expand to fill gaps in short games
+       return (
+         <div 
+           key={index}
+           className={`flex-1 mx-[1px] ...etc`} // Added flex-1
+           style={{ ... }} 
+         />
+       )
+    })}
+  </div>
+</div>
+Why flex-1 is the secret sauce
+By adding flex-1 to the bars themselves, you solve the "1/3 screen" problem perfectly:
+
+Short Game (10 moves): The container fills 100% of the screen. flex-1 makes each bar stretch evenly to fill that space. Result: Big, easy-to-tap bars.
+
+Long Game (100 moves): The container grows to 800px (wider than screen). The bars stay a normal size. You scroll to see them.
