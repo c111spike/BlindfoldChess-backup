@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -49,8 +50,9 @@ import type { BotProfile } from "@shared/botTypes";
 import { 
   ALL_ELOS,
   BOTS,
-  BOT_DIFFICULTY_ELO,
-  getBotByElo 
+  getBotByElo,
+  getEloLabel,
+  getBotConfigFromElo
 } from "@shared/botTypes";
 
 const PIECE_VALUES: Record<string, number> = {
@@ -692,25 +694,18 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     setShowPostMortem(true);
   }, [finalizeGameResult]);
 
-  const requestBotMove = useCallback(async (currentFen: string, botId: string, moveHistorySAN?: string[], lastMoveInfo?: LastMoveInfo) => {
-    if (!botId) return null;
+  const requestBotMove = useCallback(async (currentFen: string, botElo: number, moveHistorySAN?: string[], lastMoveInfo?: LastMoveInfo) => {
+    if (!botElo) return null;
     
     setBotThinking(true);
     
     try {
-      // Extract elo from botId (format: "elo_XXXX")
-      const eloMatch = botId.match(/elo_(\d+)/);
-      if (!eloMatch) {
-        throw new Error("Invalid bot ID format");
-      }
-      const botElo = parseInt(eloMatch[1], 10);
-      
       const botRemainingTime = playerColor === 'white' ? blackTimeRef.current : whiteTimeRef.current;
       const moveCount = moveHistorySAN?.length || 0;
       
       const result = await getBotMove(
         currentFen,
-        botId,
+        botElo,
         moveHistorySAN,
         lastMoveInfo
       );
@@ -797,7 +792,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     setIsTransitioning(false); // Reset transition for fade-in
     
     if (assignedColor === "black") {
-      const botMove = await requestBotMove(newGame.fen(), bot.id);
+      const botMove = await requestBotMove(newGame.fen(), bot.elo);
       if (botMove && gameRef.current) {
         const moveResult = gameRef.current.move(botMove.move);
         if (moveResult) {
@@ -833,12 +828,15 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     const newGame = new Chess();
     newGame.loadPgn(savedGame.pgn);
     
-    const bot = getBotByElo(savedGame.botElo);
-    if (!bot) {
-      toast({ title: "Error", description: "Could not find bot", variant: "destructive" });
-      clearSavedGame();
-      return;
-    }
+    // Create a BotProfile from the saved elo (supports continuous elo values)
+    const config = getBotConfigFromElo(savedGame.botElo);
+    const bot: BotProfile = {
+      id: `elo_${savedGame.botElo}`,
+      elo: savedGame.botElo,
+      difficulty: `elo_${Math.round(savedGame.botElo / 200) * 200}` as any,
+      depth: config.depth,
+      randomPercent: config.randomPercent,
+    };
     
     // Reset all runtime stats for fresh tracking
     gamePeekTimeRef.current = 0;
@@ -895,7 +893,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
     const currentTurn = newGame.turn();
     const botColor = savedGame.playerColor === 'white' ? 'b' : 'w';
     if (currentTurn === botColor) {
-      const botMove = await requestBotMove(newGame.fen(), bot.id, history);
+      const botMove = await requestBotMove(newGame.fen(), bot.elo, history);
       if (botMove && gameRef.current) {
         const moveResult = gameRef.current.move(botMove.move);
         if (moveResult) {
@@ -1909,7 +1907,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       const currentFen = currentGame.fen();
       const lastMoveInfo = lastMove ? extractLastMoveInfo({ from: lastMove.from, to: lastMove.to }) : undefined;
       
-      requestBotMove(currentFen, selectedBot.id, moveHistorySAN, lastMoveInfo).then(async (botMove) => {
+      requestBotMove(currentFen, selectedBot.elo, moveHistorySAN, lastMoveInfo).then(async (botMove) => {
         if (botMove && gameRef.current) {
           const botMoveResult = gameRef.current.move(botMove.move);
           if (botMoveResult) {
@@ -2191,20 +2189,27 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
 
   if (!gameStarted) {
     const handleStartGameClick = async () => {
-      const bot = getBotByElo(selectedBotElo);
-      if (bot) {
-        // Haptic thud for "entering battle"
-        try {
-          await Haptics.impact({ style: ImpactStyle.Heavy });
-        } catch (e) {
-          // Haptics not available (browser)
-        }
-        // Trigger fade-out transition
-        setIsTransitioning(true);
-        setTimeout(() => {
-          handleStartGame(bot, selectedColor);
-        }, 200);
+      // Create a BotProfile from the continuous Elo value
+      const config = getBotConfigFromElo(selectedBotElo);
+      const bot: BotProfile = {
+        id: `elo_${selectedBotElo}`,
+        elo: selectedBotElo,
+        difficulty: `elo_${Math.round(selectedBotElo / 200) * 200}` as any,
+        depth: config.depth,
+        randomPercent: config.randomPercent,
+      };
+      
+      // Haptic thud for "entering battle"
+      try {
+        await Haptics.impact({ style: ImpactStyle.Heavy });
+      } catch (e) {
+        // Haptics not available (browser)
       }
+      // Trigger fade-out transition
+      setIsTransitioning(true);
+      setTimeout(() => {
+        handleStartGame(bot, selectedColor);
+      }, 200);
     };
 
     return (
@@ -2402,20 +2407,29 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label>Bot Rating</Label>
-              <Select value={String(selectedBotElo)} onValueChange={(v) => setSelectedBotElo(Number(v))}>
-                <SelectTrigger data-testid="select-bot-elo">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ALL_ELOS.map((elo) => (
-                    <SelectItem key={elo} value={String(elo)}>
-                      {elo} Elo
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Bot Rating</Label>
+                <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                  {selectedBotElo} - {getEloLabel(selectedBotElo)}
+                </span>
+              </div>
+              <Slider
+                value={[selectedBotElo]}
+                onValueChange={(value) => setSelectedBotElo(value[0])}
+                min={400}
+                max={2600}
+                step={50}
+                className="w-full"
+                data-testid="slider-bot-elo"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>400</span>
+                <span>1000</span>
+                <span>1600</span>
+                <span>2200</span>
+                <span>2600</span>
+              </div>
             </div>
             
             <div className="space-y-2">

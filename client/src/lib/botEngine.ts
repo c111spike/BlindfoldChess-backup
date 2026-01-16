@@ -1,8 +1,7 @@
 import { Chess } from 'chess.js';
 import { clientStockfish, StockfishResult } from './stockfish';
 import { getBookMoves, isOpeningPhase } from './polyglotBook';
-import type { BotDifficulty } from '@shared/botTypes';
-import { BOT_CONFIG, BOT_DIFFICULTY_ELO } from '@shared/botTypes';
+import { getBotConfigFromElo } from '@shared/botTypes';
 
 // Interface for tracking opponent's last move (for recapture detection)
 export interface LastMoveInfo {
@@ -226,23 +225,23 @@ function getRandomMove(fen: string): string | null {
  * Bot difficulty is controlled by:
  * - depth: How many moves ahead the engine looks (1-6, or 0 for unleashed)
  * - randomPercent: Chance of playing a completely random legal move (0-50%)
+ * - skillLevel: Stockfish Skill Level parameter (0-20)
  */
 export async function getBotMove(
   fen: string,
-  botId: string,
+  botElo: number,
   moveHistorySAN?: string[],
   lastMove?: LastMoveInfo
 ): Promise<BotMoveResult | null> {
   try {
-    // Get bot configuration
-    const elo = BOT_DIFFICULTY_ELO[botId as BotDifficulty] || 1200;
-    const config = BOT_CONFIG[elo] || { depth: 4, randomPercent: 10 };
+    // Get bot configuration from continuous Elo
+    const config = getBotConfigFromElo(botElo);
     
     // Random move chance (coin flip before any calculation)
     if (config.randomPercent > 0 && Math.random() * 100 < config.randomPercent) {
       const randomMove = getRandomMove(fen);
       if (randomMove) {
-        console.log(`[BotEngine] Elo ${elo}: Playing random move (${config.randomPercent}% chance)`);
+        console.log(`[BotEngine] Elo ${botElo}: Playing random move (${config.randomPercent}% chance)`);
         return {
           move: randomMove,
           isBookMove: false
@@ -282,13 +281,19 @@ export async function getBotMove(
     let result: StockfishResult;
     
     if (config.depth > 0) {
-      // Depth-limited search for Elo <= 1600
-      result = await clientStockfish.getDepthLimitedMove(fen, config.depth);
-      console.log(`[BotEngine] Elo ${elo}: Depth ${config.depth} search`);
+      // Depth-limited search with Skill Level
+      result = await clientStockfish.getBestMove(fen, {
+        depth: config.depth,
+        skillLevel: config.skillLevel
+      });
+      console.log(`[BotEngine] Elo ${botElo}: Depth ${config.depth}, Skill ${config.skillLevel}`);
     } else {
-      // Node-based unleashed search for Elo >= 1800
-      result = await clientStockfish.getBotMove(fen, elo);
-      console.log(`[BotEngine] Elo ${elo}: Unleashed node-based search`);
+      // Node-based unleashed search with Skill Level
+      result = await clientStockfish.getBestMove(fen, {
+        nodes: config.nodes || 500000,
+        skillLevel: config.skillLevel
+      });
+      console.log(`[BotEngine] Elo ${botElo}: Unleashed nodes ${config.nodes}, Skill ${config.skillLevel}`);
     }
     
     // Check if it's a free capture
