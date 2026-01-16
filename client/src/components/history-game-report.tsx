@@ -1,11 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Trophy, Crown, Minus, Calendar, Clock, Search, ChevronLeft, Star } from "lucide-react";
+import { Trophy, Crown, Minus, Calendar, Clock, Search, ChevronLeft, Star, Share2, Copy, Check } from "lucide-react";
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 import { toggleFavorite, type SavedGame } from "@/lib/gameHistory";
 import { useState, useEffect } from "react";
+import { sharePgn, copyPgnToClipboard } from "@/lib/pgnExport";
+import { useToast } from "@/hooks/use-toast";
 
 interface HistoryGameReportProps {
   game: SavedGame | null;
@@ -36,6 +38,8 @@ function parsePgnToMoves(pgn: string): string[] {
 
 export function HistoryGameReport({ game, open, onClose, onAnalyze }: HistoryGameReportProps) {
   const [isFavorite, setIsFavorite] = useState(game?.isFavorite ?? false);
+  const [copiedPGN, setCopiedPGN] = useState(false);
+  const { toast } = useToast();
   
   useEffect(() => {
     if (game) {
@@ -44,6 +48,32 @@ export function HistoryGameReport({ game, open, onClose, onAnalyze }: HistoryGam
   }, [game]);
   
   if (!game || !open) return null;
+  
+  const handleSharePgn = async () => {
+    if (Capacitor.isNativePlatform()) {
+      await Haptics.impact({ style: ImpactStyle.Light });
+    }
+    const success = await sharePgn(game.pgn, `blindfold-vs-${game.botElo}.pgn`);
+    if (success) {
+      toast({ title: "PGN shared", description: "Game exported successfully" });
+    } else {
+      toast({ title: "Share failed", description: "Could not share the game", variant: "destructive" });
+    }
+  };
+  
+  const handleCopyPgn = async () => {
+    if (Capacitor.isNativePlatform()) {
+      await Haptics.impact({ style: ImpactStyle.Light });
+    }
+    const success = await copyPgnToClipboard(game.pgn);
+    if (success) {
+      setCopiedPGN(true);
+      toast({ title: "Copied", description: "PGN copied to clipboard" });
+      setTimeout(() => setCopiedPGN(false), 2000);
+    } else {
+      toast({ title: "Copy failed", description: "Could not copy PGN", variant: "destructive" });
+    }
+  };
   
   const resultIcon = game.result === 'win' 
     ? <Trophy className="h-10 w-10 text-amber-500" />
@@ -165,6 +195,27 @@ export function HistoryGameReport({ game, open, onClose, onAnalyze }: HistoryGam
               <Search className="mr-2 h-4 w-4" />
               Analyze Game
             </Button>
+            
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleSharePgn}
+                data-testid="button-history-share-pgn"
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share PGN
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleCopyPgn}
+                data-testid="button-history-copy-pgn"
+              >
+                {copiedPGN ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+                {copiedPGN ? "Copied" : "Copy PGN"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
