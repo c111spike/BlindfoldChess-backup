@@ -2436,15 +2436,16 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
   if (showTitleScreen) {
     return (
       <div 
-        className="h-screen w-full flex flex-col items-center relative overflow-hidden"
+        className="h-full w-full flex flex-col items-center relative overflow-hidden"
         data-testid="screen-title"
       >
+        {/* Background image with object-contain to fit within boundaries */}
         <img 
           src={titleImage} 
           alt="Blindfold Chess" 
-          className="absolute inset-0 w-full h-full object-cover object-center z-0"
+          className="absolute inset-0 w-full h-full object-contain object-center z-0"
         />
-        <div className="relative z-10 flex flex-col items-center gap-1 p-4 pt-6 w-full">
+        <div className="relative z-10 flex flex-col items-center gap-1 p-4 pt-2 w-full">
           <h1 
             className="text-3xl md:text-4xl font-bold text-black text-center tracking-tight"
             data-testid="text-title"
@@ -2456,7 +2457,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
           </p>
         </div>
         <div className="flex-1" />
-        <div className="relative z-10 flex flex-col items-center gap-2 p-4 pb-16 w-full max-w-sm">
+        {/* Buttons positioned above where the App.tsx footer would be */}
+        <div className="relative z-10 flex flex-col items-center gap-2 p-4 pb-4 w-full max-w-sm">
           <Button 
             size="lg" 
             variant="ghost"
@@ -2837,7 +2839,7 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
       )}
       
       {!showReconstruction && (
-      <main className="flex-1 flex flex-col min-h-0 p-2 md:p-4 max-w-4xl mx-auto w-full">
+      <main className="absolute inset-0 flex flex-col p-2 md:p-4 max-w-4xl mx-auto w-full overflow-hidden">
         <Card className={`flex-none lg:hidden ${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
           <CardContent className="py-2 px-4">
             <div className="flex items-center justify-between">
@@ -2863,8 +2865,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
         </Card>
         
         <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0 overflow-hidden">
-          <div className="flex-shrink flex flex-col gap-2 min-h-0 lg:flex-1">
-            <Card className={`hidden lg:block ${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
+          <div className="flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
+            <Card className={`hidden lg:block flex-none ${game && ((playerColor === "white" && game.turn() === "b") || (playerColor === "black" && game.turn() === "w")) ? "ring-2 ring-amber-400" : ""}`}>
               <CardContent className="py-2 px-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -2888,8 +2890,9 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               </CardContent>
             </Card>
             
-            <div className="flex-1 flex items-center justify-center min-h-0 max-h-[50vh] lg:max-h-full">
-            <Card className={`aspect-square h-full max-h-full w-full max-w-full md:max-w-[600px] p-1 md:p-2 ${
+            {/* Board container: flex-1 with min-h-0 forces shrinking, aspect-square keeps proportions */}
+            <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
+            <Card className={`aspect-square max-h-full max-w-full md:max-w-[600px] p-1 md:p-2 ${
               isBlindfold && blindfoldDisplayMode === "no_board" && !isPeeking ? "invisible" : ""
             }`}>
             <div className="relative w-full h-full">
@@ -3003,8 +3006,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             </Card>
             </div>
             
-            <Card className={`flex-none hidden lg:block ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
-              <CardContent className="py-2 px-4">
+            <Card className={`flex-none hidden lg:flex ${game && ((playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b")) ? "ring-2 ring-amber-400" : ""}`}>
+              <CardContent className="py-2 px-4 w-full">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full ${playerColor === "white" ? "bg-white border border-gray-400" : "bg-black"}`} />
@@ -3020,7 +3023,8 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             </Card>
           </div>
           
-          <div className="flex flex-col gap-2 lg:w-48 min-h-0 flex-shrink-0">
+          {/* Right column: flex-none ensures it doesn't shrink, resign button always visible */}
+          <div className="flex flex-col gap-2 lg:w-48 flex-none">
             {isBlindfold && blindfoldDifficulty !== 'grandmaster' && (
               <Button
                 variant={isPeeking ? "default" : "outline"}

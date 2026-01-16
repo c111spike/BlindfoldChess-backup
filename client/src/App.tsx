@@ -159,8 +159,16 @@ export default function App() {
   return (
     <ThemeProvider defaultTheme="dark">
       <TooltipProvider>
-        <div className="flex flex-col h-dvh bg-background">
-          <header className="grid grid-cols-3 items-center p-3 border-b border-border pt-[var(--safe-area-top)]">
+        {/* Nuclear layout: fixed container with absolute header/main/footer */}
+        <div className="fixed inset-0 w-full h-full bg-background overflow-hidden">
+          {/* HEADER: Pinned to top with z-50 - min-h-14 + safe-area-top */}
+          <header 
+            className="absolute top-0 left-0 right-0 z-50 grid grid-cols-3 items-center px-3 border-b border-border bg-background" 
+            style={{ 
+              paddingTop: 'var(--safe-area-top)', 
+              minHeight: 'calc(56px + var(--safe-area-top, 0px))' 
+            }}
+          >
             <div className="flex justify-start">
               <Dialog open={showVoiceHelpDialog} onOpenChange={setShowVoiceHelpDialog}>
                 <DialogTrigger asChild>
@@ -284,7 +292,14 @@ export default function App() {
               </Dialog>
             </div>
           </header>
-          <main className="flex-1 overflow-hidden">
+          {/* MAIN: Pinned between header and footer, accounting for safe-areas */}
+          <main 
+            className="absolute left-0 right-0 z-0 overflow-hidden" 
+            style={{ 
+              top: 'calc(56px + var(--safe-area-top, 0px))', 
+              bottom: 'calc(56px + var(--safe-area-bottom, 0px))' 
+            }}
+          >
             {showTraining ? (
               <TrainingPage 
                 onBack={() => setShowTraining(false)} 
@@ -300,7 +315,14 @@ export default function App() {
               />
             )}
           </main>
-          <footer className="grid grid-cols-3 items-center p-2 border-t border-border pb-[var(--safe-area-bottom)]">
+          {/* FOOTER: Pinned to bottom with z-50 - min-h-14 + safe-area-bottom */}
+          <footer 
+            className="absolute bottom-0 left-0 right-0 z-50 grid grid-cols-3 items-center px-2 border-t border-border bg-background" 
+            style={{ 
+              paddingBottom: 'var(--safe-area-bottom)', 
+              minHeight: 'calc(56px + var(--safe-area-bottom, 0px))' 
+            }}
+          >
             <div className="flex justify-start">
               <SettingsDialog />
             </div>
