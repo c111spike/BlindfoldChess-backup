@@ -57,7 +57,9 @@ export function generateEndgame(type: EndgameType): EndgameScenario {
     const fen = chess.fen();
     const validator = new Chess(fen);
     
-    if (validator.isCheckmate() || validator.isStalemate() || validator.isDraw()) {
+    // Skip if checkmate, stalemate, draw, or if black is in check
+    // (starting with check means the "best move" would be capturing the king)
+    if (validator.isCheckmate() || validator.isStalemate() || validator.isDraw() || validator.inCheck()) {
       continue;
     }
     
