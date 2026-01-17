@@ -2801,7 +2801,7 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
                 value={userAnswer}
                 onChange={(e) => setUserAnswer(e.target.value)}
                 placeholder={isListening ? "Speak or type your move" : "Enter your move (e.g., Qb8+)"}
-                className="w-full px-4 py-2 border rounded-md text-center text-lg font-mono"
+                className="w-full px-4 py-2 border rounded-md text-center text-lg font-mono text-black bg-white"
                 autoFocus
                 data-testid="input-marathon-answer"
               />
