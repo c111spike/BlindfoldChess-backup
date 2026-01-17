@@ -1,0 +1,110 @@
+This is a great addition. Giving users control over the "depth" of the marathon allows them to progressively build their stamina.
+
+Here are the two files you need to update.
+
+1. Update client/src/lib/blindfoldMarathon.ts
+I have updated this file to include a getMarathonByDifficulty function and added placeholder data for all the difficulty tiers (10-70 moves) so the buttons actually work.
+
+TypeScript
+
+// client/src/lib/blindfoldMarathon.ts
+
+export interface MarathonScenario {
+  id: string;
+  white: string;
+  black: string;
+  pgnMoves: string[]; // List of PLIES (half-moves). e.g. ["e4", "e5"] is 1 full move.
+  solution: string;   // The move the user must find
+  description: string;
+}
+
+// Helper to calculate full moves from plies
+function countMoves(moves: string[]): number {
+  return Math.ceil(moves.length / 2);
+}
+
+// Sample Data - populated with placeholders for each difficulty tier
+export const MARATHON_SCENARIOS: MarathonScenario[] = [
+  // TIER 1: 10-20 Moves (20-40 plies)
+  {
+    id: "morphy_opera",
+    white: "Paul Morphy",
+    black: "Duke of Brunswick",
+    description: "The famous Opera Game. Mate in 2.",
+    pgnMoves: [
+      "e4", "e5", "Nf3", "d6", "d4", "Bg4", "dxe5", "Bxf3", "Qxf3", "dxe5", 
+      "Bc4", "Nf6", "Qb3", "Qe7", "Nc3", "c6", "Bg5", "b5", "Nxb5", "cxb5", 
+      "Bxb5+", "Nbd7", "O-O-O", "Rd8", "Rxd7", "Rxd7", "Rd1", "Qe6", "Bxd7+", "Nxd7"
+    ], // 29 plies = 14.5 moves
+    solution: "Qb8+" 
+  },
+  {
+     id: "short_trap",
+     white: "Training",
+     black: "Puzzle",
+     description: "A quick opening trap.",
+     pgnMoves: [
+         "e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "c3", "Nf6", "d4", "exd4", "cxd4", "Bb4+", "Nc3", "Nxe4", "O-O", "Nxc3", "bxc3", "Bxc3", "Ba3", "Bxa1", "Re1+", "Ne7"
+     ], // 21 plies = 10.5 moves
+     solution: "Rxe7+"
+  },
+
+  // TIER 2: 20-30 Moves (40-60 plies)
+  {
+    id: "immortal_game",
+    white: "Adolf Anderssen",
+    black: "Lionel Kieseritzky",
+    description: "The Immortal Game.",
+    pgnMoves: [
+      "e4", "e5", "f4", "exf4", "Bc4", "Qh4+", "Kf1", "b5", "Bxb5", "Nf6", 
+      "Nf3", "Qh6", "d3", "Nh5", "Nh4", "Qg5", "Nf5", "c6", "g4", "Nf6", 
+      "Rg1", "cxb5", "h4", "Qg6", "h5", "Qg5", "Qf3", "Ng8", "Bxf4", "Qf6", 
+      "Nc3", "Bc5", "Nd5", "Qxb2", "Bd6", "Bxg1", "e5", "Qxa1+", "Ke2", "Na6", "Nxg7+" 
+    ], // 41 plies = 20.5 moves
+    solution: "Kd8"
+  },
+
+  // TIER 3: 30-40 Moves (60-80 plies)
+  {
+      id: "rubinstein_immortal",
+      white: "Rotlewi",
+      black: "Rubinstein",
+      description: "Rubinstein's Immortal Game.",
+      pgnMoves: [
+          "d4", "d5", "Nf3", "e6", "e3", "c5", "c4", "Nc6", "Nc3", "Nf6", "dxc5", "Bxc5", "a3", "a6", "b4", "Bd6", 
+          "Bb2", "O-O", "Qd2", "Qe7", "Bd3", "dxc4", "Bxc4", "b5", "Bd3", "Rd8", "Qe2", "Bb7", "O-O", "Ne5", "Nxe5", "Bxe5", 
+          "f4", "Bc7", "e4", "Rac8", "e5", "Bb6+", "Kh1", "Ng4", "Be4", "Qh4", "g3", "Rxc3", "gxh4", "Rd2", "Qxd2", "Bxe4+", 
+          "Qg2", "Rh3" 
+      ], // 48 plies = 24 moves (Need longer for 30-40, using placeholder logic below)
+      solution: "Rxh2#" 
+  },
+  
+  // NOTE: In a real app, you would fetch these from a large JSON database.
+  // For now, if we don't have a specific game for a tier, we will use a fallback function.
+];
+
+export function getRandomMarathon(minMoves: number, maxMoves: number): MarathonScenario {
+  // 1. Filter existing scenarios
+  const candidates = MARATHON_SCENARIOS.filter(s => {
+      const moves = countMoves(s.pgnMoves);
+      return moves >= minMoves && moves < maxMoves;
+  });
+
+  // 2. Return random match if found
+  if (candidates.length > 0) {
+      return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  // 3. FALLBACK: If no game exists for this difficulty (e.g. 60-70 moves),
+  // return the longest game we have but label it clearly, or generate a dummy one.
+  // For this prototype, we'll return a generic "Long Game" placeholder if needed.
+  return {
+      id: "generated_fallback",
+      white: "Training",
+      black: "Bot",
+      description: `Simulated ${minMoves}-${maxMoves} move game (Placeholder)`,
+      // Just repeating moves to simulate length for testing the UI
+      pgnMoves: Array(minMoves * 2).fill("e4"), 
+      solution: "e5"
+  };
+}
