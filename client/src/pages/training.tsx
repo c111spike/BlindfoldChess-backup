@@ -2407,11 +2407,67 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
   const [userAnswer, setUserAnswer] = useState('');
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const nativeListenerRef = useRef<{ remove: () => Promise<void> } | null>(null);
   const isNewBest = stats?.blindfoldMarathonBest !== null && elapsedTime > 0 && elapsedTime < (stats?.blindfoldMarathonBest || Infinity);
 
   useEffect(() => {
     onGameStateChange?.(gameState);
   }, [gameState, onGameStateChange]);
+
+  // Stop native voice session
+  const stopVoiceSession = useCallback(async () => {
+    try {
+      await BlindfoldNative.stopSession();
+    } catch {}
+    if (nativeListenerRef.current) {
+      try {
+        await nativeListenerRef.current.remove();
+      } catch {}
+      nativeListenerRef.current = null;
+    }
+    setIsListening(false);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { stopVoiceSession(); };
+  }, [stopVoiceSession]);
+
+  // Start/stop voice recognition when waiting for answer on native platform
+  useEffect(() => {
+    if (!isNativePlatform || !waitingForAnswer) {
+      if (isNativePlatform && !waitingForAnswer) {
+        stopVoiceSession();
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const setupVoice = async () => {
+      try {
+        await waitForVoiceReady();
+        if (cancelled) return;
+
+        nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
+          const result = data.result?.toLowerCase().trim() || '';
+          if (result) {
+            setUserAnswer(result);
+            BlindfoldNative.startListening().catch(() => {});
+          }
+        });
+
+        await BlindfoldNative.startSession();
+        await BlindfoldNative.startListening();
+        setIsListening(true);
+      } catch (error) {
+        console.error('[Marathon] Voice setup failed:', error);
+      }
+    };
+
+    setupVoice();
+    return () => { cancelled = true; stopVoiceSession(); };
+  }, [waitingForAnswer, stopVoiceSession]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -2618,11 +2674,19 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
             <div className="text-center space-y-4 w-full max-w-xs">
               <h2 className="text-2xl font-bold">Find the Best Move!</h2>
               <p className="text-muted-foreground">{scenario?.white} to move</p>
+              
+              {isListening && (
+                <div className="flex items-center justify-center gap-2 text-red-500">
+                  <Mic className="h-5 w-5 animate-pulse" />
+                  <span className="text-sm">Listening...</span>
+                </div>
+              )}
+              
               <input
                 type="text"
                 value={userAnswer}
                 onChange={(e) => setUserAnswer(e.target.value)}
-                placeholder="Enter your move (e.g., Qb8+)"
+                placeholder={isListening ? "Speak or type your move" : "Enter your move (e.g., Qb8+)"}
                 className="w-full px-4 py-2 border rounded-md text-center text-lg font-mono"
                 autoFocus
                 data-testid="input-marathon-answer"
