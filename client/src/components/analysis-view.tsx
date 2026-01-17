@@ -395,7 +395,16 @@ export function AnalysisView({ moveHistory, playerColor, onClose, gameResult, bo
   const evaluation = currentAnalysis?.eval ?? null;
   const isMate = currentAnalysis?.isMate ?? false;
   const mateIn = currentAnalysis?.mateIn;
-  const bestMove = currentAnalysis?.bestMove ?? null;
+  
+  // For best move comparison: show what the engine recommended BEFORE this move was played
+  // This lets users compare their actual move to the engine's suggestion
+  // At position 0 (starting), show best opening move; at position N, show best from position N-1
+  const previousIndex = currentMoveIndex > 0 ? currentMoveIndex - 1 : 0;
+  const previousAnalysis = analysisResults.get(previousIndex);
+  const previousFen = positionData[previousIndex]?.fen || currentFen;
+  const bestMove = currentMoveIndex > 0 
+    ? (previousAnalysis?.bestMove ?? null)
+    : (currentAnalysis?.bestMove ?? null);
 
   const goToStart = () => setCurrentMoveIndex(0);
   const goBack = () => setCurrentMoveIndex(Math.max(0, currentMoveIndex - 1));
@@ -429,10 +438,12 @@ export function AnalysisView({ moveHistory, playerColor, onClose, gameResult, bo
   };
 
   // Format best move for display (convert UCI to SAN if possible)
+  // Uses previousFen because bestMove is the engine's recommendation from the position BEFORE the current move
   const formatBestMove = (uciMove: string | null): string | null => {
     if (!uciMove) return null;
     try {
-      const game = new Chess(currentFen);
+      const fenToUse = currentMoveIndex > 0 ? previousFen : currentFen;
+      const game = new Chess(fenToUse);
       const move = game.move({
         from: uciMove.slice(0, 2),
         to: uciMove.slice(2, 4),
@@ -570,7 +581,7 @@ export function AnalysisView({ moveHistory, playerColor, onClose, gameResult, bo
             </Button>
             {showBestMove && formattedBestMove && (
               <span className="font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded" data-testid="text-best-move">
-                Best: {formattedBestMove}
+                {currentMoveIndex > 0 ? "Engine:" : "Best:"} {formattedBestMove}
               </span>
             )}
           </div>
