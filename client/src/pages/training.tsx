@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag, Volume2, HelpCircle, ChevronRight, Crown, Brain, Eye } from "lucide-react";
+import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag, Volume2, HelpCircle, ChevronRight, Crown, Brain, Eye, EyeOff } from "lucide-react";
 import { Chess } from 'chess.js';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { saveTrainingSession, getTrainingStats, type TrainingStats, type TrainingMode as TrainingModeType } from "@/lib/trainingStats";
@@ -1825,6 +1825,7 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
   const [isPracticeMode, setIsPracticeMode] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'challenge' | 'practice'>('challenge');
   const [flashSquare, setFlashSquare] = useState<{ square: string; correct: boolean } | null>(null);
+  const [hideKnight, setHideKnight] = useState(false);
   const totalPaths = 5;
   const isNewBest = stats?.knightsPathBest !== null && elapsedTime > 0 && elapsedTime < (stats?.knightsPathBest || Infinity);
 
@@ -1930,6 +1931,19 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
               : 'Practice knight movement with no time pressure.'}
           </p>
 
+          <div className="flex items-center gap-3 w-full max-w-xs">
+            <Switch
+              id="hide-knight"
+              checked={hideKnight}
+              onCheckedChange={setHideKnight}
+              data-testid="switch-hide-knight"
+            />
+            <Label htmlFor="hide-knight" className="flex items-center gap-2">
+              {hideKnight ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              Hide knight (blindfold mode)
+            </Label>
+          </div>
+
           {selectedTab === 'challenge' && stats?.knightsPathBest !== null && (
             <p className="text-sm text-muted-foreground">
               Your best: <span className="font-semibold text-green-500">{formatTime(stats.knightsPathBest)}</span>
@@ -2010,12 +2024,15 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
                 const isTarget = square === challenge.end;
                 const isFlashing = flashSquare?.square === square;
                 const isInPath = userPath.includes(square);
+                const isStartSquare = square === challenge.start;
                 
                 let bgColor = isDark ? 'bg-amber-700' : 'bg-amber-100';
                 if (isFlashing) {
                   bgColor = flashSquare.correct ? 'bg-green-500' : 'bg-red-500';
                 } else if (isTarget) {
                   bgColor = 'bg-blue-400';
+                } else if (isStartSquare) {
+                  bgColor = 'bg-yellow-400';
                 } else if (isInPath && !isKnight) {
                   bgColor = isDark ? 'bg-green-700' : 'bg-green-300';
                 }
@@ -2027,7 +2044,7 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
                     onClick={() => handleSquareClick(file, rank)}
                     data-testid={`square-${square}`}
                   >
-                    {isKnight && <img src="/pieces/bN.svg" alt="Knight" className="w-4/5 h-4/5" />}
+                    {isKnight && !hideKnight && <img src="/pieces/bN.svg" alt="Knight" className="w-4/5 h-4/5" />}
                   </button>
                 );
               })
