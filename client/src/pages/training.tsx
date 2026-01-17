@@ -2176,13 +2176,13 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
     }
   }, [gameState, chess, selectedSquare, startTime, onComplete]);
 
-  const getPieceSymbol = (piece: { type: string; color: string } | null): string => {
-    if (!piece) return '';
-    const symbols: Record<string, Record<string, string>> = {
-      w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
-      b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
+  const renderPiece = (piece: { type: string; color: string } | null) => {
+    if (!piece) return null;
+    const pieceMap: Record<string, string> = {
+      k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: 'P'
     };
-    return symbols[piece.color]?.[piece.type] || '';
+    const fileName = `${piece.color}${pieceMap[piece.type]}`;
+    return <img src={`/pieces/${fileName}.svg`} alt={fileName} className="w-4/5 h-4/5" />;
   };
 
   if (gameState === 'ready') {
@@ -2255,10 +2255,10 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
                 return (
                   <div
                     key={square}
-                    className={`aspect-square ${bgColor} flex items-center justify-center text-2xl`}
+                    className={`aspect-square ${bgColor} flex items-center justify-center`}
                     data-testid={`square-${square}`}
                   >
-                    {getPieceSymbol(piece || null)}
+                    {renderPiece(piece || null)}
                   </div>
                 );
               })
@@ -2344,11 +2344,11 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
                 return (
                   <button
                     key={square}
-                    className={`aspect-square ${bgColor} transition-colors duration-100 flex items-center justify-center text-2xl`}
+                    className={`aspect-square ${bgColor} transition-colors duration-100 flex items-center justify-center`}
                     onClick={() => handleSquareClick(file, rank)}
                     data-testid={`square-${square}`}
                   >
-                    {showPieces ? getPieceSymbol(piece || null) : ''}
+                    {showPieces ? renderPiece(piece || null) : null}
                   </button>
                 );
               })
