@@ -156,105 +156,117 @@ export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }:
         <h1 className="text-xl font-bold">Training Gym</h1>
       </div>
 
-      <div className="space-y-2 flex-1">
-        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('voice_move_master')} data-testid="card-voice-move-master">
-          <CardHeader className="py-2 px-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-purple-500/20">
-                <Volume2 className="h-4 w-4 text-purple-500" />
+      <div className="flex flex-col gap-2 flex-1">
+        <Card className="hover-elevate cursor-pointer flex-1" onClick={() => setMode('voice_move_master')} data-testid="card-voice-move-master">
+          <CardHeader className="h-full py-2 px-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-purple-500/20">
+                <Volume2 className="h-5 w-5 text-purple-500" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-base">Voice Move Master</CardTitle>
-                <CardDescription className="text-xs">Announce moves by voice in 60 seconds</CardDescription>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">Voice Move Master</CardTitle>
+                  {stats !== null && stats.voiceMoveMasterBest !== null && (
+                    <Badge variant="secondary" className="text-xs">{stats.voiceMoveMasterBest}</Badge>
+                  )}
+                </div>
+                <CardDescription className="text-xs mt-0.5">Announce chess moves by voice in 60 seconds</CardDescription>
               </div>
-              {stats !== null && stats.voiceMoveMasterBest !== null && (
-                <Badge variant="secondary" className="text-xs">{stats.voiceMoveMasterBest}</Badge>
-              )}
             </div>
           </CardHeader>
         </Card>
 
-        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('color_blitz')} data-testid="card-color-blitz">
-          <CardHeader className="py-2 px-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-amber-500/20">
-                <Zap className="h-4 w-4 text-amber-500" />
+        <Card className="hover-elevate cursor-pointer flex-1" onClick={() => setMode('color_blitz')} data-testid="card-color-blitz">
+          <CardHeader className="h-full py-2 px-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/20">
+                <Zap className="h-5 w-5 text-amber-500" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-base">Color Blitz</CardTitle>
-                <CardDescription className="text-xs">Name square colors in 60 seconds</CardDescription>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">Color Blitz</CardTitle>
+                  {stats !== null && stats.colorBlitzBest !== null && (
+                    <Badge variant="secondary" className="text-xs">{stats.colorBlitzBest}</Badge>
+                  )}
+                </div>
+                <CardDescription className="text-xs mt-0.5">Name square colors as fast as you can</CardDescription>
               </div>
-              {stats !== null && stats.colorBlitzBest !== null && (
-                <Badge variant="secondary" className="text-xs">{stats.colorBlitzBest}</Badge>
-              )}
             </div>
           </CardHeader>
         </Card>
 
-        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('coordinate_sniper')} data-testid="card-coordinate-sniper">
-          <CardHeader className="py-2 px-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-blue-500/20">
-                <Target className="h-4 w-4 text-blue-500" />
+        <Card className="hover-elevate cursor-pointer flex-1" onClick={() => setMode('coordinate_sniper')} data-testid="card-coordinate-sniper">
+          <CardHeader className="h-full py-2 px-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/20">
+                <Target className="h-5 w-5 text-blue-500" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-base">Coordinate Sniper</CardTitle>
-                <CardDescription className="text-xs">Find 10 squares as fast as possible</CardDescription>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">Coordinate Sniper</CardTitle>
+                  {stats !== null && stats.coordinateSniperBest !== null && (
+                    <Badge variant="secondary" className="text-xs">{formatTime(stats.coordinateSniperBest)}</Badge>
+                  )}
+                </div>
+                <CardDescription className="text-xs mt-0.5">Find 10 squares as fast as possible</CardDescription>
               </div>
-              {stats !== null && stats.coordinateSniperBest !== null && (
-                <Badge variant="secondary" className="text-xs">{formatTime(stats.coordinateSniperBest)}</Badge>
-              )}
             </div>
           </CardHeader>
         </Card>
 
-        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('knights_path')} data-testid="card-knights-path">
-          <CardHeader className="py-2 px-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-green-500/20">
-                <ChevronRight className="h-4 w-4 text-green-500" />
+        <Card className="hover-elevate cursor-pointer flex-1" onClick={() => setMode('knights_path')} data-testid="card-knights-path">
+          <CardHeader className="h-full py-2 px-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-green-500/20">
+                <ChevronRight className="h-5 w-5 text-green-500" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-base">Knight's Path</CardTitle>
-                <CardDescription className="text-xs">Navigate the knight to the target</CardDescription>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">Knight's Path</CardTitle>
+                  {stats !== null && stats.knightsPathBest !== null && (
+                    <Badge variant="secondary" className="text-xs">{formatTime(stats.knightsPathBest)}</Badge>
+                  )}
+                </div>
+                <CardDescription className="text-xs mt-0.5">Navigate the knight to the target square</CardDescription>
               </div>
-              {stats !== null && stats.knightsPathBest !== null && (
-                <Badge variant="secondary" className="text-xs">{formatTime(stats.knightsPathBest)}</Badge>
-              )}
             </div>
           </CardHeader>
         </Card>
 
-        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('endgame_drills')} data-testid="card-endgame-drills">
-          <CardHeader className="py-2 px-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-orange-500/20">
-                <Crown className="h-4 w-4 text-orange-500" />
+        <Card className="hover-elevate cursor-pointer flex-1" onClick={() => setMode('endgame_drills')} data-testid="card-endgame-drills">
+          <CardHeader className="h-full py-2 px-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-orange-500/20">
+                <Crown className="h-5 w-5 text-orange-500" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-base">Endgame Drills</CardTitle>
-                <CardDescription className="text-xs">Checkmate with K+Q or K+R vs King</CardDescription>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">Endgame Drills</CardTitle>
+                  {stats !== null && stats.endgameDrillsBest !== null && (
+                    <Badge variant="secondary" className="text-xs">{formatTime(stats.endgameDrillsBest)}</Badge>
+                  )}
+                </div>
+                <CardDescription className="text-xs mt-0.5">Checkmate with K+Q or K+R vs King blindfolded</CardDescription>
               </div>
-              {stats !== null && stats.endgameDrillsBest !== null && (
-                <Badge variant="secondary" className="text-xs">{formatTime(stats.endgameDrillsBest)}</Badge>
-              )}
             </div>
           </CardHeader>
         </Card>
 
-        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('blindfold_marathon')} data-testid="card-blindfold-marathon">
-          <CardHeader className="py-2 px-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-red-500/20">
-                <Brain className="h-4 w-4 text-red-500" />
+        <Card className="hover-elevate cursor-pointer flex-1" onClick={() => setMode('blindfold_marathon')} data-testid="card-blindfold-marathon">
+          <CardHeader className="h-full py-2 px-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-red-500/20">
+                <Brain className="h-5 w-5 text-red-500" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-base">Blindfold Marathon</CardTitle>
-                <CardDescription className="text-xs">Visualize games and find the winning move</CardDescription>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">Blindfold Marathon</CardTitle>
+                  {stats !== null && stats.blindfoldMarathonBest !== null && (
+                    <Badge variant="secondary" className="text-xs">{formatTime(stats.blindfoldMarathonBest)}</Badge>
+                  )}
+                </div>
+                <CardDescription className="text-xs mt-0.5">Visualize famous games and find the winning move</CardDescription>
               </div>
-              {stats !== null && stats.blindfoldMarathonBest !== null && (
-                <Badge variant="secondary" className="text-xs">{formatTime(stats.blindfoldMarathonBest)}</Badge>
-              )}
             </div>
           </CardHeader>
         </Card>
@@ -2063,7 +2075,7 @@ interface EndgameDrillsGameProps {
 }
 
 function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: EndgameDrillsGameProps) {
-  const [gameState, setGameState] = useState<'ready' | 'playing' | 'finished'>('ready');
+  const [gameState, setGameState] = useState<'ready' | 'memorizing' | 'playing' | 'finished'>('ready');
   const [selectedEndgame, setSelectedEndgame] = useState<EndgameType>('KQ_vs_K');
   const [chess, setChess] = useState<Chess | null>(null);
   const [startTime, setStartTime] = useState(0);
@@ -2072,10 +2084,15 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  const [showPieces, setShowPieces] = useState(true);
   const isNewBest = stats?.endgameDrillsBest !== null && elapsedTime > 0 && elapsedTime < (stats?.endgameDrillsBest || Infinity);
 
   useEffect(() => {
-    onGameStateChange?.(gameState);
+    if (gameState === 'memorizing' || gameState === 'playing') {
+      onGameStateChange?.('playing');
+    } else {
+      onGameStateChange?.(gameState as 'ready' | 'finished');
+    }
   }, [gameState, onGameStateChange]);
 
   useEffect(() => {
@@ -2088,17 +2105,22 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
     return () => { if (interval) clearInterval(interval); };
   }, [gameState, startTime]);
 
-  const startGame = () => {
+  const setupGame = () => {
     const scenario = generateEndgame(selectedEndgame);
     const newChess = new Chess(scenario.fen);
     setChess(newChess);
     setMoveCount(0);
-    setStartTime(Date.now());
     setElapsedTime(0);
     setSelectedSquare(null);
     setLegalMoves([]);
+    setShowPieces(true);
+    setGameState('memorizing');
+  };
+
+  const startPlaying = () => {
+    setShowPieces(false);
+    setStartTime(Date.now());
     setGameState('playing');
-    speakMuted(`Checkmate the king with ${scenario.description}`);
   };
 
   const handleSquareClick = useCallback((file: string, rank: string) => {
@@ -2119,7 +2141,6 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
           setElapsedTime(finalTime);
           setGameState('finished');
           onComplete(finalTime);
-          speakMuted("Checkmate!");
         } else if (!chess.isGameOver()) {
           const moves = chess.moves({ verbose: true });
           if (moves.length > 0) {
@@ -2201,8 +2222,55 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
             </p>
           )}
 
-          <Button size="lg" onClick={startGame} data-testid="button-start-endgame">
+          <Button size="lg" onClick={setupGame} data-testid="button-start-endgame">
             Start
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'memorizing') {
+    return (
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
+          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-endgame-back-memorizing">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Memorize the Position</h1>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
+            {['8', '7', '6', '5', '4', '3', '2', '1'].map((rank) =>
+              FILES.map((file) => {
+                const square = `${file}${rank}`;
+                const fileIdx = FILES.indexOf(file);
+                const rankIdx = RANKS.indexOf(rank);
+                const isDark = isDarkSquare(fileIdx, rankIdx);
+                const piece = chess?.get(square as any);
+                
+                const bgColor = isDark ? 'bg-amber-700' : 'bg-amber-100';
+                
+                return (
+                  <div
+                    key={square}
+                    className={`aspect-square ${bgColor} flex items-center justify-center text-2xl`}
+                    data-testid={`square-${square}`}
+                  >
+                    {getPieceSymbol(piece || null)}
+                  </div>
+                );
+              })
+            )}
+          </div>
+          
+          <p className="text-muted-foreground text-center mt-4 mb-2">
+            Study the position, then tap Start to play blindfolded
+          </p>
+          
+          <Button size="lg" onClick={startPlaying} className="mt-2" data-testid="button-start-playing">
+            Start Playing
           </Button>
         </div>
       </div>
@@ -2233,7 +2301,7 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
             <Button variant="outline" onClick={onBack} data-testid="button-endgame-menu">
               Menu
             </Button>
-            <Button onClick={startGame} data-testid="button-endgame-retry">
+            <Button onClick={setupGame} data-testid="button-endgame-retry">
               Play Again
             </Button>
           </div>
@@ -2251,6 +2319,8 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
           </p>
           <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
         </div>
+
+        <p className="text-sm text-muted-foreground text-center mb-2">Playing blindfolded - pieces are hidden</p>
 
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
@@ -2278,7 +2348,7 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
                     onClick={() => handleSquareClick(file, rank)}
                     data-testid={`square-${square}`}
                   >
-                    {getPieceSymbol(piece)}
+                    {showPieces ? getPieceSymbol(piece || null) : ''}
                   </button>
                 );
               })
@@ -2330,7 +2400,7 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyTier>('10-20');
   const [scenario, setScenario] = useState<MarathonScenario | null>(null);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
-  const [isPlayingMoves, setIsPlayingMoves] = useState(false);
+  const [isReviewingMoves, setIsReviewingMoves] = useState(true);
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
   const [startTime, setStartTime] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -2338,7 +2408,6 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const isNewBest = stats?.blindfoldMarathonBest !== null && elapsedTime > 0 && elapsedTime < (stats?.blindfoldMarathonBest || Infinity);
-  const playingRef = useRef(false);
 
   useEffect(() => {
     onGameStateChange?.(gameState);
@@ -2354,38 +2423,32 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
     return () => { if (interval) clearInterval(interval); };
   }, [gameState, startTime, waitingForAnswer]);
 
-  const startGame = async () => {
+  const startGame = () => {
     const tier = getDifficultyTiers().find(t => t.value === selectedDifficulty)!;
     const newScenario = getRandomMarathon(tier.minMoves, tier.maxMoves);
     setScenario(newScenario);
     setCurrentMoveIndex(0);
-    setIsPlayingMoves(true);
+    setIsReviewingMoves(true);
     setWaitingForAnswer(false);
     setUserAnswer('');
     setIsCorrect(null);
     setGameState('playing');
-    
-    speakMuted(`${newScenario.description}. ${newScenario.white} versus ${newScenario.black}. Listen carefully.`);
-    
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    playingRef.current = true;
-    
-    for (let i = 0; i < newScenario.pgnMoves.length; i++) {
-      if (!playingRef.current) break;
-      setCurrentMoveIndex(i);
-      const move = newScenario.pgnMoves[i];
-      const moveNum = Math.floor(i / 2) + 1;
-      const isWhite = i % 2 === 0;
-      const announcement = isWhite ? `${moveNum}. ${move}` : move;
-      await speakMuted(announcement);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+  };
+
+  const goToPreviousMove = () => {
+    if (currentMoveIndex > 0) {
+      setCurrentMoveIndex(prev => prev - 1);
     }
-    
-    if (playingRef.current) {
-      setIsPlayingMoves(false);
+  };
+
+  const goToNextMove = () => {
+    if (!scenario) return;
+    if (currentMoveIndex < scenario.pgnMoves.length - 1) {
+      setCurrentMoveIndex(prev => prev + 1);
+    } else {
+      setIsReviewingMoves(false);
       setWaitingForAnswer(true);
       setStartTime(Date.now());
-      speakMuted("Find the best move!");
     }
   };
 
@@ -2405,18 +2468,15 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
       setElapsedTime(finalTime);
       setGameState('finished');
       onComplete(finalTime);
-      speakMuted("Correct!");
     } else {
-      speakMuted(`Incorrect. The answer was ${scenario.solution}`);
       setTimeout(() => {
         setGameState('finished');
         setElapsedTime(0);
-      }, 2000);
+      }, 1000);
     }
   };
 
   const handleResign = () => {
-    playingRef.current = false;
     onBack();
   };
 
@@ -2448,7 +2508,7 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
           </Select>
 
           <p className="text-muted-foreground text-center text-sm">
-            Listen to the game moves, visualize the position, then find the winning move!
+            Step through moves at your own pace, then find the winning move!
           </p>
 
           {stats?.blindfoldMarathonBest !== null && (
@@ -2520,16 +2580,39 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center gap-6">
-          {isPlayingMoves ? (
-            <div className="text-center space-y-4">
-              <div className="text-6xl font-mono font-bold">
-                {scenario?.pgnMoves[currentMoveIndex]}
+          {isReviewingMoves ? (
+            <div className="text-center space-y-4 w-full max-w-xs">
+              <p className="text-sm text-muted-foreground">
+                {scenario?.white} vs {scenario?.black}
+              </p>
+              <div className="text-5xl font-mono font-bold min-h-[4rem] flex items-center justify-center">
+                {currentMoveIndex % 2 === 0 ? `${Math.floor(currentMoveIndex / 2) + 1}. ` : ''}{scenario?.pgnMoves[currentMoveIndex]}
               </div>
               <p className="text-muted-foreground">
-                Move {Math.floor(currentMoveIndex / 2) + 1} of {Math.ceil((scenario?.pgnMoves.length || 0) / 2)}
+                Move {currentMoveIndex + 1} of {scenario?.pgnMoves.length || 0}
               </p>
-              <Progress value={(currentMoveIndex / (scenario?.pgnMoves.length || 1)) * 100} className="w-64" />
-              <p className="text-sm text-muted-foreground">Visualize the position...</p>
+              <Progress value={((currentMoveIndex + 1) / (scenario?.pgnMoves.length || 1)) * 100} className="w-full" />
+              
+              <div className="flex gap-4 justify-center mt-4">
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  onClick={goToPreviousMove} 
+                  disabled={currentMoveIndex === 0}
+                  data-testid="button-marathon-back-move"
+                >
+                  <ArrowLeft className="h-5 w-5 mr-1" />
+                  Back
+                </Button>
+                <Button 
+                  size="lg"
+                  onClick={goToNextMove}
+                  data-testid="button-marathon-next-move"
+                >
+                  {currentMoveIndex === (scenario?.pgnMoves.length || 0) - 1 ? 'Done' : 'Next'}
+                  {currentMoveIndex !== (scenario?.pgnMoves.length || 0) - 1 && <ChevronRight className="h-5 w-5 ml-1" />}
+                </Button>
+              </div>
             </div>
           ) : waitingForAnswer ? (
             <div className="text-center space-y-4 w-full max-w-xs">
