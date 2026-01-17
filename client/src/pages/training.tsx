@@ -117,8 +117,8 @@ export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }:
     };
   }, [returnToMenuRef]);
 
-  const handleGameComplete = async (gameMode: TrainingModeType, score: number, streak: number = 0) => {
-    await saveTrainingSession(gameMode, score, streak);
+  const handleGameComplete = async (gameMode: TrainingModeType, score: number, streak: number = 0, variant?: string) => {
+    await saveTrainingSession(gameMode, score, streak, variant);
     setStats(await getTrainingStats());
     window.dispatchEvent(new CustomEvent('trainingStatsUpdated'));
   };
@@ -136,15 +136,15 @@ export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }:
   }
 
   if (mode === 'knights_path') {
-    return <KnightsPathGame onBack={() => setMode('menu')} onComplete={(time) => handleGameComplete('knights_path', time)} stats={stats} onGameStateChange={setCurrentGameState} />;
+    return <KnightsPathGame onBack={() => setMode('menu')} onComplete={(time, variant) => handleGameComplete('knights_path', time, 0, variant)} stats={stats} onGameStateChange={setCurrentGameState} />;
   }
 
   if (mode === 'endgame_drills') {
-    return <EndgameDrillsGame onBack={() => setMode('menu')} onComplete={(time) => handleGameComplete('endgame_drills', time)} stats={stats} onGameStateChange={setCurrentGameState} />;
+    return <EndgameDrillsGame onBack={() => setMode('menu')} onComplete={(time, variant) => handleGameComplete('endgame_drills', time, 0, variant)} stats={stats} onGameStateChange={setCurrentGameState} />;
   }
 
   if (mode === 'blindfold_marathon') {
-    return <BlindfoldsMarathonGame onBack={() => setMode('menu')} onComplete={(time) => handleGameComplete('blindfold_marathon', time)} stats={stats} onGameStateChange={setCurrentGameState} />;
+    return <BlindfoldsMarathonGame onBack={() => setMode('menu')} onComplete={(time, streak, variant) => handleGameComplete('blindfold_marathon', time, streak, variant)} stats={stats} onGameStateChange={setCurrentGameState} />;
   }
 
   return (
@@ -1808,7 +1808,7 @@ function matchesMove(input: string, target: TargetMove): boolean {
 // ============ KNIGHT'S PATH GAME ============
 interface KnightsPathGameProps {
   onBack: () => void;
-  onComplete: (time: number) => void;
+  onComplete: (time: number, variant?: string) => void;
   stats: TrainingStats | null;
   onGameStateChange?: (state: 'ready' | 'playing' | 'finished') => void;
 }
@@ -1972,7 +1972,7 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
         const finalTime = Date.now() - startTime;
         setElapsedTime(finalTime);
         setGameState('finished');
-        onComplete(finalTime);
+        onComplete(finalTime, audioInputEnabled ? 'audio' : undefined);
         speakMuted("Complete!");
       } else {
         const newChallenge = generateKnightChallenge(3, 4);
@@ -2050,7 +2050,7 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
             </Label>
           </div>
 
-          {selectedTab === 'challenge' && stats?.knightsPathBest !== null && (
+          {selectedTab === 'challenge' && stats && stats.knightsPathBest !== null && (
             <p className="text-sm text-muted-foreground">
               Your best: <span className="font-semibold text-green-500">{formatTime(stats.knightsPathBest)}</span>
             </p>
@@ -2199,7 +2199,7 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
 // ============ ENDGAME DRILLS GAME ============
 interface EndgameDrillsGameProps {
   onBack: () => void;
-  onComplete: (time: number) => void;
+  onComplete: (time: number, variant?: string) => void;
   stats: TrainingStats | null;
   onGameStateChange?: (state: 'ready' | 'playing' | 'finished') => void;
 }
@@ -2414,7 +2414,8 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
           const finalTime = Date.now() - startTime;
           setElapsedTime(finalTime);
           setGameState('finished');
-          onComplete(finalTime);
+          const variant = selectedEndgame === 'KQ_vs_K' ? 'kq_vs_k' : selectedEndgame === 'KR_vs_K' ? 'kr_vs_k' : undefined;
+          onComplete(finalTime, variant);
         } else if (!chess.isGameOver()) {
           const moves = chess.moves({ verbose: true });
           if (moves.length > 0) {
@@ -2543,7 +2544,7 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
             Checkmate the lone king as fast as possible!
           </p>
 
-          {stats?.endgameDrillsBest !== null && (
+          {stats && stats.endgameDrillsBest !== null && (
             <p className="text-sm text-muted-foreground">
               Your best: <span className="font-semibold text-orange-500">{formatTime(stats.endgameDrillsBest)}</span>
             </p>
@@ -2762,7 +2763,7 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
 // ============ BLINDFOLD MARATHON GAME ============
 interface BlindfoldsMarathonGameProps {
   onBack: () => void;
-  onComplete: (time: number) => void;
+  onComplete: (time: number, streak: number, variant?: string) => void;
   stats: TrainingStats | null;
   onGameStateChange?: (state: 'ready' | 'playing' | 'finished') => void;
 }
@@ -2780,6 +2781,7 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [streak, setStreak] = useState(0);
   const nativeListenerRef = useRef<{ remove: () => Promise<void> } | null>(null);
   const isNewBest = stats?.blindfoldMarathonBest !== null && elapsedTime > 0 && elapsedTime < (stats?.blindfoldMarathonBest || Infinity);
 
@@ -2880,6 +2882,12 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
     }
   };
 
+  const getDifficultyVariant = (difficulty: DifficultyTier): string => {
+    if (difficulty === '10-20') return 'easy';
+    if (difficulty === '20-30') return 'medium';
+    return 'hard';
+  };
+
   const checkAnswer = () => {
     if (!scenario) return;
     
@@ -2892,11 +2900,15 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
     setIsCorrect(correct);
     
     if (correct) {
+      const newStreak = streak + 1;
+      setStreak(newStreak);
       const finalTime = Date.now() - startTime;
       setElapsedTime(finalTime);
       setGameState('finished');
-      onComplete(finalTime);
+      const variant = getDifficultyVariant(selectedDifficulty);
+      onComplete(finalTime, newStreak, variant);
     } else {
+      setStreak(0);
       setTimeout(() => {
         setGameState('finished');
         setElapsedTime(0);
@@ -2939,7 +2951,7 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
             Step through moves at your own pace, then find the winning move!
           </p>
 
-          {stats?.blindfoldMarathonBest !== null && (
+          {stats && stats.blindfoldMarathonBest !== null && (
             <p className="text-sm text-muted-foreground">
               Your best: <span className="font-semibold text-red-500">{formatTime(stats.blindfoldMarathonBest)}</span>
             </p>

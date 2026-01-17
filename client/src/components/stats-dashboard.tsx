@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Eye, Brain, Target, TrendingUp, TrendingDown, Mic, Hand, Clock, Grid3X3, Trophy, AlertTriangle, Lightbulb, CheckCircle, Dumbbell, Zap, Flame } from "lucide-react";
+import { Eye, Brain, Target, TrendingUp, TrendingDown, Mic, Hand, Clock, Grid3X3, Trophy, AlertTriangle, Lightbulb, CheckCircle, Dumbbell, Zap, Flame, Crown } from "lucide-react";
 import type { GameStats, Insight } from "@/lib/gameStats";
 import { getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
 import {
@@ -695,6 +695,132 @@ export function StatsDashboard({ stats }: StatsDashboardProps) {
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
                 Complete a Coordinate Sniper session to set your first record!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Crown className="h-4 w-4 text-green-500" />
+              Knight's Path
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Navigate knight through 5 paths
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {trainingStats && (trainingStats.knightsPathBest !== null || trainingStats.knightsPathAudioBest !== null) ? (
+              <div className="space-y-3">
+                {trainingStats.knightsPathBest !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Fastest (Touch)</span>
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-4 w-4 text-green-500" />
+                      <span className="text-xl font-bold text-green-500">{formatTrainingTime(trainingStats.knightsPathBest)}</span>
+                    </div>
+                  </div>
+                )}
+                {trainingStats.knightsPathAudioBest !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Fastest (Voice)</span>
+                    <div className="flex items-center gap-2">
+                      <Mic className="h-4 w-4 text-purple-500" />
+                      <span className="text-xl font-bold text-purple-500">{formatTrainingTime(trainingStats.knightsPathAudioBest)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Complete a Knight's Path session to set your first record!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Target className="h-4 w-4 text-red-500" />
+              Endgame Drills
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Checkmate practice by endgame type
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {trainingStats && (trainingStats.endgameKQvKBest !== null || trainingStats.endgameKRvKBest !== null) ? (
+              <div className="space-y-3">
+                {trainingStats.endgameKQvKBest !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">K&Q vs K</span>
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-4 w-4 text-red-500" />
+                      <span className="text-xl font-bold text-red-500">{formatTrainingTime(trainingStats.endgameKQvKBest)}</span>
+                    </div>
+                  </div>
+                )}
+                {trainingStats.endgameKRvKBest !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">K&R vs K</span>
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-4 w-4 text-red-500" />
+                      <span className="text-xl font-bold text-red-500">{formatTrainingTime(trainingStats.endgameKRvKBest)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Complete an endgame drill to set your first record!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Brain className="h-4 w-4 text-orange-500" />
+              Blindfold Marathon
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Best streaks per difficulty level
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {trainingStats && (trainingStats.marathonStreakEasy !== null || trainingStats.marathonStreakMedium !== null || trainingStats.marathonStreakHard !== null) ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Easy (10-20 moves)</span>
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-green-500" />
+                    <span className="text-lg font-bold text-green-500">{trainingStats.marathonStreakEasy || 0}</span>
+                    <span className="text-sm text-muted-foreground">streak</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Medium (20-30 moves)</span>
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-amber-500" />
+                    <span className="text-lg font-bold text-amber-500">{trainingStats.marathonStreakMedium || 0}</span>
+                    <span className="text-sm text-muted-foreground">streak</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Hard (30-40 moves)</span>
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-red-500" />
+                    <span className="text-lg font-bold text-red-500">{trainingStats.marathonStreakHard || 0}</span>
+                    <span className="text-sm text-muted-foreground">streak</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Complete Blindfold Marathon rounds to track your streaks!
               </p>
             )}
           </CardContent>

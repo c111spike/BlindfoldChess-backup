@@ -10,6 +10,7 @@ export interface TrainingSession {
   mode: TrainingMode;
   score: number;
   streak: number;
+  variant?: string;
   achievedAt: string;
 }
 
@@ -25,10 +26,19 @@ export interface TrainingStats {
   voiceMoveMasterBestStreak: number | null;
   knightsPathBest: number | null;
   knightsPathBestDate: string | null;
+  knightsPathAudioBest: number | null;
+  knightsPathAudioBestDate: string | null;
   endgameDrillsBest: number | null;
   endgameDrillsBestDate: string | null;
+  endgameKQvKBest: number | null;
+  endgameKQvKBestDate: string | null;
+  endgameKRvKBest: number | null;
+  endgameKRvKBestDate: string | null;
   blindfoldMarathonBest: number | null;
   blindfoldMarathonBestDate: string | null;
+  marathonStreakEasy: number | null;
+  marathonStreakMedium: number | null;
+  marathonStreakHard: number | null;
   totalSessions: number;
   recentSessions: TrainingSession[];
 }
@@ -76,19 +86,26 @@ async function doInitTrainingDB(): Promise<boolean> {
         mode TEXT NOT NULL,
         score REAL NOT NULL,
         streak INTEGER NOT NULL DEFAULT 0,
+        variant TEXT DEFAULT NULL,
         achieved_at TEXT NOT NULL
       );
     `;
     
     await db.execute(createTableQuery);
     
-    // Migration: Add streak column if it doesn't exist (for existing installs)
+    // Migration: Add streak and variant columns if they don't exist (for existing installs)
     try {
       const tableInfo = await db.query("PRAGMA table_info(training_stats);");
-      const hasStreakColumn = tableInfo.values?.some((col: { name?: string }) => col.name === 'streak');
+      const columns = tableInfo.values || [];
+      const hasStreakColumn = columns.some((col: { name?: string }) => col.name === 'streak');
+      const hasVariantColumn = columns.some((col: { name?: string }) => col.name === 'variant');
       if (!hasStreakColumn) {
         await db.execute('ALTER TABLE training_stats ADD COLUMN streak INTEGER NOT NULL DEFAULT 0;');
         console.log('[TrainingStats] Migrated: Added streak column');
+      }
+      if (!hasVariantColumn) {
+        await db.execute('ALTER TABLE training_stats ADD COLUMN variant TEXT DEFAULT NULL;');
+        console.log('[TrainingStats] Migrated: Added variant column');
       }
     } catch (migrationError) {
       console.warn('[TrainingStats] Migration check failed:', migrationError);
@@ -118,7 +135,7 @@ function setLocalStorageSessions(sessions: TrainingSession[]): void {
   localStorage.setItem('blindfold_training_stats', JSON.stringify(sessions));
 }
 
-export async function saveTrainingSession(mode: TrainingMode, score: number, streak: number = 0): Promise<number | null> {
+export async function saveTrainingSession(mode: TrainingMode, score: number, streak: number = 0, variant?: string): Promise<number | null> {
   await initTrainingDB();
   
   const achievedAt = new Date().toISOString();
@@ -127,10 +144,10 @@ export async function saveTrainingSession(mode: TrainingMode, score: number, str
     if (!isNative) {
       const sessions = getLocalStorageSessions();
       const newId = sessions.length > 0 ? Math.max(...sessions.map(s => s.id)) + 1 : 1;
-      const newSession: TrainingSession = { id: newId, mode, score, streak, achievedAt };
+      const newSession: TrainingSession = { id: newId, mode, score, streak, variant, achievedAt };
       sessions.unshift(newSession);
       setLocalStorageSessions(sessions);
-      console.log('[TrainingStats] Session saved to localStorage:', newId);
+      console.log('[TrainingStats] Session saved to localStorage:', newId, variant ? `(${variant})` : '');
       return newId;
     }
 
@@ -140,12 +157,12 @@ export async function saveTrainingSession(mode: TrainingMode, score: number, str
     }
 
     const query = `
-      INSERT INTO training_stats (mode, score, streak, achieved_at)
-      VALUES (?, ?, ?, ?);
+      INSERT INTO training_stats (mode, score, streak, variant, achieved_at)
+      VALUES (?, ?, ?, ?, ?);
     `;
     
-    const result = await db.run(query, [mode, score, streak, achievedAt]);
-    console.log('[TrainingStats] Session saved:', result.changes?.lastId);
+    const result = await db.run(query, [mode, score, streak, variant || null, achievedAt]);
+    console.log('[TrainingStats] Session saved:', result.changes?.lastId, variant ? `(${variant})` : '');
     return result.changes?.lastId || null;
   } catch (error) {
     console.error('[TrainingStats] Failed to save session:', error instanceof Error ? error.message : String(error));
@@ -168,10 +185,19 @@ export async function getTrainingStats(): Promise<TrainingStats> {
     voiceMoveMasterBestStreak: null,
     knightsPathBest: null,
     knightsPathBestDate: null,
+    knightsPathAudioBest: null,
+    knightsPathAudioBestDate: null,
     endgameDrillsBest: null,
     endgameDrillsBestDate: null,
+    endgameKQvKBest: null,
+    endgameKQvKBestDate: null,
+    endgameKRvKBest: null,
+    endgameKRvKBestDate: null,
     blindfoldMarathonBest: null,
     blindfoldMarathonBestDate: null,
+    marathonStreakEasy: null,
+    marathonStreakMedium: null,
+    marathonStreakHard: null,
     totalSessions: 0,
     recentSessions: [],
   };
@@ -183,9 +209,15 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       const colorBlitzSessions = sessions.filter(s => s.mode === 'color_blitz');
       const sniperSessions = sessions.filter(s => s.mode === 'coordinate_sniper');
       const voiceMasterSessions = sessions.filter(s => s.mode === 'voice_move_master');
-      const knightsPathSessions = sessions.filter(s => s.mode === 'knights_path');
+      const knightsPathSessions = sessions.filter(s => s.mode === 'knights_path' && s.variant !== 'audio');
+      const knightsPathAudioSessions = sessions.filter(s => s.mode === 'knights_path' && s.variant === 'audio');
       const endgameDrillsSessions = sessions.filter(s => s.mode === 'endgame_drills');
+      const endgameKQvKSessions = sessions.filter(s => s.mode === 'endgame_drills' && s.variant === 'kq_vs_k');
+      const endgameKRvKSessions = sessions.filter(s => s.mode === 'endgame_drills' && s.variant === 'kr_vs_k');
       const blindfoldMarathonSessions = sessions.filter(s => s.mode === 'blindfold_marathon');
+      const marathonEasySessions = sessions.filter(s => s.mode === 'blindfold_marathon' && s.variant === 'easy');
+      const marathonMediumSessions = sessions.filter(s => s.mode === 'blindfold_marathon' && s.variant === 'medium');
+      const marathonHardSessions = sessions.filter(s => s.mode === 'blindfold_marathon' && s.variant === 'hard');
       
       let colorBlitzBest: number | null = null;
       let colorBlitzBestDate: string | null = null;
@@ -228,12 +260,36 @@ export async function getTrainingStats(): Promise<TrainingStats> {
         knightsPathBestDate = best.achievedAt;
       }
       
+      let knightsPathAudioBest: number | null = null;
+      let knightsPathAudioBestDate: string | null = null;
+      if (knightsPathAudioSessions.length > 0) {
+        const best = knightsPathAudioSessions.reduce((min, s) => s.score < min.score ? s : min);
+        knightsPathAudioBest = best.score;
+        knightsPathAudioBestDate = best.achievedAt;
+      }
+      
       let endgameDrillsBest: number | null = null;
       let endgameDrillsBestDate: string | null = null;
       if (endgameDrillsSessions.length > 0) {
         const best = endgameDrillsSessions.reduce((min, s) => s.score < min.score ? s : min);
         endgameDrillsBest = best.score;
         endgameDrillsBestDate = best.achievedAt;
+      }
+      
+      let endgameKQvKBest: number | null = null;
+      let endgameKQvKBestDate: string | null = null;
+      if (endgameKQvKSessions.length > 0) {
+        const best = endgameKQvKSessions.reduce((min, s) => s.score < min.score ? s : min);
+        endgameKQvKBest = best.score;
+        endgameKQvKBestDate = best.achievedAt;
+      }
+      
+      let endgameKRvKBest: number | null = null;
+      let endgameKRvKBestDate: string | null = null;
+      if (endgameKRvKSessions.length > 0) {
+        const best = endgameKRvKSessions.reduce((min, s) => s.score < min.score ? s : min);
+        endgameKRvKBest = best.score;
+        endgameKRvKBestDate = best.achievedAt;
       }
       
       let blindfoldMarathonBest: number | null = null;
@@ -243,6 +299,16 @@ export async function getTrainingStats(): Promise<TrainingStats> {
         blindfoldMarathonBest = best.score;
         blindfoldMarathonBestDate = best.achievedAt;
       }
+      
+      const marathonStreakEasy = marathonEasySessions.length > 0 
+        ? Math.max(...marathonEasySessions.map(s => s.streak || 0)) || null 
+        : null;
+      const marathonStreakMedium = marathonMediumSessions.length > 0 
+        ? Math.max(...marathonMediumSessions.map(s => s.streak || 0)) || null 
+        : null;
+      const marathonStreakHard = marathonHardSessions.length > 0 
+        ? Math.max(...marathonHardSessions.map(s => s.streak || 0)) || null 
+        : null;
       
       return {
         colorBlitzBest,
@@ -256,10 +322,19 @@ export async function getTrainingStats(): Promise<TrainingStats> {
         voiceMoveMasterBestStreak,
         knightsPathBest,
         knightsPathBestDate,
+        knightsPathAudioBest,
+        knightsPathAudioBestDate,
         endgameDrillsBest,
         endgameDrillsBestDate,
+        endgameKQvKBest,
+        endgameKQvKBestDate,
+        endgameKRvKBest,
+        endgameKRvKBestDate,
         blindfoldMarathonBest,
         blindfoldMarathonBestDate,
+        marathonStreakEasy,
+        marathonStreakMedium,
+        marathonStreakHard,
         totalSessions: sessions.length,
         recentSessions: sessions.slice(0, 10),
       };
@@ -314,7 +389,15 @@ export async function getTrainingStats(): Promise<TrainingStats> {
     const knightsPathBestQuery = `
       SELECT score as best_time, achieved_at
       FROM training_stats
-      WHERE mode = 'knights_path'
+      WHERE mode = 'knights_path' AND (variant IS NULL OR variant != 'audio')
+      ORDER BY score ASC
+      LIMIT 1;
+    `;
+    
+    const knightsPathAudioBestQuery = `
+      SELECT score as best_time, achieved_at
+      FROM training_stats
+      WHERE mode = 'knights_path' AND variant = 'audio'
       ORDER BY score ASC
       LIMIT 1;
     `;
@@ -327,6 +410,22 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       LIMIT 1;
     `;
     
+    const endgameKQvKBestQuery = `
+      SELECT score as best_time, achieved_at
+      FROM training_stats
+      WHERE mode = 'endgame_drills' AND variant = 'kq_vs_k'
+      ORDER BY score ASC
+      LIMIT 1;
+    `;
+    
+    const endgameKRvKBestQuery = `
+      SELECT score as best_time, achieved_at
+      FROM training_stats
+      WHERE mode = 'endgame_drills' AND variant = 'kr_vs_k'
+      ORDER BY score ASC
+      LIMIT 1;
+    `;
+    
     const blindfoldMarathonBestQuery = `
       SELECT score as best_time, achieved_at
       FROM training_stats
@@ -335,10 +434,28 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       LIMIT 1;
     `;
     
+    const marathonStreakEasyQuery = `
+      SELECT MAX(streak) as best_streak
+      FROM training_stats
+      WHERE mode = 'blindfold_marathon' AND variant = 'easy';
+    `;
+    
+    const marathonStreakMediumQuery = `
+      SELECT MAX(streak) as best_streak
+      FROM training_stats
+      WHERE mode = 'blindfold_marathon' AND variant = 'medium';
+    `;
+    
+    const marathonStreakHardQuery = `
+      SELECT MAX(streak) as best_streak
+      FROM training_stats
+      WHERE mode = 'blindfold_marathon' AND variant = 'hard';
+    `;
+    
     const countQuery = `SELECT COUNT(*) as total FROM training_stats;`;
     
     const recentQuery = `
-      SELECT id, mode, score, streak, achieved_at as achievedAt
+      SELECT id, mode, score, streak, variant, achieved_at as achievedAt
       FROM training_stats
       ORDER BY achieved_at DESC
       LIMIT 10;
@@ -351,8 +468,14 @@ export async function getTrainingStats(): Promise<TrainingStats> {
     const voiceMasterResult = await db.query(voiceMasterBestQuery);
     const voiceMasterStreakResult = await db.query(voiceMasterStreakQuery);
     const knightsPathResult = await db.query(knightsPathBestQuery);
+    const knightsPathAudioResult = await db.query(knightsPathAudioBestQuery);
     const endgameDrillsResult = await db.query(endgameDrillsBestQuery);
+    const endgameKQvKResult = await db.query(endgameKQvKBestQuery);
+    const endgameKRvKResult = await db.query(endgameKRvKBestQuery);
     const blindfoldMarathonResult = await db.query(blindfoldMarathonBestQuery);
+    const marathonStreakEasyResult = await db.query(marathonStreakEasyQuery);
+    const marathonStreakMediumResult = await db.query(marathonStreakMediumQuery);
+    const marathonStreakHardResult = await db.query(marathonStreakHardQuery);
     const countResult = await db.query(countQuery);
     const recentResult = await db.query(recentQuery);
     
@@ -368,10 +491,19 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       voiceMoveMasterBestStreak: voiceMasterStreakResult.values?.[0]?.best_streak || null,
       knightsPathBest: knightsPathResult.values?.[0]?.best_time || null,
       knightsPathBestDate: knightsPathResult.values?.[0]?.achieved_at || null,
+      knightsPathAudioBest: knightsPathAudioResult.values?.[0]?.best_time || null,
+      knightsPathAudioBestDate: knightsPathAudioResult.values?.[0]?.achieved_at || null,
       endgameDrillsBest: endgameDrillsResult.values?.[0]?.best_time || null,
       endgameDrillsBestDate: endgameDrillsResult.values?.[0]?.achieved_at || null,
+      endgameKQvKBest: endgameKQvKResult.values?.[0]?.best_time || null,
+      endgameKQvKBestDate: endgameKQvKResult.values?.[0]?.achieved_at || null,
+      endgameKRvKBest: endgameKRvKResult.values?.[0]?.best_time || null,
+      endgameKRvKBestDate: endgameKRvKResult.values?.[0]?.achieved_at || null,
       blindfoldMarathonBest: blindfoldMarathonResult.values?.[0]?.best_time || null,
       blindfoldMarathonBestDate: blindfoldMarathonResult.values?.[0]?.achieved_at || null,
+      marathonStreakEasy: marathonStreakEasyResult.values?.[0]?.best_streak || null,
+      marathonStreakMedium: marathonStreakMediumResult.values?.[0]?.best_streak || null,
+      marathonStreakHard: marathonStreakHardResult.values?.[0]?.best_streak || null,
       totalSessions: countResult.values?.[0]?.total || 0,
       recentSessions: (recentResult.values || []) as TrainingSession[],
     };
