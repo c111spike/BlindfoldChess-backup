@@ -8,7 +8,7 @@ export interface MarathonScenario {
 }
 
 function countMoves(moves: string[]): number {
-  return moves.length;
+  return Math.ceil(moves.length / 2);
 }
 
 export const MARATHON_SCENARIOS: MarathonScenario[] = [
