@@ -8,10 +8,52 @@ export interface MarathonScenario {
 }
 
 function countMoves(moves: string[]): number {
-  return Math.ceil(moves.length / 2);
+  return moves.length;
 }
 
 export const MARATHON_SCENARIOS: MarathonScenario[] = [
+  {
+    id: "scholars_mate",
+    white: "Training",
+    black: "Puzzle",
+    description: "Scholar's Mate Defense",
+    pgnMoves: [
+      "e4", "e5", "Bc4", "Nc6", "Qh5", "g6", "Qf3", "Nf6", "Qb3", "Nd4"
+    ],
+    solution: "Qxf7#"
+  },
+  {
+    id: "legal_trap",
+    white: "Training", 
+    black: "Puzzle",
+    description: "Legal's Mate Trap",
+    pgnMoves: [
+      "e4", "e5", "Nf3", "d6", "Bc4", "Bg4", "Nc3", "g6", "Nxe5", "Bxd1", "Bxf7+", "Ke7"
+    ],
+    solution: "Nd5#"
+  },
+  {
+    id: "blackburne_shilling",
+    white: "Training",
+    black: "Puzzle", 
+    description: "Blackburne Shilling Gambit",
+    pgnMoves: [
+      "e4", "e5", "Nf3", "Nc6", "Bc4", "Nd4", "Nxe5", "Qg5", "Nxf7", "Qxg2",
+      "Rf1", "Qxe4+", "Be2", "Nf3+"
+    ],
+    solution: "Kf1"
+  },
+  {
+    id: "fried_liver",
+    white: "Training",
+    black: "Puzzle",
+    description: "Fried Liver Attack",
+    pgnMoves: [
+      "e4", "e5", "Nf3", "Nc6", "Bc4", "Nf6", "Ng5", "d5", "exd5", "Nxd5",
+      "Nxf7", "Kxf7", "Qf3+", "Ke6", "Nc3", "Nb4"
+    ],
+    solution: "Qe4+"
+  },
   {
     id: "opera_game",
     white: "Paul Morphy",
