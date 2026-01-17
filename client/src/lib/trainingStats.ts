@@ -3,9 +3,11 @@ import { Capacitor } from '@capacitor/core';
 
 const DB_NAME = 'blindfold_chess';
 
+export type TrainingMode = 'color_blitz' | 'coordinate_sniper' | 'voice_move_master' | 'knights_path' | 'endgame_drills' | 'blindfold_marathon';
+
 export interface TrainingSession {
   id: number;
-  mode: 'color_blitz' | 'coordinate_sniper' | 'voice_move_master';
+  mode: TrainingMode;
   score: number;
   streak: number;
   achievedAt: string;
@@ -21,6 +23,12 @@ export interface TrainingStats {
   voiceMoveMasterBest: number | null;
   voiceMoveMasterBestDate: string | null;
   voiceMoveMasterBestStreak: number | null;
+  knightsPathBest: number | null;
+  knightsPathBestDate: string | null;
+  endgameDrillsBest: number | null;
+  endgameDrillsBestDate: string | null;
+  blindfoldMarathonBest: number | null;
+  blindfoldMarathonBestDate: string | null;
   totalSessions: number;
   recentSessions: TrainingSession[];
 }
@@ -110,7 +118,7 @@ function setLocalStorageSessions(sessions: TrainingSession[]): void {
   localStorage.setItem('blindfold_training_stats', JSON.stringify(sessions));
 }
 
-export async function saveTrainingSession(mode: 'color_blitz' | 'coordinate_sniper' | 'voice_move_master', score: number, streak: number = 0): Promise<number | null> {
+export async function saveTrainingSession(mode: TrainingMode, score: number, streak: number = 0): Promise<number | null> {
   await initTrainingDB();
   
   const achievedAt = new Date().toISOString();
@@ -158,6 +166,12 @@ export async function getTrainingStats(): Promise<TrainingStats> {
     voiceMoveMasterBest: null,
     voiceMoveMasterBestDate: null,
     voiceMoveMasterBestStreak: null,
+    knightsPathBest: null,
+    knightsPathBestDate: null,
+    endgameDrillsBest: null,
+    endgameDrillsBestDate: null,
+    blindfoldMarathonBest: null,
+    blindfoldMarathonBestDate: null,
     totalSessions: 0,
     recentSessions: [],
   };
@@ -169,6 +183,9 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       const colorBlitzSessions = sessions.filter(s => s.mode === 'color_blitz');
       const sniperSessions = sessions.filter(s => s.mode === 'coordinate_sniper');
       const voiceMasterSessions = sessions.filter(s => s.mode === 'voice_move_master');
+      const knightsPathSessions = sessions.filter(s => s.mode === 'knights_path');
+      const endgameDrillsSessions = sessions.filter(s => s.mode === 'endgame_drills');
+      const blindfoldMarathonSessions = sessions.filter(s => s.mode === 'blindfold_marathon');
       
       let colorBlitzBest: number | null = null;
       let colorBlitzBestDate: string | null = null;
@@ -203,6 +220,30 @@ export async function getTrainingStats(): Promise<TrainingStats> {
         voiceMoveMasterBestStreak = bestStreak.streak || null;
       }
       
+      let knightsPathBest: number | null = null;
+      let knightsPathBestDate: string | null = null;
+      if (knightsPathSessions.length > 0) {
+        const best = knightsPathSessions.reduce((min, s) => s.score < min.score ? s : min);
+        knightsPathBest = best.score;
+        knightsPathBestDate = best.achievedAt;
+      }
+      
+      let endgameDrillsBest: number | null = null;
+      let endgameDrillsBestDate: string | null = null;
+      if (endgameDrillsSessions.length > 0) {
+        const best = endgameDrillsSessions.reduce((min, s) => s.score < min.score ? s : min);
+        endgameDrillsBest = best.score;
+        endgameDrillsBestDate = best.achievedAt;
+      }
+      
+      let blindfoldMarathonBest: number | null = null;
+      let blindfoldMarathonBestDate: string | null = null;
+      if (blindfoldMarathonSessions.length > 0) {
+        const best = blindfoldMarathonSessions.reduce((min, s) => s.score < min.score ? s : min);
+        blindfoldMarathonBest = best.score;
+        blindfoldMarathonBestDate = best.achievedAt;
+      }
+      
       return {
         colorBlitzBest,
         colorBlitzBestDate,
@@ -213,6 +254,12 @@ export async function getTrainingStats(): Promise<TrainingStats> {
         voiceMoveMasterBest,
         voiceMoveMasterBestDate,
         voiceMoveMasterBestStreak,
+        knightsPathBest,
+        knightsPathBestDate,
+        endgameDrillsBest,
+        endgameDrillsBestDate,
+        blindfoldMarathonBest,
+        blindfoldMarathonBestDate,
         totalSessions: sessions.length,
         recentSessions: sessions.slice(0, 10),
       };
@@ -264,6 +311,30 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       WHERE mode = 'voice_move_master';
     `;
     
+    const knightsPathBestQuery = `
+      SELECT score as best_time, achieved_at
+      FROM training_stats
+      WHERE mode = 'knights_path'
+      ORDER BY score ASC
+      LIMIT 1;
+    `;
+    
+    const endgameDrillsBestQuery = `
+      SELECT score as best_time, achieved_at
+      FROM training_stats
+      WHERE mode = 'endgame_drills'
+      ORDER BY score ASC
+      LIMIT 1;
+    `;
+    
+    const blindfoldMarathonBestQuery = `
+      SELECT score as best_time, achieved_at
+      FROM training_stats
+      WHERE mode = 'blindfold_marathon'
+      ORDER BY score ASC
+      LIMIT 1;
+    `;
+    
     const countQuery = `SELECT COUNT(*) as total FROM training_stats;`;
     
     const recentQuery = `
@@ -279,6 +350,9 @@ export async function getTrainingStats(): Promise<TrainingStats> {
     const sniperStreakResult = await db.query(sniperStreakQuery);
     const voiceMasterResult = await db.query(voiceMasterBestQuery);
     const voiceMasterStreakResult = await db.query(voiceMasterStreakQuery);
+    const knightsPathResult = await db.query(knightsPathBestQuery);
+    const endgameDrillsResult = await db.query(endgameDrillsBestQuery);
+    const blindfoldMarathonResult = await db.query(blindfoldMarathonBestQuery);
     const countResult = await db.query(countQuery);
     const recentResult = await db.query(recentQuery);
     
@@ -292,6 +366,12 @@ export async function getTrainingStats(): Promise<TrainingStats> {
       voiceMoveMasterBest: voiceMasterResult.values?.[0]?.best_score || null,
       voiceMoveMasterBestDate: voiceMasterResult.values?.[0]?.achieved_at || null,
       voiceMoveMasterBestStreak: voiceMasterStreakResult.values?.[0]?.best_streak || null,
+      knightsPathBest: knightsPathResult.values?.[0]?.best_time || null,
+      knightsPathBestDate: knightsPathResult.values?.[0]?.achieved_at || null,
+      endgameDrillsBest: endgameDrillsResult.values?.[0]?.best_time || null,
+      endgameDrillsBestDate: endgameDrillsResult.values?.[0]?.achieved_at || null,
+      blindfoldMarathonBest: blindfoldMarathonResult.values?.[0]?.best_time || null,
+      blindfoldMarathonBestDate: blindfoldMarathonResult.values?.[0]?.achieved_at || null,
       totalSessions: countResult.values?.[0]?.total || 0,
       recentSessions: (recentResult.values || []) as TrainingSession[],
     };

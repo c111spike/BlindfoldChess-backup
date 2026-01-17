@@ -6,10 +6,14 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag, Volume2, HelpCircle } from "lucide-react";
+import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag, Volume2, HelpCircle, ChevronRight, Crown, Brain } from "lucide-react";
 import { Chess } from 'chess.js';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
-import { saveTrainingSession, getTrainingStats, type TrainingStats } from "@/lib/trainingStats";
+import { saveTrainingSession, getTrainingStats, type TrainingStats, type TrainingMode as TrainingModeType } from "@/lib/trainingStats";
+import { generateKnightChallenge, isLegalKnightMove, findKnightPath } from "@/lib/knightsPath";
+import { generateEndgame, getEndgameTypes, type EndgameType } from "@/lib/endgameDrills";
+import { getRandomMarathon, getDifficultyTiers, type DifficultyTier, type MarathonScenario } from "@/lib/blindfoldMarathon";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { speak } from "@/lib/voice";
 import { Capacitor } from "@capacitor/core";
 import BlindfoldNative, { waitForVoiceReady, debugSetSessionActive, debugSetMicListening, debugSetLastResult, debugSetLastError } from "@/lib/nativeVoice";
@@ -41,7 +45,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type TrainingMode = 'menu' | 'color_blitz' | 'coordinate_sniper' | 'voice_move_master';
+type TrainingMode = 'menu' | 'color_blitz' | 'coordinate_sniper' | 'voice_move_master' | 'knights_path' | 'endgame_drills' | 'blindfold_marathon';
 export type TrainingGameState = 'menu' | 'ready' | 'playing' | 'finished';
 
 interface TrainingPageProps {
@@ -113,7 +117,7 @@ export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }:
     };
   }, [returnToMenuRef]);
 
-  const handleGameComplete = async (gameMode: 'color_blitz' | 'coordinate_sniper' | 'voice_move_master', score: number, streak: number) => {
+  const handleGameComplete = async (gameMode: TrainingModeType, score: number, streak: number = 0) => {
     await saveTrainingSession(gameMode, score, streak);
     setStats(await getTrainingStats());
     window.dispatchEvent(new CustomEvent('trainingStatsUpdated'));
@@ -131,6 +135,18 @@ export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }:
     return <VoiceMoveMasterGame onBack={() => setMode('menu')} onComplete={(score, streak) => handleGameComplete('voice_move_master', score, streak)} stats={stats} onGameStateChange={setCurrentGameState} />;
   }
 
+  if (mode === 'knights_path') {
+    return <KnightsPathGame onBack={() => setMode('menu')} onComplete={(time) => handleGameComplete('knights_path', time)} stats={stats} onGameStateChange={setCurrentGameState} />;
+  }
+
+  if (mode === 'endgame_drills') {
+    return <EndgameDrillsGame onBack={() => setMode('menu')} onComplete={(time) => handleGameComplete('endgame_drills', time)} stats={stats} onGameStateChange={setCurrentGameState} />;
+  }
+
+  if (mode === 'blindfold_marathon') {
+    return <BlindfoldsMarathonGame onBack={() => setMode('menu')} onComplete={(time) => handleGameComplete('blindfold_marathon', time)} stats={stats} onGameStateChange={setCurrentGameState} />;
+  }
+
   return (
     <div className="flex flex-col h-full p-3 max-w-md mx-auto">
       <div className="flex items-center gap-2 mb-3">
@@ -140,71 +156,107 @@ export default function TrainingPage({ onBack, onStateChange, returnToMenuRef }:
         <h1 className="text-xl font-bold">Training Gym</h1>
       </div>
 
-      <div className="space-y-3 flex-1">
+      <div className="space-y-2 flex-1">
         <Card className="hover-elevate cursor-pointer" onClick={() => setMode('voice_move_master')} data-testid="card-voice-move-master">
-          <CardHeader className="pb-2">
+          <CardHeader className="py-2 px-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-purple-500/20">
-                <Volume2 className="h-5 w-5 text-purple-500" />
+              <div className="p-1.5 rounded-lg bg-purple-500/20">
+                <Volume2 className="h-4 w-4 text-purple-500" />
               </div>
-              <div>
-                <CardTitle className="text-lg">Voice Move Master</CardTitle>
-                <CardDescription>Announce moves by voice in 60 seconds</CardDescription>
+              <div className="flex-1">
+                <CardTitle className="text-base">Voice Move Master</CardTitle>
+                <CardDescription className="text-xs">Announce moves by voice in 60 seconds</CardDescription>
               </div>
+              {stats !== null && stats.voiceMoveMasterBest !== null && (
+                <Badge variant="secondary" className="text-xs">{stats.voiceMoveMasterBest}</Badge>
+              )}
             </div>
           </CardHeader>
-          <CardContent>
-            {stats !== null && stats.voiceMoveMasterBest !== null && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                <span>Best: {stats.voiceMoveMasterBest} correct</span>
-              </div>
-            )}
-          </CardContent>
         </Card>
 
         <Card className="hover-elevate cursor-pointer" onClick={() => setMode('color_blitz')} data-testid="card-color-blitz">
-          <CardHeader className="pb-2">
+          <CardHeader className="py-2 px-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-amber-500/20">
-                <Zap className="h-5 w-5 text-amber-500" />
+              <div className="p-1.5 rounded-lg bg-amber-500/20">
+                <Zap className="h-4 w-4 text-amber-500" />
               </div>
-              <div>
-                <CardTitle className="text-lg">Color Blitz</CardTitle>
-                <CardDescription>Name square colors in 60 seconds</CardDescription>
+              <div className="flex-1">
+                <CardTitle className="text-base">Color Blitz</CardTitle>
+                <CardDescription className="text-xs">Name square colors in 60 seconds</CardDescription>
               </div>
+              {stats !== null && stats.colorBlitzBest !== null && (
+                <Badge variant="secondary" className="text-xs">{stats.colorBlitzBest}</Badge>
+              )}
             </div>
           </CardHeader>
-          <CardContent>
-            {stats !== null && stats.colorBlitzBest !== null && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                <span>Best: {stats.colorBlitzBest} correct</span>
-              </div>
-            )}
-          </CardContent>
         </Card>
 
         <Card className="hover-elevate cursor-pointer" onClick={() => setMode('coordinate_sniper')} data-testid="card-coordinate-sniper">
-          <CardHeader className="pb-2">
+          <CardHeader className="py-2 px-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-blue-500/20">
-                <Target className="h-5 w-5 text-blue-500" />
+              <div className="p-1.5 rounded-lg bg-blue-500/20">
+                <Target className="h-4 w-4 text-blue-500" />
               </div>
-              <div>
-                <CardTitle className="text-lg">Coordinate Sniper</CardTitle>
-                <CardDescription>Find 10 squares as fast as possible</CardDescription>
+              <div className="flex-1">
+                <CardTitle className="text-base">Coordinate Sniper</CardTitle>
+                <CardDescription className="text-xs">Find 10 squares as fast as possible</CardDescription>
               </div>
+              {stats !== null && stats.coordinateSniperBest !== null && (
+                <Badge variant="secondary" className="text-xs">{formatTime(stats.coordinateSniperBest)}</Badge>
+              )}
             </div>
           </CardHeader>
-          <CardContent>
-            {stats !== null && stats.coordinateSniperBest !== null && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                <span>Best: {formatTime(stats.coordinateSniperBest)}</span>
+        </Card>
+
+        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('knights_path')} data-testid="card-knights-path">
+          <CardHeader className="py-2 px-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-green-500/20">
+                <ChevronRight className="h-4 w-4 text-green-500" />
               </div>
-            )}
-          </CardContent>
+              <div className="flex-1">
+                <CardTitle className="text-base">Knight's Path</CardTitle>
+                <CardDescription className="text-xs">Navigate the knight to the target</CardDescription>
+              </div>
+              {stats !== null && stats.knightsPathBest !== null && (
+                <Badge variant="secondary" className="text-xs">{formatTime(stats.knightsPathBest)}</Badge>
+              )}
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('endgame_drills')} data-testid="card-endgame-drills">
+          <CardHeader className="py-2 px-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-orange-500/20">
+                <Crown className="h-4 w-4 text-orange-500" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-base">Endgame Drills</CardTitle>
+                <CardDescription className="text-xs">Checkmate with K+Q or K+R vs King</CardDescription>
+              </div>
+              {stats !== null && stats.endgameDrillsBest !== null && (
+                <Badge variant="secondary" className="text-xs">{formatTime(stats.endgameDrillsBest)}</Badge>
+              )}
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card className="hover-elevate cursor-pointer" onClick={() => setMode('blindfold_marathon')} data-testid="card-blindfold-marathon">
+          <CardHeader className="py-2 px-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-red-500/20">
+                <Brain className="h-4 w-4 text-red-500" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-base">Blindfold Marathon</CardTitle>
+                <CardDescription className="text-xs">Visualize games and find the winning move</CardDescription>
+              </div>
+              {stats !== null && stats.blindfoldMarathonBest !== null && (
+                <Badge variant="secondary" className="text-xs">{formatTime(stats.blindfoldMarathonBest)}</Badge>
+              )}
+            </div>
+          </CardHeader>
         </Card>
       </div>
     </div>
@@ -1739,4 +1791,793 @@ function matchesMove(input: string, target: TargetMove): boolean {
   }
   
   return false;
+}
+
+// ============ KNIGHT'S PATH GAME ============
+interface KnightsPathGameProps {
+  onBack: () => void;
+  onComplete: (time: number) => void;
+  stats: TrainingStats | null;
+  onGameStateChange?: (state: 'ready' | 'playing' | 'finished') => void;
+}
+
+function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: KnightsPathGameProps) {
+  const [gameState, setGameState] = useState<'ready' | 'playing' | 'finished'>('ready');
+  const [challenge, setChallenge] = useState(() => generateKnightChallenge(3, 4));
+  const [currentPosition, setCurrentPosition] = useState('');
+  const [userPath, setUserPath] = useState<string[]>([]);
+  const [startTime, setStartTime] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [pathsCompleted, setPathsCompleted] = useState(0);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const [isPracticeMode, setIsPracticeMode] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'challenge' | 'practice'>('challenge');
+  const [flashSquare, setFlashSquare] = useState<{ square: string; correct: boolean } | null>(null);
+  const totalPaths = 5;
+  const isNewBest = stats?.knightsPathBest !== null && elapsedTime > 0 && elapsedTime < (stats?.knightsPathBest || Infinity);
+
+  useEffect(() => {
+    onGameStateChange?.(gameState);
+  }, [gameState, onGameStateChange]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (gameState === 'playing') {
+      interval = setInterval(() => {
+        setElapsedTime(Date.now() - startTime);
+      }, 100);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [gameState, startTime]);
+
+  const startGame = (practiceMode: boolean = false) => {
+    setIsPracticeMode(practiceMode);
+    const newChallenge = generateKnightChallenge(3, 4);
+    setChallenge(newChallenge);
+    setCurrentPosition(newChallenge.start);
+    setUserPath([newChallenge.start]);
+    setPathsCompleted(0);
+    setStartTime(Date.now());
+    setElapsedTime(0);
+    setGameState('playing');
+    const fileSpoken = newChallenge.start[0] === 'a' ? 'ay' : newChallenge.start[0];
+    const endFileSpoken = newChallenge.end[0] === 'a' ? 'ay' : newChallenge.end[0];
+    speakMuted(`Knight on ${fileSpoken} ${newChallenge.start[1]}. Get to ${endFileSpoken} ${newChallenge.end[1]}`);
+  };
+
+  const handleSquareClick = useCallback((file: string, rank: string) => {
+    if (gameState !== 'playing') return;
+    const clickedSquare = `${file}${rank}`;
+    
+    if (!isLegalKnightMove(currentPosition, clickedSquare)) {
+      Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+      setFlashSquare({ square: clickedSquare, correct: false });
+      speakMuted("Invalid knight move");
+      setTimeout(() => setFlashSquare(null), 500);
+      return;
+    }
+    
+    Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+    setFlashSquare({ square: clickedSquare, correct: true });
+    setCurrentPosition(clickedSquare);
+    setUserPath(prev => [...prev, clickedSquare]);
+    
+    if (clickedSquare === challenge.end) {
+      const newCompleted = pathsCompleted + 1;
+      setPathsCompleted(newCompleted);
+      
+      if (newCompleted >= totalPaths && !isPracticeMode) {
+        const finalTime = Date.now() - startTime;
+        setElapsedTime(finalTime);
+        setGameState('finished');
+        onComplete(finalTime);
+        speakMuted("Complete!");
+      } else {
+        const newChallenge = generateKnightChallenge(3, 4);
+        setTimeout(() => {
+          setChallenge(newChallenge);
+          setCurrentPosition(newChallenge.start);
+          setUserPath([newChallenge.start]);
+          setFlashSquare(null);
+          const fileSpoken = newChallenge.start[0] === 'a' ? 'ay' : newChallenge.start[0];
+          const endFileSpoken = newChallenge.end[0] === 'a' ? 'ay' : newChallenge.end[0];
+          speakMuted(`Good! Knight on ${fileSpoken} ${newChallenge.start[1]}. Get to ${endFileSpoken} ${newChallenge.end[1]}`);
+        }, 300);
+      }
+    } else {
+      setTimeout(() => setFlashSquare(null), 200);
+    }
+  }, [gameState, currentPosition, challenge, pathsCompleted, isPracticeMode, startTime, onComplete]);
+
+  if (gameState === 'ready') {
+    return (
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
+          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-knights-path-back">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Knight's Path</h1>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <div className="text-center space-y-2">
+            <ChevronRight className="h-12 w-12 text-green-500 mx-auto" />
+            <h2 className="text-2xl font-bold">Ready?</h2>
+          </div>
+
+          <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as 'challenge' | 'practice')} className="w-full max-w-xs">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="challenge" data-testid="tab-knights-challenge">5 Path Race</TabsTrigger>
+              <TabsTrigger value="practice" data-testid="tab-knights-practice">Practice</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <p className="text-muted-foreground text-center">
+            {selectedTab === 'challenge' 
+              ? 'Complete 5 knight paths as fast as you can!'
+              : 'Practice knight movement with no time pressure.'}
+          </p>
+
+          {selectedTab === 'challenge' && stats?.knightsPathBest !== null && (
+            <p className="text-sm text-muted-foreground">
+              Your best: <span className="font-semibold text-green-500">{formatTime(stats.knightsPathBest)}</span>
+            </p>
+          )}
+
+          <Button size="lg" onClick={() => startGame(selectedTab === 'practice')} data-testid="button-start-knights">
+            Start
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'finished') {
+    return (
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
+          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-knights-back-finished">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Knight's Path</h1>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <Trophy className={`h-16 w-16 ${isNewBest ? 'text-green-500' : 'text-muted-foreground'}`} />
+          <div className="text-center space-y-2">
+            <h2 className="text-4xl font-bold">{formatTime(elapsedTime)}</h2>
+            <p className="text-lg text-muted-foreground">to complete 5 knight paths</p>
+            {isNewBest && (
+              <Badge className="bg-green-500 text-white">New Personal Best!</Badge>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onBack} data-testid="button-knights-menu">
+              Menu
+            </Button>
+            <Button onClick={() => startGame(false)} data-testid="button-knights-retry">
+              Play Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-lg font-semibold">
+            Get to: <span className="text-2xl font-mono">{challenge.end}</span>
+          </p>
+          <div className="flex items-center gap-2">
+            {isPracticeMode ? (
+              <Badge variant="outline">Practice</Badge>
+            ) : (
+              <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
+            )}
+          </div>
+        </div>
+
+        {!isPracticeMode && <Progress value={(pathsCompleted / totalPaths) * 100} className="mb-2" />}
+        <p className="text-sm text-muted-foreground text-center mb-2">
+          {isPracticeMode ? `${pathsCompleted} paths completed` : `${pathsCompleted}/${totalPaths} paths`}
+        </p>
+
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
+            {['8', '7', '6', '5', '4', '3', '2', '1'].map((rank) =>
+              FILES.map((file) => {
+                const square = `${file}${rank}`;
+                const fileIdx = FILES.indexOf(file);
+                const rankIdx = RANKS.indexOf(rank);
+                const isDark = isDarkSquare(fileIdx, rankIdx);
+                const isKnight = square === currentPosition;
+                const isTarget = square === challenge.end;
+                const isFlashing = flashSquare?.square === square;
+                const isInPath = userPath.includes(square);
+                
+                let bgColor = isDark ? 'bg-amber-700' : 'bg-amber-100';
+                if (isFlashing) {
+                  bgColor = flashSquare.correct ? 'bg-green-500' : 'bg-red-500';
+                } else if (isTarget) {
+                  bgColor = 'bg-blue-400';
+                } else if (isInPath && !isKnight) {
+                  bgColor = isDark ? 'bg-green-700' : 'bg-green-300';
+                }
+                
+                return (
+                  <button
+                    key={square}
+                    className={`aspect-square ${bgColor} transition-colors duration-100 flex items-center justify-center text-xl`}
+                    onClick={() => handleSquareClick(file, rank)}
+                    data-testid={`square-${square}`}
+                  >
+                    {isKnight && '♞'}
+                  </button>
+                );
+              })
+            )}
+          </div>
+          
+          <Button
+            variant="outline"
+            onClick={() => setShowResignConfirm(true)}
+            className="mt-4"
+            data-testid="button-knights-resign"
+          >
+            <Flag className="h-4 w-4 mr-2" />
+            Resign
+          </Button>
+        </div>
+      </div>
+
+      <AlertDialog open={showResignConfirm} onOpenChange={setShowResignConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quit Game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your progress ({pathsCompleted}/{totalPaths} paths) will not be saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-knights-resign-cancel">Continue</AlertDialogCancel>
+            <AlertDialogAction onClick={onBack} data-testid="button-knights-resign-confirm">
+              Quit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+// ============ ENDGAME DRILLS GAME ============
+interface EndgameDrillsGameProps {
+  onBack: () => void;
+  onComplete: (time: number) => void;
+  stats: TrainingStats | null;
+  onGameStateChange?: (state: 'ready' | 'playing' | 'finished') => void;
+}
+
+function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: EndgameDrillsGameProps) {
+  const [gameState, setGameState] = useState<'ready' | 'playing' | 'finished'>('ready');
+  const [selectedEndgame, setSelectedEndgame] = useState<EndgameType>('KQ_vs_K');
+  const [chess, setChess] = useState<Chess | null>(null);
+  const [startTime, setStartTime] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [moveCount, setMoveCount] = useState(0);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  const isNewBest = stats?.endgameDrillsBest !== null && elapsedTime > 0 && elapsedTime < (stats?.endgameDrillsBest || Infinity);
+
+  useEffect(() => {
+    onGameStateChange?.(gameState);
+  }, [gameState, onGameStateChange]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (gameState === 'playing') {
+      interval = setInterval(() => {
+        setElapsedTime(Date.now() - startTime);
+      }, 100);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [gameState, startTime]);
+
+  const startGame = () => {
+    const scenario = generateEndgame(selectedEndgame);
+    const newChess = new Chess(scenario.fen);
+    setChess(newChess);
+    setMoveCount(0);
+    setStartTime(Date.now());
+    setElapsedTime(0);
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setGameState('playing');
+    speakMuted(`Checkmate the king with ${scenario.description}`);
+  };
+
+  const handleSquareClick = useCallback((file: string, rank: string) => {
+    if (gameState !== 'playing' || !chess) return;
+    const clickedSquare = `${file}${rank}`;
+    
+    if (selectedSquare) {
+      const move = chess.moves({ square: selectedSquare as any, verbose: true })
+        .find(m => m.to === clickedSquare);
+      
+      if (move) {
+        chess.move(move);
+        setMoveCount(prev => prev + 1);
+        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+        
+        if (chess.isCheckmate()) {
+          const finalTime = Date.now() - startTime;
+          setElapsedTime(finalTime);
+          setGameState('finished');
+          onComplete(finalTime);
+          speakMuted("Checkmate!");
+        } else if (!chess.isGameOver()) {
+          const moves = chess.moves({ verbose: true });
+          if (moves.length > 0) {
+            const randomMove = moves[Math.floor(Math.random() * moves.length)];
+            setTimeout(() => {
+              chess.move(randomMove);
+              setChess(new Chess(chess.fen()));
+            }, 300);
+          }
+        }
+        
+        setSelectedSquare(null);
+        setLegalMoves([]);
+        setChess(new Chess(chess.fen()));
+      } else {
+        const piece = chess.get(clickedSquare as any);
+        if (piece && piece.color === 'w') {
+          setSelectedSquare(clickedSquare);
+          const moves = chess.moves({ square: clickedSquare as any, verbose: true });
+          setLegalMoves(moves.map(m => m.to));
+        } else {
+          setSelectedSquare(null);
+          setLegalMoves([]);
+        }
+      }
+    } else {
+      const piece = chess.get(clickedSquare as any);
+      if (piece && piece.color === 'w') {
+        setSelectedSquare(clickedSquare);
+        const moves = chess.moves({ square: clickedSquare as any, verbose: true });
+        setLegalMoves(moves.map(m => m.to));
+      }
+    }
+  }, [gameState, chess, selectedSquare, startTime, onComplete]);
+
+  const getPieceSymbol = (piece: { type: string; color: string } | null): string => {
+    if (!piece) return '';
+    const symbols: Record<string, Record<string, string>> = {
+      w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
+      b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
+    };
+    return symbols[piece.color]?.[piece.type] || '';
+  };
+
+  if (gameState === 'ready') {
+    return (
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
+          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-endgame-back">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Endgame Drills</h1>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <div className="text-center space-y-2">
+            <Crown className="h-12 w-12 text-orange-500 mx-auto" />
+            <h2 className="text-2xl font-bold">Select Endgame</h2>
+          </div>
+
+          <Select value={selectedEndgame} onValueChange={(v) => setSelectedEndgame(v as EndgameType)}>
+            <SelectTrigger className="w-full max-w-xs" data-testid="select-endgame-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {getEndgameTypes().map(type => (
+                <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <p className="text-muted-foreground text-center">
+            Checkmate the lone king as fast as possible!
+          </p>
+
+          {stats?.endgameDrillsBest !== null && (
+            <p className="text-sm text-muted-foreground">
+              Your best: <span className="font-semibold text-orange-500">{formatTime(stats.endgameDrillsBest)}</span>
+            </p>
+          )}
+
+          <Button size="lg" onClick={startGame} data-testid="button-start-endgame">
+            Start
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'finished') {
+    return (
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
+          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-endgame-back-finished">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Endgame Drills</h1>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <Trophy className={`h-16 w-16 ${isNewBest ? 'text-orange-500' : 'text-muted-foreground'}`} />
+          <div className="text-center space-y-2">
+            <h2 className="text-4xl font-bold">{formatTime(elapsedTime)}</h2>
+            <p className="text-lg text-muted-foreground">Checkmate in {moveCount} moves</p>
+            {isNewBest && (
+              <Badge className="bg-orange-500 text-white">New Personal Best!</Badge>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onBack} data-testid="button-endgame-menu">
+              Menu
+            </Button>
+            <Button onClick={startGame} data-testid="button-endgame-retry">
+              Play Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-lg font-semibold">
+            Moves: <span className="text-2xl font-mono">{moveCount}</span>
+          </p>
+          <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
+            {['8', '7', '6', '5', '4', '3', '2', '1'].map((rank) =>
+              FILES.map((file) => {
+                const square = `${file}${rank}`;
+                const fileIdx = FILES.indexOf(file);
+                const rankIdx = RANKS.indexOf(rank);
+                const isDark = isDarkSquare(fileIdx, rankIdx);
+                const piece = chess?.get(square as any);
+                const isSelected = square === selectedSquare;
+                const isLegalMove = legalMoves.includes(square);
+                
+                let bgColor = isDark ? 'bg-amber-700' : 'bg-amber-100';
+                if (isSelected) {
+                  bgColor = 'bg-yellow-400';
+                } else if (isLegalMove) {
+                  bgColor = isDark ? 'bg-green-600' : 'bg-green-300';
+                }
+                
+                return (
+                  <button
+                    key={square}
+                    className={`aspect-square ${bgColor} transition-colors duration-100 flex items-center justify-center text-2xl`}
+                    onClick={() => handleSquareClick(file, rank)}
+                    data-testid={`square-${square}`}
+                  >
+                    {getPieceSymbol(piece)}
+                  </button>
+                );
+              })
+            )}
+          </div>
+          
+          <Button
+            variant="outline"
+            onClick={() => setShowResignConfirm(true)}
+            className="mt-4"
+            data-testid="button-endgame-resign"
+          >
+            <Flag className="h-4 w-4 mr-2" />
+            Resign
+          </Button>
+        </div>
+      </div>
+
+      <AlertDialog open={showResignConfirm} onOpenChange={setShowResignConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quit Game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your progress will not be saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-endgame-resign-cancel">Continue</AlertDialogCancel>
+            <AlertDialogAction onClick={onBack} data-testid="button-endgame-resign-confirm">
+              Quit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+// ============ BLINDFOLD MARATHON GAME ============
+interface BlindfoldsMarathonGameProps {
+  onBack: () => void;
+  onComplete: (time: number) => void;
+  stats: TrainingStats | null;
+  onGameStateChange?: (state: 'ready' | 'playing' | 'finished') => void;
+}
+
+function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }: BlindfoldsMarathonGameProps) {
+  const [gameState, setGameState] = useState<'ready' | 'playing' | 'finished'>('ready');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyTier>('10-20');
+  const [scenario, setScenario] = useState<MarathonScenario | null>(null);
+  const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
+  const [isPlayingMoves, setIsPlayingMoves] = useState(false);
+  const [waitingForAnswer, setWaitingForAnswer] = useState(false);
+  const [startTime, setStartTime] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const isNewBest = stats?.blindfoldMarathonBest !== null && elapsedTime > 0 && elapsedTime < (stats?.blindfoldMarathonBest || Infinity);
+  const playingRef = useRef(false);
+
+  useEffect(() => {
+    onGameStateChange?.(gameState);
+  }, [gameState, onGameStateChange]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (gameState === 'playing' && waitingForAnswer) {
+      interval = setInterval(() => {
+        setElapsedTime(Date.now() - startTime);
+      }, 100);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [gameState, startTime, waitingForAnswer]);
+
+  const startGame = async () => {
+    const tier = getDifficultyTiers().find(t => t.value === selectedDifficulty)!;
+    const newScenario = getRandomMarathon(tier.minMoves, tier.maxMoves);
+    setScenario(newScenario);
+    setCurrentMoveIndex(0);
+    setIsPlayingMoves(true);
+    setWaitingForAnswer(false);
+    setUserAnswer('');
+    setIsCorrect(null);
+    setGameState('playing');
+    
+    speakMuted(`${newScenario.description}. ${newScenario.white} versus ${newScenario.black}. Listen carefully.`);
+    
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    playingRef.current = true;
+    
+    for (let i = 0; i < newScenario.pgnMoves.length; i++) {
+      if (!playingRef.current) break;
+      setCurrentMoveIndex(i);
+      const move = newScenario.pgnMoves[i];
+      const moveNum = Math.floor(i / 2) + 1;
+      const isWhite = i % 2 === 0;
+      const announcement = isWhite ? `${moveNum}. ${move}` : move;
+      await speakMuted(announcement);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    
+    if (playingRef.current) {
+      setIsPlayingMoves(false);
+      setWaitingForAnswer(true);
+      setStartTime(Date.now());
+      speakMuted("Find the best move!");
+    }
+  };
+
+  const checkAnswer = () => {
+    if (!scenario) return;
+    
+    const normalizedAnswer = userAnswer.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normalizedSolution = scenario.solution.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    const correct = normalizedAnswer.includes(normalizedSolution) || 
+                    normalizedSolution.includes(normalizedAnswer);
+    
+    setIsCorrect(correct);
+    
+    if (correct) {
+      const finalTime = Date.now() - startTime;
+      setElapsedTime(finalTime);
+      setGameState('finished');
+      onComplete(finalTime);
+      speakMuted("Correct!");
+    } else {
+      speakMuted(`Incorrect. The answer was ${scenario.solution}`);
+      setTimeout(() => {
+        setGameState('finished');
+        setElapsedTime(0);
+      }, 2000);
+    }
+  };
+
+  const handleResign = () => {
+    playingRef.current = false;
+    onBack();
+  };
+
+  if (gameState === 'ready') {
+    return (
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
+          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-marathon-back">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Blindfold Marathon</h1>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <div className="text-center space-y-2">
+            <Brain className="h-12 w-12 text-red-500 mx-auto" />
+            <h2 className="text-2xl font-bold">Select Difficulty</h2>
+          </div>
+
+          <Select value={selectedDifficulty} onValueChange={(v) => setSelectedDifficulty(v as DifficultyTier)}>
+            <SelectTrigger className="w-full max-w-xs" data-testid="select-marathon-difficulty">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {getDifficultyTiers().map(tier => (
+                <SelectItem key={tier.value} value={tier.value}>{tier.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <p className="text-muted-foreground text-center text-sm">
+            Listen to the game moves, visualize the position, then find the winning move!
+          </p>
+
+          {stats?.blindfoldMarathonBest !== null && (
+            <p className="text-sm text-muted-foreground">
+              Your best: <span className="font-semibold text-red-500">{formatTime(stats.blindfoldMarathonBest)}</span>
+            </p>
+          )}
+
+          <Button size="lg" onClick={startGame} data-testid="button-start-marathon">
+            Start
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'finished') {
+    return (
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-3">
+          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-marathon-back-finished">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Blindfold Marathon</h1>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <Trophy className={`h-16 w-16 ${isCorrect && isNewBest ? 'text-red-500' : isCorrect ? 'text-green-500' : 'text-muted-foreground'}`} />
+          <div className="text-center space-y-2">
+            {isCorrect ? (
+              <>
+                <h2 className="text-4xl font-bold">{formatTime(elapsedTime)}</h2>
+                <p className="text-lg text-muted-foreground">to find the winning move</p>
+                {isNewBest && (
+                  <Badge className="bg-red-500 text-white">New Personal Best!</Badge>
+                )}
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-red-500">Incorrect</h2>
+                <p className="text-lg text-muted-foreground">
+                  The answer was: <span className="font-mono font-bold">{scenario?.solution}</span>
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onBack} data-testid="button-marathon-menu">
+              Menu
+            </Button>
+            <Button onClick={startGame} data-testid="button-marathon-retry">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-col h-full p-3 max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold">{scenario?.description}</h1>
+          {waitingForAnswer && (
+            <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
+          )}
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+          {isPlayingMoves ? (
+            <div className="text-center space-y-4">
+              <div className="text-6xl font-mono font-bold">
+                {scenario?.pgnMoves[currentMoveIndex]}
+              </div>
+              <p className="text-muted-foreground">
+                Move {Math.floor(currentMoveIndex / 2) + 1} of {Math.ceil((scenario?.pgnMoves.length || 0) / 2)}
+              </p>
+              <Progress value={(currentMoveIndex / (scenario?.pgnMoves.length || 1)) * 100} className="w-64" />
+              <p className="text-sm text-muted-foreground">Visualize the position...</p>
+            </div>
+          ) : waitingForAnswer ? (
+            <div className="text-center space-y-4 w-full max-w-xs">
+              <h2 className="text-2xl font-bold">Find the Best Move!</h2>
+              <p className="text-muted-foreground">{scenario?.white} to move</p>
+              <input
+                type="text"
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                placeholder="Enter your move (e.g., Qb8+)"
+                className="w-full px-4 py-2 border rounded-md text-center text-lg font-mono"
+                autoFocus
+                data-testid="input-marathon-answer"
+              />
+              <Button size="lg" onClick={checkAnswer} disabled={!userAnswer.trim()} data-testid="button-marathon-submit">
+                Submit Answer
+              </Button>
+            </div>
+          ) : null}
+          
+          <Button
+            variant="outline"
+            onClick={() => setShowResignConfirm(true)}
+            className="mt-4"
+            data-testid="button-marathon-resign"
+          >
+            <Flag className="h-4 w-4 mr-2" />
+            Quit
+          </Button>
+        </div>
+      </div>
+
+      <AlertDialog open={showResignConfirm} onOpenChange={setShowResignConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quit Game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your progress will not be saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-marathon-resign-cancel">Continue</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResign} data-testid="button-marathon-resign-confirm">
+              Quit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
 }
