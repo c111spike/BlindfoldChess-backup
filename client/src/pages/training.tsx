@@ -2098,6 +2098,8 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [showPieces, setShowPieces] = useState(true);
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [moveHistory, setMoveHistory] = useState<string[]>([]);
   const isNewBest = stats?.endgameDrillsBest !== null && elapsedTime > 0 && elapsedTime < (stats?.endgameDrillsBest || Infinity);
 
   const handlePeekStart = () => {
@@ -2141,6 +2143,7 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
     setShowPieces(true);
     setIsPeeking(false);
     setRemainingPeeks(PEEK_CONFIG[peekDifficulty].maxPeeks);
+    setMoveHistory([]);
     setGameState('memorizing');
   };
 
@@ -2161,6 +2164,7 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
       if (move) {
         chess.move(move);
         setMoveCount(prev => prev + 1);
+        setMoveHistory(prev => [...prev, move.san]);
         Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
         
         if (chess.isCheckmate()) {
@@ -2174,6 +2178,10 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
             const randomMove = moves[Math.floor(Math.random() * moves.length)];
             setTimeout(() => {
               chess.move(randomMove);
+              setMoveHistory(prev => [...prev, randomMove.san]);
+              if (audioEnabled) {
+                speak(randomMove.san).catch(() => {});
+              }
               setChess(new Chess(chess.fen()));
             }, 300);
           }
@@ -2249,6 +2257,19 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
               ))}
             </SelectContent>
           </Select>
+
+          <div className="flex items-center gap-3 w-full max-w-xs">
+            <Switch
+              id="audio-enabled"
+              checked={audioEnabled}
+              onCheckedChange={setAudioEnabled}
+              data-testid="switch-audio-enabled"
+            />
+            <Label htmlFor="audio-enabled" className="flex items-center gap-2">
+              {audioEnabled ? <Volume2 className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+              Announce opponent moves
+            </Label>
+          </div>
 
           <p className="text-muted-foreground text-center">
             Checkmate the lone king as fast as possible!
@@ -2361,6 +2382,19 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
         <p className="text-sm text-muted-foreground text-center mb-2">
           {isPeeking ? 'Peeking at the board...' : 'Playing blindfolded - pieces are hidden'}
         </p>
+
+        {moveHistory.length > 0 && (
+          <div className="mb-2 p-2 bg-muted/50 rounded-md w-full max-w-sm mx-auto">
+            <p className="text-xs text-muted-foreground mb-1">Move history:</p>
+            <div className="text-sm font-mono flex flex-wrap gap-1">
+              {moveHistory.map((move, i) => (
+                <span key={i} className={i % 2 === 0 ? 'text-foreground' : 'text-muted-foreground'}>
+                  {i % 2 === 0 ? `${Math.floor(i/2) + 1}. ` : ''}{move}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
