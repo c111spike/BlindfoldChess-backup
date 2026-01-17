@@ -2023,7 +2023,7 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
                 return (
                   <button
                     key={square}
-                    className={`aspect-square ${bgColor} transition-colors duration-100 flex items-center justify-center text-xl`}
+                    className={`aspect-square ${bgColor} transition-colors duration-100 flex items-center justify-center text-2xl text-black`}
                     onClick={() => handleSquareClick(file, rank)}
                     data-testid={`square-${square}`}
                   >
