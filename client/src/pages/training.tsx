@@ -1826,6 +1826,11 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
   const [selectedTab, setSelectedTab] = useState<'challenge' | 'practice'>('challenge');
   const [flashSquare, setFlashSquare] = useState<{ square: string; correct: boolean } | null>(null);
   const [hideKnight, setHideKnight] = useState(false);
+  const [audioInputEnabled, setAudioInputEnabled] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const nativeListenerRef = useRef<PluginListenerHandle | null>(null);
+  const handleSquareClickRef = useRef<((file: string, rank: string) => void) | null>(null);
+  const voiceActiveRef = useRef(false);
   const totalPaths = 5;
   const isNewBest = stats?.knightsPathBest !== null && elapsedTime > 0 && elapsedTime < (stats?.knightsPathBest || Infinity);
 
@@ -1842,6 +1847,90 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
     }
     return () => { if (interval) clearInterval(interval); };
   }, [gameState, startTime]);
+
+  const stopVoiceSession = useCallback(async () => {
+    voiceActiveRef.current = false;
+    try {
+      await BlindfoldNative.stopSession();
+    } catch {}
+    if (nativeListenerRef.current) {
+      try {
+        await nativeListenerRef.current.remove();
+      } catch {}
+      nativeListenerRef.current = null;
+    }
+    setIsListening(false);
+  }, []);
+
+  useEffect(() => {
+    return () => { stopVoiceSession(); };
+  }, [stopVoiceSession]);
+
+  const parseCoordinateFromVoice = useCallback((text: string): string | null => {
+    const normalized = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const natoMap: Record<string, string> = {
+      alpha: 'a', alfa: 'a', bravo: 'b', charlie: 'c', delta: 'd',
+      echo: 'e', foxtrot: 'f', golf: 'g', hotel: 'h',
+      one: '1', two: '2', three: '3', four: '4',
+      five: '5', six: '6', seven: '7', eight: '8'
+    };
+    let processed = text.toLowerCase();
+    for (const [nato, letter] of Object.entries(natoMap)) {
+      processed = processed.replace(new RegExp(nato, 'g'), letter);
+    }
+    processed = processed.replace(/[^a-h1-8]/g, '');
+    const match = processed.match(/([a-h])([1-8])/);
+    if (match) return `${match[1]}${match[2]}`;
+    if (normalized.length >= 2) {
+      const file = normalized.match(/[a-h]/);
+      const rank = normalized.match(/[1-8]/);
+      if (file && rank) return `${file[0]}${rank[0]}`;
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    if (!isNativePlatform || !audioInputEnabled || gameState !== 'playing') {
+      if (isNativePlatform && (gameState !== 'playing' || !audioInputEnabled)) {
+        stopVoiceSession();
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const setupVoice = async () => {
+      try {
+        await waitForVoiceReady();
+        if (cancelled) return;
+
+        nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
+          if (!voiceActiveRef.current) return;
+          const result = data.text?.toLowerCase().trim() || '';
+          if (result) {
+            const coordinate = parseCoordinateFromVoice(result);
+            if (coordinate && coordinate.length === 2) {
+              const file = coordinate[0];
+              const rank = coordinate[1];
+              handleSquareClickRef.current?.(file, rank);
+            }
+            if (voiceActiveRef.current) {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+          }
+        });
+
+        voiceActiveRef.current = true;
+        await BlindfoldNative.startSession();
+        await BlindfoldNative.startListening();
+        setIsListening(true);
+      } catch (error) {
+        console.error('[KnightsPath] Voice setup failed:', error);
+      }
+    };
+
+    setupVoice();
+    return () => { cancelled = true; stopVoiceSession(); };
+  }, [gameState, audioInputEnabled, stopVoiceSession, parseCoordinateFromVoice]);
 
   const startGame = (practiceMode: boolean = false) => {
     setIsPracticeMode(practiceMode);
@@ -1902,6 +1991,10 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
     }
   }, [gameState, currentPosition, challenge, pathsCompleted, isPracticeMode, startTime, onComplete]);
 
+  useEffect(() => {
+    handleSquareClickRef.current = handleSquareClick;
+  }, [handleSquareClick]);
+
   if (gameState === 'ready') {
     return (
       <div className="flex flex-col h-full p-3 max-w-md mx-auto">
@@ -1941,6 +2034,19 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
             <Label htmlFor="hide-knight" className="flex items-center gap-2">
               {hideKnight ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               Hide knight (blindfold mode)
+            </Label>
+          </div>
+
+          <div className="flex items-center gap-3 w-full max-w-xs">
+            <Switch
+              id="audio-input"
+              checked={audioInputEnabled}
+              onCheckedChange={setAudioInputEnabled}
+              data-testid="switch-audio-input-knights"
+            />
+            <Label htmlFor="audio-input" className="flex items-center gap-2">
+              {audioInputEnabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+              Voice input (say coordinates)
             </Label>
           </div>
 
@@ -2011,6 +2117,13 @@ function KnightsPathGame({ onBack, onComplete, stats, onGameStateChange }: Knigh
         <p className="text-sm text-muted-foreground text-center mb-2">
           {isPracticeMode ? `${pathsCompleted} paths completed` : `${pathsCompleted}/${totalPaths} paths`}
         </p>
+
+        {audioInputEnabled && isListening && (
+          <div className="flex items-center gap-2 text-green-500 mb-2">
+            <Mic className="h-4 w-4 animate-pulse" />
+            <span className="text-sm">Listening...</span>
+          </div>
+        )}
 
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
@@ -2116,7 +2229,14 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [showPieces, setShowPieces] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [audioInputEnabled, setAudioInputEnabled] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
+  const nativeListenerRef = useRef<PluginListenerHandle | null>(null);
+  const handleSquareClickRef = useRef<((file: string, rank: string) => void) | null>(null);
+  const voiceActiveRef = useRef(false);
+  const selectedSquareRef = useRef<string | null>(null);
+  const chessRef = useRef<Chess | null>(null);
   const isNewBest = stats?.endgameDrillsBest !== null && elapsedTime > 0 && elapsedTime < (stats?.endgameDrillsBest || Infinity);
 
   const handlePeekStart = () => {
@@ -2148,6 +2268,112 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
     }
     return () => { if (interval) clearInterval(interval); };
   }, [gameState, startTime]);
+
+  const stopVoiceSession = useCallback(async () => {
+    voiceActiveRef.current = false;
+    try {
+      await BlindfoldNative.stopSession();
+    } catch {}
+    if (nativeListenerRef.current) {
+      try {
+        await nativeListenerRef.current.remove();
+      } catch {}
+      nativeListenerRef.current = null;
+    }
+    setIsListening(false);
+  }, []);
+
+  useEffect(() => {
+    return () => { stopVoiceSession(); };
+  }, [stopVoiceSession]);
+
+  const parseVoiceMoveForEndgame = useCallback((text: string): { from: string; to: string } | null => {
+    const normalized = text.toLowerCase();
+    const natoMap: Record<string, string> = {
+      alpha: 'a', alfa: 'a', bravo: 'b', charlie: 'c', delta: 'd',
+      echo: 'e', foxtrot: 'f', golf: 'g', hotel: 'h',
+      one: '1', two: '2', three: '3', four: '4',
+      five: '5', six: '6', seven: '7', eight: '8'
+    };
+    let processed = normalized;
+    for (const [nato, letter] of Object.entries(natoMap)) {
+      processed = processed.replace(new RegExp(nato, 'g'), letter);
+    }
+    processed = processed.replace(/[^a-h1-8]/g, '');
+    const matches = processed.match(/([a-h])([1-8])/g);
+    if (matches && matches.length >= 2) {
+      return { from: matches[0], to: matches[1] };
+    }
+    if (matches && matches.length === 1) {
+      return { from: '', to: matches[0] };
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    if (!isNativePlatform || !audioInputEnabled || gameState !== 'playing') {
+      if (isNativePlatform && (gameState !== 'playing' || !audioInputEnabled)) {
+        stopVoiceSession();
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const setupVoice = async () => {
+      try {
+        await waitForVoiceReady();
+        if (cancelled) return;
+
+        nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
+          if (!voiceActiveRef.current) return;
+          const result = data.text?.toLowerCase().trim() || '';
+          if (result) {
+            const parsed = parseVoiceMoveForEndgame(result);
+            if (parsed && parsed.to) {
+              if (parsed.from && parsed.from.length === 2) {
+                handleSquareClickRef.current?.(parsed.from[0], parsed.from[1]);
+                setTimeout(() => {
+                  handleSquareClickRef.current?.(parsed.to[0], parsed.to[1]);
+                }, 100);
+              } else if (selectedSquareRef.current) {
+                handleSquareClickRef.current?.(parsed.to[0], parsed.to[1]);
+              } else {
+                const currentChess = chessRef.current;
+                if (currentChess) {
+                  const whitePieces = currentChess.board().flat().filter(p => p && p.color === 'w');
+                  for (const piece of whitePieces) {
+                    if (!piece) continue;
+                    const moves = currentChess.moves({ square: piece.square as any, verbose: true });
+                    const move = moves.find(m => m.to === parsed.to);
+                    if (move) {
+                      handleSquareClickRef.current?.(piece.square[0], piece.square[1]);
+                      setTimeout(() => {
+                        handleSquareClickRef.current?.(parsed.to[0], parsed.to[1]);
+                      }, 100);
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            if (voiceActiveRef.current) {
+              BlindfoldNative.startListening().catch(() => {});
+            }
+          }
+        });
+
+        voiceActiveRef.current = true;
+        await BlindfoldNative.startSession();
+        await BlindfoldNative.startListening();
+        setIsListening(true);
+      } catch (error) {
+        console.error('[EndgameDrills] Voice setup failed:', error);
+      }
+    };
+
+    setupVoice();
+    return () => { cancelled = true; stopVoiceSession(); };
+  }, [gameState, audioInputEnabled, stopVoiceSession, parseVoiceMoveForEndgame]);
 
   const setupGame = () => {
     const scenario = generateEndgame(selectedEndgame);
@@ -2226,7 +2452,19 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
         setLegalMoves(moves.map(m => m.to));
       }
     }
-  }, [gameState, chess, selectedSquare, startTime, onComplete]);
+  }, [gameState, chess, selectedSquare, startTime, onComplete, audioEnabled]);
+
+  useEffect(() => {
+    handleSquareClickRef.current = handleSquareClick;
+  }, [handleSquareClick]);
+
+  useEffect(() => {
+    selectedSquareRef.current = selectedSquare;
+  }, [selectedSquare]);
+
+  useEffect(() => {
+    chessRef.current = chess;
+  }, [chess]);
 
   const renderPiece = (piece: { type: string; color: string } | null) => {
     if (!piece) return null;
@@ -2285,6 +2523,19 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
             <Label htmlFor="audio-enabled" className="flex items-center gap-2">
               {audioEnabled ? <Volume2 className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
               Announce opponent moves
+            </Label>
+          </div>
+
+          <div className="flex items-center gap-3 w-full max-w-xs">
+            <Switch
+              id="audio-input-endgame"
+              checked={audioInputEnabled}
+              onCheckedChange={setAudioInputEnabled}
+              data-testid="switch-audio-input-endgame"
+            />
+            <Label htmlFor="audio-input-endgame" className="flex items-center gap-2">
+              {audioInputEnabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+              Voice input (say moves)
             </Label>
           </div>
 
@@ -2410,6 +2661,13 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {audioInputEnabled && isListening && (
+          <div className="flex items-center gap-2 text-green-500 mb-2">
+            <Mic className="h-4 w-4 animate-pulse" />
+            <span className="text-sm">Listening...</span>
           </div>
         )}
 
@@ -2564,7 +2822,7 @@ function BlindfoldsMarathonGame({ onBack, onComplete, stats, onGameStateChange }
         if (cancelled) return;
 
         nativeListenerRef.current = await BlindfoldNative.addListener('onSpeechResult', (data) => {
-          const result = data.result?.toLowerCase().trim() || '';
+          const result = data.text?.toLowerCase().trim() || '';
           if (result) {
             setUserAnswer(result);
             BlindfoldNative.startListening().catch(() => {});
