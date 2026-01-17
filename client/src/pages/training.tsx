@@ -2420,11 +2420,16 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
           const moves = chess.moves({ verbose: true });
           if (moves.length > 0) {
             const randomMove = moves[Math.floor(Math.random() * moves.length)];
-            setTimeout(() => {
+            setTimeout(async () => {
               chess.move(randomMove);
               setMoveHistory(prev => [...prev, randomMove.san]);
               if (audioEnabled) {
-                speak(randomMove.san).catch(() => {});
+                if (audioInputEnabled && isNativePlatform) {
+                  await speakMuted(randomMove.san);
+                  await new Promise(r => setTimeout(r, 100));
+                } else {
+                  await speak(randomMove.san).catch(() => {});
+                }
               }
               setChess(new Chess(chess.fen()));
             }, 300);
@@ -2453,7 +2458,7 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
         setLegalMoves(moves.map(m => m.to));
       }
     }
-  }, [gameState, chess, selectedSquare, startTime, onComplete, audioEnabled]);
+  }, [gameState, chess, selectedSquare, startTime, onComplete, audioEnabled, audioInputEnabled]);
 
   useEffect(() => {
     handleSquareClickRef.current = handleSquareClick;
