@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag, Volume2, HelpCircle, ChevronRight, Crown, Brain } from "lucide-react";
+import { ArrowLeft, Zap, Target, Trophy, Mic, MicOff, Flag, Volume2, HelpCircle, ChevronRight, Crown, Brain, Eye } from "lucide-react";
 import { Chess } from 'chess.js';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { saveTrainingSession, getTrainingStats, type TrainingStats, type TrainingMode as TrainingModeType } from "@/lib/trainingStats";
@@ -2074,9 +2074,22 @@ interface EndgameDrillsGameProps {
   onGameStateChange?: (state: 'ready' | 'playing' | 'finished') => void;
 }
 
+type PeekDifficulty = 'easy' | 'medium' | 'hard' | 'expert' | 'master' | 'grandmaster';
+const PEEK_CONFIG: Record<PeekDifficulty, { maxPeeks: number; label: string }> = {
+  easy: { maxPeeks: Number.POSITIVE_INFINITY, label: 'Easy (Unlimited Peeks)' },
+  medium: { maxPeeks: 20, label: 'Medium (20 Peeks)' },
+  hard: { maxPeeks: 10, label: 'Hard (10 Peeks)' },
+  expert: { maxPeeks: 5, label: 'Expert (5 Peeks)' },
+  master: { maxPeeks: 2, label: 'Master (2 Peeks)' },
+  grandmaster: { maxPeeks: 0, label: 'Grandmaster (No Peeks)' },
+};
+
 function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: EndgameDrillsGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'memorizing' | 'playing' | 'finished'>('ready');
   const [selectedEndgame, setSelectedEndgame] = useState<EndgameType>('KQ_vs_K');
+  const [peekDifficulty, setPeekDifficulty] = useState<PeekDifficulty>('easy');
+  const [remainingPeeks, setRemainingPeeks] = useState<number>(Number.POSITIVE_INFINITY);
+  const [isPeeking, setIsPeeking] = useState(false);
   const [chess, setChess] = useState<Chess | null>(null);
   const [startTime, setStartTime] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -2086,6 +2099,18 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [showPieces, setShowPieces] = useState(true);
   const isNewBest = stats?.endgameDrillsBest !== null && elapsedTime > 0 && elapsedTime < (stats?.endgameDrillsBest || Infinity);
+
+  const handlePeekStart = () => {
+    if (remainingPeeks <= 0) return;
+    setIsPeeking(true);
+  };
+
+  const handlePeekEnd = () => {
+    if (isPeeking && remainingPeeks > 0) {
+      setRemainingPeeks(prev => prev - 1);
+    }
+    setIsPeeking(false);
+  };
 
   useEffect(() => {
     if (gameState === 'memorizing' || gameState === 'playing') {
@@ -2114,6 +2139,8 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
     setSelectedSquare(null);
     setLegalMoves([]);
     setShowPieces(true);
+    setIsPeeking(false);
+    setRemainingPeeks(PEEK_CONFIG[peekDifficulty].maxPeeks);
     setGameState('memorizing');
   };
 
@@ -2208,6 +2235,17 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
             <SelectContent>
               {getEndgameTypes().map(type => (
                 <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={peekDifficulty} onValueChange={(v) => setPeekDifficulty(v as PeekDifficulty)}>
+            <SelectTrigger className="w-full max-w-xs" data-testid="select-peek-difficulty">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(PEEK_CONFIG) as PeekDifficulty[]).map(key => (
+                <SelectItem key={key} value={key}>{PEEK_CONFIG[key].label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -2320,7 +2358,9 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
           <span className="text-lg font-mono tabular-nums">{formatTime(elapsedTime)}</span>
         </div>
 
-        <p className="text-sm text-muted-foreground text-center mb-2">Playing blindfolded - pieces are hidden</p>
+        <p className="text-sm text-muted-foreground text-center mb-2">
+          {isPeeking ? 'Peeking at the board...' : 'Playing blindfolded - pieces are hidden'}
+        </p>
 
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
@@ -2348,13 +2388,36 @@ function EndgameDrillsGame({ onBack, onComplete, stats, onGameStateChange }: End
                     onClick={() => handleSquareClick(file, rank)}
                     data-testid={`square-${square}`}
                   >
-                    {showPieces ? renderPiece(piece || null) : null}
+                    {(showPieces || isPeeking) ? renderPiece(piece || null) : null}
                   </button>
                 );
               })
             )}
           </div>
           
+          {peekDifficulty !== 'grandmaster' && (
+            <div className="mt-4 space-y-2 w-full max-w-xs">
+              <Button
+                variant={isPeeking ? "default" : "outline"}
+                className={`w-full ${isPeeking ? "bg-amber-400 hover:bg-amber-500 text-black" : ""}`}
+                onMouseDown={handlePeekStart}
+                onMouseUp={handlePeekEnd}
+                onMouseLeave={handlePeekEnd}
+                onTouchStart={handlePeekStart}
+                onTouchEnd={handlePeekEnd}
+                onTouchCancel={handlePeekEnd}
+                disabled={remainingPeeks <= 0}
+                data-testid="button-endgame-peek"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                {isPeeking ? "Peeking..." : "Hold to Peek"}
+              </Button>
+              <p className="text-center text-sm text-muted-foreground" data-testid="text-peeks-remaining">
+                {isFinite(remainingPeeks) ? `${remainingPeeks} peeks left` : "Unlimited peeks"}
+              </p>
+            </div>
+          )}
+
           <Button
             variant="outline"
             onClick={() => setShowResignConfirm(true)}
