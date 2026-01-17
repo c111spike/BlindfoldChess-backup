@@ -632,6 +632,7 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [isPracticeMode, setIsPracticeMode] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'challenge' | 'practice'>('challenge');
+  const [isBoardFlipped, setIsBoardFlipped] = useState(false);
   const totalSquares = 10;
   const isNewBest = stats !== null && stats.coordinateSniperBest !== null && elapsedTime < stats.coordinateSniperBest && elapsedTime > 0;
 
@@ -764,6 +765,16 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
               : 'Practice finding squares with no time pressure.'}
           </p>
 
+          <div className="flex items-center gap-3 justify-center">
+            <Label htmlFor="board-flip" className="text-sm text-muted-foreground">Play as Black</Label>
+            <Switch
+              id="board-flip"
+              checked={isBoardFlipped}
+              onCheckedChange={setIsBoardFlipped}
+              data-testid="switch-board-flip"
+            />
+          </div>
+
           {selectedTab === 'challenge' && stats !== null && stats.coordinateSniperBest !== null && (
             <p className="text-sm text-muted-foreground">
               Your best: <span className="font-semibold text-blue-500">{formatTime(stats.coordinateSniperBest)}</span>
@@ -834,10 +845,12 @@ function CoordinateSniperGame({ onBack, onComplete, stats, onGameStateChange }: 
 
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="grid grid-cols-8 gap-0 aspect-square w-full max-w-sm border border-border rounded-md overflow-hidden">
-            {['8', '7', '6', '5', '4', '3', '2', '1'].map((rank, rankIdx) =>
-              FILES.map((file, fileIdx) => {
+            {(isBoardFlipped ? ['1', '2', '3', '4', '5', '6', '7', '8'] : ['8', '7', '6', '5', '4', '3', '2', '1']).map((rank, rankIdx) =>
+              (isBoardFlipped ? [...FILES].reverse() : FILES).map((file, fileIdx) => {
                 const square = `${file}${rank}`;
-                const isDark = (fileIdx + rankIdx) % 2 === 1;
+                const actualFileIdx = FILES.indexOf(file);
+                const actualRankIdx = RANKS.indexOf(rank);
+                const isDark = isDarkSquare(actualFileIdx, actualRankIdx);
                 const isFlashing = flashSquare?.square === square;
                 const isCorrectFlash = correctSquareFlash === square;
                 
