@@ -1090,6 +1090,25 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
               try {
                 const moveResult = currentGame.move(matchingMove);
                 if (moveResult) {
+                  // Track response time for native disambiguation moves (universal stamina tracking)
+                  if (botMoveTimestampRef.current !== null) {
+                    const responseTime = Date.now() - botMoveTimestampRef.current;
+                    responseTimesRef.current.push(responseTime);
+                    botMoveTimestampRef.current = null;
+                  }
+                  
+                  // Track peek-free streak for native disambiguation moves (blindfold only)
+                  if (isBlindfold) {
+                    if (!peekedSinceLastMoveRef.current) {
+                      const newStreak = peekFreeStreak + 1;
+                      setPeekFreeStreak(newStreak);
+                      if (newStreak > bestPeekFreeStreak) {
+                        setBestPeekFreeStreak(newStreak);
+                      }
+                    }
+                    peekedSinceLastMoveRef.current = false;
+                  }
+                  
                   gameVoiceMovesRef.current++;
                   setLastMove({ from: moveResult.from, to: moveResult.to });
                   setFen(currentGame.fen());
@@ -1415,6 +1434,25 @@ export default function GamePage({ historyTrigger, onStateChange, returnToTitleR
             try {
               const moveResult = currentGame.move(result.move);
               if (moveResult) {
+                // Track response time for native voice moves (universal stamina tracking)
+                if (botMoveTimestampRef.current !== null) {
+                  const responseTime = Date.now() - botMoveTimestampRef.current;
+                  responseTimesRef.current.push(responseTime);
+                  botMoveTimestampRef.current = null;
+                }
+                
+                // Track peek-free streak for native voice moves (blindfold only)
+                if (isBlindfold) {
+                  if (!peekedSinceLastMoveRef.current) {
+                    const newStreak = peekFreeStreak + 1;
+                    setPeekFreeStreak(newStreak);
+                    if (newStreak > bestPeekFreeStreak) {
+                      setBestPeekFreeStreak(newStreak);
+                    }
+                  }
+                  peekedSinceLastMoveRef.current = false;
+                }
+                
                 gameVoiceMovesRef.current++;
                 setLastMove({ from: moveResult.from, to: moveResult.to });
                 const newFen = currentGame.fen();
